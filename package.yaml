@@ -36,6 +36,7 @@ executables:
     dependencies:
     - hledger-makeitso
     - turtle
+    - text
 
 tests:
   hledger-makeitso-test:
