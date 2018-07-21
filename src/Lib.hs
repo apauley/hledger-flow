@@ -10,7 +10,7 @@ import Prelude hiding (FilePath, putStrLn)
 import Data.Text.IO (putStrLn)
 
 importCSVs :: FilePath -> IO ()
-importCSVs fp = putStrLn "Import CSV files: not yet implemented"
+importCSVs baseDir = view $ ls (baseDir </> "import")
 
 generateReports :: FilePath -> IO ()
 generateReports fp = putStrLn "Generate reports: not yet implemented"
