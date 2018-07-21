@@ -1,7 +1,7 @@
 name:                hledger-makeitso
 version:             0.1.0.0
 github:              "apauley/hledger-makeitso"
-license:             BSD3
+license:             GPL-3
 author:              "Andreas Pauley"
 maintainer:          "andreas@pauley.org.za"
 copyright:           "2018 Andreas Pauley"
