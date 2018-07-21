@@ -1,0 +1,48 @@
+name:                hledger-makeitso
+version:             0.1.0.0
+github:              "apauley/hledger-makeitso"
+license:             BSD3
+author:              "Andreas Pauley"
+maintainer:          "andreas@pauley.org.za"
+copyright:           "2018 Andreas Pauley"
+
+extra-source-files:
+- README.md
+- ChangeLog.md
+
+# Metadata used when publishing your package
+# synopsis:            Short description of your package
+# category:            Finance, Console
+
+# To avoid duplicated efforts in documentation and dealing with the
+# complications of embedding Haddock markup inside cabal files, it is
+# common to point users to the README.md file.
+description:         Please see the README on GitHub at <https://github.com/apauley/hledger-makeitso#readme>
+
+dependencies:
+- base >= 4.7 && < 5
+
+library:
+  source-dirs: src
+
+executables:
+  hledger-makeitso-exe:
+    main:                Main.hs
+    source-dirs:         app
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - hledger-makeitso
+
+tests:
+  hledger-makeitso-test:
+    main:                Spec.hs
+    source-dirs:         test
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - hledger-makeitso
