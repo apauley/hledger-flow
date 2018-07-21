@@ -1,0 +1,13 @@
+* hledger: Make It So
+
+Inspired by the structure and ideas of [[https://github.com/adept/full-fledged-hledger/wiki][adept's Full-fledged Hledger]].
+
+** Goals
+
+Adept's goals resonated with me:
+
+- Tracking expenses should take as little time, effort and manual work as possible
+
+- Eventual consistency should be achievable: even if I can't record something precisely right now, maybe I would be able to do it later, so I should be able to leave things half-done and pick them up later
+
+- Ability to refactor is a must. I want to be able to go back and change the way I am doing things, with as little effort as possible and without fear of irrevocably breaking things.
