@@ -7,6 +7,7 @@ import Prelude hiding (FilePath, putStrLn)
 import Data.Text.IO (putStrLn)
 import Data.Maybe
 import Lib
+import CSVImport
 
 data Command = Import (Maybe FilePath) | Report (Maybe FilePath) deriving (Show)
 
