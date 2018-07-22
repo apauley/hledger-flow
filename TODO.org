@@ -1,0 +1,11 @@
+* Remember
+** Do a dir check
+
+Example:
+
+#+BEGIN_SRC haskell
+validDir :: FilePath -> IO Bool
+validDir fp = do
+  status <- stat fp
+  return $ isDirectory status
+#+END_SRC
