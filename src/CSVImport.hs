@@ -11,51 +11,37 @@ import Common
 
 importCSVs :: FilePath -> IO ()
 importCSVs baseDir = do
-  echo "BEGIN: importCSVs"
   let importDir = baseDir </> "import"
   importExists <- testdir importDir
   if importExists
     then sh $ importBanks $ validDirs $ ls importDir
     else die $ format ("Unable to find CSV import dir at "%fp) importDir
-  echo "END: importCSVs"
 
 importBanks :: Shell FilePath -> Shell ()
 importBanks bankDirs = do
-  echoShell "BEGIN: importBanks"
-  view bankDirs
   bd <- bankDirs
   bankName <- basenameLine bd
   importAccounts bankName $ ls bd
-  echoShell "END: importBanks"
 
 importAccounts :: Line -> Shell FilePath -> Shell ()
 importAccounts bankName accountDirs = do
-  echoShell $ "BEGIN: importAccounts"
-  printShell bankName
   accDir <- accountDirs
   accName <- basenameLine accDir
   let rulesFileName = format (l%"-"%l%".rules") bankName accName
   let rulesFile = accDir </> fromText rulesFileName
-  printShell rulesFile
   let preprocessScript = accDir </> fromText "preprocess"
   let accountSrcFiles = onlyFiles $ find (has (text "1-in")) accDir
   importAccountFiles bankName accName rulesFile preprocessScript accountSrcFiles
-  echoShell $ "END: importAccounts"
 
 importAccountFiles :: Line -> Line -> FilePath -> FilePath -> Shell FilePath -> Shell ()
 importAccountFiles bankName accountName rulesFile preprocessScript accountSrcFiles = do
-  echoShell "BEGIN: importAccountFiles"
-  view accountSrcFiles
   srcFile <- accountSrcFiles
   csvFile <- liftIO $ preprocessIfNeeded preprocessScript bankName accountName srcFile
-  printShell $ format ("csvFile: "%fp) csvFile
   liftIO $ hledgerImport csvFile rulesFile
-  echoShell "END: importAccountFiles"
 
 preprocessIfNeeded :: FilePath -> Line -> Line -> FilePath -> IO FilePath
 preprocessIfNeeded script bank account src = do
   shouldPreprocess <- testfile script
-  print $ format ("shouldPreprocess: "%s) $ repr shouldPreprocess
   if shouldPreprocess
     then preprocess script bank account src
     else return src
@@ -70,11 +56,9 @@ preprocess script bank account src = do
 
 hledgerImport :: FilePath -> FilePath -> IO ()
 hledgerImport csvSrc rulesFile = do
-  echo "BEGIN: hledgerImport"
   let journalOut = changePathAndExtension "3-journal" "journal" csvSrc
   mktree $ directory journalOut
   procs "hledger" ["print", "--rules-file", format fp rulesFile, "--file", format fp csvSrc, "--output-file", format fp journalOut] empty
-  echo "END: hledgerImport"
 
 changePathAndExtension :: FilePath -> Text -> FilePath -> FilePath
 changePathAndExtension newOutputLocation newExt = (changeOutputPath newOutputLocation) . (changeExtension newExt)
