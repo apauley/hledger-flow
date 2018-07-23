@@ -39,16 +39,17 @@ importAccounts bankName accountDirs = do
   printShell rulesFile
   let preprocessScript = accDir </> fromText "preprocess"
   let accountSrcFiles = onlyFiles $ find (has (text "1-in")) accDir
-  importAccountFiles bankName accName preprocessScript accountSrcFiles
+  importAccountFiles bankName accName rulesFile preprocessScript accountSrcFiles
   echoShell $ "END: importAccounts"
 
-importAccountFiles :: Line -> Line -> FilePath -> Shell FilePath -> Shell ()
-importAccountFiles bankName accountName preprocessScript accountSrcFiles = do
+importAccountFiles :: Line -> Line -> FilePath -> FilePath -> Shell FilePath -> Shell ()
+importAccountFiles bankName accountName rulesFile preprocessScript accountSrcFiles = do
   echoShell "BEGIN: importAccountFiles"
   view accountSrcFiles
   srcFile <- accountSrcFiles
   csvFile <- liftIO $ preprocessIfNeeded preprocessScript bankName accountName srcFile
   printShell $ format ("csvFile: "%fp) csvFile
+  liftIO $ hledgerImport csvFile rulesFile
   echoShell "END: importAccountFiles"
 
 preprocessIfNeeded :: FilePath -> Line -> Line -> FilePath -> IO FilePath
@@ -61,10 +62,20 @@ preprocessIfNeeded script bank account src = do
 
 preprocess :: FilePath -> Line -> Line -> FilePath -> IO FilePath
 preprocess script bank account src = do
-  let csvOut = csvOutputFile src
+  let csvOut = changeOutputPath src "2-preprocessed"
   let script' = format fp script :: Text
   procs script' [lineToText bank, lineToText account, format fp src, format fp csvOut] empty
   return csvOut
 
-csvOutputFile :: FilePath -> FilePath
-csvOutputFile srcFile = Turtle.mconcat $ map (\f -> if (f == "1-in/") then "2-preprocessed" else f) $ splitDirectories srcFile
+hledgerImport :: FilePath -> FilePath -> IO ()
+hledgerImport csvSrc rulesFile = do
+  echo "BEGIN: hledgerImport"
+  procs "hledger" ["print", "--rules-file", format fp rulesFile, "--file", format fp csvSrc, "--output-file", "/tmp/ht"] empty
+  echo "END: hledgerImport"
+
+changeExtension :: FilePath -> Text -> FilePath
+changeExtension path extension = (dropExtension path) <.> extension
+
+changeOutputPath :: FilePath -> FilePath -> FilePath
+changeOutputPath srcFile newOutputLocation = mconcat $ map changeSrcDir $ splitDirectories srcFile
+  where changeSrcDir f = if (f == "1-in/" || f == "2-preprocessed/") then newOutputLocation else f
