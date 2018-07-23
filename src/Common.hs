@@ -22,4 +22,4 @@ validDirs :: Shell FilePath -> Shell FilePath
 validDirs = excludeWeirdPaths . onlyDirs
 
 excludeWeirdPaths :: Shell FilePath -> Shell FilePath
-excludeWeirdPaths = findtree (plus $ noneOf "_")
+excludeWeirdPaths = findtree (suffix $ noneOf "_")
