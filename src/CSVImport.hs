@@ -12,7 +12,11 @@ import Common
 importCSVs :: FilePath -> IO ()
 importCSVs baseDir = do
   echo "BEGIN: importCSVs"
-  sh $ importBanks $ validDirs $ ls (baseDir </> "import")
+  let importDir = baseDir </> "import"
+  importExists <- testdir importDir
+  if importExists
+    then sh $ importBanks $ validDirs $ ls importDir
+    else die $ format ("Unable to find CSV import dir at "%fp) importDir
   echo "END: importCSVs"
 
 importBanks :: Shell FilePath -> Shell ()
