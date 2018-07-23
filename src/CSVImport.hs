@@ -32,7 +32,11 @@ importAccounts :: Line -> Shell FilePath -> Shell ()
 importAccounts bankName accountDirs = do
   echoShell $ "BEGIN: importAccounts"
   printShell bankName
-  accdir <- accountDirs
-
+  accDir <- accountDirs
+  accName <- basenameLine accDir
+  let rulesFileName = format (l%"-"%l%".rules") bankName accName
+  printShell rulesFileName
+  shouldPreprocess <- testfile $ accDir </> fromText "preprocess"
+  printShell shouldPreprocess
   view accountDirs
   echoShell $ "END: importAccounts"
