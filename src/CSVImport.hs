@@ -63,6 +63,7 @@ preprocessIfNeeded script bank account src = do
 preprocess :: FilePath -> Line -> Line -> FilePath -> IO FilePath
 preprocess script bank account src = do
   let csvOut = changePathAndExtension "2-preprocessed" "csv" src
+  mktree $ directory csvOut
   let script' = format fp script :: Text
   procs script' [lineToText bank, lineToText account, format fp src, format fp csvOut] empty
   return csvOut
@@ -70,7 +71,9 @@ preprocess script bank account src = do
 hledgerImport :: FilePath -> FilePath -> IO ()
 hledgerImport csvSrc rulesFile = do
   echo "BEGIN: hledgerImport"
-  procs "hledger" ["print", "--rules-file", format fp rulesFile, "--file", format fp csvSrc, "--output-file", "/tmp/ht"] empty
+  let journalOut = changePathAndExtension "3-journal" "journal" csvSrc
+  mktree $ directory journalOut
+  procs "hledger" ["print", "--rules-file", format fp rulesFile, "--file", format fp csvSrc, "--output-file", format fp journalOut] empty
   echo "END: hledgerImport"
 
 changePathAndExtension :: FilePath -> Text -> FilePath -> FilePath
