@@ -4,6 +4,8 @@ module Common
     ( onlyDirs
     , validDirs
     , filterPaths
+    , echoShell
+    , printShell
     ) where
 
 import Turtle
@@ -23,3 +25,9 @@ validDirs = excludeWeirdPaths . onlyDirs
 
 excludeWeirdPaths :: Shell FilePath -> Shell FilePath
 excludeWeirdPaths = findtree (suffix $ noneOf "_")
+
+echoShell :: Line -> Shell ()
+echoShell line = liftIO $ echo line
+
+printShell :: Show a => a -> Shell ()
+printShell o = liftIO $ print o
