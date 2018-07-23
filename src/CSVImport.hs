@@ -60,4 +60,9 @@ preprocessIfNeeded script bank account src = do
     else return src
 
 preprocess :: FilePath -> Line -> Line -> FilePath -> IO FilePath
-preprocess script bank account src = return src
+preprocess script bank account src = do
+  let csvOut = preprocessCSVOut src
+  return csvOut
+
+preprocessCSVOut :: FilePath -> FilePath
+preprocessCSVOut srcFile = Turtle.mconcat $ map (\f -> if (f == "1-in/") then "2-preprocessed" else f) $ splitDirectories srcFile
