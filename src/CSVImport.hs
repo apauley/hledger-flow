@@ -38,15 +38,23 @@ importAccounts bankName accountDirs = do
   let rulesFile = accDir </> fromText rulesFileName
   printShell rulesFile
   let preprocessScript = accDir </> fromText "preprocess"
-  csvFile <- liftIO $ preprocessIfNeeded preprocessScript bankName accName accDir
-  printShell $ format ("csvFile: "%fp) csvFile
-  view accountDirs
+  let accountSrcFiles = onlyFiles $ find (has (text "1-in")) accDir
+  importAccountFiles bankName accName preprocessScript accountSrcFiles
   echoShell $ "END: importAccounts"
+
+importAccountFiles :: Line -> Line -> FilePath -> Shell FilePath -> Shell ()
+importAccountFiles bankName accountName preprocessScript accountSrcFiles = do
+  echoShell "BEGIN: importAccountFiles"
+  view accountSrcFiles
+  srcFile <- accountSrcFiles
+  csvFile <- liftIO $ preprocessIfNeeded preprocessScript bankName accountName srcFile
+  printShell $ format ("csvFile: "%fp) csvFile
+  echoShell "END: importAccountFiles"
 
 preprocessIfNeeded :: FilePath -> Line -> Line -> FilePath -> IO FilePath
 preprocessIfNeeded script bank account src = do
   shouldPreprocess <- testfile script
-  print shouldPreprocess
+  print $ format ("shouldPreprocess: "%s) $ repr shouldPreprocess
   if shouldPreprocess
     then preprocess script bank account src
     else return src

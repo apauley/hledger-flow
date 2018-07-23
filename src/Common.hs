@@ -2,6 +2,7 @@
 
 module Common
     ( onlyDirs
+    , onlyFiles
     , validDirs
     , filterPaths
     , echoShell
@@ -14,6 +15,9 @@ import Prelude hiding (FilePath)
 
 onlyDirs :: Shell FilePath -> Shell FilePath
 onlyDirs = filterPaths isDirectory
+
+onlyFiles :: Shell FilePath -> Shell FilePath
+onlyFiles = filterPaths isRegularFile
 
 filterPaths :: (FileStatus -> Bool) -> Shell FilePath -> Shell FilePath
 filterPaths filepred files = do
