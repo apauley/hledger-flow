@@ -24,15 +24,15 @@ importBanks bankDirs = do
   echoShell "BEGIN: importBanks"
   view bankDirs
   bd <- bankDirs
-  case (textToLine $ format fp $ basename bd) of
-    Nothing -> die $ format ("Unable to determine bank name from path: "%fp%"\n") bd
-    Just bankName -> importAccounts bankName $ ls bd
+  bankName <- basenameLine bd
+  importAccounts bankName $ ls bd
   echoShell "END: importBanks"
 
 importAccounts :: Line -> Shell FilePath -> Shell ()
 importAccounts bankName accountDirs = do
   echoShell $ "BEGIN: importAccounts"
   printShell bankName
+  accdir <- accountDirs
 
   view accountDirs
   echoShell $ "END: importAccounts"

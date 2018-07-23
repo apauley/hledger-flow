@@ -6,6 +6,7 @@ module Common
     , filterPaths
     , echoShell
     , printShell
+    , basenameLine
     ) where
 
 import Turtle
@@ -31,3 +32,8 @@ echoShell line = liftIO $ echo line
 
 printShell :: Show a => a -> Shell ()
 printShell o = liftIO $ print o
+
+basenameLine :: FilePath -> Shell Line
+basenameLine path = case (textToLine $ format fp $ basename path) of
+  Nothing -> die $ format ("Unable to determine basename from path: "%fp%"\n") path
+  Just bn -> return bn
