@@ -35,8 +35,21 @@ importAccounts bankName accountDirs = do
   accDir <- accountDirs
   accName <- basenameLine accDir
   let rulesFileName = format (l%"-"%l%".rules") bankName accName
-  printShell rulesFileName
-  shouldPreprocess <- testfile $ accDir </> fromText "preprocess"
-  printShell shouldPreprocess
+  let rulesFile = accDir </> fromText rulesFileName
+  printShell rulesFile
+  let preprocessScript = accDir </> fromText "preprocess"
+  csvFile <- liftIO $ preprocessIfNeeded preprocessScript bankName accName accDir
+  printShell $ format ("csvFile: "%fp) csvFile
   view accountDirs
   echoShell $ "END: importAccounts"
+
+preprocessIfNeeded :: FilePath -> Line -> Line -> FilePath -> IO FilePath
+preprocessIfNeeded script bank account src = do
+  shouldPreprocess <- testfile script
+  print shouldPreprocess
+  if shouldPreprocess
+    then preprocess script bank account src
+    else return src
+
+preprocess :: FilePath -> Line -> Line -> FilePath -> IO FilePath
+preprocess script bank account src = return src
