@@ -62,7 +62,7 @@ preprocessIfNeeded script bank account src = do
 
 preprocess :: FilePath -> Line -> Line -> FilePath -> IO FilePath
 preprocess script bank account src = do
-  let csvOut = changeOutputPath src "2-preprocessed"
+  let csvOut = changePathAndExtension "2-preprocessed" "csv" src
   let script' = format fp script :: Text
   procs script' [lineToText bank, lineToText account, format fp src, format fp csvOut] empty
   return csvOut
@@ -73,9 +73,12 @@ hledgerImport csvSrc rulesFile = do
   procs "hledger" ["print", "--rules-file", format fp rulesFile, "--file", format fp csvSrc, "--output-file", "/tmp/ht"] empty
   echo "END: hledgerImport"
 
-changeExtension :: FilePath -> Text -> FilePath
-changeExtension path extension = (dropExtension path) <.> extension
+changePathAndExtension :: FilePath -> Text -> FilePath -> FilePath
+changePathAndExtension newOutputLocation newExt = (changeOutputPath newOutputLocation) . (changeExtension newExt)
+
+changeExtension :: Text -> FilePath -> FilePath
+changeExtension extension path = (dropExtension path) <.> extension
 
 changeOutputPath :: FilePath -> FilePath -> FilePath
-changeOutputPath srcFile newOutputLocation = mconcat $ map changeSrcDir $ splitDirectories srcFile
+changeOutputPath newOutputLocation srcFile = mconcat $ map changeSrcDir $ splitDirectories srcFile
   where changeSrcDir f = if (f == "1-in/" || f == "2-preprocessed/") then newOutputLocation else f
