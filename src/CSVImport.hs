@@ -62,6 +62,8 @@ preprocessIfNeeded script bank account src = do
 preprocess :: FilePath -> Line -> Line -> FilePath -> IO FilePath
 preprocess script bank account src = do
   let csvOut = csvOutputFile src
+  let script' = format fp script :: Text
+  procs script' [lineToText bank, lineToText account, format fp src, format fp csvOut] empty
   return csvOut
 
 csvOutputFile :: FilePath -> FilePath
