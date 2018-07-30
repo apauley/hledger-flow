@@ -54,17 +54,17 @@ importAccounts bankName accountDirs = do
 importAccountFiles :: Line -> Line -> FilePath -> FilePath -> Shell FilePath -> Shell FilePath
 importAccountFiles bankName accountName rulesFile preprocessScript accountSrcFiles = do
   srcFile <- accountSrcFiles
-  csvFile <- liftIO $ preprocessIfNeeded preprocessScript bankName accountName srcFile
-  liftIO $ hledgerImport csvFile rulesFile
+  csvFile <- preprocessIfNeeded preprocessScript bankName accountName srcFile
+  hledgerImport csvFile rulesFile
 
-preprocessIfNeeded :: FilePath -> Line -> Line -> FilePath -> IO FilePath
+preprocessIfNeeded :: FilePath -> Line -> Line -> FilePath -> Shell FilePath
 preprocessIfNeeded script bank account src = do
   shouldPreprocess <- testfile script
   if shouldPreprocess
     then preprocess script bank account src
     else return src
 
-preprocess :: FilePath -> Line -> Line -> FilePath -> IO FilePath
+preprocess :: FilePath -> Line -> Line -> FilePath -> Shell FilePath
 preprocess script bank account src = do
   let csvOut = changePathAndExtension "2-preprocessed" "csv" src
   mktree $ directory csvOut
@@ -72,7 +72,7 @@ preprocess script bank account src = do
   procs script' [lineToText bank, lineToText account, format fp src, format fp csvOut] empty
   return csvOut
 
-hledgerImport :: FilePath -> FilePath -> IO FilePath
+hledgerImport :: FilePath -> FilePath -> Shell FilePath
 hledgerImport csvSrc rulesFile = do
   let journalOut = changePathAndExtension "3-journal" "journal" csvSrc
   mktree $ directory journalOut
