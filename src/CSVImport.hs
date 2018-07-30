@@ -29,9 +29,8 @@ writeJournals journalFile journals = do
 
 toIncludeLines :: Shell FilePath -> Shell Line
 toIncludeLines paths = do
-  p <- paths
-  let t = fromMaybe "" $ textToLine $ format ("!include "%fp) p
-  return t
+  journalFile <- paths
+  return $ fromMaybe "" $ textToLine $ format ("!include "%fp) journalFile
 
 importBanks :: Shell FilePath -> Shell FilePath
 importBanks bankDirs = do
