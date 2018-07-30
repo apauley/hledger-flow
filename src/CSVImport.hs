@@ -16,11 +16,21 @@ importCSVs baseDir = do
   let journals = if importExists
         then importBanks $ validDirs $ ls importDir
         else die $ format ("Unable to find CSV import dir at "%fp) importDir
-  writeJournals journals
+  sh $ writeJournals (baseDir </> "import-all.journal") journals
+  echo "Now viewing journals"
   view journals
+  echo "Done viewing journals"
 
-writeJournals :: Shell FilePath -> IO ()
-writeJournals journals = return ()
+writeJournals :: FilePath -> Shell FilePath -> Shell ()
+writeJournals journalFile journals = do
+  t <- pathsToText journals
+  liftIO $ writeTextFile journalFile t
+
+pathsToText :: Shell FilePath -> Shell Text
+pathsToText paths = do
+  p <- paths
+  let t = format ("!include "%fp%"\n") p
+  return t
 
 importBanks :: Shell FilePath -> Shell FilePath
 importBanks bankDirs = do
