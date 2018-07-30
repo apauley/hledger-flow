@@ -13,17 +13,24 @@ importCSVs :: FilePath -> IO ()
 importCSVs baseDir = do
   let importDir = baseDir </> "import"
   importExists <- testdir importDir
-  if importExists
-    then sh $ importBanks $ validDirs $ ls importDir
-    else die $ format ("Unable to find CSV import dir at "%fp) importDir
+  let journals = if importExists
+        then importBanks $ validDirs $ ls importDir
+        else die $ format ("Unable to find CSV import dir at "%fp) importDir
+  writeJournals journals
+  view journals
 
-importBanks :: Shell FilePath -> Shell ()
+writeJournals :: Shell FilePath -> IO ()
+writeJournals journals = return ()
+
+importBanks :: Shell FilePath -> Shell FilePath
 importBanks bankDirs = do
   bd <- bankDirs
   bankName <- basenameLine bd
-  importAccounts bankName $ ls bd
+  let bankJournals = importAccounts bankName $ ls bd
+  liftIO $ putStrLn $ format ("\n\nJournals for "%l) bankName
+  bankJournals
 
-importAccounts :: Line -> Shell FilePath -> Shell ()
+importAccounts :: Line -> Shell FilePath -> Shell FilePath
 importAccounts bankName accountDirs = do
   accDir <- accountDirs
   accName <- basenameLine accDir
@@ -31,9 +38,10 @@ importAccounts bankName accountDirs = do
   let rulesFile = accDir </> fromText rulesFileName
   let preprocessScript = accDir </> fromText "preprocess"
   let accountSrcFiles = onlyFiles $ find (has (text "1-in")) accDir
-  importAccountFiles bankName accName rulesFile preprocessScript accountSrcFiles
+  let accJournals = importAccountFiles bankName accName rulesFile preprocessScript accountSrcFiles
+  accJournals
 
-importAccountFiles :: Line -> Line -> FilePath -> FilePath -> Shell FilePath -> Shell ()
+importAccountFiles :: Line -> Line -> FilePath -> FilePath -> Shell FilePath -> Shell FilePath
 importAccountFiles bankName accountName rulesFile preprocessScript accountSrcFiles = do
   srcFile <- accountSrcFiles
   csvFile <- liftIO $ preprocessIfNeeded preprocessScript bankName accountName srcFile
@@ -54,11 +62,12 @@ preprocess script bank account src = do
   procs script' [lineToText bank, lineToText account, format fp src, format fp csvOut] empty
   return csvOut
 
-hledgerImport :: FilePath -> FilePath -> IO ()
+hledgerImport :: FilePath -> FilePath -> IO FilePath
 hledgerImport csvSrc rulesFile = do
   let journalOut = changePathAndExtension "3-journal" "journal" csvSrc
   mktree $ directory journalOut
   procs "hledger" ["print", "--rules-file", format fp rulesFile, "--file", format fp csvSrc, "--output-file", format fp journalOut] empty
+  return journalOut
 
 changePathAndExtension :: FilePath -> Text -> FilePath -> FilePath
 changePathAndExtension newOutputLocation newExt = (changeOutputPath newOutputLocation) . (changeExtension newExt)
