@@ -1,11 +1,11 @@
-* Remember
-** Do a dir check
-
-Example:
-
-#+BEGIN_SRC haskell
-validDir :: FilePath -> IO Bool
-validDir fp = do
-  status <- stat fp
-  return $ isDirectory status
-#+END_SRC
+* The TODO List
+** Write an aggregate journal file in the parent dir of any dir with journal files in it.
+** Add an =opening-closing.journal= file in every account directory for opening and closing balances.
+** Find all input files in =1-in=, get account, bank and year dirs as relative to input files
+** Assume as little as possible about the structure, get account, bank and year dirs as relative to input files
+** Supply only input and output files to =preprocess= script. Do not assume input is a CSV file
+** Support a fully custom =import= script that can generate complete journal files without using =hledger import=
+*** This can either be an alternative to =preprocess=, or in addition to it
+*** The =import= script will take an input file as the first parameter and output fully formed journal entries to stdout
+*** The stdout should then be piped to =hledger print= to get validation and standard indentation/formatting
+** Generate reports
