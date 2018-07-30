@@ -37,7 +37,6 @@ importBanks bankDirs = do
   bd <- bankDirs
   bankName <- basenameLine bd
   let bankJournals = importAccounts bankName $ ls bd
-  liftIO $ putStrLn $ format ("\n\nJournals for "%l) bankName
   bankJournals
 
 importAccounts :: Line -> Shell FilePath -> Shell FilePath
