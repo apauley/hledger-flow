@@ -7,6 +7,7 @@ module CSVImport
 import Turtle
 import Prelude hiding (FilePath, putStrLn)
 import Data.Text.IO (putStrLn)
+import Data.Maybe
 import Common
 
 importCSVs :: FilePath -> IO ()
@@ -22,14 +23,12 @@ importCSVs baseDir = do
   echo "Done viewing journals"
 
 writeJournals :: FilePath -> Shell FilePath -> Shell ()
-writeJournals journalFile journals = do
-  t <- pathsToText journals
-  liftIO $ writeTextFile journalFile t
+writeJournals journalFile journals = liftIO $ append journalFile $ pathsToText journals
 
-pathsToText :: Shell FilePath -> Shell Text
+pathsToText :: Shell FilePath -> Shell Line
 pathsToText paths = do
   p <- paths
-  let t = format ("!include "%fp%"\n") p
+  let t = fromMaybe "" $ textToLine $ format ("!include "%fp) p
   return t
 
 importBanks :: Shell FilePath -> Shell FilePath
