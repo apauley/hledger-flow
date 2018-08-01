@@ -1,6 +1,4 @@
 * The TODO List
-** Write an aggregate journal file in the parent dir of any dir with journal files in it.
-** Add an =opening-closing.journal= file in every account directory for opening and closing balances.
 ** Find all input files in =1-in=, get account, bank and year dirs as relative to input files
 ** Assume as little as possible about the structure, get account, bank and year dirs as relative to input files
 ** Supply only input and output files to =preprocess= script. Do not assume input is a CSV file
