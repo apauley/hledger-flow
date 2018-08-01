@@ -18,9 +18,6 @@ importCSVs baseDir = do
         then importBanks $ lsDirs importDir
         else die $ format ("Unable to find CSV import dir at "%fp) importDir
   sh $ writeJournals (baseDir </> "import-all.journal") journals
-  echo "Now viewing journals"
-  view journals
-  echo "Done viewing journals"
 
 writeJournals :: FilePath -> Shell FilePath -> Shell ()
 writeJournals aggregateJournal journals = do
