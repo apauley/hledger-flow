@@ -41,7 +41,9 @@ importBanks bankDirs = do
   bankDir <- bankDirs
   bankName <- basenameLine bankDir
   let bankJournals = importAccounts bankName $ lsDirs bankDir
-  bankJournals
+  let aggregateJournal = bankDir </> buildFilename [bankName] "journal"
+  writeJournals aggregateJournal bankJournals
+  return aggregateJournal
 
 importAccounts :: Line -> Shell FilePath -> Shell FilePath
 importAccounts bankName accountDirs = do
