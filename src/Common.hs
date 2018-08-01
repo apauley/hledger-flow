@@ -1,7 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Common
-    ( onlyDirs
+    ( lsDirs
+    , onlyDirs
     , onlyFiles
     , validDirs
     , filterPaths
@@ -14,6 +15,9 @@ module Common
 import Turtle
 import Prelude hiding (FilePath)
 import Data.Text (intercalate)
+
+lsDirs :: FilePath -> Shell FilePath
+lsDirs = validDirs . ls
 
 onlyDirs :: Shell FilePath -> Shell FilePath
 onlyDirs = filterPaths isDirectory

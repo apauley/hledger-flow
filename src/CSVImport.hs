@@ -15,7 +15,7 @@ importCSVs baseDir = do
   let importDir = baseDir </> "import"
   importExists <- testdir importDir
   let journals = if importExists
-        then importBanks $ validDirs $ ls importDir
+        then importBanks $ lsDirs importDir
         else die $ format ("Unable to find CSV import dir at "%fp) importDir
   sh $ writeJournals (baseDir </> "import-all.journal") journals
   echo "Now viewing journals"
@@ -39,7 +39,7 @@ importBanks :: Shell FilePath -> Shell FilePath
 importBanks bankDirs = do
   bd <- bankDirs
   bankName <- basenameLine bd
-  let bankJournals = importAccounts bankName $ ls bd
+  let bankJournals = importAccounts bankName $ lsDirs bd
   bankJournals
 
 importAccounts :: Line -> Shell FilePath -> Shell FilePath
