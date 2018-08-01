@@ -8,10 +8,12 @@ module Common
     , echoShell
     , printShell
     , basenameLine
+    , buildFilename
     ) where
 
 import Turtle
 import Prelude hiding (FilePath)
+import Data.Text (intercalate)
 
 onlyDirs :: Shell FilePath -> Shell FilePath
 onlyDirs = filterPaths isDirectory
@@ -41,3 +43,6 @@ basenameLine :: FilePath -> Shell Line
 basenameLine path = case (textToLine $ format fp $ basename path) of
   Nothing -> die $ format ("Unable to determine basename from path: "%fp%"\n") path
   Just bn -> return bn
+
+buildFilename :: [Line] -> Text -> FilePath
+buildFilename identifiers extension = fromText (intercalate "-" (map lineToText identifiers)) <.> extension

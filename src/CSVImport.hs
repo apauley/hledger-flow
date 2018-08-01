@@ -46,13 +46,11 @@ importAccounts :: Line -> Shell FilePath -> Shell FilePath
 importAccounts bankName accountDirs = do
   accDir <- accountDirs
   accName <- basenameLine accDir
-  let rulesFileName = format (l%"-"%l%".rules") bankName accName
-  let rulesFile = accDir </> fromText rulesFileName
+  let rulesFile = accDir </> buildFilename [bankName, accName] "rules"
   let preprocessScript = accDir </> fromText "preprocess"
   let accountSrcFiles = onlyFiles $ find (has (text "1-in")) accDir
   let accJournals = importAccountFiles bankName accName rulesFile preprocessScript accountSrcFiles
-  let aggregateJournalName = fromText $ format (l%"-"%l%".journal") bankName accName :: FilePath
-  let aggregateJournal = accDir </> aggregateJournalName
+  let aggregateJournal = accDir </> buildFilename [bankName, accName] "journal"
   writeJournals aggregateJournal accJournals
   return aggregateJournal
 
