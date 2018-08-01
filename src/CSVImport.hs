@@ -51,7 +51,10 @@ importAccounts bankName accountDirs = do
   let preprocessScript = accDir </> fromText "preprocess"
   let accountSrcFiles = onlyFiles $ find (has (text "1-in")) accDir
   let accJournals = importAccountFiles bankName accName rulesFile preprocessScript accountSrcFiles
-  accJournals
+  let aggregateJournalName = fromText $ format (l%"-"%l%".journal") bankName accName :: FilePath
+  let aggregateJournal = accDir </> aggregateJournalName
+  writeJournals aggregateJournal accJournals
+  return aggregateJournal
 
 importAccountFiles :: Line -> Line -> FilePath -> FilePath -> Shell FilePath -> Shell FilePath
 importAccountFiles bankName accountName rulesFile preprocessScript accountSrcFiles = do
