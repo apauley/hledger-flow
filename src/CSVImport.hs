@@ -37,9 +37,9 @@ toIncludeLines paths = do
 
 importBanks :: Shell FilePath -> Shell FilePath
 importBanks bankDirs = do
-  bd <- bankDirs
-  bankName <- basenameLine bd
-  let bankJournals = importAccounts bankName $ lsDirs bd
+  bankDir <- bankDirs
+  bankName <- basenameLine bankDir
+  let bankJournals = importAccounts bankName $ lsDirs bankDir
   bankJournals
 
 importAccounts :: Line -> Shell FilePath -> Shell FilePath
