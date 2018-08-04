@@ -46,10 +46,10 @@ importAccounts :: Line -> Shell FilePath -> Shell FilePath
 importAccounts bankName accountDirs = do
   accDir <- accountDirs
   accName <- basenameLine accDir
-  let rulesFile = accDir </> buildFilename [bankName, accName] "rules"
+  let defaultRulesFile = accDir </> buildFilename [bankName, accName] "rules"
   let preprocessScript = accDir </> fromText "preprocess"
   let accountSrcFiles = onlyFiles $ find (has (text "1-in")) accDir
-  let accJournals = importAccountFiles bankName accName rulesFile preprocessScript accountSrcFiles
+  let accJournals = importAccountFiles bankName accName defaultRulesFile preprocessScript accountSrcFiles
   let aggregateJournal = accDir </> buildFilename [bankName, accName] "journal"
   let equityJournal = accDir </> "opening-closing.journal"
   liftIO $ touch equityJournal
@@ -57,10 +57,10 @@ importAccounts bankName accountDirs = do
   return aggregateJournal
 
 importAccountFiles :: Line -> Line -> FilePath -> FilePath -> Shell FilePath -> Shell FilePath
-importAccountFiles bankName accountName rulesFile preprocessScript accountSrcFiles = do
+importAccountFiles bankName accountName defaultRulesFile preprocessScript accountSrcFiles = do
   srcFile <- accountSrcFiles
   csvFile <- preprocessIfNeeded preprocessScript bankName accountName srcFile
-  hledgerImport csvFile rulesFile
+  hledgerImport csvFile defaultRulesFile
 
 preprocessIfNeeded :: FilePath -> Line -> Line -> FilePath -> Shell FilePath
 preprocessIfNeeded script bank account src = do
@@ -78,10 +78,10 @@ preprocess script bank account src = do
   return csvOut
 
 hledgerImport :: FilePath -> FilePath -> Shell FilePath
-hledgerImport csvSrc rulesFile = do
+hledgerImport csvSrc defaultRulesFile = do
   let journalOut = changePathAndExtension "3-journal" "journal" csvSrc
   mktree $ directory journalOut
-  procs "hledger" ["print", "--rules-file", format fp rulesFile, "--file", format fp csvSrc, "--output-file", format fp journalOut] empty
+  procs "hledger" ["print", "--rules-file", format fp defaultRulesFile, "--file", format fp csvSrc, "--output-file", format fp journalOut] empty
   return journalOut
 
 changePathAndExtension :: FilePath -> Text -> FilePath -> FilePath
