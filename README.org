@@ -22,6 +22,9 @@ Adept's goals resonated with me:
       The file has to be in the account's directory and named after the account, e.g. =import/mybank/savings/mybank-savings.rules=.
     - You can further use a more specific rules file that is used only for some statements.
       If you add a prefix, seperated by an underscore (=_=), to your input file name, and also have a rules file with that prefix
-      as it's name in the top-level import directory, then we'll use that rules file instead.
+      as its name, then we'll use that rules file instead.
       For example: assuming you've downloaded a specific statement from Mint as opposed to your bank, and named it =mint_99966633_20171223_1844.csv=.
-      If you then also have a rules file named =import/mint.rules=, then we'll use that rules file for this statement.
+      We will look for the rules file in the following places:
+      - First, in the account directory, e.g. =import/mybank/savings/mint.rules=
+      - Then, in the bank's directory, e.g. =import/mybank/mint.rules=
+      - Lastly in the import directory, e.g. =import/mint.rules=

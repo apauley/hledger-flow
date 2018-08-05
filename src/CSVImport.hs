@@ -89,11 +89,19 @@ hledgerImport csvSrc defaultRulesFile = do
 rulesFile :: FilePath -> FilePath -> Shell FilePath
 rulesFile csvSrc defaultRulesFile = do
   let srcPrefix = fst $ breakOn "_" (format fp (basename csvSrc))
-  let srcSpecificFile = (parent . parent . parent . parent . parent) csvSrc </> fromText srcPrefix <.> "rules"
+  let srcSpecificFilename = fromText srcPrefix <.> "rules"
+  srcSpecificFile <- searchUp ((parent . parent . parent) csvSrc) srcSpecificFilename 2
   exists <- testfile srcSpecificFile
   let rf = if exists then srcSpecificFile else defaultRulesFile
-  liftIO $ putStrLn $ format ("!!!! Determining rules file:\ncsvSrc: "%fp%"\nsrcPrefix: "%s%"\nsrcSpecificFile: "%fp%"\nusing ruleFile: "%fp%"\n") csvSrc srcPrefix srcSpecificFile rf
   return rf
+
+searchUp :: FilePath -> FilePath -> Int -> Shell FilePath
+searchUp dir filename remainingLevels = do
+  let filepath = dir </> filename
+  exists <- testfile filepath
+  if (exists || remainingLevels == 0)
+    then return filepath
+    else searchUp (parent dir) filename (remainingLevels - 1)
 
 changePathAndExtension :: FilePath -> Text -> FilePath -> FilePath
 changePathAndExtension newOutputLocation newExt = (changeOutputPath newOutputLocation) . (changeExtension newExt)
