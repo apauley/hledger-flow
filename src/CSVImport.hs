@@ -6,6 +6,7 @@ module CSVImport
 
 import Turtle
 import Prelude hiding (FilePath, putStrLn)
+import Data.Text (breakOn)
 import Data.Text.IO (putStrLn)
 import Data.Maybe
 import Common
@@ -81,8 +82,18 @@ hledgerImport :: FilePath -> FilePath -> Shell FilePath
 hledgerImport csvSrc defaultRulesFile = do
   let journalOut = changePathAndExtension "3-journal" "journal" csvSrc
   mktree $ directory journalOut
-  procs "hledger" ["print", "--rules-file", format fp defaultRulesFile, "--file", format fp csvSrc, "--output-file", format fp journalOut] empty
+  rf <- rulesFile csvSrc defaultRulesFile
+  procs "hledger" ["print", "--rules-file", format fp rf, "--file", format fp csvSrc, "--output-file", format fp journalOut] empty
   return journalOut
+
+rulesFile :: FilePath -> FilePath -> Shell FilePath
+rulesFile csvSrc defaultRulesFile = do
+  let srcPrefix = fst $ breakOn "_" (format fp (basename csvSrc))
+  let srcSpecificFile = (parent . parent . parent . parent . parent) csvSrc </> fromText srcPrefix <.> "rules"
+  exists <- testfile srcSpecificFile
+  let rf = if exists then srcSpecificFile else defaultRulesFile
+  liftIO $ putStrLn $ format ("!!!! Determining rules file:\ncsvSrc: "%fp%"\nsrcPrefix: "%s%"\nsrcSpecificFile: "%fp%"\nusing ruleFile: "%fp%"\n") csvSrc srcPrefix srcSpecificFile rf
+  return rf
 
 changePathAndExtension :: FilePath -> Text -> FilePath -> FilePath
 changePathAndExtension newOutputLocation newExt = (changeOutputPath newOutputLocation) . (changeExtension newExt)

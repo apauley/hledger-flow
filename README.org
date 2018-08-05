@@ -11,3 +11,17 @@ Adept's goals resonated with me:
 - Eventual consistency should be achievable: even if I can't record something precisely right now, maybe I would be able to do it later, so I should be able to leave things half-done and pick them up later
 
 - Ability to refactor is a must. I want to be able to go back and change the way I am doing things, with as little effort as possible and without fear of irrevocably breaking things.
+
+** How to Use It
+
+*** Directory Structure
+
+*** The Rules File
+    - We'll first look for a rules file per bank in =import/mybank/mybank.rules=. This can be used for all =mybank= accounts.
+    - If a rules file specific to the account exists, it will be used instead for all statements of that account.
+      The file has to be in the account's directory and named after the account, e.g. =import/mybank/savings/mybank-savings.rules=.
+    - You can further use a more specific rules file that is used only for some statements.
+      If you add a prefix, seperated by an underscore (=_=), to your input file name, and also have a rules file with that prefix
+      as it's name in the top-level import directory, then we'll use that rules file instead.
+      For example: assuming you've downloaded a specific statement from Mint as opposed to your bank, and named it =mint_99966633_20171223_1844.csv=.
+      If you then also have a rules file named =import/mint.rules=, then we'll use that rules file for this statement.
