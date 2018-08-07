@@ -69,3 +69,11 @@ Inspired by the structure and ideas of [[https://github.com/adept/full-fledged-h
       - First, in the account directory, e.g. =import/mybank/savings/mint.rules=
       - Then, in the bank's directory, e.g. =import/mybank/mint.rules=
       - Lastly in the import directory, e.g. =import/mint.rules=
+
+** Build Instructions
+
+   You need recent version of [[https://docs.haskellstack.org/en/stable/README/][stack]] installed.
+
+   #+BEGIN_SRC shell
+   $ stack build && stack install
+   #+END_SRC
