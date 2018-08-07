@@ -2,26 +2,67 @@
 
 Inspired by the structure and ideas of [[https://github.com/adept/full-fledged-hledger/wiki][adept's Full-fledged Hledger]].
 
+** Who should use this project?
+
+   At the moment this software is in an alpha stage.
+   I'm still making and changing decisions as I go along.
+
+   If you're familiar with =hledger= and are willing to tolerate some breaking changes that would e.g. require you to
+   frequently change the names of your input files and/or directories, then please try it out and let me know what you think.
+
 ** Goals
 
-Adept's goals resonated with me:
+   Adept's goals resonated with me:
 
-- Tracking expenses should take as little time, effort and manual work as possible
+   - Tracking expenses should take as little time, effort and manual work as possible
+   - Eventual consistency should be achievable: even if I can't record something precisely right now,
+     maybe I would be able to do it later, so I should be able to leave things half-done and pick them up later
+   - Ability to refactor is a must. I want to be able to go back and change the way I am doing things,
+     with as little effort as possible and without fear of irrevocably breaking things.
 
-- Eventual consistency should be achievable: even if I can't record something precisely right now, maybe I would be able to do it later, so I should be able to leave things half-done and pick them up later
+** Why?
 
-- Ability to refactor is a must. I want to be able to go back and change the way I am doing things, with as little effort as possible and without fear of irrevocably breaking things.
+   Why am I writing this tool, instead of just using [[https://github.com/adept/full-fledged-hledger/wiki][adept's Full-fledged Hledger]] unchanged?
+
+   It kind of grew little by little as I was modifying the system to fit my needs.
+   Some points of interest:
+
+   1. I wanted a command-line tool where all the dependencies was resolved at compile time,
+      so that a binary can be distributed instead of a collection of scripts with the build dependencies on every user's computer.
+   2. Early on while trying out the system I introduced a directory for each account,
+      because some of my account statements had vastly different CSV formats, even within the same bank.
+      A separate directory seemed like a good place to house each account's intricacies, although I guess
+      there are other ways to do it.
+   3. I had to [[https://github.com/adept/full-fledged-hledger/blob/d4d6b5b43139b70561e8173cabdb0eb0dc268daa/src/export/export.hs#L12][modify the export script]] to indicate which years I had data for. And I wondered if that sort of data could be
+      determined from some more directory structure conventions. So I added a another level indicating the year of the statement.
+      I'm still wondering if it would be possible to just detect the years from the actual transactions, but for now I have a directory
+      for each year.
 
 ** How to Use It
 
-*** Directory Structure
+*** Getting Started
+
+    We mostly use conventions based on a predefined directory structure for your statements.
+    For example, assuming you have a =savings= account at =mybank=, you'll put your first CSV statement here:
+    =import/mybank/savings/1-in/2018/123456789_2018-06-30.csv=.
+
+    Then you'll add an hledger rules file to the account directory:
+    =import/mybank/savings/mybank-savings.rules=
+
+    Add all your files to your favourite version control system.
+
+    Then run =hledger-makeitso import= and it will generate some hledger journals for you.
+
+    In a typical software project we don't add generated files to version control, but in this case I think it is a good idea
+    to add all the generated files to version control as well - when you inevitably change something, e.g. how you classify transactions
+    in your rules file, then you can easily see if your change had the desired effect by looking at a diff.
 
 *** The Rules File
     - We'll first look for a rules file per bank in =import/mybank/mybank.rules=. This can be used for all =mybank= accounts.
     - If a rules file specific to the account exists, it will be used instead for all statements of that account.
       The file has to be in the account's directory and named after the account, e.g. =import/mybank/savings/mybank-savings.rules=.
     - You can further use a more specific rules file that is used only for some statements.
-      If you add a prefix, seperated by an underscore (=_=), to your input file name, and also have a rules file with that prefix
+      If you add a prefix, separated by an underscore (=_=), to your input file name, and also have a rules file with that prefix
       as its name, then we'll use that rules file instead.
       For example: assuming you've downloaded a specific statement from Mint as opposed to your bank, and named it =mint_99966633_20171223_1844.csv=.
       We will look for the rules file in the following places:
