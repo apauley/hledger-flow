@@ -42,9 +42,10 @@ searchUp :: Int -> FilePath -> FilePath -> Shell FilePath
 searchUp remainingLevels dir filename = do
   let filepath = dir </> filename
   exists <- testfile filepath
-  if (exists || remainingLevels == 0)
-    then return filepath
-    else searchUp (remainingLevels - 1) (parent dir) filename
+  case (exists, remainingLevels) of
+    (true, _) -> return filepath
+    (_,    0) -> return filepath
+    otherwise -> searchUp (remainingLevels - 1) (parent dir) filename
 
 echoShell :: Line -> Shell ()
 echoShell line = liftIO $ echo line
