@@ -91,8 +91,9 @@ rulesFile csvSrc defaultRulesFile = do
   let srcPrefix = fst $ breakOn "_" (format fp (basename csvSrc))
   let srcSpecificFilename = fromText srcPrefix <.> "rules"
   srcSpecificFile <- searchUp 2 ((parent . parent . parent) csvSrc) srcSpecificFilename
-  exists <- testfile srcSpecificFile
-  if exists then return srcSpecificFile else return defaultRulesFile
+  case srcSpecificFile of
+    Just file -> return file
+    Nothing   -> return defaultRulesFile
 
 changePathAndExtension :: FilePath -> Text -> FilePath -> FilePath
 changePathAndExtension newOutputLocation newExt = (changeOutputPath newOutputLocation) . (changeExtension newExt)

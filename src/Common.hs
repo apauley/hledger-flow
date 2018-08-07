@@ -14,7 +14,8 @@ module Common
     ) where
 
 import Turtle
-import Prelude hiding (FilePath)
+import Prelude hiding (FilePath, putStrLn)
+import Data.Text.IO (putStrLn)
 import Data.Text (intercalate)
 
 lsDirs :: FilePath -> Shell FilePath
@@ -38,13 +39,13 @@ validDirs = excludeWeirdPaths . onlyDirs
 excludeWeirdPaths :: Shell FilePath -> Shell FilePath
 excludeWeirdPaths = findtree (suffix $ noneOf "_")
 
-searchUp :: Int -> FilePath -> FilePath -> Shell FilePath
+searchUp :: Int -> FilePath -> FilePath -> Shell (Maybe FilePath)
 searchUp remainingLevels dir filename = do
   let filepath = dir </> filename
   exists <- testfile filepath
   case (exists, remainingLevels) of
-    (true, _) -> return filepath
-    (_,    0) -> return filepath
+    (True, _) -> return $ Just filepath
+    (_,    0) -> return Nothing
     otherwise -> searchUp (remainingLevels - 1) (parent dir) filename
 
 echoShell :: Line -> Shell ()
