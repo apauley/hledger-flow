@@ -6,6 +6,7 @@ module Common
     , onlyFiles
     , validDirs
     , filterPaths
+    , searchUp
     , echoShell
     , printShell
     , basenameLine
@@ -36,6 +37,14 @@ validDirs = excludeWeirdPaths . onlyDirs
 
 excludeWeirdPaths :: Shell FilePath -> Shell FilePath
 excludeWeirdPaths = findtree (suffix $ noneOf "_")
+
+searchUp :: Int -> FilePath -> FilePath -> Shell FilePath
+searchUp remainingLevels dir filename = do
+  let filepath = dir </> filename
+  exists <- testfile filepath
+  if (exists || remainingLevels == 0)
+    then return filepath
+    else searchUp (remainingLevels - 1) (parent dir) filename
 
 echoShell :: Line -> Shell ()
 echoShell line = liftIO $ echo line

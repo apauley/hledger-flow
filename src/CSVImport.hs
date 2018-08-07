@@ -90,18 +90,9 @@ rulesFile :: FilePath -> FilePath -> Shell FilePath
 rulesFile csvSrc defaultRulesFile = do
   let srcPrefix = fst $ breakOn "_" (format fp (basename csvSrc))
   let srcSpecificFilename = fromText srcPrefix <.> "rules"
-  srcSpecificFile <- searchUp ((parent . parent . parent) csvSrc) srcSpecificFilename 2
+  srcSpecificFile <- searchUp 2 ((parent . parent . parent) csvSrc) srcSpecificFilename
   exists <- testfile srcSpecificFile
-  let rf = if exists then srcSpecificFile else defaultRulesFile
-  return rf
-
-searchUp :: FilePath -> FilePath -> Int -> Shell FilePath
-searchUp dir filename remainingLevels = do
-  let filepath = dir </> filename
-  exists <- testfile filepath
-  if (exists || remainingLevels == 0)
-    then return filepath
-    else searchUp (parent dir) filename (remainingLevels - 1)
+  if exists then return srcSpecificFile else return defaultRulesFile
 
 changePathAndExtension :: FilePath -> Text -> FilePath -> FilePath
 changePathAndExtension newOutputLocation newExt = (changeOutputPath newOutputLocation) . (changeExtension newExt)
