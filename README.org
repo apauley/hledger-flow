@@ -49,6 +49,15 @@ Inspired by the structure and ideas of [[https://github.com/adept/full-fledged-h
     Then you'll add an hledger rules file to the account directory:
     =import/mybank/savings/mybank-savings.rules=
 
+    You'll also want to specify your account's opening balance at the time of the first transaction you have added above.
+    Add a journal entry to =import/mybank/savings/opening.journal=, something like this:
+
+    #+BEGIN_SRC hledger
+    2018-06-01 Savings Account Opening Balance
+    assets:Current:MyBank:Savings               $102.01
+    equity:Opening Balances:MyBank:Savings
+    #+END_SRC
+
     Add all your files to your favourite version control system.
 
     Then run =hledger-makeitso import= and it will generate some hledger journals for you.
