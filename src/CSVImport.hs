@@ -52,9 +52,9 @@ importAccounts bankName accountDirs = do
   let accountSrcFiles = onlyFiles $ find (has (text "1-in")) accDir
   let accJournals = importAccountFiles bankName accName defaultRulesFile preprocessScript accountSrcFiles
   let aggregateJournal = accDir </> buildFilename [bankName, accName] "journal"
-  let equityJournal = accDir </> "opening-closing.journal"
-  liftIO $ touch equityJournal
-  writeJournals aggregateJournal $ (return equityJournal) + accJournals
+  let openingJournal = accDir </> "opening.journal"
+  liftIO $ touch openingJournal
+  writeJournals aggregateJournal $ (return openingJournal) + accJournals
   return aggregateJournal
 
 importAccountFiles :: Line -> Line -> FilePath -> FilePath -> Shell FilePath -> Shell FilePath
