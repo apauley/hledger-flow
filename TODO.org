@@ -1,9 +1,21 @@
 * The TODO List
-** Find all input files in =1-in=, get account, bank and year dirs as relative to input files
-** Assume as little as possible about the structure, get account, bank and year dirs as relative to input files
-** Supply only input and output files to =preprocess= script. Do not assume input is a CSV file
-** Support a fully custom =import= script that can generate complete journal files without using =hledger import=
-*** This can either be an alternative to =preprocess=, or in addition to it
-*** The =import= script will take an input file as the first parameter and output fully formed journal entries to stdout
-*** The stdout should then be piped to =hledger print= to get validation and standard indentation/formatting
+** Script Hooks
+*** Supply only input and output files to =preprocess= script. Do not assume input is a CSV file
+*** Support a fully custom =import= script that can generate complete journal files without using =hledger import=
+**** This can either be an alternative to =preprocess=, or in addition to it
+**** The =import= script will take an input file as the first parameter and output fully formed journal entries to stdout
+**** The stdout should then be piped to =hledger print= to get validation and standard indentation/formatting
 ** Generate reports
+*** Monthly reports for the past 6 months
+*** Quarterly reports for the past year
+*** Yearly reports for the past 5 years
+*** How much money went towards expenses, assets and liabilities, expressed as a percentage of income
+*** More useful reports?
+** Performance
+*** Process statements in parallel
+*** Generate reports in parallel
+*** Don't re-process statements that have already been processed
+** Random Thoughts
+*** Instead of assuming a rigid structure under =import=, start by find all input files in =1-in=
+**** Assume as little as possible about the structure, get account, bank and year dirs as relative to input files
+**** First build a list of actions, then perform the actions
