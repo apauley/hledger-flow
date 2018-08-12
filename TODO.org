@@ -1,6 +1,5 @@
 * The TODO List
 ** Script Hooks
-*** Supply only input and output files to =preprocess= script. Do not assume input is a CSV file
 *** Support a fully custom =import= script that can generate complete journal files without using =hledger import=
 **** This can either be an alternative to =preprocess=, or in addition to it
 **** The =import= script will take an input file as the first parameter and output fully formed journal entries to stdout

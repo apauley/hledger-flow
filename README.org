@@ -66,6 +66,25 @@ Inspired by the structure and ideas of [[https://github.com/adept/full-fledged-h
     to add all the generated files to version control as well - when you inevitably change something, e.g. how you classify transactions
     in your rules file, then you can easily see if your change had the desired effect by looking at a diff.
 
+*** The =preprocess= Script
+
+    Sometimes the statements you get from your bank is [[https://github.com/apauley/fnb-csv-demoronizer][less than suitable]] for automatic processing.
+    Or maybe you just want to make it easier for the hledger rules file to do its thing by adding some useful columns.
+
+    If you put a script called =preprocess= in the account directory, e.g. =import/mybank/savings/preprocess=, then we will call that script
+    for each input statement.
+
+    The =preprocess= script will be called with 4 positional parameters:
+     1. The name of the bank, e.g. =mybank=
+     2. The name of the account, e.g. =savings=
+     3. The path to the input statement, e.g. =import/mybank/savings/1-in/2018/123456789_2018-06-30.csv=
+     4. The path to an output file that can be sent to =hledger=, e.g. =import/mybank/savings/2-preprocessed/2018/123456789_2018-06-30.csv=
+
+    Your =preprocess= script is expected to:
+     - read the input file
+     - write a new output file at the supplied path that works with your rules file
+     - be idempotent. Running =preprocess= multiple times on the same files will produce the same result.
+
 *** The Rules File
     - We'll first look for a rules file per bank in =import/mybank/mybank.rules=. This can be used for all =mybank= accounts.
     - If a rules file specific to the account exists, it will be used instead for all statements of that account.
