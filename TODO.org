@@ -1,5 +1,7 @@
 * The TODO List
 ** Script Hooks
+*** Create the =2-preprocessed= output path before calling =preprocess=
+*** Stop executing if any script hook exits with a non-zero exit status
 *** Support a fully custom =import= script that can generate complete journal files without using =hledger import=
 **** Background info: [[https://github.com/simonmichael/hledger/issues/627#issuecomment-343324248][the script in this issue]] made me think how advanced use cases can be supported
 **** This can either be an alternative to =preprocess=, or in addition to it
@@ -22,4 +24,3 @@
 *** Instead of assuming a rigid structure under =import=, start by find all input files in =*in=
 **** Assume as little as possible about the structure, get account, bank and year dirs as relative to input files
 **** First build a list of actions, then perform the actions
-*** Create the =2-preprocessed= output path before calling =preprocess=
