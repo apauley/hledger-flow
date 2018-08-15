@@ -15,7 +15,11 @@
 *** Process statements in parallel
 *** Generate reports in parallel
 *** Don't re-process statements that have already been processed
+** Documentation
+*** Ensure that the error messages guide the user to the next action, with helpful links
+*** Create an example user with a life that can be used for example financial transactions
 ** Random Thoughts
-*** Instead of assuming a rigid structure under =import=, start by find all input files in =1-in=
+*** Instead of assuming a rigid structure under =import=, start by find all input files in =*in=
 **** Assume as little as possible about the structure, get account, bank and year dirs as relative to input files
 **** First build a list of actions, then perform the actions
+*** Create the =2-preprocessed= output path before calling =preprocess=
