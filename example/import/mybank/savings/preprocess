@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+set -e
+
+SCRIPTDIR="$(dirname ${0})"
+
+BANK="${1}"
+ACCOUNT="${2}"
+IN="${3}"
+OUT="${4}"
+
+fnb-csv-demoronizer "${IN}" "${OUT}"
