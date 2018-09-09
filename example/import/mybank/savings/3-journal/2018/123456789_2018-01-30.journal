@@ -1,0 +1,8 @@
+2017/12/29 * (1) Payment received/Company, Inc/
+    assets:current:spouse:mybank:savings        R5000.01 = R7000.01
+    income:unknown                             R-5000.01
+
+2018/01/01 * (2) POS Transaction/Grocery Store/My town
+    assets:current:spouse:mybank:savings       R-4000.00 = R3000.01
+    expenses:food:groceries                     R4000.00
+
