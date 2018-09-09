@@ -1,0 +1,13 @@
+skip 1
+
+fields _, code, date, desc1, desc2, desc3, amount, balance, _, account2
+
+currency R
+status *
+
+account1 assets:current:spouse:mybank:savings
+description %desc1/%desc2/%desc3
+
+if
+POS.*Grocery Store.*My town
+  account2 expenses:food:groceries
