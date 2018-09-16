@@ -61,7 +61,9 @@ importAccountFiles :: Line -> Line -> FilePath -> FilePath -> Shell FilePath -> 
 importAccountFiles bankName accountName defaultRulesFile preprocessScript accountSrcFiles = do
   srcFile <- accountSrcFiles
   csvFile <- preprocessIfNeeded preprocessScript bankName accountName srcFile
-  hledgerImport defaultRulesFile csvFile
+  let journalOut = changePathAndExtension "3-journal" "journal" csvFile
+  mktree $ directory journalOut
+  hledgerImport defaultRulesFile csvFile journalOut
 
 preprocessIfNeeded :: FilePath -> Line -> Line -> FilePath -> Shell FilePath
 preprocessIfNeeded script bank account src = do
@@ -78,10 +80,8 @@ preprocess script bank account src = do
   procs script' [format fp src, format fp csvOut, lineToText bank, lineToText account] empty
   return csvOut
 
-hledgerImport :: FilePath -> FilePath -> Shell FilePath
-hledgerImport defaultRulesFile csvSrc = do
-  let journalOut = changePathAndExtension "3-journal" "journal" csvSrc
-  mktree $ directory journalOut
+hledgerImport :: FilePath -> FilePath -> FilePath -> Shell FilePath
+hledgerImport defaultRulesFile csvSrc journalOut = do
   rf <- rulesFile csvSrc defaultRulesFile
   procs "hledger" ["print", "--rules-file", format fp rf, "--file", format fp csvSrc, "--output-file", format fp journalOut] empty
   return journalOut
