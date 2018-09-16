@@ -40,6 +40,15 @@ Inspired by the structure and ideas of [[https://github.com/adept/full-fledged-h
 
 ** How to Use It
 
+A working example is in the =example= directory.
+
+Run an import:
+#+BEGIN_SRC shell
+$ hledger-makeitso import ./example/
+#+END_SRC
+
+Then look at the generated files.
+
 *** Getting Started
 
     We mostly use conventions based on a predefined directory structure for your statements.
@@ -100,7 +109,7 @@ Inspired by the structure and ideas of [[https://github.com/adept/full-fledged-h
 
 ** Build Instructions
 
-   You need recent version of [[https://docs.haskellstack.org/en/stable/README/][stack]] installed.
+   You need a recent version of [[https://docs.haskellstack.org/en/stable/README/][stack]] installed.
 
    #+BEGIN_SRC shell
    $ stack build && stack install
