@@ -40,6 +40,8 @@ Inspired by the structure and ideas of [[https://github.com/adept/full-fledged-h
 
 ** How to Use It
 
+*** TLDR;
+
 A working example is in the =example= directory.
 
 Run an import:
@@ -74,7 +76,6 @@ Then look at the generated files.
     In a typical software project we don't add generated files to version control, but in this case I think it is a good idea
     to add all the generated files to version control as well - when you inevitably change something, e.g. how you classify transactions
     in your rules file, then you can easily see if your change had the desired effect by looking at a diff.
-
 *** The =preprocess= Script
 
     Sometimes the statements you get from your bank is [[https://github.com/apauley/fnb-csv-demoronizer][less than suitable]] for automatic processing.
