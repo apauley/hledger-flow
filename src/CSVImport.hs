@@ -49,21 +49,26 @@ importAccounts bankName accountDirs = do
   accName <- basenameLine accDir
   let defaultRulesFile = accDir </> buildFilename [bankName, accName] "rules"
   let preprocessScript = accDir </> fromText "preprocess"
+  let importScript = accDir </> fromText "import"
   let accountSrcFiles = onlyFiles $ find (has (text "1-in")) accDir
-  let accJournals = importAccountFiles bankName accName defaultRulesFile preprocessScript accountSrcFiles
+  let accJournals = importAccountFiles bankName accName defaultRulesFile preprocessScript importScript accountSrcFiles
   let aggregateJournal = accDir </> buildFilename [bankName, accName] "journal"
   let openingJournal = accDir </> "opening.journal"
   liftIO $ touch openingJournal
   writeJournals aggregateJournal $ (return openingJournal) + accJournals
   return aggregateJournal
 
-importAccountFiles :: Line -> Line -> FilePath -> FilePath -> Shell FilePath -> Shell FilePath
-importAccountFiles bankName accountName defaultRulesFile preprocessScript accountSrcFiles = do
+importAccountFiles :: Line -> Line -> FilePath -> FilePath -> FilePath -> Shell FilePath -> Shell FilePath
+importAccountFiles bankName accountName defaultRulesFile preprocessScript importScript accountSrcFiles = do
   srcFile <- accountSrcFiles
   csvFile <- preprocessIfNeeded preprocessScript bankName accountName srcFile
+  doCustomImort <- testfile importScript
+  let importFun = if doCustomImort
+        then customImport importScript bankName accountName
+        else hledgerImport defaultRulesFile
   let journalOut = changePathAndExtension "3-journal" "journal" csvFile
   mktree $ directory journalOut
-  hledgerImport defaultRulesFile csvFile journalOut
+  importFun csvFile journalOut
 
 preprocessIfNeeded :: FilePath -> Line -> Line -> FilePath -> Shell FilePath
 preprocessIfNeeded script bank account src = do
@@ -84,6 +89,13 @@ hledgerImport :: FilePath -> FilePath -> FilePath -> Shell FilePath
 hledgerImport defaultRulesFile csvSrc journalOut = do
   rf <- rulesFile csvSrc defaultRulesFile
   procs "hledger" ["print", "--rules-file", format fp rf, "--file", format fp csvSrc, "--output-file", format fp journalOut] empty
+  return journalOut
+
+customImport :: FilePath -> Line -> Line -> FilePath -> FilePath -> Shell FilePath
+customImport importScript bank account csvSrc journalOut = do
+  let script = format fp importScript :: Text
+  let importOut = inproc script [format fp csvSrc, "-", lineToText bank, lineToText account] empty
+  procs "hledger" ["print", "--ignore-assertions", "--file", "-", "--output-file", format fp journalOut] importOut
   return journalOut
 
 rulesFile :: FilePath -> FilePath -> Shell FilePath

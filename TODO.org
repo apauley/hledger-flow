@@ -19,11 +19,6 @@ $
 ** Script Hooks
 *** Create the =2-preprocessed= output path before calling =preprocess=
 *** Stop executing if any script hook exits with a non-zero exit status
-*** Support a fully custom =import= script that can generate complete journal files without using =hledger import=
-**** Background info: [[https://github.com/simonmichael/hledger/issues/627#issuecomment-343324248][the script in this issue]] made me think how advanced use cases can be supported
-**** This can either be an alternative to =preprocess=, or in addition to it
-**** The =import= script will take an input file as the first parameter and output fully formed journal entries to stdout
-**** The stdout should then be piped to =hledger print= to get validation and standard indentation/formatting
 ** Generate reports
 *** Monthly reports for the past 6 months
 *** Quarterly reports for the past year
