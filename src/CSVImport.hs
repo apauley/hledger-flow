@@ -75,7 +75,7 @@ preprocess script bank account src = do
   let csvOut = changePathAndExtension "2-preprocessed" "csv" src
   mktree $ directory csvOut
   let script' = format fp script :: Text
-  procs script' [lineToText bank, lineToText account, format fp src, format fp csvOut] empty
+  procs script' [format fp src, format fp csvOut, lineToText bank, lineToText account] empty
   return csvOut
 
 hledgerImport :: FilePath -> FilePath -> Shell FilePath

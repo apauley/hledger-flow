@@ -84,10 +84,10 @@ Then look at the generated files.
     for each input statement.
 
     The =preprocess= script will be called with 4 positional parameters:
-     1. The name of the bank, e.g. =mybank=
-     2. The name of the account, e.g. =savings=
-     3. The path to the input statement, e.g. =import/mybank/savings/1-in/2018/123456789_2018-06-30.csv=
-     4. The path to an output file that can be sent to =hledger=, e.g. =import/mybank/savings/2-preprocessed/2018/123456789_2018-06-30.csv=
+     1. The path to the input statement, e.g. =import/mybank/savings/1-in/2018/123456789_2018-06-30.csv=
+     2. The path to an output file that can be sent to =hledger=, e.g. =import/mybank/savings/2-preprocessed/2018/123456789_2018-06-30.csv=
+     3. The name of the bank, e.g. =mybank=
+     4. The name of the account, e.g. =savings=
 
     Your =preprocess= script is expected to:
      - read the input file

@@ -4,9 +4,9 @@ set -e
 
 SCRIPTDIR="$(dirname ${0})"
 
-BANK="${1}"
-ACCOUNT="${2}"
-IN="${3}"
-OUT="${4}"
+IN="${1}"
+OUT="${2}"
+BANK="${3}"
+ACCOUNT="${4}"
 
 fnb-csv-demoronizer "${IN}" "${OUT}"
