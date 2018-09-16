@@ -1,3 +1,5 @@
+#+STARTUP: content
+
 * The TODO List
 ** Unintended features - not bugs
 *** When running =hledger-makeitso import= in the wrong directory, an empty =import-all.journal= is created in that dir.

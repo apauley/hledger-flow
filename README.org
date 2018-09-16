@@ -1,3 +1,5 @@
+#+STARTUP: showall
+
 * hledger: Make It So
 
 Inspired by the structure and ideas of [[https://github.com/adept/full-fledged-hledger/wiki][adept's Full-fledged Hledger]].

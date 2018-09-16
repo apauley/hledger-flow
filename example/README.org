@@ -1,3 +1,5 @@
+#+STARTUP: showall
+
 * Some example financials
 
 The command-line examples in this file assumes that your current working directory is the project base directory,
