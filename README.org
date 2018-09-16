@@ -42,14 +42,7 @@ Inspired by the structure and ideas of [[https://github.com/adept/full-fledged-h
 
 *** TLDR;
 
-A working example is in the =example= directory.
-
-Run an import:
-#+BEGIN_SRC shell
-$ hledger-makeitso import ./example/
-#+END_SRC
-
-Then look at the generated files.
+Check out the [[file:example/README.org][README]] in the [[file:example/][example directory]].
 
 *** Getting Started
 

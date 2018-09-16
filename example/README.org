@@ -1,0 +1,24 @@
+* Some example financials
+
+The command-line examples in this file assumes that your current working directory is the project base directory,
+which will have this =example= directory available as a subdirectory.
+
+** Before you start
+
+This example uses the [[https://github.com/apauley/fnb-csv-demoronizer][FNB CSV Demoronizer]], which has been added as a submodule:
+
+#+BEGIN_SRC shell
+$ git submodule init
+Submodule 'example/fnb-csv-demoronizer' (https://github.com/apauley/fnb-csv-demoronizer.git) registered for path 'example/fnb-csv-demoronizer'
+$ git submodule update
+Cloning into 'example/fnb-csv-demoronizer'...
+Submodule path 'example/fnb-csv-demoronizer': checked out '677f916fac9104ad8fd9244a164767f3d92ca557'
+#+END_SRC
+
+** Running an import
+
+#+BEGIN_SRC shell
+$ hledger-makeitso import ./example/
+#+END_SRC
+
+Then look at the generated files.
