@@ -4,6 +4,8 @@
 
 Inspired by the structure and ideas of [[https://github.com/adept/full-fledged-hledger/wiki][adept's Full-fledged Hledger]].
 
+I've given [[https://pauley.org.za/functional-finance-hledger/][a talk]] at [[https://www.meetup.com/lambda-luminaries/events/qklkvpyxmbnb/][Lambda Luminaries Johannesburg]] featuring hledger-makeitso.
+
 ** Who should use this project?
 
    At the moment this software is in an alpha stage.
@@ -43,6 +45,9 @@ Inspired by the structure and ideas of [[https://github.com/adept/full-fledged-h
 ** How to Use It
 
 Have a look at the example [[file:example/README.org][README]] and the files in the [[file:example/][example directory]] to see everything in action.
+
+Or for a visual overview, check out these slides:
+https://pauley.org.za/functional-finance-hledger/
 
 *** Getting Started
 
