@@ -119,3 +119,32 @@ my-finances/import
 
 4 directories, 1 file
 #+END_SRC
+
+It is time to add what we have to source control.
+
+#+NAME: git-init
+#+BEGIN_SRC shell :results none :exports code
+cd my-finances/
+git init .
+git add import/
+git commit -m 'Initial commit'
+cd ..
+#+END_SRC
+
+Let's try the import again:
+#+NAME: import2
+#+BEGIN_SRC sh :results org :exports both
+hledger-makeitso import ./my-finances
+#+END_SRC
+
+#+RESULTS: import2
+#+BEGIN_SRC org
+hledger: user error (the first CSV record ["2","123456789","'MNR GAWIE DE GROOT'","'BOGART TJEKREKENING'"] has 4 fields but ["3","","'Staat'"] has 3)
+hledger-makeitso: ProcFailed {procCommand = "hledger", procArguments = ["print","--rules-file","./my-finances/import/bogart/cheque/bogart-cheque.rules","--file","./my-finances/import/bogart/cheque/1-in/2016/123456789_2016-03-30.csv","--output-file","./my-finances/import/bogart/cheque/3-journal/2016/123456789_2016-03-30.journal"], procExitCode = ExitFailure 1}
+
+#+END_SRC
+
+Another cryptic error.
+
+This one is caused by this missing [[http://hledger.org/csv.html][rules file]]:
+=./my-finances/import/bogart/cheque/bogart-cheque.rules=
