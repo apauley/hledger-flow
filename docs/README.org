@@ -1,0 +1,97 @@
+#+STARTUP: showall
+#+PROPERTY: header-args:sh :prologue exec 2>&1 :epilogue echo :
+
+* The Story of an African Chef
+
+Meet Gawie de Groot. Gawie is a successful [[https://en.wikipedia.org/wiki/Gonimbrasia_belina#As_food][mopane worm]] chef, based in the northernmost section of the [[https://en.wikipedia.org/wiki/Kruger_National_Park][Kruger National Park]].
+
+He works at a renowned bush restaurant named the "Grillerige Groen Goggatjie".
+
+Demand for his traditional African cuisine has sky-rocketed, with visitors from all over Zimbabwe, Mozambique and South Africa
+coming to enjoy his dishes.
+
+Business has been good the last few years, but Gawie wants to make sure that he'll also be OK when business is down.
+
+It is time for Gawie to take charge of his finances.
+
+** A look over Gawie's shoulders
+
+Gawie followed the [[https://github.com/apauley/hledger-makeitso#build-instructions][build instructions]] and ended up with his very own =hledger-makeitso= executable.
+
+Let's just run this =hledger-makeitso= command and see what happens...
+
+#+NAME: hm-noargs
+#+BEGIN_SRC sh :results output :exports both
+hledger-makeitso
+#+END_SRC
+
+Well OK, at least it prints some helpful output:
+
+#+RESULTS: hm-noargs
+#+begin_example
+Manage your hledger CSV imports and classification: https://github.com/apauley/hledger-makeitso#readme
+
+Usage: hledger-makeitso (import | report)
+
+Available options:
+  -h,--help                Show this help text
+
+Available commands:
+  import                   Converts CSV transactions into categorised journal files
+  report                   Generate Reports
+
+#+end_example
+
+
+Gawie wants to import his CSV statements. Luckily the =import= subcommand has a bit of help text as well:
+
+#+NAME: hm-import-help
+#+BEGIN_SRC sh :results output :exports both
+hledger-makeitso import --help
+#+END_SRC
+
+#+RESULTS: hm-import-help
+: Usage: hledger-makeitso import [BASEDIR]
+:   Converts CSV transactions into categorised journal files
+:
+: Available options:
+:   BASEDIR                  The hledger-makeitso base directory
+:   -h,--help                Show this help text
+:
+
+
+Gawie starts by creating a new directory specifically for his hledger journals:
+#+NAME: rmdir
+#+BEGIN_SRC shell :results none :exports results
+rm -rf my-finances
+#+END_SRC
+
+#+NAME: newfindir
+#+BEGIN_SRC shell :results none :exports both
+mkdir my-finances
+#+END_SRC
+
+Now he can point the import to his new finances directory:
+#+NAME: import1
+#+BEGIN_SRC sh :exports both
+hledger-makeitso import ./my-finances
+#+END_SRC
+
+#+RESULTS: import1
+
+Hmmm, an error.
+Looking at the [[https://github.com/apauley/hledger-makeitso#readme][project README]], it seems that =hledger-makeitso= looks for its input files in some very specific directories.
+
+There should be an =import= directory, and under that a directory named after a bank, followed by a directory for the account and so on.
+
+Gawie's salary is deposited into his cheque account at =Bogart Bank=, so this seems like a good account to start with:
+
+#+NAME: firstinputdir
+#+BEGIN_SRC shell :results none :exports both
+mkdir -p my-finances/import/bogart/cheque/1-in/2018/
+#+END_SRC
+
+#+NAME: import1
+#+BEGIN_SRC sh :exports both
+hledger-makeitso import ./my-finances
+#+END_SRC
