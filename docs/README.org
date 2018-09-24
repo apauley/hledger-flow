@@ -104,16 +104,18 @@ cp Downloads/Bogart/123456789_2016-03-30.csv my-finances/import/bogart/cheque/1-
 
 Let's see what our tree structure looks like now:
 #+NAME: tree-after-1st-file
-#+BEGIN_SRC shell :results output :exports both
+#+BEGIN_SRC shell :results org :exports both
 tree my-finances/import
 #+END_SRC
 
 #+RESULTS: tree-after-1st-file
-: my-finances/import
-: └── bogart
-:     └── cheque
-:         └── 1-in
-:             └── 2016
-:                 └── 123456789_2016-03-30.csv
-:
-: 4 directories, 1 file
+#+BEGIN_SRC org
+my-finances/import
+└── bogart
+    └── cheque
+        └── 1-in
+            └── 2016
+                └── 123456789_2016-03-30.csv
+
+4 directories, 1 file
+#+END_SRC
