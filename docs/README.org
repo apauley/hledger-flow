@@ -96,7 +96,24 @@ There should be an =import= directory, and under that a directory named after a 
 
 Gawie's salary is deposited into his cheque account at =Bogart Bank=, so this seems like a good account to start with:
 
-#+NAME: firstinputdir
+#+NAME: first-input-file
 #+BEGIN_SRC shell :results none :exports both
-mkdir -p my-finances/import/bogart/cheque/1-in/2018/
+mkdir -p my-finances/import/bogart/cheque/1-in/2016/
+cp Downloads/Bogart/123456789_2016-03-30.csv my-finances/import/bogart/cheque/1-in/2016/
 #+END_SRC
+
+Let's see what our tree structure looks like now:
+#+NAME: tree-after-1st-file
+#+BEGIN_SRC shell :results output :exports both
+tree my-finances/import
+#+END_SRC
+
+#+RESULTS: tree-after-1st-file
+: my-finances/import
+: └── bogart
+:     └── cheque
+:         └── 1-in
+:             └── 2016
+:                 └── 123456789_2016-03-30.csv
+:
+: 4 directories, 1 file
