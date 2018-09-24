@@ -64,20 +64,22 @@ Available options:
 Gawie starts by creating a new directory specifically for his hledger journals:
 
 #+NAME: new-fin-dir
-#+BEGIN_SRC shell :results output :exports both
+#+BEGIN_SRC shell :results none :exports both
 rm -rf my-finances
 mkdir my-finances
 #+END_SRC
 
 Now he can point the import to his new finances directory:
 #+NAME: import1
-#+BEGIN_SRC sh :results output :exports both
+#+BEGIN_SRC sh :results org :exports both
 hledger-makeitso import ./my-finances
 #+END_SRC
 
 #+RESULTS: import1
-: hledger-makeitso: user error (Unable to find CSV import dir at ./my-finances/import)
-:
+#+BEGIN_SRC org
+hledger-makeitso: user error (Unable to find CSV import dir at ./my-finances/import)
+
+#+END_SRC
 
 Hmmm, an error.
 Looking at the [[https://github.com/apauley/hledger-makeitso#readme][project README]], it seems that =hledger-makeitso= looks for its input files in some very specific directories.
