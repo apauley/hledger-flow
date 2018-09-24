@@ -1,4 +1,5 @@
 #+STARTUP: showall
+#+TITLE: hledger-makeitso: Step By Step
 #+PROPERTY: header-args:sh :prologue exec 2>&1 :epilogue echo :
 
 * The Story of an African Chef
@@ -63,9 +64,13 @@ Available options:
 
 Gawie starts by creating a new directory specifically for his hledger journals:
 
-#+NAME: new-fin-dir
-#+BEGIN_SRC shell :results none :exports both
+#+NAME: rm-fin-dir
+#+BEGIN_SRC shell :results none :exports none
 rm -rf my-finances
+#+END_SRC
+
+#+NAME: new-fin-dir
+#+BEGIN_SRC shell :results none :exports code
 mkdir my-finances
 #+END_SRC
 
