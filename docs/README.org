@@ -148,3 +148,11 @@ Another cryptic error.
 
 This one is caused by this missing [[http://hledger.org/csv.html][rules file]]:
 =./my-finances/import/bogart/cheque/bogart-cheque.rules=
+
+After looking through the [[http://hledger.org/csv.html][hledger documentation on CSV rules files]],
+Gawie concludes that the dates in Bogart Bank's CSV statement is incompatible with basic logic, reason and decency.
+
+Luckily he isn't the only one suffering at the hands of bureaucratic incompetence: someone else has already written [[https://github.com/apauley/fnb-csv-demoronizer][a script]] to
+fix stupid dates like those used by Bogart Bank.
+
+This looks like a job for a [[https://github.com/apauley/hledger-makeitso#the-preprocess-script][preprocess script]].
