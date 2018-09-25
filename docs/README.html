@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>hledger-makeitso: Step By Step</title>
+<style type="text/css">
+.underline { text-decoration: underline; }
+</style>
+<link rel="stylesheet" href="./reveal.js/css/reveal.css"/>
+
+<link rel="stylesheet" href="./reveal.js/css/theme/beige.css" id="theme"/>
+
+
+<!-- If the query includes 'print-pdf', include the PDF print sheet -->
+<script>
+    if( window.location.search.match( /print-pdf/gi ) ) {
+        var link = document.createElement( 'link' );
+        link.rel = 'stylesheet';
+        link.type = 'text/css';
+        link.href = './reveal.js/css/print/pdf.css';
+        document.getElementsByTagName( 'head' )[0].appendChild( link );
+    }
+</script>
+</head>
+<body>
+<div class="reveal">
+<div class="slides">
+<section id="sec-title-slide"><h1 class="title">hledger-makeitso: Step By Step</h1><p class="date">Created: 2018-09-25 Tue 23:17</p>
+</section>
+<section id="table-of-contents">
+<div id="table-of-contents">
+<h2>Table of Contents</h2>
+<div id="text-table-of-contents">
+<ul>
+<li><a href="#/slide-org4fbdb09">About This Document</a></li>
+<li><a href="#/slide-org7d87763">The Story of an African Chef</a></li>
+<li><a href="#/slide-orgcbf5b44">Part 1: The First CSV Statement</a></li>
+<li><a href="#/slide-org169475c">Part 2: Adding More Statements</a></li>
+</ul>
+</div>
+</div>
+</section>
+
+<section>
+<section id="slide-org4fbdb09">
+<h2 id="org4fbdb09">About This Document</h2>
+<p>
+This document is a <a href="https://www.offerzen.com/blog/literate-programming-empower-your-writing-with-emacs-org-mode">literate</a> <a href="https://orgmode.org/worg/org-contrib/babel/intro.html">program</a>.
+You can read it like a normal article.
+</p>
+
+<p>
+But you can also open <a href="README.html">this org-mode file</a> in emacs,
+and execute each code snippet by pressing <code>C-c C-c</code> with your cursor on the relevant code block.
+</p>
+
+</section>
+</section>
+<section>
+<section id="slide-org7d87763">
+<h2 id="org7d87763">The Story of an African Chef</h2>
+<p>
+Meet Gawie de Groot. Gawie is a successful <a href="https://en.wikipedia.org/wiki/Gonimbrasia_belina#As_food">mopane worm</a> chef, based in the northernmost section of the <a href="https://en.wikipedia.org/wiki/Kruger_National_Park">Kruger National Park</a>.
+</p>
+
+<p>
+In the past he used to work in a big city as an IT professional, but after a few years of this he decided to choose a quiter life
+in the bushveld.
+</p>
+
+<p>
+He now works at a renowned bush restaurant aptly named the "<code>Grillerige Groen Goggatjie</code>".
+</p>
+
+</section>
+<section >
+
+<p>
+Demand for his traditional African cuisine has sky-rocketed, with visitors from all over Zimbabwe, Mozambique and South Africa
+coming to enjoy his dishes.
+</p>
+
+<p>
+Business has been good the last few years, but Gawie wants to make sure that he'll also be OK when business is down.
+</p>
+
+<p>
+It is time for Gawie to take charge of his finances.
+</p>
+
+</section>
+</section>
+<section>
+<section id="slide-orgcbf5b44">
+<h2 id="orgcbf5b44">Part 1: The First CSV Statement</h2>
+<p>
+Gawie followed the <a href="https://github.com/apauley/hledger-makeitso#build-instructions">build instructions</a> and ended up with his very own <code>hledger-makeitso</code> executable.
+</p>
+
+</section>
+<section >
+
+<p>
+Let's just run this <code>hledger-makeitso</code> command and see what happens&#x2026;
+</p>
+
+<div class="org-src-container">
+
+<pre  class="src src-sh" id="hm-noargs">hledger-makeitso
+</pre>
+</div>
+
+<pre class="example">
+Manage your hledger CSV imports and classification: https://github.com/apauley/hledger-makeitso#readme
+
+Usage: hledger-makeitso (import | report)
+
+Available options:
+  -h,--help                Show this help text
+
+Available commands:
+  import                   Converts CSV transactions into categorised journal files
+  report                   Generate Reports
+
+</pre>
+
+<p>
+Well OK, at least it prints some helpful output.
+</p>
+
+</section>
+<section >
+
+<p>
+Gawie wants to import his CSV statements.
+</p>
+
+<p>
+Luckily the <code>import</code> subcommand has a bit of help text as well:
+</p>
+
+<div class="org-src-container">
+
+<pre  class="src src-sh" id="hm-import-help">hledger-makeitso import --help
+</pre>
+</div>
+
+<div class="org-src-container">
+
+<pre  class="src src-org">Usage: hledger-makeitso import [BASEDIR]
+  Converts CSV transactions into categorised journal files
+
+Available options:
+  BASEDIR                  The hledger-makeitso base directory
+  -h,--help                Show this help text
+
+</pre>
+</div>
+
+</section>
+<section >
+
+<p>
+Gawie starts by creating a new directory specifically for his hledger journals:
+</p>
+
+<div class="org-src-container">
+
+<pre  class="src src-shell" id="new-fin-dir">mkdir my-finances
+</pre>
+</div>
+
+<p>
+Now he can point the import to his new finances directory:
+</p>
+<div class="org-src-container">
+
+<pre  class="src src-sh" id="import1">hledger-makeitso import ./my-finances
+</pre>
+</div>
+
+</section>
+<section >
+
+<div class="org-src-container">
+
+<pre  class="src src-org">hledger-makeitso: user error (Unable to find CSV import dir at ./my-finances/import)
+
+</pre>
+</div>
+
+<p>
+Hmmm, an error.
+Looking at the <a href="https://github.com/apauley/hledger-makeitso#readme">project README</a>, it seems that <code>hledger-makeitso</code> looks for its input files in some very specific directories.
+</p>
+
+<p>
+There should be an <code>import</code> directory, and under that a directory named after a bank, followed by a directory for the account and so on.
+</p>
+
+</section>
+<section >
+
+<p>
+Gawie's salary is deposited into his cheque account at <code>Bogart Bank</code>, so this seems like a good account to start with:
+</p>
+
+<div class="org-src-container">
+
+<pre  class="src src-shell" id="first-input-file">mkdir -p my-finances/import/bogart/cheque/1-in/2016/
+cp Downloads/Bogart/123456789_2016-03-30.csv my-finances/import/bogart/cheque/1-in/2016/
+</pre>
+</div>
+
+</section>
+<section >
+
+<p>
+Let's see what our tree structure looks like now:
+</p>
+<div class="org-src-container">
+
+<pre  class="src src-shell" id="tree-after-1st-file">tree my-finances/import
+</pre>
+</div>
+
+<div class="org-src-container">
+
+<pre  class="src src-org">my-finances/import
+&#9492;&#9472;&#9472; bogart
+    &#9492;&#9472;&#9472; cheque
+        &#9492;&#9472;&#9472; 1-in
+            &#9492;&#9472;&#9472; 2016
+                &#9492;&#9472;&#9472; 123456789_2016-03-30.csv
+
+4 directories, 1 file
+</pre>
+</div>
+
+</section>
+<section >
+
+<p>
+It is time to add what we have to source control.
+</p>
+
+<div class="org-src-container">
+
+<pre  class="src src-shell" id="git-init"><span style="color: #4f97d7;">cd</span> my-finances/
+git init .
+git add .
+git commit -m <span style="color: #2d9574;">'Initial commit'</span>
+<span style="color: #4f97d7;">cd</span> ..
+</pre>
+</div>
+
+</section>
+<section >
+
+<p>
+Let's try the import again:
+</p>
+<div class="org-src-container">
+
+<pre  class="src src-sh" id="import2">hledger-makeitso import ./my-finances
+</pre>
+</div>
+
+<div class="org-src-container">
+
+<pre  class="src src-org">hledger: user error (the first CSV record ["2","123456789","'MNR GAWIE DE GROOT'","'BOGART TJEKREKENING'"] has 4 fields but ["3","","'Staat'"] has 3)
+hledger-makeitso: ProcFailed {procCommand = "hledger", procArguments = ["print","--rules-file","./my-finances/import/bogart/cheque/bogart-cheque.rules","--file","./my-finances/import/bogart/cheque/1-in/2016/123456789_2016-03-30.csv","--output-file","./my-finances/import/bogart/cheque/3-journal/2016/123456789_2016-03-30.journal"], procExitCode = ExitFailure 1}
+
+</pre>
+</div>
+
+</section>
+<section >
+
+<p>
+Another cryptic error.
+</p>
+
+<p>
+This one is caused by this missing <a href="http://hledger.org/csv.html">rules file</a>:
+<code>./my-finances/import/bogart/cheque/bogart-cheque.rules</code>
+</p>
+
+</section>
+<section >
+
+<p>
+After looking through the <a href="http://hledger.org/csv.html">hledger documentation on CSV rules files</a>,
+Gawie concludes that the dates in Bogart Bank's CSV statement is incompatible with basic logic, reason and decency.
+</p>
+
+<p>
+Luckily he isn't the only one suffering at the hands of bureaucratic incompetence: someone else has already written <a href="https://github.com/apauley/fnb-csv-demoronizer">a script</a> to
+fix stupid dates like those used by Bogart Bank.
+</p>
+
+</section>
+<section >
+
+<p>
+This looks like a job for a <a href="https://github.com/apauley/hledger-makeitso#the-preprocess-script">preprocess script</a>.
+Maybe we can get away with just a symbolic link&#x2026;
+</p>
+
+</section>
+<section >
+
+<p>
+Gawie adds the CSV transformation script as a submodule to his repository:
+</p>
+
+<div class="org-src-container">
+
+<pre  class="src src-sh" id="git-submodule-demoronizer"><span style="color: #4f97d7;">cd</span> my-finances/
+git submodule add https://github.com/apauley/fnb-csv-demoronizer.git
+git commit -m <span style="color: #2d9574;">'Added submodule: fnb-csv-demoronizer'</span>
+<span style="color: #4f97d7;">cd</span> ..
+</pre>
+</div>
+
+<p>
+<code>hledger-makeitso</code> looks for a file named <a href="https://github.com/apauley/hledger-makeitso#the-preprocess-script">preprocess</a> in the account directory.
+</p>
+
+<p>
+Gawie just creates a symbolic link named <code>preprocess</code>.
+This works because the downloaded script takes an input file and an output file as the first two positional arguments,
+very much as the <code>preprocess</code> script would expect.
+And luckily it ignores the other parameters that <code>hledger-makeitso</code> sends through.
+</p>
+
+</section>
+<section >
+
+<div class="org-src-container">
+
+<pre  class="src src-sh" id="symlink-demoronizer"><span style="color: #4f97d7;">cd</span> my-finances/import/bogart/cheque
+ln -s ../../../fnb-csv-demoronizer/fnb-csv-demoronizer preprocess
+</pre>
+</div>
+
+</section>
+<section >
+
+<p>
+Now when we try the import again, it still displays an error due to our missing rules file.
+But this time we can see that our statement was preprocessed:
+</p>
+<div class="org-src-container">
+
+<pre  class="src src-sh" id="import3">hledger-makeitso import ./my-finances
+</pre>
+</div>
+
+</section>
+<section >
+
+<div class="org-src-container">
+
+<pre  class="src src-sh" id="head-preprocess">head -n <span style="color: #a45bad;">2</span> my-finances/import/bogart/cheque/2-preprocessed/2016/123456789_2016-03-30.csv
+</pre>
+</div>
+
+<div class="org-src-container">
+
+<pre  class="src src-org">"5","'Nommer'","'Datum'","'Beskrywing1'","'Beskrywing2'","'Beskrywing3'","'Bedrag'","'Saldo'","'Opgeloopte Koste'"
+"5","1","2016-02-28","#Monthly Bank Fee","","","-500.00","40000.00",""
+
+</pre>
+</div>
+
+</section>
+<section >
+
+<p>
+Now that we have sane dates in a CSV file, let's try to create a <a href="http://hledger.org/manual.html#csv-rules">rules file</a>:
+</p>
+<div class="org-src-container">
+
+<pre  class="src src-hledger" id="bogart-cheque-rules-file">skip 1
+
+fields _, _, date, desc1, desc2, desc3, amount, balance, _
+
+currency R
+status *
+
+account1 <span style="color: #7590db;">Assets:Current:Gawie:Bogart:Cheque</span>
+description %desc1/%desc2/%desc3
+</pre>
+</div>
+
+<p>
+Gawie saves this file as <code>my-finances/import/bogart/cheque/bogart-cheque.rules</code>.
+</p>
+
+</section>
+<section >
+
+<p>
+This time the import is successful, and we see a number of newly generated files:
+</p>
+<div class="org-src-container">
+
+<pre  class="src src-sh" id="import4">hledger-makeitso import ./my-finances
+tree my-finances
+</pre>
+</div>
+
+<div class="org-src-container">
+
+<pre  class="src src-org">my-finances
+&#9500;&#9472;&#9472; fnb-csv-demoronizer
+&#9474;&#160;&#160; &#9500;&#9472;&#9472; fnb-csv-demoronizer
+&#9474;&#160;&#160; &#9492;&#9472;&#9472; README.org
+&#9500;&#9472;&#9472; import
+&#9474;&#160;&#160; &#9492;&#9472;&#9472; bogart
+&#9474;&#160;&#160;     &#9500;&#9472;&#9472; bogart.journal
+&#9474;&#160;&#160;     &#9492;&#9472;&#9472; cheque
+&#9474;&#160;&#160;         &#9500;&#9472;&#9472; 1-in
+&#9474;&#160;&#160;         &#9474;&#160;&#160; &#9492;&#9472;&#9472; 2016
+&#9474;&#160;&#160;         &#9474;&#160;&#160;     &#9492;&#9472;&#9472; 123456789_2016-03-30.csv
+&#9474;&#160;&#160;         &#9500;&#9472;&#9472; 2-preprocessed
+&#9474;&#160;&#160;         &#9474;&#160;&#160; &#9492;&#9472;&#9472; 2016
+&#9474;&#160;&#160;         &#9474;&#160;&#160;     &#9492;&#9472;&#9472; 123456789_2016-03-30.csv
+&#9474;&#160;&#160;         &#9500;&#9472;&#9472; 3-journal
+&#9474;&#160;&#160;         &#9474;&#160;&#160; &#9492;&#9472;&#9472; 2016
+&#9474;&#160;&#160;         &#9474;&#160;&#160;     &#9492;&#9472;&#9472; 123456789_2016-03-30.journal
+&#9474;&#160;&#160;         &#9500;&#9472;&#9472; bogart-cheque.journal
+&#9474;&#160;&#160;         &#9500;&#9472;&#9472; bogart-cheque.rules
+&#9474;&#160;&#160;         &#9500;&#9472;&#9472; opening.journal
+&#9474;&#160;&#160;         &#9492;&#9472;&#9472; preprocess -&gt; ../../../fnb-csv-demoronizer/fnb-csv-demoronizer
+&#9492;&#9472;&#9472; import-all.journal
+
+10 directories, 11 files
+
+</pre>
+</div>
+
+</section>
+<section >
+
+<p>
+Bogart Bank's CSV file has been transformed into an <code>hledger</code> journal file.
+</p>
+
+<p>
+This is the first transaction in the file:
+</p>
+<div class="org-src-container">
+
+<pre  class="src src-sh" id="head-1st-journal">head -n <span style="color: #a45bad;">3</span> my-finances/import/bogart/cheque/3-journal/2016/123456789_2016-03-30.journal
+</pre>
+</div>
+
+<div class="org-src-container">
+
+<pre  class="src src-org">2016/02/28 * #Monthly Bank Fee//
+    Assets:Current:Gawie:Bogart:Cheque        R-500.00 = R40000.00
+    expenses:unknown                           R500.00
+
+</pre>
+</div>
+
+</section>
+<section >
+
+<p>
+Can hledger show us some data?
+</p>
+
+<div class="org-src-container">
+
+<pre  class="src src-sh" id="hledger-err-balance">hledger -f my-finances/import-all.journal incomestatement
+</pre>
+</div>
+
+</section>
+<section >
+
+</section>
+<section >
+
+<p>
+Not yet - we have a balance assertion error.
+<code>hledger</code> thinks the balance should be <code>-R500</code>, but our import asserted that it should be <code>R40000</code>.
+</p>
+
+</section>
+<section >
+
+<p>
+Remember the <code>balance</code> field we added to the rules file?
+</p>
+<div class="org-src-container">
+
+<pre  class="src src-hledger" id="balance-field-rules-file">fields _, _, date, desc1, desc2, desc3, amount, balance, _
+</pre>
+</div>
+
+<p>
+It adds a balance assertion to each transaction, using the data helpfully provided by Bogart Bank.
+</p>
+
+</section>
+<section >
+
+<p>
+Clearly the cheque account has a pre-existing balance of <code>R40500</code>.
+To make <code>hledger</code> happy, we need to tell it what the opening balance for this account is.
+</p>
+
+<p>
+<code>my-finances/import/bogart/cheque/opening.journal</code>:
+</p>
+<div class="org-src-container">
+
+<pre  class="src src-hledger" id="bogart-cheque-opening-balance"><span style="color: #2d9574;">2016-02-27</span> Cheque Account Opening Balance
+    <span style="color: #7590db;">Assets:Current:Gawie:Bogart:Cheque</span>              R40500
+    <span style="color: #7590db;">Equity:Opening</span> Balances:Gawie:Bogart:Cheque
+</pre>
+</div>
+
+</section>
+<section >
+
+<p>
+Now we can try the income statement again.
+</p>
+
+<div class="org-src-container">
+
+<pre  class="src src-sh" id="hledger-incomestatement">hledger -f my-finances/import-all.journal incomestatement --pretty-tables
+</pre>
+</div>
+
+</section>
+<section >
+
+<div class="org-src-container">
+
+<pre  class="src src-org">Income Statement 2016/02/27-2016/03/25
+
+                  &#9553; 2016/02/27-2016/03/25 
+&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9580;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;
+ Revenues         &#9553;                       
+&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9579;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
+ income:unknown   &#9553;             R37256.28 
+&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9579;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
+                  &#9553;             R37256.28 
+&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9580;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;
+ Expenses         &#9553;                       
+&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9579;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
+ expenses:unknown &#9553;             R36500.00 
+&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9579;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
+                  &#9553;             R36500.00 
+&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9580;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;
+ Net:             &#9553;               R756.28 
+
+</pre>
+</div>
+
+<p>
+It worked!
+</p>
+
+</section>
+</section>
+<section>
+<section id="slide-org169475c">
+<h2 id="org169475c">Part 2: Adding More Statements</h2>
+<p>
+To Be Continued&#x2026;
+</p>
+</section>
+</section>
+</div>
+</div>
+<script src="./reveal.js/lib/js/head.min.js"></script>
+<script src="./reveal.js/js/reveal.js"></script>
+
+<script>
+// Full list of configuration options available here:
+// https://github.com/hakimel/reveal.js#configuration
+Reveal.initialize({
+
+controls: true,
+progress: true,
+history: false,
+center: true,
+slideNumber: 'c',
+rollingLinks: false,
+keyboard: true,
+overview: true,
+
+theme: Reveal.getQueryHash().theme, // available themes are in /css/theme
+transition: Reveal.getQueryHash().transition || 'default', // default/cube/page/concave/zoom/linear/fade/none
+transitionSpeed: 'default',
+multiplex: {
+    secret: '', // null if client
+    id: '', // id, obtained from socket.io server
+    url: '' // Location of socket.io server
+},
+
+// Optional libraries used to extend on reveal.js
+dependencies: [
+ { src: './reveal.js/lib/js/classList.js', condition: function() { return !document.body.classList; } },
+ { src: './reveal.js/plugin/markdown/marked.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+ { src: './reveal.js/plugin/markdown/markdown.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+ { src: './reveal.js/plugin/zoom-js/zoom.js', async: true, condition: function() { return !!document.body.classList; } },
+ { src: './reveal.js/plugin/notes/notes.js', async: true, condition: function() { return !!document.body.classList; } }]
+});
+</script>
+</body>
+</html>
