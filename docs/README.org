@@ -354,6 +354,7 @@ To make =hledger= happy, we need to tell it what the opening balance for this ac
     Equity:Opening Balances:Gawie:Bogart:Cheque
 #+END_SRC
 
+Now we can try the income statement again.
 
 #+NAME: hledger-incomestatement
 #+BEGIN_SRC sh :results org :exports both
@@ -380,6 +381,8 @@ Total:
 
 
 #+END_SRC
+
+It worked!
 
 * Part 2: Adding More Statements
 
