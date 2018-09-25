@@ -207,7 +207,11 @@ git commit -m 'Added submodule: fnb-csv-demoronizer'
 cd ..
 #+END_SRC
 
+#+REVEAL: split
+
 =hledger-makeitso= looks for a file named [[https://github.com/apauley/hledger-makeitso#the-preprocess-script][preprocess]] in the account directory.
+
+#+REVEAL: split
 
 Gawie just creates a symbolic link named =preprocess=.
 This works because the downloaded script takes an input file and an output file as the first two positional arguments,
@@ -222,16 +226,15 @@ cd my-finances/import/bogart/cheque
 ln -s ../../../fnb-csv-demoronizer/fnb-csv-demoronizer preprocess
 #+END_SRC
 
-#+REVEAL: split
-
 Now when we try the import again, it still displays an error due to our missing rules file.
 But this time we can see that our statement was preprocessed:
+
+#+REVEAL: split
+
 #+NAME: import3
 #+BEGIN_SRC sh :results none :exports both
 hledger-makeitso import ./my-finances
 #+END_SRC
-
-#+REVEAL: split
 
 #+NAME: head-preprocess
 #+BEGIN_SRC sh :results org :exports both
@@ -294,6 +297,8 @@ hledger-makeitso import ./my-finances
 tree my-finances
 #+END_SRC
 
+#+REVEAL: split
+
 #+RESULTS: import4
 #+BEGIN_SRC org
 my-finances
@@ -354,14 +359,13 @@ cd ..
 Can hledger show us some data?
 
 #+NAME: hledger-err-balance
-#+BEGIN_SRC sh :results org :exports code
+#+BEGIN_SRC sh :results none :exports code
 hledger -f my-finances/import-all.journal incomestatement
 #+END_SRC
 
 #+REVEAL: split
 
-#+RESULTS: hledger-err-balance
-#+BEGIN_SRC org
+#+BEGIN_SRC hledger
 hledger: balance assertion error in "my-finances/import/bogart/cheque/3-journal/2016/123456789_2016-03-30.journal" (line 2, column 56):
 in transaction:
 2016/02/28 * #Monthly Bank Fee//
