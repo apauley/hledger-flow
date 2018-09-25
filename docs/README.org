@@ -344,8 +344,9 @@ fields _, _, date, desc1, desc2, desc3, amount, balance, _
 It adds a balance assertion to each transaction, using the data helpfully provided by Bogart Bank.
 
 Clearly the cheque account has a pre-existing balance of =R40500=.
-To make =hledger= happy, we need to tell it what the opening balance for this account is:
+To make =hledger= happy, we need to tell it what the opening balance for this account is.
 
+=my-finances/import/bogart/cheque/opening.journal=:
 #+NAME: bogart-cheque-opening-balance
 #+BEGIN_SRC hledger :tangle my-finances/import/bogart/cheque/opening.journal
 2016-02-27 Cheque Account Opening Balance
