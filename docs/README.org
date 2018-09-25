@@ -2,6 +2,14 @@
 #+TITLE: hledger-makeitso: Step By Step
 #+PROPERTY: header-args:sh :prologue exec 2>&1 :epilogue echo :
 
+* About This Document
+
+This document is a [[https://www.offerzen.com/blog/literate-programming-empower-your-writing-with-emacs-org-mode][literate]] [[https://orgmode.org/worg/org-contrib/babel/intro.html][program]].
+You can read it like a normal article.
+
+But you can also open [[file:README.org][this org-mode file]] in emacs,
+and execute each code snippet by pressing =C-c C-c= with your cursor on the relevant code block.
+
 * The Story of an African Chef
 
 Meet Gawie de Groot. Gawie is a successful [[https://en.wikipedia.org/wiki/Gonimbrasia_belina#As_food][mopane worm]] chef, based in the northernmost section of the [[https://en.wikipedia.org/wiki/Kruger_National_Park][Kruger National Park]].
@@ -18,7 +26,7 @@ Business has been good the last few years, but Gawie wants to make sure that he'
 
 It is time for Gawie to take charge of his finances.
 
-** A look over Gawie's shoulders
+* Part 1: The First CSV Statement
 
 Gawie followed the [[https://github.com/apauley/hledger-makeitso#build-instructions][build instructions]] and ended up with his very own =hledger-makeitso= executable.
 
@@ -365,3 +373,7 @@ Total:
 
 
 #+END_SRC
+
+* Part 2: Adding More Statements
+
+To Be Continued...
