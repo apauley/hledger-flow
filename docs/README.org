@@ -337,8 +337,8 @@ Not yet - we have a balance assertion error.
 
 Remember the =balance= field we added to the rules file?
 #+NAME: balance-field-rules-file
-#+BEGIN_SRC org
-fields _, _, date, desc1, desc2, desc3, amount, =balance=, _
+#+BEGIN_SRC hledger
+fields _, _, date, desc1, desc2, desc3, amount, balance, _
 #+END_SRC
 
 It adds a balance assertion to each transaction, using the data helpfully provided by Bogart Bank.
