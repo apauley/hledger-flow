@@ -176,15 +176,18 @@ git commit -m 'Added submodule: fnb-csv-demoronizer'
 cd ..
 #+END_SRC
 
-=hledger-makeitso= looks for a file named =preprocess= in the account directory.
+=hledger-makeitso= looks for a file named [[https://github.com/apauley/hledger-makeitso#the-preprocess-script][preprocess]] in the account directory.
 
-Gawie just creates a symbolic link named =preprocess=:
+Gawie just creates a symbolic link named =preprocess=.
+This works because the downloaded script takes an input file and an output file as the first two positional arguments,
+very much as the =preprocess= script would expect.
+And luckily it ignores the other parameters that =hledger-makeitso= sends through.
+
 #+NAME: symlink-demoronizer
 #+BEGIN_SRC sh :results none :exports both
 cd my-finances/import/bogart/cheque
 ln -s ../../../fnb-csv-demoronizer/fnb-csv-demoronizer preprocess
 #+END_SRC
-
 
 Now when we try the import again, it still displays an error due to our missing rules file.
 But this time we can see that our statement was preprocessed:
@@ -213,8 +216,7 @@ git commit -m 'The preprocessed CSV now has dates we can work with!'
 cd ..
 #+END_SRC
 
-Now that we have sane dates in a CSV file, let's try to create a [[http://hledger.org/manual.html#csv-rules][rules file]].
-
+Now that we have sane dates in a CSV file, let's try to create a [[http://hledger.org/manual.html#csv-rules][rules file]]:
 #+NAME: bogart-cheque-rules-file
 #+BEGIN_SRC hledger :tangle my-finances/import/bogart/cheque/bogart-cheque.rules
 skip 1
@@ -227,6 +229,8 @@ status *
 account1 Assets:Current:Gawie:Bogart:Cheque
 description %desc1/%desc2/%desc3
 #+END_SRC
+
+Gawie saves this file as =my-finances/import/bogart/cheque/bogart-cheque.rules=.
 
 #+NAME: tangle-rules
 #+BEGIN_SRC emacs-lisp :results none :exports results
@@ -242,6 +246,7 @@ git commit -m 'A CSV rules file'
 cd ..
 #+END_SRC
 
+This time the import is successful, and we see a number of newly generated files:
 #+NAME: import4
 #+BEGIN_SRC sh :results org :exports both
 hledger-makeitso import ./my-finances
@@ -277,7 +282,9 @@ my-finances
 
 #+END_SRC
 
+Bogart Bank's CSV file has been transformed into an =hledger= journal file.
 
+This is the first transaction in the file:
 #+NAME: head-1st-journal
 #+BEGIN_SRC sh :results org :exports both
 head -n 3 my-finances/import/bogart/cheque/3-journal/2016/123456789_2016-03-30.journal
@@ -325,14 +332,13 @@ asserted:   R40000.00 (difference: +R40500.00)
 
 #+END_SRC
 
-
 Not yet - we have a balance assertion error.
 =hledger= thinks the balance should be =-R500=, but our import asserted that it should be =R40000=.
 
 Remember the =balance= field we added to the rules file?
 #+NAME: balance-field-rules-file
-#+BEGIN_SRC hledger
-fields _, _, date, desc1, desc2, desc3, amount, balance, _
+#+BEGIN_SRC org
+fields _, _, date, desc1, desc2, desc3, amount, =balance=, _
 #+END_SRC
 
 It adds a balance assertion to each transaction, using the data helpfully provided by Bogart Bank.
