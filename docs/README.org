@@ -1,5 +1,9 @@
 #+STARTUP: showall
 #+TITLE: hledger-makeitso: Step By Step
+#+AUTHOR:
+#+REVEAL_TRANS: default
+#+REVEAL_THEME: beige
+#+OPTIONS: num:nil
 #+PROPERTY: header-args:sh :prologue exec 2>&1 :epilogue echo :
 
 * About This Document
@@ -19,6 +23,8 @@ in the bushveld.
 
 He now works at a renowned bush restaurant aptly named the "=Grillerige Groen Goggatjie=".
 
+#+REVEAL: split
+
 Demand for his traditional African cuisine has sky-rocketed, with visitors from all over Zimbabwe, Mozambique and South Africa
 coming to enjoy his dishes.
 
@@ -29,6 +35,8 @@ It is time for Gawie to take charge of his finances.
 * Part 1: The First CSV Statement
 
 Gawie followed the [[https://github.com/apauley/hledger-makeitso#build-instructions][build instructions]] and ended up with his very own =hledger-makeitso= executable.
+
+#+REVEAL: split
 
 Let's just run this =hledger-makeitso= command and see what happens...
 
@@ -54,7 +62,11 @@ Available commands:
 
 Well OK, at least it prints some helpful output.
 
-Gawie wants to import his CSV statements. Luckily the =import= subcommand has a bit of help text as well:
+#+REVEAL: split
+
+Gawie wants to import his CSV statements.
+
+Luckily the =import= subcommand has a bit of help text as well:
 
 #+NAME: hm-import-help
 #+BEGIN_SRC sh :results org :exports both
@@ -72,6 +84,7 @@ Available options:
 
 #+END_SRC
 
+#+REVEAL: split
 
 Gawie starts by creating a new directory specifically for his hledger journals:
 
@@ -91,6 +104,8 @@ Now he can point the import to his new finances directory:
 hledger-makeitso import ./my-finances
 #+END_SRC
 
+#+REVEAL: split
+
 #+RESULTS: import1
 #+BEGIN_SRC org
 hledger-makeitso: user error (Unable to find CSV import dir at ./my-finances/import)
@@ -102,6 +117,8 @@ Looking at the [[https://github.com/apauley/hledger-makeitso#readme][project REA
 
 There should be an =import= directory, and under that a directory named after a bank, followed by a directory for the account and so on.
 
+#+REVEAL: split
+
 Gawie's salary is deposited into his cheque account at =Bogart Bank=, so this seems like a good account to start with:
 
 #+NAME: first-input-file
@@ -109,6 +126,8 @@ Gawie's salary is deposited into his cheque account at =Bogart Bank=, so this se
 mkdir -p my-finances/import/bogart/cheque/1-in/2016/
 cp Downloads/Bogart/123456789_2016-03-30.csv my-finances/import/bogart/cheque/1-in/2016/
 #+END_SRC
+
+#+REVEAL: split
 
 Let's see what our tree structure looks like now:
 #+NAME: tree-after-1st-file
@@ -128,6 +147,8 @@ my-finances/import
 4 directories, 1 file
 #+END_SRC
 
+#+REVEAL: split
+
 It is time to add what we have to source control.
 
 #+NAME: git-init
@@ -138,6 +159,8 @@ git add .
 git commit -m 'Initial commit'
 cd ..
 #+END_SRC
+
+#+REVEAL: split
 
 Let's try the import again:
 #+NAME: import2
@@ -152,10 +175,14 @@ hledger-makeitso: ProcFailed {procCommand = "hledger", procArguments = ["print",
 
 #+END_SRC
 
+#+REVEAL: split
+
 Another cryptic error.
 
 This one is caused by this missing [[http://hledger.org/csv.html][rules file]]:
 =./my-finances/import/bogart/cheque/bogart-cheque.rules=
+
+#+REVEAL: split
 
 After looking through the [[http://hledger.org/csv.html][hledger documentation on CSV rules files]],
 Gawie concludes that the dates in Bogart Bank's CSV statement is incompatible with basic logic, reason and decency.
@@ -163,8 +190,12 @@ Gawie concludes that the dates in Bogart Bank's CSV statement is incompatible wi
 Luckily he isn't the only one suffering at the hands of bureaucratic incompetence: someone else has already written [[https://github.com/apauley/fnb-csv-demoronizer][a script]] to
 fix stupid dates like those used by Bogart Bank.
 
+#+REVEAL: split
+
 This looks like a job for a [[https://github.com/apauley/hledger-makeitso#the-preprocess-script][preprocess script]].
 Maybe we can get away with just a symbolic link...
+
+#+REVEAL: split
 
 Gawie adds the CSV transformation script as a submodule to his repository:
 
@@ -183,11 +214,15 @@ This works because the downloaded script takes an input file and an output file 
 very much as the =preprocess= script would expect.
 And luckily it ignores the other parameters that =hledger-makeitso= sends through.
 
+#+REVEAL: split
+
 #+NAME: symlink-demoronizer
 #+BEGIN_SRC sh :results none :exports both
 cd my-finances/import/bogart/cheque
 ln -s ../../../fnb-csv-demoronizer/fnb-csv-demoronizer preprocess
 #+END_SRC
+
+#+REVEAL: split
 
 Now when we try the import again, it still displays an error due to our missing rules file.
 But this time we can see that our statement was preprocessed:
@@ -195,6 +230,8 @@ But this time we can see that our statement was preprocessed:
 #+BEGIN_SRC sh :results none :exports both
 hledger-makeitso import ./my-finances
 #+END_SRC
+
+#+REVEAL: split
 
 #+NAME: head-preprocess
 #+BEGIN_SRC sh :results org :exports both
@@ -207,6 +244,8 @@ head -n 2 my-finances/import/bogart/cheque/2-preprocessed/2016/123456789_2016-03
 "5","1","2016-02-28","#Monthly Bank Fee","","","-500.00","40000.00",""
 
 #+END_SRC
+
+#+REVEAL: split
 
 #+NAME: git-checkpoint-preprocess
 #+BEGIN_SRC sh :results none :exports results
@@ -231,6 +270,8 @@ description %desc1/%desc2/%desc3
 #+END_SRC
 
 Gawie saves this file as =my-finances/import/bogart/cheque/bogart-cheque.rules=.
+
+#+REVEAL: split
 
 #+NAME: tangle-rules
 #+BEGIN_SRC emacs-lisp :results none :exports results
@@ -282,6 +323,8 @@ my-finances
 
 #+END_SRC
 
+#+REVEAL: split
+
 Bogart Bank's CSV file has been transformed into an =hledger= journal file.
 
 This is the first transaction in the file:
@@ -298,6 +341,8 @@ head -n 3 my-finances/import/bogart/cheque/3-journal/2016/123456789_2016-03-30.j
 
 #+END_SRC
 
+#+REVEAL: split
+
 #+NAME: git-checkpoint-1st-journal
 #+BEGIN_SRC sh :results none :exports results
 cd my-finances/
@@ -309,9 +354,11 @@ cd ..
 Can hledger show us some data?
 
 #+NAME: hledger-err-balance
-#+BEGIN_SRC sh :results org :exports both
+#+BEGIN_SRC sh :results org :exports code
 hledger -f my-finances/import-all.journal incomestatement
 #+END_SRC
+
+#+REVEAL: split
 
 #+RESULTS: hledger-err-balance
 #+BEGIN_SRC org
@@ -328,12 +375,14 @@ account:    Assets:Current:Gawie:Bogart:Cheque
 commodity:  R
 calculated: R-500.00
 asserted:   R40000.00 (difference: +R40500.00)
-
-
 #+END_SRC
+
+#+REVEAL: split
 
 Not yet - we have a balance assertion error.
 =hledger= thinks the balance should be =-R500=, but our import asserted that it should be =R40000=.
+
+#+REVEAL: split
 
 Remember the =balance= field we added to the rules file?
 #+NAME: balance-field-rules-file
@@ -342,6 +391,8 @@ fields _, _, date, desc1, desc2, desc3, amount, balance, _
 #+END_SRC
 
 It adds a balance assertion to each transaction, using the data helpfully provided by Bogart Bank.
+
+#+REVEAL: split
 
 Clearly the cheque account has a pre-existing balance of =R40500=.
 To make =hledger= happy, we need to tell it what the opening balance for this account is.
@@ -354,31 +405,36 @@ To make =hledger= happy, we need to tell it what the opening balance for this ac
     Equity:Opening Balances:Gawie:Bogart:Cheque
 #+END_SRC
 
+#+REVEAL: split
+
 Now we can try the income statement again.
 
 #+NAME: hledger-incomestatement
 #+BEGIN_SRC sh :results org :exports both
-hledger -f my-finances/import-all.journal incomestatement
+hledger -f my-finances/import-all.journal incomestatement --pretty-tables
 #+END_SRC
+
+#+REVEAL: split
 
 #+RESULTS: hledger-incomestatement
 #+BEGIN_SRC org
-Income Statement
+Income Statement 2016/02/27-2016/03/25
 
-Revenues:
-          R-37256.28  income:unknown
---------------------
-          R-37256.28
-
-Expenses:
-           R36500.00  expenses:unknown
---------------------
-           R36500.00
-
-Total:
---------------------
-            R-756.28
-
+                  ║ 2016/02/27-2016/03/25
+══════════════════╬═══════════════════════
+ Revenues         ║
+──────────────────╫───────────────────────
+ income:unknown   ║             R37256.28
+──────────────────╫───────────────────────
+                  ║             R37256.28
+══════════════════╬═══════════════════════
+ Expenses         ║
+──────────────────╫───────────────────────
+ expenses:unknown ║             R36500.00
+──────────────────╫───────────────────────
+                  ║             R36500.00
+══════════════════╬═══════════════════════
+ Net:             ║               R756.28
 
 #+END_SRC
 
