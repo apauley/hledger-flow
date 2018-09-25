@@ -68,12 +68,12 @@ Available options:
 Gawie starts by creating a new directory specifically for his hledger journals:
 
 #+NAME: rm-fin-dir
-#+BEGIN_SRC shell :results none :exports none
+#+BEGIN_SRC shell :results none :exports results
 rm -rf my-finances
 #+END_SRC
 
 #+NAME: new-fin-dir
-#+BEGIN_SRC shell :results none :exports code
+#+BEGIN_SRC shell :results none :exports both
 mkdir my-finances
 #+END_SRC
 
@@ -123,10 +123,10 @@ my-finances/import
 It is time to add what we have to source control.
 
 #+NAME: git-init
-#+BEGIN_SRC shell :results none :exports code
+#+BEGIN_SRC shell :results none :exports both
 cd my-finances/
 git init .
-git add import/
+git add .
 git commit -m 'Initial commit'
 cd ..
 #+END_SRC
@@ -156,3 +156,212 @@ Luckily he isn't the only one suffering at the hands of bureaucratic incompetenc
 fix stupid dates like those used by Bogart Bank.
 
 This looks like a job for a [[https://github.com/apauley/hledger-makeitso#the-preprocess-script][preprocess script]].
+Maybe we can get away with just a symbolic link...
+
+Gawie adds the CSV transformation script as a submodule to his repository:
+
+#+NAME: git-submodule-demoronizer
+#+BEGIN_SRC sh :results none :exports both
+cd my-finances/
+git submodule add https://github.com/apauley/fnb-csv-demoronizer.git
+git commit -m 'Added submodule: fnb-csv-demoronizer'
+cd ..
+#+END_SRC
+
+=hledger-makeitso= looks for a file named =preprocess= in the account directory.
+
+Gawie just creates a symbolic link named =preprocess=:
+#+NAME: symlink-demoronizer
+#+BEGIN_SRC sh :results none :exports both
+cd my-finances/import/bogart/cheque
+ln -s ../../../fnb-csv-demoronizer/fnb-csv-demoronizer preprocess
+#+END_SRC
+
+
+Now when we try the import again, it still displays an error due to our missing rules file.
+But this time we can see that our statement was preprocessed:
+#+NAME: import3
+#+BEGIN_SRC sh :results none :exports both
+hledger-makeitso import ./my-finances
+#+END_SRC
+
+#+NAME: head-preprocess
+#+BEGIN_SRC sh :results org :exports both
+head -n 2 my-finances/import/bogart/cheque/2-preprocessed/2016/123456789_2016-03-30.csv
+#+END_SRC
+
+#+RESULTS: head-preprocess
+#+BEGIN_SRC org
+"5","'Nommer'","'Datum'","'Beskrywing1'","'Beskrywing2'","'Beskrywing3'","'Bedrag'","'Saldo'","'Opgeloopte Koste'"
+"5","1","2016-02-28","#Monthly Bank Fee","","","-500.00","40000.00",""
+
+#+END_SRC
+
+#+NAME: git-checkpoint-preprocess
+#+BEGIN_SRC sh :results none :exports results
+cd my-finances/
+git add .
+git commit -m 'The preprocessed CSV now has dates we can work with!'
+cd ..
+#+END_SRC
+
+Now that we have sane dates in a CSV file, let's try to create a [[http://hledger.org/manual.html#csv-rules][rules file]].
+
+#+NAME: bogart-cheque-rules-file
+#+BEGIN_SRC hledger :tangle my-finances/import/bogart/cheque/bogart-cheque.rules
+skip 1
+
+fields _, _, date, desc1, desc2, desc3, amount, balance, _
+
+currency R
+status *
+
+account1 Assets:Current:Gawie:Bogart:Cheque
+description %desc1/%desc2/%desc3
+#+END_SRC
+
+#+NAME: tangle-rules
+#+BEGIN_SRC emacs-lisp :results none :exports results
+; Narrator: this just tells emacs to write out the rules file. Carry on.
+(org-babel-tangle-file (buffer-file-name))
+#+END_SRC
+
+#+NAME: git-checkpoint-rules
+#+BEGIN_SRC sh :results none :exports results
+cd my-finances/
+git add .
+git commit -m 'A CSV rules file'
+cd ..
+#+END_SRC
+
+#+NAME: import4
+#+BEGIN_SRC sh :results org :exports both
+hledger-makeitso import ./my-finances
+tree my-finances
+#+END_SRC
+
+#+RESULTS: import4
+#+BEGIN_SRC org
+my-finances
+├── fnb-csv-demoronizer
+│   ├── fnb-csv-demoronizer
+│   └── README.org
+├── import
+│   └── bogart
+│       ├── bogart.journal
+│       └── cheque
+│           ├── 1-in
+│           │   └── 2016
+│           │       └── 123456789_2016-03-30.csv
+│           ├── 2-preprocessed
+│           │   └── 2016
+│           │       └── 123456789_2016-03-30.csv
+│           ├── 3-journal
+│           │   └── 2016
+│           │       └── 123456789_2016-03-30.journal
+│           ├── bogart-cheque.journal
+│           ├── bogart-cheque.rules
+│           ├── opening.journal
+│           └── preprocess -> ../../../fnb-csv-demoronizer/fnb-csv-demoronizer
+└── import-all.journal
+
+10 directories, 11 files
+
+#+END_SRC
+
+
+#+NAME: head-1st-journal
+#+BEGIN_SRC sh :results org :exports both
+head -n 3 my-finances/import/bogart/cheque/3-journal/2016/123456789_2016-03-30.journal
+#+END_SRC
+
+#+RESULTS: head-1st-journal
+#+BEGIN_SRC org
+2016/02/28 * #Monthly Bank Fee//
+    Assets:Current:Gawie:Bogart:Cheque        R-500.00 = R40000.00
+    expenses:unknown                           R500.00
+
+#+END_SRC
+
+#+NAME: git-checkpoint-1st-journal
+#+BEGIN_SRC sh :results none :exports results
+cd my-finances/
+git add .
+git commit -m 'My first imported journal'
+cd ..
+#+END_SRC
+
+Can hledger show us some data?
+
+#+NAME: hledger-err-balance
+#+BEGIN_SRC sh :results org :exports both
+hledger -f my-finances/import-all.journal incomestatement
+#+END_SRC
+
+#+RESULTS: hledger-err-balance
+#+BEGIN_SRC org
+hledger: balance assertion error in "my-finances/import/bogart/cheque/3-journal/2016/123456789_2016-03-30.journal" (line 2, column 56):
+in transaction:
+2016/02/28 * #Monthly Bank Fee//
+    Assets:Current:Gawie:Bogart:Cheque        R-500.00 = R40000.00
+    expenses:unknown                           R500.00
+after posting:
+    Assets:Current:Gawie:Bogart:Cheque    R-500.00
+balance assertion details:
+date:       2016/02/28
+account:    Assets:Current:Gawie:Bogart:Cheque
+commodity:  R
+calculated: R-500.00
+asserted:   R40000.00 (difference: +R40500.00)
+
+
+#+END_SRC
+
+
+Not yet - we have a balance assertion error.
+=hledger= thinks the balance should be =-R500=, but our import asserted that it should be =R40000=.
+
+Remember the =balance= field we added to the rules file?
+#+NAME: balance-field-rules-file
+#+BEGIN_SRC hledger
+fields _, _, date, desc1, desc2, desc3, amount, balance, _
+#+END_SRC
+
+It adds a balance assertion to each transaction, using the data helpfully provided by Bogart Bank.
+
+Clearly the cheque account has a pre-existing balance of =R40500=.
+To make =hledger= happy, we need to tell it what the opening balance for this account is:
+
+#+NAME: bogart-cheque-opening-balance
+#+BEGIN_SRC hledger :tangle my-finances/import/bogart/cheque/opening.journal
+2016-02-27 Cheque Account Opening Balance
+    Assets:Current:Gawie:Bogart:Cheque              R40500
+    Equity:Opening Balances:Gawie:Bogart:Cheque
+#+END_SRC
+
+
+#+NAME: hledger-incomestatement
+#+BEGIN_SRC sh :results org :exports both
+hledger -f my-finances/import-all.journal incomestatement
+#+END_SRC
+
+#+RESULTS: hledger-incomestatement
+#+BEGIN_SRC org
+Income Statement
+
+Revenues:
+          R-37256.28  income:unknown
+--------------------
+          R-37256.28
+
+Expenses:
+           R36500.00  expenses:unknown
+--------------------
+           R36500.00
+
+Total:
+--------------------
+            R-756.28
+
+
+#+END_SRC
