@@ -25,25 +25,25 @@
 <body>
 <div class="reveal">
 <div class="slides">
-<section id="sec-title-slide"><h1 class="title">hledger-makeitso: Step By Step</h1><p class="date">Created: 2018-09-25 Tue 23:17</p>
+<section id="sec-title-slide"><h1 class="title">hledger-makeitso: Step By Step</h1><p class="date">Created: 2018-09-25 Tue 23:33</p>
 </section>
 <section id="table-of-contents">
 <div id="table-of-contents">
 <h2>Table of Contents</h2>
 <div id="text-table-of-contents">
 <ul>
-<li><a href="#/slide-org4fbdb09">About This Document</a></li>
-<li><a href="#/slide-org7d87763">The Story of an African Chef</a></li>
-<li><a href="#/slide-orgcbf5b44">Part 1: The First CSV Statement</a></li>
-<li><a href="#/slide-org169475c">Part 2: Adding More Statements</a></li>
+<li><a href="#/slide-orgbefc073">About This Document</a></li>
+<li><a href="#/slide-orgb2f6845">The Story of an African Chef</a></li>
+<li><a href="#/slide-orgb332099">Part 1: The First CSV Statement</a></li>
+<li><a href="#/slide-orga6a041b">Part 2: Adding More Statements</a></li>
 </ul>
 </div>
 </div>
 </section>
 
 <section>
-<section id="slide-org4fbdb09">
-<h2 id="org4fbdb09">About This Document</h2>
+<section id="slide-orgbefc073">
+<h2 id="orgbefc073">About This Document</h2>
 <p>
 This document is a <a href="https://www.offerzen.com/blog/literate-programming-empower-your-writing-with-emacs-org-mode">literate</a> <a href="https://orgmode.org/worg/org-contrib/babel/intro.html">program</a>.
 You can read it like a normal article.
@@ -57,8 +57,8 @@ and execute each code snippet by pressing <code>C-c C-c</code> with your cursor 
 </section>
 </section>
 <section>
-<section id="slide-org7d87763">
-<h2 id="org7d87763">The Story of an African Chef</h2>
+<section id="slide-orgb2f6845">
+<h2 id="orgb2f6845">The Story of an African Chef</h2>
 <p>
 Meet Gawie de Groot. Gawie is a successful <a href="https://en.wikipedia.org/wiki/Gonimbrasia_belina#As_food">mopane worm</a> chef, based in the northernmost section of the <a href="https://en.wikipedia.org/wiki/Kruger_National_Park">Kruger National Park</a>.
 </p>
@@ -91,8 +91,8 @@ It is time for Gawie to take charge of his finances.
 </section>
 </section>
 <section>
-<section id="slide-orgcbf5b44">
-<h2 id="orgcbf5b44">Part 1: The First CSV Statement</h2>
+<section id="slide-orgb332099">
+<h2 id="orgb332099">Part 1: The First CSV Statement</h2>
 <p>
 Gawie followed the <a href="https://github.com/apauley/hledger-makeitso#build-instructions">build instructions</a> and ended up with his very own <code>hledger-makeitso</code> executable.
 </p>
@@ -323,9 +323,15 @@ git commit -m <span style="color: #2d9574;">'Added submodule: fnb-csv-demoronize
 </pre>
 </div>
 
+</section>
+<section >
+
 <p>
 <code>hledger-makeitso</code> looks for a file named <a href="https://github.com/apauley/hledger-makeitso#the-preprocess-script">preprocess</a> in the account directory.
 </p>
+
+</section>
+<section >
 
 <p>
 Gawie just creates a symbolic link named <code>preprocess</code>.
@@ -344,21 +350,19 @@ ln -s ../../../fnb-csv-demoronizer/fnb-csv-demoronizer preprocess
 </pre>
 </div>
 
-</section>
-<section >
-
 <p>
 Now when we try the import again, it still displays an error due to our missing rules file.
 But this time we can see that our statement was preprocessed:
 </p>
+
+</section>
+<section >
+
 <div class="org-src-container">
 
 <pre  class="src src-sh" id="import3">hledger-makeitso import ./my-finances
 </pre>
 </div>
-
-</section>
-<section >
 
 <div class="org-src-container">
 
@@ -410,6 +414,9 @@ This time the import is successful, and we see a number of newly generated files
 tree my-finances
 </pre>
 </div>
+
+</section>
+<section >
 
 <div class="org-src-container">
 
@@ -481,6 +488,24 @@ Can hledger show us some data?
 
 </section>
 <section >
+
+<div class="org-src-container">
+
+<pre  class="src src-hledger">hledger: balance assertion error in <span style="color: #2d9574;">"my-finances/import/bogart/cheque/3-journal/2016/123456789_2016-03-30.journal"</span> (line 2, column 56):
+in transaction:
+<span style="color: #2d9574;">2016/02/28</span> * #Monthly Bank Fee//
+    <span style="color: #7590db;">Assets:Current:Gawie:Bogart:Cheque</span>        R-500.00 = R40000.00
+    <span style="color: #7590db;">expenses:unknown</span>                           R500.00
+after posting:
+    <span style="color: #7590db;">Assets:Current:Gawie:Bogart:Cheque</span>    R-500.00
+balance assertion details:
+date:       <span style="color: #2d9574;">2016/02/28</span>
+account:    <span style="color: #7590db;">Assets:Current:Gawie:Bogart:Cheque</span>
+commodity:  R
+calculated: R-500.00
+asserted:   R40000.00 (difference: +R40500.00)
+</pre>
+</div>
 
 </section>
 <section >
@@ -571,8 +596,8 @@ It worked!
 </section>
 </section>
 <section>
-<section id="slide-org169475c">
-<h2 id="org169475c">Part 2: Adding More Statements</h2>
+<section id="slide-orga6a041b">
+<h2 id="orga6a041b">Part 2: Adding More Statements</h2>
 <p>
 To Be Continued&#x2026;
 </p>
