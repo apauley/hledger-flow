@@ -25,40 +25,40 @@
 <body>
 <div class="reveal">
 <div class="slides">
-<section id="sec-title-slide"><h1 class="title">hledger-makeitso: Step By Step</h1><p class="date">Created: 2018-09-25 Tue 23:33</p>
+<section id="sec-title-slide"><h1 class="title">hledger-makeitso: Step By Step</h1><p class="date">Created: 2018-09-25 Tue 23:45</p>
 </section>
 <section id="table-of-contents">
 <div id="table-of-contents">
 <h2>Table of Contents</h2>
 <div id="text-table-of-contents">
 <ul>
-<li><a href="#/slide-orgbefc073">About This Document</a></li>
-<li><a href="#/slide-orgb2f6845">The Story of an African Chef</a></li>
-<li><a href="#/slide-orgb332099">Part 1: The First CSV Statement</a></li>
-<li><a href="#/slide-orga6a041b">Part 2: Adding More Statements</a></li>
+<li><a href="#/slide-org4d21dae">About This Document</a></li>
+<li><a href="#/slide-org7e3f5bb">The Story of an African Chef</a></li>
+<li><a href="#/slide-org95cf0dc">Part 1: The First CSV Statement</a></li>
+<li><a href="#/slide-org0a6aed8">Part 2: Adding More Statements</a></li>
 </ul>
 </div>
 </div>
 </section>
 
 <section>
-<section id="slide-orgbefc073">
-<h2 id="orgbefc073">About This Document</h2>
+<section id="slide-org4d21dae">
+<h2 id="org4d21dae">About This Document</h2>
 <p>
 This document is a <a href="https://www.offerzen.com/blog/literate-programming-empower-your-writing-with-emacs-org-mode">literate</a> <a href="https://orgmode.org/worg/org-contrib/babel/intro.html">program</a>.
-You can read it like a normal article.
+You can read it like a normal article, either <a href="https://github.com/apauley/hledger-makeitso/blob/master/docs/README.org">on the web</a> or <a href="https://pauley.org.za/hledger-makeitso/">as a slide show</a>.
 </p>
 
 <p>
-But you can also open <a href="README.html">this org-mode file</a> in emacs,
-and execute each code snippet by pressing <code>C-c C-c</code> with your cursor on the relevant code block.
+But you can also <a href="https://github.com/apauley/hledger-makeitso">clone the repository</a> and open <a href="https://raw.githubusercontent.com/apauley/hledger-makeitso/master/docs/README.org">this org-mode file</a> in emacs.
+Then you can execute each code snippet by pressing <code>C-c C-c</code> with your cursor on the relevant code block.
 </p>
 
 </section>
 </section>
 <section>
-<section id="slide-orgb2f6845">
-<h2 id="orgb2f6845">The Story of an African Chef</h2>
+<section id="slide-org7e3f5bb">
+<h2 id="org7e3f5bb">The Story of an African Chef</h2>
 <p>
 Meet Gawie de Groot. Gawie is a successful <a href="https://en.wikipedia.org/wiki/Gonimbrasia_belina#As_food">mopane worm</a> chef, based in the northernmost section of the <a href="https://en.wikipedia.org/wiki/Kruger_National_Park">Kruger National Park</a>.
 </p>
@@ -91,8 +91,8 @@ It is time for Gawie to take charge of his finances.
 </section>
 </section>
 <section>
-<section id="slide-orgb332099">
-<h2 id="orgb332099">Part 1: The First CSV Statement</h2>
+<section id="slide-org95cf0dc">
+<h2 id="org95cf0dc">Part 1: The First CSV Statement</h2>
 <p>
 Gawie followed the <a href="https://github.com/apauley/hledger-makeitso#build-instructions">build instructions</a> and ended up with his very own <code>hledger-makeitso</code> executable.
 </p>
@@ -570,21 +570,21 @@ Now we can try the income statement again.
 
 <pre  class="src src-org">Income Statement 2016/02/27-2016/03/25
 
-                  &#9553; 2016/02/27-2016/03/25 
+                  &#9553; 2016/02/27-2016/03/25
 &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9580;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;
- Revenues         &#9553;                       
+ Revenues         &#9553;
 &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9579;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
- income:unknown   &#9553;             R37256.28 
+ income:unknown   &#9553;             R37256.28
 &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9579;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
-                  &#9553;             R37256.28 
+                  &#9553;             R37256.28
 &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9580;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;
- Expenses         &#9553;                       
+ Expenses         &#9553;
 &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9579;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
- expenses:unknown &#9553;             R36500.00 
+ expenses:unknown &#9553;             R36500.00
 &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9579;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
-                  &#9553;             R36500.00 
+                  &#9553;             R36500.00
 &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9580;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;
- Net:             &#9553;               R756.28 
+ Net:             &#9553;               R756.28
 
 </pre>
 </div>
@@ -596,8 +596,8 @@ It worked!
 </section>
 </section>
 <section>
-<section id="slide-orga6a041b">
-<h2 id="orga6a041b">Part 2: Adding More Statements</h2>
+<section id="slide-org0a6aed8">
+<h2 id="org0a6aed8">Part 2: Adding More Statements</h2>
 <p>
 To Be Continued&#x2026;
 </p>
