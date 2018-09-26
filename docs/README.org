@@ -434,11 +434,11 @@ Income Statement 2016/02/27-2016/03/25
 ══════════════════╬═══════════════════════
  Expenses         ║
 ──────────────────╫───────────────────────
- expenses:unknown ║             R36500.00
+ expenses:unknown ║             R36734.43
 ──────────────────╫───────────────────────
-                  ║             R36500.00
+                  ║             R36734.43
 ══════════════════╬═══════════════════════
- Net:             ║               R756.28
+ Net:             ║               R521.85
 
 #+END_SRC
 
@@ -446,4 +446,45 @@ It worked!
 
 * Part 2: Adding More Statements
 
-To Be Continued...
+Now that the all the boilerplate for the first statement has been done,
+adding some more should be easy:
+
+#+NAME: more-input-files
+#+BEGIN_SRC sh :results org :exports both
+cp --force Downloads/Bogart/123456789_2016*.csv my-finances/import/bogart/cheque/1-in/2016/
+hledger-makeitso import ./my-finances
+hledger -f my-finances/import-all.journal incomestatement \
+  --pretty-tables --monthly --average --begin 2016-03-01
+#+END_SRC
+
+#+REVEAL: split
+
+#+RESULTS: more-input-files
+#+BEGIN_SRC org
+Income Statement 2016/03/01-2016/05/25
+
+                  ║       Mar        Apr        May    Average
+══════════════════╬════════════════════════════════════════════
+ Revenues         ║
+──────────────────╫────────────────────────────────────────────
+ income:unknown   ║ R37256.28  R37256.28  R37256.28  R37256.28
+──────────────────╫────────────────────────────────────────────
+                  ║ R37256.28  R37256.28  R37256.28  R37256.28
+══════════════════╬════════════════════════════════════════════
+ Expenses         ║
+──────────────────╫────────────────────────────────────────────
+ expenses:unknown ║ R37284.66  R40333.49  R37234.43  R38284.19
+──────────────────╫────────────────────────────────────────────
+                  ║ R37284.66  R40333.49  R37234.43  R38284.19
+══════════════════╬════════════════════════════════════════════
+ Net:             ║   R-28.38  R-3077.21     R21.85  R-1027.91
+
+#+END_SRC
+
+#+REVEAL: split
+
+Actually this doesn't look so good.
+In March and April, Gawie spent more than he earned.
+
+It is time to classify each transaction so that he can have a better view into
+what is going on.

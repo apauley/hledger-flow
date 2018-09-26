@@ -1,0 +1,17 @@
+2,123456789,'MNR GAWIE DE GROOT','BOGART TJEKREKENING'
+3,,'Staat'
+3,'Staatnommer','Vanaf Datum','Tot Datum'
+3,75,'28 April 2016','27 Mei 2016'
+4,,'Opsomming'
+5,,'Transaksies'
+5,'Nommer','Datum','Beskrywing1','Beskrywing2','Beskrywing3','Bedrag','Saldo','Opgeloopte Koste'
+5,1,'29 Apr',"#Monthly Bank Fee",,"",-599.06,37394.41,
+5,2,'01 Mei',"Gereeld Bet Na","Rent","",-5000.00,32394.41,
+5,3,'01 Mei',"Gereeld Bet Na","MyBTCEx","",-2500.00,29894.41,
+5,4,'02 Mei',"Magband Debiet","Traditional Boring Investments","",-2500,27394.41,
+5,5,'02 Mei',"Magband Debiet","All-in-one Insurance","",-5234.43,22159.98,
+5,6,'05 Mei',"Gereeld Bet Na","My Charity","",-4000.00,18159.98,
+5,7,'10 Mei',"Smart-ap Transfer To","Credit Card Account","",-14000.00,4159.98,
+5,8,'15 Mei',"ATM","Cash Withdrawal","",-4000.00,159.98,
+5,9,'25 Mei',"Debiet Order Krediet","Grillerige Salary",,37256.28,37416.26,
+6,'END'

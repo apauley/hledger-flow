@@ -5,13 +5,13 @@
 4,,'Opsomming'
 5,,'Transaksies'
 5,'Nommer','Datum','Beskrywing1','Beskrywing2','Beskrywing3','Bedrag','Saldo','Opgeloopte Koste'
-5,1,'28 Feb',"#Monthly Bank Fee",,"",-500.00,40000.00,
+5,1,'01 Mrt',"#Monthly Bank Fee",,"",-500.00,40000.00,
 5,2,'01 Mrt',"Gereeld Bet Na","Rent","",-5000.00,35000.00,
 5,3,'01 Mrt',"Gereeld Bet Na","MyBTCEx","",-2500.00,32500.00,
 5,4,'02 Mrt',"Magband Debiet","Traditional Boring Investments","",-2500,30000.00,
-5,5,'02 Mrt',"Magband Debiet","All-in-one Insurance","",-5000,25000.00,
-5,6,'05 Mrt',"Gereeld Bet Na","My Charity","",-5000.00,20000.00,
-5,7,'10 Mrt',"Smart-ap Transfer To","Credit Card Account","",-14000.00,6000.00,
-5,8,'15 Mrt',"ATM","Cash Withdrawal","",-2000.00,4000.00,
-5,9,'25 Mrt',"Debiet Order Krediet","Grillerige Salary",,37256.28,41256.28,
+5,5,'02 Mrt',"Magband Debiet","All-in-one Insurance","",-5234.43,24765.57,
+5,6,'05 Mrt',"Gereeld Bet Na","My Charity","",-4000.00,20765.57,
+5,7,'10 Mrt',"Smart-ap Transfer To","Credit Card Account","",-14000.00,6765.57,
+5,8,'15 Mrt',"ATM","Cash Withdrawal","",-3000.00,3765.57,
+5,9,'25 Mrt',"Debiet Order Krediet","Grillerige Salary",,37256.28,41021.85,
 6,'END'
