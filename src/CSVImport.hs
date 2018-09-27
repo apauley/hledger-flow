@@ -20,7 +20,14 @@ importCSVs baseDir = do
     do
       let journals = importBanks $ lsDirs importDir
       sh $ writeJournals (baseDir </> "import-all.journal") journals
-    else die $ format ("Unable to find CSV import dir at "%fp) importDir
+    else
+    do
+      let url = "https://github.com/apauley/hledger-makeitso#how-to-use-it"
+      let msg = format ("I couldn't find a directory named \"import\" underneath "%fp
+                        %"\n\nhledger-makitso expects to find its input files in specifically\nnamed directories.\n\n"%
+                        "Have a look at the documentation for a detailed explanation:\n"%s) baseDir url
+      stderr $ select $ textToLines msg
+      exit $ ExitFailure 1
 
 writeJournals :: FilePath -> Shell FilePath -> Shell ()
 writeJournals aggregateJournal journals = do
