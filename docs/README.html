@@ -25,25 +25,25 @@
 <body>
 <div class="reveal">
 <div class="slides">
-<section id="sec-title-slide"><h1 class="title">hledger-makeitso: Step By Step</h1><p class="date">Created: 2018-09-27 Thu 22:43</p>
+<section id="sec-title-slide"><h1 class="title">hledger-makeitso: Step By Step</h1><p class="date">Created: 2018-09-27 Thu 23:16</p>
 </section>
 <section id="table-of-contents">
 <div id="table-of-contents">
 <h2>Table of Contents</h2>
 <div id="text-table-of-contents">
 <ul>
-<li><a href="#/slide-org1b23fce">About This Document</a></li>
-<li><a href="#/slide-org1f4871b">The Story of an African Chef</a></li>
-<li><a href="#/slide-org778906d">Part 1: The First CSV Statement</a></li>
-<li><a href="#/slide-org927738b">Part 2: Adding More Statements</a></li>
+<li><a href="#/slide-org5021e8f">About This Document</a></li>
+<li><a href="#/slide-org18c163f">The Story of an African Chef</a></li>
+<li><a href="#/slide-orge644636">Part 1: The First CSV Statement</a></li>
+<li><a href="#/slide-org4e7e9c3">Part 2: Adding More Statements</a></li>
 </ul>
 </div>
 </div>
 </section>
 
 <section>
-<section id="slide-org1b23fce">
-<h2 id="org1b23fce">About This Document</h2>
+<section id="slide-org5021e8f">
+<h2 id="org5021e8f">About This Document</h2>
 <p>
 This document is a <a href="https://www.offerzen.com/blog/literate-programming-empower-your-writing-with-emacs-org-mode">literate</a> <a href="https://orgmode.org/worg/org-contrib/babel/intro.html">program</a>.
 You can read it like a normal article, either <a href="https://github.com/apauley/hledger-makeitso/blob/master/docs/README.org">on the web</a> or <a href="https://pauley.org.za/hledger-makeitso/">as a slide show</a>.
@@ -57,8 +57,8 @@ Then you can execute each code snippet by pressing <code>C-c C-c</code> with you
 </section>
 </section>
 <section>
-<section id="slide-org1f4871b">
-<h2 id="org1f4871b">The Story of an African Chef</h2>
+<section id="slide-org18c163f">
+<h2 id="org18c163f">The Story of an African Chef</h2>
 <p>
 Meet Gawie de Groot. Gawie is a successful <a href="https://en.wikipedia.org/wiki/Gonimbrasia_belina#As_food">mopane worm</a> chef, based in the northernmost section of the <a href="https://en.wikipedia.org/wiki/Kruger_National_Park">Kruger National Park</a>.
 </p>
@@ -91,8 +91,8 @@ It is time for Gawie to take charge of his finances.
 </section>
 </section>
 <section>
-<section id="slide-org778906d">
-<h2 id="org778906d">Part 1: The First CSV Statement</h2>
+<section id="slide-orge644636">
+<h2 id="orge644636">Part 1: The First CSV Statement</h2>
 <p>
 Gawie followed the <a href="https://github.com/apauley/hledger-makeitso#build-instructions">build instructions</a> and ended up with his very own <code>hledger-makeitso</code> executable.
 </p>
@@ -207,6 +207,9 @@ Gawie carefully interprets the error message using the skills he obtained during
 He concludes that <code>hledger-makeitso</code> expects to find its input files in specifically named directories.
 </p>
 
+</section>
+<section >
+
 <p>
 Looking at the documentation he sees there should be an <code>import</code> directory,
 and under that a directory named after a bank, followed by a directory for the account and so on.
@@ -234,20 +237,22 @@ Let's see what our tree structure looks like now:
 </p>
 <div class="org-src-container">
 
-<pre  class="src src-sh" id="tree-after-1st-file">tree my-finances/import
+<pre  class="src src-sh" id="tree-after-1st-file">tree my-finances/
 </pre>
 </div>
 
 <div class="org-src-container">
 
-<pre  class="src src-org">my-finances/import
-&#9492;&#9472;&#9472; bogart
-    &#9492;&#9472;&#9472; cheque
-        &#9492;&#9472;&#9472; 1-in
-            &#9492;&#9472;&#9472; 2016
-                &#9492;&#9472;&#9472; 123456789_2016-03-30.csv
+<pre  class="src src-org">my-finances/
+&#9492;&#9472;&#9472; import
+    &#9492;&#9472;&#9472; bogart
+        &#9492;&#9472;&#9472; cheque
+            &#9492;&#9472;&#9472; 1-in
+                &#9492;&#9472;&#9472; 2016
+                    &#9492;&#9472;&#9472; 123456789_2016-03-30.csv
 
-4 directories, 1 file
+5 directories, 1 file
+
 </pre>
 </div>
 
@@ -282,8 +287,12 @@ Let's try the import again:
 
 <div class="org-src-container">
 
-<pre  class="src src-org">hledger: user error (the first CSV record ["2","123456789","'MNR GAWIE DE GROOT'","'BOGART TJEKREKENING'"] has 4 fields but ["3","","'Staat'"] has 3)
-hledger-makeitso: ProcFailed {procCommand = "hledger", procArguments = ["print","--rules-file","./my-finances/import/bogart/cheque/bogart-cheque.rules","--file","./my-finances/import/bogart/cheque/1-in/2016/123456789_2016-03-30.csv","--output-file","./my-finances/import/bogart/cheque/3-journal/2016/123456789_2016-03-30.journal"], procExitCode = ExitFailure 1}
+<pre  class="src src-org">I couldn't find an hledger rules file at ./my-finances/import/bogart/cheque/bogart-cheque.rules
+
+hledger-makitso looks for a rules file in a select few places.
+
+The documentation will tell you everything you need to know:
+<span style="color: #2aa1ae; text-decoration: underline;"><a href="https://github.com/apauley/hledger-makeitso#how-to-use-it">https://github.com/apauley/hledger-makeitso#how-to-use-it</a></span>
 
 </pre>
 </div>
@@ -296,7 +305,10 @@ Another cryptic error.
 </p>
 
 <p>
-This one is caused by this missing <a href="http://hledger.org/csv.html">rules file</a>:
+This one is caused by a missing <a href="http://hledger.org/csv.html">rules file</a> at
+</p>
+
+<p>
 <code>./my-finances/import/bogart/cheque/bogart-cheque.rules</code>
 </p>
 
@@ -387,7 +399,7 @@ But this time we can see that our statement was preprocessed:
 <div class="org-src-container">
 
 <pre  class="src src-org">"5","'Nommer'","'Datum'","'Beskrywing1'","'Beskrywing2'","'Beskrywing3'","'Bedrag'","'Saldo'","'Opgeloopte Koste'"
-"5","1","2016-02-28","#Monthly Bank Fee","","","-500.00","40000.00",""
+"5","1","2016-03-01","#Monthly Bank Fee","","","-500.00","40000.00",""
 
 </pre>
 </div>
@@ -480,7 +492,7 @@ This is the first transaction in the file:
 
 <div class="org-src-container">
 
-<pre  class="src src-org">2016/02/28 * #Monthly Bank Fee//
+<pre  class="src src-org">2016/03/01 * #Monthly Bank Fee//
     Assets:Current:Gawie:Bogart:Cheque        R-500.00 = R40000.00
     expenses:unknown                           R500.00
 
@@ -505,11 +517,14 @@ Can hledger show us some data?
 
 <div class="org-src-container">
 
-<pre  class="src src-hledger">hledger: balance assertion error in <span style="color: #2d9574;">"my-finances/import/bogart/cheque/3-journal/2016/123456789_2016-03-30.journal"</span> (line 2, column 56):
+<pre  class="src src-hledger">hledger: balance assertion error in
+<span style="color: #2d9574;">"my-finances/import/bogart/cheque/3-journal/2016/123456789_2016-03-30.journal"</span>
+(line 2, column 56):
+
 in transaction:
 <span style="color: #2d9574;">2016/02/28</span> * #Monthly Bank Fee//
-    <span style="color: #7590db;">Assets:Current:Gawie:Bogart:Cheque</span>        R-500.00 = R40000.00
-    <span style="color: #7590db;">expenses:unknown</span>                           R500.00
+    <span style="color: #7590db;">Assets:Current:Gawie:Bogart:Cheque</span>    R-500.00 = R40000.00
+    <span style="color: #7590db;">expenses:unknown</span>                      R500.00
 after posting:
     <span style="color: #7590db;">Assets:Current:Gawie:Bogart:Cheque</span>    R-500.00
 balance assertion details:
@@ -550,11 +565,7 @@ It adds a balance assertion to each transaction, using the data helpfully provid
 
 <p>
 Clearly the cheque account has a pre-existing balance of <code>R40500</code>.
-To make <code>hledger</code> happy, we need to tell it what the opening balance for this account is.
-</p>
-
-<p>
-<code>my-finances/import/bogart/cheque/opening.journal</code>:
+To make <code>hledger</code> happy, we need to tell it what the opening balance for this account is:
 </p>
 <div class="org-src-container">
 
@@ -563,6 +574,10 @@ To make <code>hledger</code> happy, we need to tell it what the opening balance 
     <span style="color: #7590db;">Equity:Opening</span> Balances:Gawie:Bogart:Cheque
 </pre>
 </div>
+
+<p>
+Save this as <code>my-finances/import/bogart/cheque/opening.journal</code>.
+</p>
 
 </section>
 <section >
@@ -573,7 +588,8 @@ Now we can try the income statement again.
 
 <div class="org-src-container">
 
-<pre  class="src src-sh" id="hledger-incomestatement">hledger -f my-finances/import-all.journal incomestatement --pretty-tables
+<pre  class="src src-sh" id="hledger-incomestatement">hledger -f my-finances/import-all.journal incomestatement <span style="color: #2d9574;">\</span>
+  --pretty-tables
 </pre>
 </div>
 
@@ -584,21 +600,21 @@ Now we can try the income statement again.
 
 <pre  class="src src-org">Income Statement 2016/02/27-2016/03/25
 
-                  &#9553; 2016/02/27-2016/03/25
+                  &#9553; 2016/02/27-2016/03/25 
 &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9580;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;
- Revenues         &#9553;
+ Revenues         &#9553;                       
 &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9579;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
- income:unknown   &#9553;             R37256.28
+ income:unknown   &#9553;             R37256.28 
 &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9579;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
-                  &#9553;             R37256.28
+                  &#9553;             R37256.28 
 &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9580;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;
- Expenses         &#9553;
+ Expenses         &#9553;                       
 &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9579;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
- expenses:unknown &#9553;             R36734.43
+ expenses:unknown &#9553;             R36734.43 
 &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9579;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
-                  &#9553;             R36734.43
+                  &#9553;             R36734.43 
 &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9580;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;
- Net:             &#9553;               R521.85
+ Net:             &#9553;               R521.85 
 
 </pre>
 </div>
@@ -610,8 +626,8 @@ It worked!
 </section>
 </section>
 <section>
-<section id="slide-org927738b">
-<h2 id="org927738b">Part 2: Adding More Statements</h2>
+<section id="slide-org4e7e9c3">
+<h2 id="org4e7e9c3">Part 2: Adding More Statements</h2>
 <p>
 Now that the all the boilerplate for the first statement has been done,
 adding some more should be easy:
@@ -619,7 +635,8 @@ adding some more should be easy:
 
 <div class="org-src-container">
 
-<pre  class="src src-sh" id="more-input-files">cp --force Downloads/Bogart/123456789_2016*.csv my-finances/import/bogart/cheque/1-in/2016/
+<pre  class="src src-sh" id="more-input-files">cp --force Downloads/Bogart/123456789_2016*.csv <span style="color: #2d9574;">\</span>
+  my-finances/import/bogart/cheque/1-in/2016/
 hledger-makeitso import ./my-finances
 hledger -f my-finances/import-all.journal incomestatement <span style="color: #2d9574;">\</span>
   --pretty-tables --monthly --average --begin <span style="color: #a45bad;">2016-03-01</span>
@@ -633,21 +650,21 @@ hledger -f my-finances/import-all.journal incomestatement <span style="color: #2
 
 <pre  class="src src-org">Income Statement 2016/03/01-2016/05/25
 
-                  &#9553;       Mar        Apr        May    Average
+                  &#9553;       Mar        Apr        May    Average 
 &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9580;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;
- Revenues         &#9553;
+ Revenues         &#9553;                                            
 &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9579;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
- income:unknown   &#9553; R37256.28  R37256.28  R37256.28  R37256.28
+ income:unknown   &#9553; R37256.28  R37256.28  R37256.28  R37256.28 
 &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9579;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
-                  &#9553; R37256.28  R37256.28  R37256.28  R37256.28
+                  &#9553; R37256.28  R37256.28  R37256.28  R37256.28 
 &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9580;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;
- Expenses         &#9553;
+ Expenses         &#9553;                                            
 &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9579;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
- expenses:unknown &#9553; R37284.66  R40333.49  R37234.43  R38284.19
+ expenses:unknown &#9553; R37284.66  R40333.49  R37234.43  R38284.19 
 &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9579;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
-                  &#9553; R37284.66  R40333.49  R37234.43  R38284.19
+                  &#9553; R37284.66  R40333.49  R37234.43  R38284.19 
 &#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9580;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;
- Net:             &#9553;   R-28.38  R-3077.21     R21.85  R-1027.91
+ Net:             &#9553;   R-28.38  R-3077.21     R21.85  R-1027.91 
 
 </pre>
 </div>
