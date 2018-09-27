@@ -14,33 +14,13 @@ I've given [[https://pauley.org.za/functional-finance-hledger/][a talk]] at [[ht
    If you're familiar with [[http://hledger.org/][hledger]] and are willing to tolerate some annoying breaking changes that would e.g. require you to
    frequently change the names of your input and/or output files, then please try it out and let me know what you think.
 
-** Goals
+** Build Instructions
 
-   Adept's goals resonated with me:
+   You need a recent version of [[https://docs.haskellstack.org/en/stable/README/][stack]] installed.
 
-   - Tracking expenses should take as little time, effort and manual work as possible
-   - Eventual consistency should be achievable: even if I can't record something precisely right now,
-     maybe I would be able to do it later, so I should be able to leave things half-done and pick them up later
-   - Ability to refactor is a must. I want to be able to go back and change the way I am doing things,
-     with as little effort as possible and without fear of irrevocably breaking things.
-
-** Why?
-
-   Why am I writing this tool, instead of just using [[https://github.com/adept/full-fledged-hledger/wiki][adept's Full-fledged Hledger]] unchanged?
-
-   It kind of grew little by little as I was modifying the system to fit my needs.
-   Some points of interest:
-
-   1. I wanted a command-line tool where all the dependencies was resolved at compile time,
-      so that a binary can be distributed instead of a collection of scripts with the build dependencies on every user's computer.
-   2. Early on while trying out the system I introduced a directory for each account,
-      because some of my account statements had vastly different CSV formats, even within the same bank.
-      A separate directory seemed like a good place to house each account's intricacies, although I guess
-      there are other ways to do it.
-   3. I had to [[https://github.com/adept/full-fledged-hledger/blob/d4d6b5b43139b70561e8173cabdb0eb0dc268daa/src/export/export.hs#L12][modify the export script]] to indicate which years I had data for. And I wondered if that sort of data could be
-      determined from some more directory structure conventions. So I added a another level indicating the year of the statement.
-      I'm still wondering if it would be possible to just detect the years from the actual transactions, but for now I have a directory
-      for each year.
+   #+BEGIN_SRC shell
+   $ stack build && stack install
+   #+END_SRC
 
 ** How to Use It
 
@@ -141,10 +121,30 @@ https://pauley.org.za/functional-finance-hledger/
      - be idempotent. Running =import= multiple times on the same files should produce the same result.
      - send all output to =stdout=. =hledger-makeitso= will pipe your output into =hledger= which will format it and save it to an output file.
 
-** Build Instructions
+** Goals
 
-   You need a recent version of [[https://docs.haskellstack.org/en/stable/README/][stack]] installed.
+   Adept's goals resonated with me:
 
-   #+BEGIN_SRC shell
-   $ stack build && stack install
-   #+END_SRC
+   - Tracking expenses should take as little time, effort and manual work as possible
+   - Eventual consistency should be achievable: even if I can't record something precisely right now,
+     maybe I would be able to do it later, so I should be able to leave things half-done and pick them up later
+   - Ability to refactor is a must. I want to be able to go back and change the way I am doing things,
+     with as little effort as possible and without fear of irrevocably breaking things.
+
+** Why?
+
+   Why am I writing this tool, instead of just using [[https://github.com/adept/full-fledged-hledger/wiki][adept's Full-fledged Hledger]] unchanged?
+
+   It kind of grew little by little as I was modifying the system to fit my needs.
+   Some points of interest:
+
+   1. I wanted a command-line tool where all the dependencies was resolved at compile time,
+      so that a binary can be distributed instead of a collection of scripts with the build dependencies on every user's computer.
+   2. Early on while trying out the system I introduced a directory for each account,
+      because some of my account statements had vastly different CSV formats, even within the same bank.
+      A separate directory seemed like a good place to house each account's intricacies, although I guess
+      there are other ways to do it.
+   3. I had to [[https://github.com/adept/full-fledged-hledger/blob/d4d6b5b43139b70561e8173cabdb0eb0dc268daa/src/export/export.hs#L12][modify the export script]] to indicate which years I had data for. And I wondered if that sort of data could be
+      determined from some more directory structure conventions. So I added a another level indicating the year of the statement.
+      I'm still wondering if it would be possible to just detect the years from the actual transactions, but for now I have a directory
+      for each year.
