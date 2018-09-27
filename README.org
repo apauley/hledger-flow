@@ -39,10 +39,10 @@ PATH="${HOME}/.local/bin:${PATH}"
 
 ** How to Use It
 
-Have a look at the example [[file:example/README.org][README]] and the files in the [[file:example/][example directory]] to see everything in action.
+Have a look at the [[file:docs/README.org][detailed step-by-step instructions]] and the files in the [[file:docs/][documentation directory]].
 
-Or for a visual overview, check out these slides:
-https://pauley.org.za/functional-finance-hledger/
+For a visual overview, check out the slide show version of the same step-by-step instructions:
+https://pauley.org.za/hledger-makeitso/
 
 *** Getting Started
 
