@@ -18,7 +18,7 @@ Then you can execute each code snippet by pressing =C-c C-c= with your cursor on
 
 Meet Gawie de Groot. Gawie is a successful [[https://en.wikipedia.org/wiki/Gonimbrasia_belina#As_food][mopane worm]] chef, based in the northernmost section of the [[https://en.wikipedia.org/wiki/Kruger_National_Park][Kruger National Park]].
 
-In the past he used to work in a big city as an IT professional, but after a few years of this he decided to choose a quiter life
+In the past he used to work in a big city as an IT professional, but after a few years of this he decided to choose a quieter life
 in the bushveld.
 
 He now works at a renowned bush restaurant aptly named the "=Grillerige Groen Goggatjie=".
