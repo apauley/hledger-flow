@@ -7,6 +7,16 @@ Inspired by the structure and ideas of [[https://github.com/adept/full-fledged-h
 
 I've given [[https://pauley.org.za/functional-finance-hledger/][a talk]] at [[https://www.meetup.com/lambda-luminaries/events/qklkvpyxmbnb/][Lambda Luminaries Johannesburg]] featuring hledger-makeitso.
 
+** After Cloning This Repository
+
+This repository has some submodules included, mostly related to the examples in the documentation.
+
+You need to initialise and update the submodules:
+#+BEGIN_SRC sh
+git submodule init
+git submodule update
+#+END_SRC
+
 ** Who should use this project?
 
    At the moment this software is in an alpha stage.
@@ -14,7 +24,6 @@ I've given [[https://pauley.org.za/functional-finance-hledger/][a talk]] at [[ht
 
    If you're familiar with [[http://hledger.org/][hledger]] and are willing to tolerate some annoying breaking changes that would e.g. require you to
    frequently change the names of your input and/or output files, then please try it out and let me know what you think.
-
 ** Build Instructions
 
 You need a recent version of [[https://docs.haskellstack.org/en/stable/README/][stack]] installed.
