@@ -15,10 +15,12 @@ importCSVs :: FilePath -> IO ()
 importCSVs baseDir = do
   let importDir = baseDir </> "import"
   importExists <- testdir importDir
-  let journals = if importExists
-        then importBanks $ lsDirs importDir
-        else die $ format ("Unable to find CSV import dir at "%fp) importDir
-  sh $ writeJournals (baseDir </> "import-all.journal") journals
+  if importExists
+    then
+    do
+      let journals = importBanks $ lsDirs importDir
+      sh $ writeJournals (baseDir </> "import-all.journal") journals
+    else die $ format ("Unable to find CSV import dir at "%fp) importDir
 
 writeJournals :: FilePath -> Shell FilePath -> Shell ()
 writeJournals aggregateJournal journals = do
