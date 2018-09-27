@@ -1,4 +1,5 @@
 #+STARTUP: showall
+#+PROPERTY: header-args:sh :prologue exec 2>&1 :epilogue echo :
 
 * hledger: Make It So
 
@@ -16,11 +17,25 @@ I've given [[https://pauley.org.za/functional-finance-hledger/][a talk]] at [[ht
 
 ** Build Instructions
 
-   You need a recent version of [[https://docs.haskellstack.org/en/stable/README/][stack]] installed.
+You need a recent version of [[https://docs.haskellstack.org/en/stable/README/][stack]] installed.
 
-   #+BEGIN_SRC shell
-   $ stack build && stack install
-   #+END_SRC
+#+NAME: stack-build
+#+BEGIN_SRC sh :results none :exports both
+stack build
+stack install
+#+END_SRC
+
+#+BEGIN_SRC org
+Copied executables to ~/.local/bin:
+- hledger-makeitso
+#+END_SRC
+
+Ensure that =${HOME}/.local/bin= is in your =PATH=.
+
+Usually this means adding this to your =~/.bashrc=:
+#+BEGIN_SRC sh :results none :exports both
+PATH="${HOME}/.local/bin:${PATH}"
+#+END_SRC
 
 ** How to Use It
 
