@@ -144,19 +144,21 @@ cp Downloads/Bogart/123456789_2016-03-30.csv my-finances/import/bogart/cheque/1-
 Let's see what our tree structure looks like now:
 #+NAME: tree-after-1st-file
 #+BEGIN_SRC sh :results org :exports both
-tree my-finances/import
+tree my-finances/
 #+END_SRC
 
 #+RESULTS: tree-after-1st-file
 #+BEGIN_SRC org
-my-finances/import
-└── bogart
-    └── cheque
-        └── 1-in
-            └── 2016
-                └── 123456789_2016-03-30.csv
+my-finances/
+└── import
+    └── bogart
+        └── cheque
+            └── 1-in
+                └── 2016
+                    └── 123456789_2016-03-30.csv
 
-4 directories, 1 file
+5 directories, 1 file
+
 #+END_SRC
 
 #+REVEAL: split
@@ -182,8 +184,12 @@ hledger-makeitso import ./my-finances
 
 #+RESULTS: import2
 #+BEGIN_SRC org
-hledger: user error (the first CSV record ["2","123456789","'MNR GAWIE DE GROOT'","'BOGART TJEKREKENING'"] has 4 fields but ["3","","'Staat'"] has 3)
-hledger-makeitso: ProcFailed {procCommand = "hledger", procArguments = ["print","--rules-file","./my-finances/import/bogart/cheque/bogart-cheque.rules","--file","./my-finances/import/bogart/cheque/1-in/2016/123456789_2016-03-30.csv","--output-file","./my-finances/import/bogart/cheque/3-journal/2016/123456789_2016-03-30.journal"], procExitCode = ExitFailure 1}
+I couldn't find an hledger rules file at ./my-finances/import/bogart/cheque/bogart-cheque.rules
+
+hledger-makitso looks for a rules file in a select few places.
+
+The documentation will tell you everything you need to know:
+https://github.com/apauley/hledger-makeitso#how-to-use-it
 
 #+END_SRC
 
@@ -191,7 +197,8 @@ hledger-makeitso: ProcFailed {procCommand = "hledger", procArguments = ["print",
 
 Another cryptic error.
 
-This one is caused by this missing [[http://hledger.org/csv.html][rules file]]:
+This one is caused by a missing [[http://hledger.org/csv.html][rules file]] at
+
 =./my-finances/import/bogart/cheque/bogart-cheque.rules=
 
 #+REVEAL: split
