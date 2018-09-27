@@ -11,6 +11,9 @@ import Data.Text.IO (putStrLn)
 import Data.Maybe
 import Common
 
+docURL :: Line
+docURL = "https://github.com/apauley/hledger-makeitso#how-to-use-it"
+
 importCSVs :: FilePath -> IO ()
 importCSVs baseDir = do
   let importDir = baseDir </> "import"
@@ -22,10 +25,9 @@ importCSVs baseDir = do
       sh $ writeJournals (baseDir </> "import-all.journal") journals
     else
     do
-      let url = "https://github.com/apauley/hledger-makeitso#how-to-use-it"
       let msg = format ("I couldn't find a directory named \"import\" underneath "%fp
                         %"\n\nhledger-makitso expects to find its input files in specifically\nnamed directories.\n\n"%
-                        "Have a look at the documentation for a detailed explanation:\n"%s) baseDir url
+                        "Have a look at the documentation for a detailed explanation:\n"%l) baseDir docURL
       stderr $ select $ textToLines msg
       exit $ ExitFailure 1
 
@@ -97,8 +99,19 @@ preprocess script bank account src = do
 hledgerImport :: FilePath -> FilePath -> FilePath -> Shell FilePath
 hledgerImport defaultRulesFile csvSrc journalOut = do
   rf <- rulesFile csvSrc defaultRulesFile
-  procs "hledger" ["print", "--rules-file", format fp rf, "--file", format fp csvSrc, "--output-file", format fp journalOut] empty
-  return journalOut
+  rulesFileExists <- testfile rf
+  if rulesFileExists
+    then
+    do
+      procs "hledger" ["print", "--rules-file", format fp rf, "--file", format fp csvSrc, "--output-file", format fp journalOut] empty
+      return journalOut
+    else
+    do
+      let msg = format ("I couldn't find an hledger rules file at "%fp
+                        %"\n\nhledger-makitso looks for a rules file in a select few places.\n\n"%
+                        "The documentation will tell you everything you need to know:\n"%l) rf docURL
+      stderr $ select $ textToLines msg
+      exit $ ExitFailure 1
 
 customImport :: FilePath -> Line -> Line -> FilePath -> FilePath -> Shell FilePath
 customImport importScript bank account csvSrc journalOut = do
