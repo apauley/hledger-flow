@@ -136,7 +136,8 @@ Gawie's salary is deposited into his cheque account at =Bogart Bank=, so this se
 #+NAME: first-input-file
 #+BEGIN_SRC sh :results none :exports both
 mkdir -p my-finances/import/bogart/cheque/1-in/2016/
-cp Downloads/Bogart/123456789_2016-03-30.csv my-finances/import/bogart/cheque/1-in/2016/
+cp Downloads/Bogart/123456789_2016-03-30.csv \
+  my-finances/import/bogart/cheque/1-in/2016/
 #+END_SRC
 
 #+REVEAL: split
@@ -184,7 +185,8 @@ hledger-makeitso import ./my-finances
 
 #+RESULTS: import2
 #+BEGIN_SRC org
-I couldn't find an hledger rules file at ./my-finances/import/bogart/cheque/bogart-cheque.rules
+I couldn't find an hledger rules file at
+./my-finances/import/bogart/cheque/bogart-cheque.rules
 
 hledger-makitso looks for a rules file in a select few places.
 
