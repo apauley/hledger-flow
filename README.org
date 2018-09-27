@@ -19,12 +19,14 @@ I've given [[https://pauley.org.za/functional-finance-hledger/][a talk]] at [[ht
 
 You need a recent version of [[https://docs.haskellstack.org/en/stable/README/][stack]] installed.
 
+Then run:
 #+NAME: stack-build
 #+BEGIN_SRC sh :results none :exports both
 stack build
 stack install
 #+END_SRC
 
+Which should end with this:
 #+BEGIN_SRC org
 Copied executables to ~/.local/bin:
 - hledger-makeitso
@@ -42,6 +44,7 @@ PATH="${HOME}/.local/bin:${PATH}"
 Have a look at the [[file:docs/README.org][detailed step-by-step instructions]] and the files in the [[file:docs/][documentation directory]].
 
 For a visual overview, check out the slide show version of the same step-by-step instructions:
+
 https://pauley.org.za/hledger-makeitso/
 
 *** Getting Started
