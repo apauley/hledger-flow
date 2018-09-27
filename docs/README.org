@@ -522,3 +522,11 @@ git add .
 git commit -m 'Added a few more statements'
 cd ..
 #+END_SRC
+
+#+NAME: git-push-hledger-makeitso-example-finances
+#+BEGIN_SRC sh :results none :exports results
+cd my-finances/
+git remote add origin git@github.com:apauley/hledger-makeitso-example-finances.git
+git push --force -u origin master
+cd ..
+#+END_SRC
