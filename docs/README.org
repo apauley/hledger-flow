@@ -47,7 +47,8 @@ hledger-makeitso
 
 #+RESULTS: hm-noargs
 #+begin_example
-Manage your hledger CSV imports and classification: https://github.com/apauley/hledger-makeitso#readme
+Manage your hledger CSV imports and classification:
+https://github.com/apauley/hledger-makeitso#readme
 
 Usage: hledger-makeitso (import | report)
 
@@ -106,17 +107,27 @@ hledger-makeitso import ./my-finances
 
 #+REVEAL: split
 
+Hmmm, an error:
 #+RESULTS: import1
 #+BEGIN_SRC org
-hledger-makeitso: user error (Unable to find CSV import dir at ./my-finances/import)
+I couldn't find a directory named "import" underneath ./my-finances
+
+hledger-makitso expects to find its input files in specifically
+named directories.
+
+Have a look at the documentation for a detailed explanation:
+https://github.com/apauley/hledger-makeitso#how-to-use-it
 
 #+END_SRC
 
-Hmmm, an error.
+Gawie carefully interprets the error message using the skills he obtained during his years as an IT professional.
 
-Looking at the [[https://github.com/apauley/hledger-makeitso#readme][project README]], it seems that =hledger-makeitso= looks for its input files in some very specific directories.
+He concludes that =hledger-makeitso= expects to find its input files in specifically named directories.
 
-There should be an =import= directory, and under that a directory named after a bank, followed by a directory for the account and so on.
+#+REVEAL: split
+
+Looking at the documentation he sees there should be an =import= directory,
+and under that a directory named after a bank, followed by a directory for the account and so on.
 
 #+REVEAL: split
 
