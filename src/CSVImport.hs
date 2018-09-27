@@ -107,7 +107,7 @@ hledgerImport defaultRulesFile csvSrc journalOut = do
       return journalOut
     else
     do
-      let msg = format ("I couldn't find an hledger rules file at "%fp
+      let msg = format ("I couldn't find an hledger rules file at\n"%fp
                         %"\n\nhledger-makitso looks for a rules file in a select few places.\n\n"%
                         "The documentation will tell you everything you need to know:\n"%l) rf docURL
       stderr $ select $ textToLines msg
