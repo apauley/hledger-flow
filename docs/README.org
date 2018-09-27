@@ -514,3 +514,11 @@ In March and April, Gawie spent more than he earned.
 
 It is time to classify each transaction so that he can have a better view into
 what is going on.
+
+#+NAME: git-checkpoint-more-statements
+#+BEGIN_SRC sh :results none :exports results
+cd my-finances/
+git add .
+git commit -m 'Added a few more statements'
+cd ..
+#+END_SRC
