@@ -89,12 +89,12 @@ Available options:
 Gawie starts by creating a new directory specifically for his hledger journals:
 
 #+NAME: rm-fin-dir
-#+BEGIN_SRC shell :results none :exports results
+#+BEGIN_SRC sh :results none :exports results
 rm -rf my-finances
 #+END_SRC
 
 #+NAME: new-fin-dir
-#+BEGIN_SRC shell :results none :exports both
+#+BEGIN_SRC sh :results none :exports both
 mkdir my-finances
 #+END_SRC
 
@@ -113,6 +113,7 @@ hledger-makeitso: user error (Unable to find CSV import dir at ./my-finances/imp
 #+END_SRC
 
 Hmmm, an error.
+
 Looking at the [[https://github.com/apauley/hledger-makeitso#readme][project README]], it seems that =hledger-makeitso= looks for its input files in some very specific directories.
 
 There should be an =import= directory, and under that a directory named after a bank, followed by a directory for the account and so on.
@@ -122,7 +123,7 @@ There should be an =import= directory, and under that a directory named after a 
 Gawie's salary is deposited into his cheque account at =Bogart Bank=, so this seems like a good account to start with:
 
 #+NAME: first-input-file
-#+BEGIN_SRC shell :results none :exports both
+#+BEGIN_SRC sh :results none :exports both
 mkdir -p my-finances/import/bogart/cheque/1-in/2016/
 cp Downloads/Bogart/123456789_2016-03-30.csv my-finances/import/bogart/cheque/1-in/2016/
 #+END_SRC
@@ -131,7 +132,7 @@ cp Downloads/Bogart/123456789_2016-03-30.csv my-finances/import/bogart/cheque/1-
 
 Let's see what our tree structure looks like now:
 #+NAME: tree-after-1st-file
-#+BEGIN_SRC shell :results org :exports both
+#+BEGIN_SRC sh :results org :exports both
 tree my-finances/import
 #+END_SRC
 
@@ -152,7 +153,7 @@ my-finances/import
 It is time to add what we have to source control.
 
 #+NAME: git-init
-#+BEGIN_SRC shell :results none :exports both
+#+BEGIN_SRC sh :results none :exports both
 cd my-finances/
 git init .
 git add .
