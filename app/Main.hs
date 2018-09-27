@@ -13,7 +13,7 @@ data Command = Import (Maybe FilePath) | Report (Maybe FilePath) deriving (Show)
 
 main :: IO ()
 main = do
-  x <- options "Manage your hledger CSV imports and classification: https://github.com/apauley/hledger-makeitso#readme" parser
+  x <- options "Manage your hledger CSV imports and classification:\nhttps://github.com/apauley/hledger-makeitso#readme" parser
   case x of
     Import maybeBaseDir -> baseDir maybeBaseDir >>= importCSVs
     Report maybeBaseDir -> baseDir maybeBaseDir >>= generateReports
