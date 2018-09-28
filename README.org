@@ -5,7 +5,7 @@
 
 Inspired by the structure and ideas of [[https://github.com/adept/full-fledged-hledger/wiki][adept's Full-fledged Hledger]].
 
-I've given [[https://pauley.org.za/functional-finance-hledger/][a talk]] at [[https://www.meetup.com/lambda-luminaries/events/qklkvpyxmbnb/][Lambda Luminaries Johannesburg]] featuring hledger-makeitso.
+I've given [[https://pauley.org.za/functional-finance-hledger/][a talk]] at [[https://www.meetup.com/lambda-luminaries/events/qklkvpyxmbnb/][Lambda Luminaries Johannesburg]] featuring hledger and hledger-makeitso.
 
 * After Cloning This Repository
 
@@ -22,8 +22,8 @@ git submodule update
   At the moment this software is in an alpha stage.
   I'm still making and changing decisions as I go along.
 
-  If you're familiar with [[http://hledger.org/][hledger]] and are willing to tolerate some annoying breaking changes that would e.g. require you to
-  frequently change the names of your input and/or output files, then please try it out and let me know what you think.
+  If you're familiar with [[http://hledger.org/][hledger]] and are willing to tolerate some annoying breaking changes from time to time,
+  then please try it out and let me know what you think.
 
 * Build Instructions
 
