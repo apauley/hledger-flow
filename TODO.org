@@ -2,8 +2,13 @@
 
 * The TODO List
 ** Script Hooks
-*** Create the =2-preprocessed= output path before calling =preprocess=
 *** Stop executing if any script hook exits with a non-zero exit status
+** Rules Files
+*** Use a statement suffix instead of a prefix to indicate a rules file override
+    This is so that you can better control the sort order of your statements.
+    Ledger, for example, complains about balance assertions when statements aren't included
+    in chronological order.
+
 ** Generate reports
 *** Monthly reports for the past 6 months
 *** Quarterly reports for the past year
@@ -21,3 +26,6 @@
 *** Instead of assuming a rigid structure under =import=, start by find all input files in =*in=
 **** Assume as little as possible about the structure, get account, bank and year dirs as relative to input files
 **** First build a list of actions, then perform the actions
+*** Do we need an account owner as part of the structure?
+    e.g. =import/spouse/somebank/savings/1-in/2018/123456789_2018-06-30.csv=
+    vs =import/mycompany/somebank/savings/1-in/2018/123456789_2018-06-30.csv=
