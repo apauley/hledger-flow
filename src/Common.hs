@@ -11,6 +11,7 @@ module Common
     , printShell
     , basenameLine
     , buildFilename
+    , dontSort
     ) where
 
 import Turtle
@@ -61,3 +62,8 @@ basenameLine path = case (textToLine $ format fp $ basename path) of
 
 buildFilename :: [Line] -> Text -> FilePath
 buildFilename identifiers extension = fromText (intercalate "-" (map lineToText identifiers)) <.> extension
+
+dontSort :: Shell FilePath -> Shell [FilePath]
+dontSort files = do
+  f <- files
+  return [f]
