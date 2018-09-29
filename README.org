@@ -208,7 +208,12 @@
 
 * Project Goals
 
-  Adept's goals resonated with me:
+  My =hledger= files started to collect a bunch of supporting code that weren't really
+  specific to my financial situation.
+
+  I want to extract and share as much as possible of that supporting code.
+
+  Adept's goals also resonated with me:
 
    - Tracking expenses should take as little time, effort and manual work as possible
    - Eventual consistency should be achievable: even if I can't record something precisely right now,
