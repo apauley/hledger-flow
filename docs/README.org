@@ -135,9 +135,9 @@ Gawie's salary is deposited into his cheque account at =Bogart Bank=, so this se
 
 #+NAME: first-input-file
 #+BEGIN_SRC sh :results none :exports both
-mkdir -p my-finances/import/bogart/cheque/1-in/2016/
+mkdir -p my-finances/import/gawie/bogart/cheque/1-in/2016/
 cp Downloads/Bogart/123456789_2016-03-30.csv \
-  my-finances/import/bogart/cheque/1-in/2016/
+  my-finances/import/gawie/bogart/cheque/1-in/2016/
 #+END_SRC
 
 #+REVEAL: split
@@ -186,7 +186,7 @@ hledger-makeitso import ./my-finances
 #+RESULTS: import2
 #+BEGIN_SRC org
 I couldn't find an hledger rules file at
-./my-finances/import/bogart/cheque/bogart-cheque.rules
+./my-finances/import/gawie/bogart/cheque/bogart-cheque.rules
 
 hledger-makitso looks for a rules file in a select few places.
 
@@ -201,7 +201,7 @@ Another cryptic error.
 
 This one is caused by a missing [[http://hledger.org/csv.html][rules file]] at
 
-=./my-finances/import/bogart/cheque/bogart-cheque.rules=
+=./my-finances/import/gawie/bogart/cheque/bogart-cheque.rules=
 
 #+REVEAL: split
 
@@ -243,7 +243,7 @@ And luckily it ignores the other parameters that =hledger-makeitso= sends throug
 
 #+NAME: symlink-demoronizer
 #+BEGIN_SRC sh :results none :exports both
-cd my-finances/import/bogart/cheque
+cd my-finances/import/gawie/bogart/cheque
 ln -s ../../../../fnb-csv-demoronizer/fnb-csv-demoronizer preprocess
 #+END_SRC
 
@@ -259,7 +259,7 @@ hledger-makeitso import ./my-finances
 
 #+NAME: head-preprocess
 #+BEGIN_SRC sh :results org :exports both
-head -n 2 my-finances/import/bogart/cheque/2-preprocessed/2016/123456789_2016-03-30.csv
+head -n 2 my-finances/import/gawie/bogart/cheque/2-preprocessed/2016/123456789_2016-03-30.csv
 #+END_SRC
 
 #+RESULTS: head-preprocess
@@ -281,7 +281,7 @@ cd ..
 
 Now that we have sane dates in a CSV file, let's try to create a [[http://hledger.org/manual.html#csv-rules][rules file]]:
 #+NAME: bogart-cheque-rules-file
-#+BEGIN_SRC hledger :tangle my-finances/import/bogart/cheque/bogart-cheque.rules
+#+BEGIN_SRC hledger :tangle my-finances/import/gawie/bogart/cheque/bogart-cheque.rules
 skip 1
 
 fields _, _, date, desc1, desc2, desc3, amount, balance, _
@@ -293,7 +293,7 @@ account1 Assets:Current:Gawie:Bogart:Cheque
 description %desc1/%desc2/%desc3
 #+END_SRC
 
-Gawie saves this file as =my-finances/import/bogart/cheque/bogart-cheque.rules=.
+Gawie saves this file as =my-finances/import/gawie/bogart/cheque/bogart-cheque.rules=.
 
 #+REVEAL: split
 
@@ -356,7 +356,7 @@ Bogart Bank's CSV file has been transformed into an =hledger= journal file.
 This is the first transaction in the file:
 #+NAME: head-1st-journal
 #+BEGIN_SRC sh :results org :exports both
-head -n 3 my-finances/import/bogart/cheque/3-journal/2016/123456789_2016-03-30.journal
+head -n 3 my-finances/import/gawie/bogart/cheque/3-journal/2016/123456789_2016-03-30.journal
 #+END_SRC
 
 #+RESULTS: head-1st-journal
@@ -388,7 +388,7 @@ hledger -f my-finances/import-all.journal incomestatement
 
 #+BEGIN_SRC hledger
 hledger: balance assertion error in
-"my-finances/import/bogart/cheque/3-journal/2016/123456789_2016-03-30.journal"
+"my-finances/import/gawie/bogart/cheque/3-journal/2016/123456789_2016-03-30.journal"
 (line 2, column 56):
 
 in transaction:
@@ -425,13 +425,13 @@ It adds a balance assertion to each transaction, using the data helpfully provid
 Clearly the cheque account has a pre-existing balance of =R40500=.
 To make =hledger= happy, we need to tell it what the opening balance for this account is:
 #+NAME: bogart-cheque-opening-balance
-#+BEGIN_SRC hledger :tangle my-finances/import/bogart/cheque/opening.journal
+#+BEGIN_SRC hledger :tangle my-finances/import/gawie/bogart/cheque/opening.journal
 2016-02-27 Cheque Account Opening Balance
     Assets:Current:Gawie:Bogart:Cheque              R40500
     Equity:Opening Balances:Gawie:Bogart:Cheque
 #+END_SRC
 
-Save this as =my-finances/import/bogart/cheque/opening.journal=.
+Save this as =my-finances/import/gawie/bogart/cheque/opening.journal=.
 
 #+REVEAL: split
 
@@ -477,7 +477,7 @@ adding some more should be easy:
 #+NAME: more-input-files
 #+BEGIN_SRC sh :results org :exports both
 cp --force Downloads/Bogart/123456789_2016*.csv \
-  my-finances/import/bogart/cheque/1-in/2016/
+  my-finances/import/gawie/bogart/cheque/1-in/2016/
 hledger-makeitso import ./my-finances
 hledger -f my-finances/import-all.journal incomestatement \
   --pretty-tables --monthly --average --begin 2016-03-01
