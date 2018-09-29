@@ -244,7 +244,7 @@ And luckily it ignores the other parameters that =hledger-makeitso= sends throug
 #+NAME: symlink-demoronizer
 #+BEGIN_SRC sh :results none :exports both
 cd my-finances/import/bogart/cheque
-ln -s ../../../fnb-csv-demoronizer/fnb-csv-demoronizer preprocess
+ln -s ../../../../fnb-csv-demoronizer/fnb-csv-demoronizer preprocess
 #+END_SRC
 
 Now when we try the import again, it still displays an error due to our missing rules file.

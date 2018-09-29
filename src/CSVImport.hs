@@ -21,7 +21,7 @@ importCSVs baseDir = do
   if importExists
     then
     do
-      let importedJournals = importBanks $ lsDirs importDir
+      let importedJournals = importOwners $ lsDirs importDir
       sh $ writeMakeItSoJournal baseDir importedJournals
     else
     do
@@ -70,8 +70,17 @@ toIncludeLines paths = do
   journalFile <- paths
   return $ fromMaybe "" $ textToLine $ format ("!include "%fp) journalFile
 
-importBanks :: Shell FilePath -> Shell FilePath
-importBanks bankDirs = do
+importOwners :: Shell FilePath -> Shell FilePath
+importOwners ownerDirs = do
+  ownerDir <- ownerDirs
+  ownerName <- basenameLine ownerDir
+  let ownerJournals = importBanks ownerName $ lsDirs ownerDir
+  let aggregateJournal = ownerDir </> buildFilename [ownerName] "journal"
+  writeJournals aggregateJournal ownerJournals
+  return aggregateJournal
+
+importBanks :: Line -> Shell FilePath -> Shell FilePath
+importBanks ownerName bankDirs = do
   bankDir <- bankDirs
   bankName <- basenameLine bankDir
   let bankJournals = importAccounts bankName $ lsDirs bankDir

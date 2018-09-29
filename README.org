@@ -91,7 +91,33 @@
    We mostly use conventions based on a predefined directory structure for your input statements.
 
    For example, assuming you have a =savings= account at =mybank=, you'll put your first CSV statement here:
-   =import/mybank/savings/1-in/2018/123456789_2018-06-30.csv=.
+   =import/john/mybank/savings/1-in/2018/123456789_2018-06-30.csv=.
+
+   And some people may want to include accounts belonging to their spouse as part of the household finances:
+   =import/spouse/otherbank/checking/1-in/2018/987654321_2018-06-30.csv=.
+
+*** More About The Input Files
+
+    All files and directories under the =import= directory is related to the automatic importing and classification of transactions.
+
+    The directory directly under =import= is meant to indicate the owner or custodian of the accounts below it.
+    It mostly has an impact on reporting. You may want to have separate reports for =import/mycompany= and =import/personal=.
+
+    Below the directory for the owner we can indicate where an account is held.
+    For a bank account you may choose to name it =import/john/mybank=.
+
+    If your underground bunker filled with gold has CSV statements linked to it,
+    then you can absolutely create =import/john/secret-treasure-room=.
+
+    Under the directory for the financial institution, you'll have a directory for each account
+    at that institution, e.g. =import/mycompany/bigbankinc/customer-deposits= and
+    =import/mycompany/bigbankinc/expense-account=.
+
+    Next you'll create a directory named =1-in=.
+    This is to distinguish it from =2-preprocessed= and =3-journal= which will be auto-generated later.
+
+    Under =1-in= you'll create a directory for the year, e.g. =2018=, and within that you can copy the statements for that year:
+    =import/john/mybank/savings/1-in/2018/123456789_2018-06-30.csv=
 
 ** The Rules File
 
@@ -100,13 +126,13 @@
 
     - We'll first look for a rules file per bank in =import/mybank/mybank.rules=. This can be used for all =mybank= accounts.
     - If a rules file specific to the account exists, it will be used instead for all statements of that account.
-      The file has to be in the account's directory and named after the account, e.g. =import/mybank/savings/mybank-savings.rules=.
+      The file has to be in the account's directory and named after the account, e.g. =import/john/mybank/savings/mybank-savings.rules=.
     - You can further use a more specific rules file that is used only for some statements.
       If you add a prefix, separated by an underscore (=_=), to your input file name, and also have a rules file with that prefix
       as its name, then we'll use that rules file instead.
       For example: assuming you've downloaded a specific statement from Mint as opposed to your bank, and named it =mint_99966633_20171223_1844.csv=.
       We will look for the rules file in the following places:
-      - First, in the account directory, e.g. =import/mybank/savings/mint.rules=
+      - First, in the account directory, e.g. =import/john/mybank/savings/mint.rules=
       - Then, in the bank's directory, e.g. =import/mybank/mint.rules=
       - Lastly in the import directory, e.g. =import/mint.rules=
 
@@ -129,12 +155,12 @@
     Sometimes the statements you get from your bank is [[https://github.com/apauley/fnb-csv-demoronizer][less than suitable]] for automatic processing.
     Or maybe you just want to make it easier for the hledger rules file to do its thing by adding some useful columns.
 
-    If you put a script called =preprocess= in the account directory, e.g. =import/mybank/savings/preprocess=,
+    If you put a script called =preprocess= in the account directory, e.g. =import/john/mybank/savings/preprocess=,
     then =hledger-makeitso= will call that script for each input statement.
 
     The =preprocess= script will be called with 4 positional parameters:
-     1. The path to the input statement, e.g. =import/mybank/savings/1-in/2018/123456789_2018-06-30.csv=
-     2. The path to an output file that can be sent to =hledger=, e.g. =import/mybank/savings/2-preprocessed/2018/123456789_2018-06-30.csv=
+     1. The path to the input statement, e.g. =import/john/mybank/savings/1-in/2018/123456789_2018-06-30.csv=
+     2. The path to an output file that can be sent to =hledger=, e.g. =import/john/mybank/savings/2-preprocessed/2018/123456789_2018-06-30.csv=
      3. The name of the bank, e.g. =mybank=
      4. The name of the account, e.g. =savings=
 
@@ -164,10 +190,10 @@
     But since the =import= script is more powerful than the =preprocess= script, you could tell your =import= script to do
     anything that the =preprocess= script would have done.
 
-    Save your =import= script in the account directory, e.g. =import/mybank/savings/import=.
+    Save your =import= script in the account directory, e.g. =import/john/mybank/savings/import=.
 
     =hledger-makeitso= will call your =import= script with 4 positional parameters:
-     1. The path to the input statement, e.g. =import/mybank/savings/1-in/2018/123456789_2018-06-30.csv=
+     1. The path to the input statement, e.g. =import/john/mybank/savings/1-in/2018/123456789_2018-06-30.csv=
      2. A "-" (indicating that output should be sent to =stdout=)
      3. The name of the bank, e.g. =mybank=
      4. The name of the account, e.g. =savings=
