@@ -152,13 +152,14 @@ tree my-finances/
 #+BEGIN_SRC org
 my-finances/
 └── import
-    └── bogart
-        └── cheque
-            └── 1-in
-                └── 2016
-                    └── 123456789_2016-03-30.csv
+    └── gawie
+        └── bogart
+            └── cheque
+                └── 1-in
+                    └── 2016
+                        └── 123456789_2016-03-30.csv
 
-5 directories, 1 file
+6 directories, 1 file
 
 #+END_SRC
 
@@ -265,7 +266,7 @@ head -n 2 my-finances/import/gawie/bogart/cheque/2-preprocessed/2016/123456789_2
 #+RESULTS: head-preprocess
 #+BEGIN_SRC org
 "5","'Nommer'","'Datum'","'Beskrywing1'","'Beskrywing2'","'Beskrywing3'","'Bedrag'","'Saldo'","'Opgeloopte Koste'"
-"5","1","2016-02-28","#Monthly Bank Fee","","","-500.00","40000.00",""
+"5","1","2016-03-01","#Monthly Bank Fee","","","-500.00","40000.00",""
 
 #+END_SRC
 
@@ -331,25 +332,31 @@ my-finances
 │   ├── fnb-csv-demoronizer
 │   └── README.org
 ├── import
-│   └── bogart
-│       ├── bogart.journal
-│       └── cheque
-│           ├── 1-in
-│           │   └── 2016
-│           │       └── 123456789_2016-03-30.csv
-│           ├── 2-preprocessed
-│           │   └── 2016
-│           │       └── 123456789_2016-03-30.csv
-│           ├── 3-journal
-│           │   └── 2016
-│           │       └── 123456789_2016-03-30.journal
-│           ├── bogart-cheque.journal
-│           ├── bogart-cheque.rules
-│           ├── opening.journal
-│           └── preprocess -> ../../../fnb-csv-demoronizer/fnb-csv-demoronizer
-└── import-all.journal
+│   └── gawie
+│       ├── bogart
+│       │   ├── bogart.journal
+│       │   └── cheque
+│       │       ├── 1-in
+│       │       │   └── 2016
+│       │       │       └── 123456789_2016-03-30.csv
+│       │       ├── 2-preprocessed
+│       │       │   └── 2016
+│       │       │       └── 123456789_2016-03-30.csv
+│       │       ├── 3-journal
+│       │       │   └── 2016
+│       │       │       └── 123456789_2016-03-30.journal
+│       │       ├── bogart-cheque.journal
+│       │       ├── bogart-cheque.rules
+│       │       ├── opening.journal
+│       │       └── preprocess -> ../../../../fnb-csv-demoronizer/fnb-csv-demoronizer
+│       └── gawie.journal
+├── import-all.journal
+├── makeitso.journal
+└── manual
+    ├── post-import.journal
+    └── pre-import.journal
 
-10 directories, 11 files
+12 directories, 15 files
 
 #+END_SRC
 
@@ -365,7 +372,7 @@ head -n 3 my-finances/import/gawie/bogart/cheque/3-journal/2016/123456789_2016-0
 
 #+RESULTS: head-1st-journal
 #+BEGIN_SRC org
-2016/02/28 * #Monthly Bank Fee//
+2016/03/01 * #Monthly Bank Fee//
     Assets:Current:Gawie:Bogart:Cheque        R-500.00 = R40000.00
     expenses:unknown                           R500.00
 
@@ -398,13 +405,13 @@ hledger: balance assertion error in
 (line 2, column 56):
 
 in transaction:
-2016/02/28 * #Monthly Bank Fee//
+2016/03/01 * #Monthly Bank Fee//
     Assets:Current:Gawie:Bogart:Cheque    R-500.00 = R40000.00
     expenses:unknown                      R500.00
 after posting:
     Assets:Current:Gawie:Bogart:Cheque    R-500.00
 balance assertion details:
-date:       2016/02/28
+date:       2016/03/01
 account:    Assets:Current:Gawie:Bogart:Cheque
 commodity:  R
 calculated: R-500.00
@@ -432,12 +439,22 @@ Clearly the cheque account has a pre-existing balance of =R40500=.
 To make =hledger= happy, we need to tell it what the opening balance for this account is:
 #+NAME: bogart-cheque-opening-balance
 #+BEGIN_SRC hledger :tangle my-finances/import/gawie/bogart/cheque/opening.journal
-2016-02-27 Cheque Account Opening Balance
+2016-03-01 Cheque Account Opening Balance
     Assets:Current:Gawie:Bogart:Cheque              R40500
     Equity:Opening Balances:Gawie:Bogart:Cheque
 #+END_SRC
 
 Save this as =my-finances/import/gawie/bogart/cheque/opening.journal=.
+
+#+REVEAL: split
+
+#+NAME: git-checkpoint-opening-balance
+#+BEGIN_SRC sh :results none :exports both
+cd my-finances/
+git add .
+git commit -m 'Added an opening balance for Bogart Cheque Account'
+cd ..
+#+END_SRC
 
 #+REVEAL: split
 
@@ -453,9 +470,9 @@ hledger -f my-finances/import-all.journal incomestatement \
 
 #+RESULTS: hledger-incomestatement
 #+BEGIN_SRC org
-Income Statement 2016/02/27-2016/03/25
+Income Statement 2016/03/01-2016/03/25
 
-                  ║ 2016/02/27-2016/03/25
+                  ║ 2016/03/01-2016/03/25
 ══════════════════╬═══════════════════════
  Revenues         ║
 ──────────────────╫───────────────────────
