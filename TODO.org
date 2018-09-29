@@ -14,6 +14,7 @@
 *** Quarterly reports for the past year
 *** Yearly reports for the past 5 years
 *** How much money went towards expenses, assets and liabilities, expressed as a percentage of income
+*** Overall reports, and reports per owner
 *** More useful reports?
 ** Performance
 *** Process statements in parallel
@@ -26,6 +27,3 @@
 *** Instead of assuming a rigid structure under =import=, start by find all input files in =*in=
 **** Assume as little as possible about the structure, get account, bank and year dirs as relative to input files
 **** First build a list of actions, then perform the actions
-*** Do we need an account owner as part of the structure?
-    e.g. =import/spouse/somebank/savings/1-in/2018/123456789_2018-06-30.csv=
-    vs =import/mycompany/somebank/savings/1-in/2018/123456789_2018-06-30.csv=

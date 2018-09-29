@@ -272,12 +272,14 @@ head -n 2 my-finances/import/gawie/bogart/cheque/2-preprocessed/2016/123456789_2
 #+REVEAL: split
 
 #+NAME: git-checkpoint-preprocess
-#+BEGIN_SRC sh :results none :exports results
+#+BEGIN_SRC sh :results none :exports both
 cd my-finances/
 git add .
 git commit -m 'The preprocessed CSV now has dates we can work with!'
 cd ..
 #+END_SRC
+
+#+REVEAL: split
 
 Now that we have sane dates in a CSV file, let's try to create a [[http://hledger.org/manual.html#csv-rules][rules file]]:
 #+NAME: bogart-cheque-rules-file
@@ -304,12 +306,14 @@ Gawie saves this file as =my-finances/import/gawie/bogart/cheque/bogart-cheque.r
 #+END_SRC
 
 #+NAME: git-checkpoint-rules
-#+BEGIN_SRC sh :results none :exports results
+#+BEGIN_SRC sh :results none :exports both
 cd my-finances/
 git add .
 git commit -m 'A CSV rules file'
 cd ..
 #+END_SRC
+
+#+REVEAL: split
 
 This time the import is successful, and we see a number of newly generated files:
 #+NAME: import4
@@ -370,12 +374,14 @@ head -n 3 my-finances/import/gawie/bogart/cheque/3-journal/2016/123456789_2016-0
 #+REVEAL: split
 
 #+NAME: git-checkpoint-1st-journal
-#+BEGIN_SRC sh :results none :exports results
+#+BEGIN_SRC sh :results none :exports both
 cd my-finances/
 git add .
 git commit -m 'My first imported journal'
 cd ..
 #+END_SRC
+
+#+REVEAL: split
 
 Can hledger show us some data?
 
@@ -515,13 +521,17 @@ In March and April, Gawie spent more than he earned.
 It is time to classify each transaction so that he can have a better view into
 what is going on.
 
+#+REVEAL: split
+
 #+NAME: git-checkpoint-more-statements
-#+BEGIN_SRC sh :results none :exports results
+#+BEGIN_SRC sh :results none :exports both
 cd my-finances/
 git add .
 git commit -m 'Added a few more statements'
 cd ..
 #+END_SRC
+
+#+REVEAL: split
 
 #+NAME: git-push-hledger-makeitso-example-finances
 #+BEGIN_SRC sh :results none :exports results
