@@ -15,7 +15,7 @@
 * About This Document
 
 This document is a [[https://www.offerzen.com/blog/literate-programming-empower-your-writing-with-emacs-org-mode][literate]] [[https://orgmode.org/worg/org-contrib/babel/intro.html][program]].
-You can read it like a normal article, either [[https://github.com/apauley/hledger-makeitso/blob/master/docs/part3.org][on the web]] or [[https://pauley.org.za/hledger-makeitso/][as a slide show]].
+You can read it like a normal article, either [[https://github.com/apauley/hledger-makeitso/blob/master/docs/part3.org][on the web]] or [[https://pauley.org.za/hledger-makeitso/part3.html][as a slide show]].
 
 But you can also [[https://github.com/apauley/hledger-makeitso][clone the repository]] and open [[https://raw.githubusercontent.com/apauley/hledger-makeitso/master/docs/part3.org][this org-mode file]] in emacs.
 Then you can execute each code snippet by pressing =C-c C-c= with your cursor on the relevant code block.
