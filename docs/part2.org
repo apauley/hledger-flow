@@ -26,7 +26,7 @@ Now that we have [[file:part1.org][our first successful import]], can hledger sh
 
 #+NAME: hledger-err-balance
 #+BEGIN_SRC sh :results none :exports code
-hledger -f my-finances/import-all.journal incomestatement
+hledger -f my-finances/makeitso.journal incomestatement
 #+END_SRC
 
 #+REVEAL: split
@@ -78,6 +78,13 @@ To make =hledger= happy, we need to tell it what the opening balance for this ac
 
 Save this as =my-finances/import/gawie/bogart/cheque/opening.journal=.
 
+#+NAME: tangle-opening-balances
+#+BEGIN_SRC emacs-lisp :results none :exports results
+; Narrator: this just tells emacs to write out the rules file. Carry on.
+; FIXME: This should just tangle the one relevant block, not all tangle blocks
+(org-babel-tangle-file (buffer-file-name))
+#+END_SRC
+
 #+REVEAL: split
 
 #+NAME: git-checkpoint-opening-balance
@@ -94,7 +101,7 @@ Now we can try the income statement again.
 
 #+NAME: hledger-incomestatement
 #+BEGIN_SRC sh :results org :exports both
-hledger -f my-finances/import-all.journal incomestatement \
+hledger -f my-finances/makeitso.journal incomestatement \
   --pretty-tables
 #+END_SRC
 

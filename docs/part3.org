@@ -30,7 +30,7 @@ adding some more should be easy:
 cp --force Downloads/Bogart/123456789_2016*.csv \
   my-finances/import/gawie/bogart/cheque/1-in/2016/
 hledger-makeitso import ./my-finances
-hledger -f my-finances/import-all.journal incomestatement \
+hledger -f my-finances/makeitso.journal incomestatement \
   --pretty-tables --monthly --average --begin 2016-03-01
 #+END_SRC
 
