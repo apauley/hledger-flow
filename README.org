@@ -124,17 +124,31 @@
    If your input file is in CSV format, or converted to CSV by your =preprocess= script,
    then you'll need an [[http://hledger.org/csv.html][hledger rules file]].
 
-    - We'll first look for a rules file per bank in =import/mybank/mybank.rules=. This can be used for all =mybank= accounts.
-    - If a rules file specific to the account exists, it will be used instead for all statements of that account.
-      The file has to be in the account's directory and named after the account, e.g. =import/john/mybank/savings/mybank-savings.rules=.
-    - You can further use a more specific rules file that is used only for some statements.
-      If you add a prefix, separated by an underscore (=_=), to your input file name, and also have a rules file with that prefix
-      as its name, then we'll use that rules file instead.
-      For example: assuming you've downloaded a specific statement from Mint as opposed to your bank, and named it =mint_99966633_20171223_1844.csv=.
-      We will look for the rules file in the following places:
-      - First, in the account directory, e.g. =import/john/mybank/savings/mint.rules=
-      - Then, in the bank's directory, e.g. =import/mybank/mint.rules=
-      - Lastly in the import directory, e.g. =import/mint.rules=
+   =hledger-makeitso= will try to find a rules file for each statement in a few places.
+   The same rules file is typically used for all statements of a specific account, or even for all accounts
+   of the same specific bank.
+
+   - A global rules file for any =mybank= statement can be saved here: =import/mybank.rules=
+   - A rules file for any account named =myaccount= at =mybank= (regardless of the owner) can be saved here: =import/mybank-myaccount.rules=
+   - A rules file for all statements of a specific account: =import/spouse/bigbankinc/savings/bigbankinc-savings.rules=
+
+*** Statement-specific Rules Files
+
+    What happens if some of the statements for an account has a different format than the others?
+    This can happen if you normally get your statements directly from your bank, but some
+    statements you had to download from somewhere else, like Mint, because your bank is being daft
+    with older statements.
+
+    If you add a prefix, separated by an underscore (=_=), to your input file name, and also have a rules file with that prefix
+    as its name, then =hledger-makeitso= will use that rules file instead.
+
+    For example: assuming you've named your statement =mint_99966633_20171223_1844.csv=.
+
+    =hledger-makeitso= will look for a rules file named =mint.rules= in the following places:
+      - in the import directory, e.g. =import/mint.rules=
+      - in the owner directory, e.g. =import/spouse/mint.rules=
+      - in the bank directory, e.g. =import/john/mybank/mint.rules=
+      - in the account directory, e.g. =import/john/mybank/savings/mint.rules=
 
 ** Opening Balances
 
