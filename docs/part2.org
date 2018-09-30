@@ -132,3 +132,7 @@ Income Statement 2016/03/01-2016/03/25
 #+END_SRC
 
 It worked!
+
+#+REVEAL: split
+
+The story continues with [[file:part3.org][part 3]].
