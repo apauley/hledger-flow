@@ -87,6 +87,8 @@ Save this as =my-finances/import/gawie/bogart/cheque/opening.journal=.
 
 #+REVEAL: split
 
+Time for another git checkpoint.
+
 #+NAME: git-checkpoint-opening-balance
 #+BEGIN_SRC sh :results none :exports both
 cd my-finances/

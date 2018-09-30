@@ -3,6 +3,10 @@
 * The TODO List
 ** Script Hooks
 *** Stop executing if any script hook exits with a non-zero exit status
+*** Pass the owner as a parameter to =preprocess= and =import=
+*** Rename the =import= script to something else, e.g. =convert=?
+    To avoid confusion with the import directory.
+
 ** Generate reports
 *** Monthly reports for the past 6 months
 *** Quarterly reports for the past year

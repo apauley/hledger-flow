@@ -132,8 +132,8 @@ He concludes that =hledger-makeitso= expects to find its input files in specific
 
 #+REVEAL: split
 
-Looking at the documentation he sees there should be an =import= directory,
-and under that a directory named after a bank, followed by a directory for the account and so on.
+Looking at the documentation he sees there should be several account and bank-specific directories
+under the =import= directory.
 
 #+REVEAL: split
 
@@ -222,7 +222,6 @@ fix stupid dates like those used by Bogart Bank.
 #+REVEAL: split
 
 This looks like a job for a [[https://github.com/apauley/hledger-makeitso#the-preprocess-script][preprocess script]].
-Maybe we can get away with just a symbolic link...
 
 #+REVEAL: split
 
@@ -279,6 +278,8 @@ head -n 2 my-finances/import/gawie/bogart/cheque/2-preprocessed/2016/123456789_2
 
 #+REVEAL: split
 
+Time for another git checkpoint.
+
 #+NAME: git-checkpoint-preprocess
 #+BEGIN_SRC sh :results none :exports both
 cd my-finances/
@@ -313,6 +314,8 @@ Gawie saves this file as =my-finances/import/gawie/bogart/cheque/bogart-cheque.r
 ; FIXME: This should just tangle the one relevant block, not all tangle blocks
 (org-babel-tangle-file (buffer-file-name))
 #+END_SRC
+
+Time for another git checkpoint.
 
 #+NAME: git-checkpoint-rules
 #+BEGIN_SRC sh :results none :exports both
@@ -388,6 +391,8 @@ head -n 3 my-finances/import/gawie/bogart/cheque/3-journal/2016/123456789_2016-0
 
 #+REVEAL: split
 
+A final checkpoint and we're done with part 1.
+
 #+NAME: git-checkpoint-1st-journal
 #+BEGIN_SRC sh :results none :exports both
 cd my-finances/
@@ -395,3 +400,7 @@ git add .
 git commit -m 'My first imported journal'
 cd ..
 #+END_SRC
+
+#+REVEAL: split
+
+The story continues with [[file:part2.org][part 2]].

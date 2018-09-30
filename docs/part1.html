@@ -25,25 +25,25 @@
 <body>
 <div class="reveal">
 <div class="slides">
-<section id="sec-title-slide"><h1 class="title">hledger-makeitso Step-By-Step</h1><p class="date">Created: 2018-09-30 Sun 17:27</p>
+<section id="sec-title-slide"><h1 class="title">hledger-makeitso Step-By-Step</h1><p class="date">Created: 2018-09-30 Sun 20:56</p>
 </section>
 <section id="table-of-contents">
 <div id="table-of-contents">
 <h2>Table of Contents</h2>
 <div id="text-table-of-contents">
 <ul>
-<li><a href="#/slide-org14e9ba5">Part 1</a></li>
-<li><a href="#/slide-org2cb069d">About This Document</a></li>
-<li><a href="#/slide-org80a1b39">The Story of an African Chef</a></li>
-<li><a href="#/slide-org9274475">The First CSV Statement</a></li>
+<li><a href="#/slide-org71737e9">Part 1</a></li>
+<li><a href="#/slide-orga8378f9">About This Document</a></li>
+<li><a href="#/slide-org0c29698">The Story of an African Chef</a></li>
+<li><a href="#/slide-org8d725a9">The First CSV Statement</a></li>
 </ul>
 </div>
 </div>
 </section>
 
 <section>
-<section id="slide-org14e9ba5">
-<h2 id="org14e9ba5">Part 1</h2>
+<section id="slide-org71737e9">
+<h2 id="org71737e9">Part 1</h2>
 <p>
 This is the first part in a a series of step-by-step instructions.
 </p>
@@ -55,8 +55,8 @@ They are intended to be read in sequence. Head over to the <a href="README.html"
 </section>
 </section>
 <section>
-<section id="slide-org2cb069d">
-<h2 id="org2cb069d">About This Document</h2>
+<section id="slide-orga8378f9">
+<h2 id="orga8378f9">About This Document</h2>
 <p>
 This document is a <a href="https://www.offerzen.com/blog/literate-programming-empower-your-writing-with-emacs-org-mode">literate</a> <a href="https://orgmode.org/worg/org-contrib/babel/intro.html">program</a>.
 You can read it like a normal article, either <a href="https://github.com/apauley/hledger-makeitso/blob/master/docs/part1.org">on the web</a> or <a href="https://pauley.org.za/hledger-makeitso/">as a slide show</a>.
@@ -70,8 +70,8 @@ Then you can execute each code snippet by pressing <code>C-c C-c</code> with you
 </section>
 </section>
 <section>
-<section id="slide-org80a1b39">
-<h2 id="org80a1b39">The Story of an African Chef</h2>
+<section id="slide-org0c29698">
+<h2 id="org0c29698">The Story of an African Chef</h2>
 <p>
 Meet Gawie de Groot. Gawie is a successful <a href="https://en.wikipedia.org/wiki/Gonimbrasia_belina#As_food">mopane worm</a> chef, based in the northernmost section of the <a href="https://en.wikipedia.org/wiki/Kruger_National_Park">Kruger National Park</a>.
 </p>
@@ -104,8 +104,8 @@ It is time for Gawie to take charge of his finances.
 </section>
 </section>
 <section>
-<section id="slide-org9274475">
-<h2 id="org9274475">The First CSV Statement</h2>
+<section id="slide-org8d725a9">
+<h2 id="org8d725a9">The First CSV Statement</h2>
 <p>
 Gawie followed the <a href="https://github.com/apauley/hledger-makeitso#build-instructions">build instructions</a> and ended up with his very own <code>hledger-makeitso</code> executable.
 </p>
@@ -224,8 +224,8 @@ He concludes that <code>hledger-makeitso</code> expects to find its input files 
 <section >
 
 <p>
-Looking at the documentation he sees there should be an <code>import</code> directory,
-and under that a directory named after a bank, followed by a directory for the account and so on.
+Looking at the documentation he sees there should be several account and bank-specific directories
+under the <code>import</code> directory.
 </p>
 
 </section>
@@ -345,7 +345,6 @@ fix stupid dates like those used by Bogart Bank.
 
 <p>
 This looks like a job for a <a href="https://github.com/apauley/hledger-makeitso#the-preprocess-script">preprocess script</a>.
-Maybe we can get away with just a symbolic link&#x2026;
 </p>
 
 </section>
@@ -422,6 +421,10 @@ But this time we can see that our statement was preprocessed:
 </section>
 <section >
 
+<p>
+Time for another git checkpoint.
+</p>
+
 <div class="org-src-container">
 
 <pre  class="src src-sh" id="git-checkpoint-preprocess"><span style="color: #4f97d7;">cd</span> my-finances/
@@ -457,6 +460,10 @@ Gawie saves this file as <code>my-finances/import/gawie/bogart/cheque/bogart-che
 
 </section>
 <section >
+
+<p>
+Time for another git checkpoint.
+</p>
 
 <div class="org-src-container">
 
@@ -547,6 +554,10 @@ This is the first transaction in the file:
 </section>
 <section >
 
+<p>
+A final checkpoint and we're done with part 1.
+</p>
+
 <div class="org-src-container">
 
 <pre  class="src src-sh" id="git-checkpoint-1st-journal"><span style="color: #4f97d7;">cd</span> my-finances/
@@ -555,6 +566,13 @@ git commit -m <span style="color: #2d9574;">'My first imported journal'</span>
 <span style="color: #4f97d7;">cd</span> ..
 </pre>
 </div>
+
+</section>
+<section >
+
+<p>
+The story continues with <a href="part2.html">part 2</a>.
+</p>
 </section>
 </section>
 </div>
