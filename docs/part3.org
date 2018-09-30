@@ -1,0 +1,87 @@
+#+STARTUP: showall
+#+TITLE: hledger-makeitso Step-By-Step
+#+AUTHOR:
+#+REVEAL_TRANS: default
+#+REVEAL_THEME: beige
+#+OPTIONS: num:nil
+#+PROPERTY: header-args:sh :prologue exec 2>&1 :epilogue echo :
+
+* hledger-makeitso Step-By-Step: Part 3
+
+  This is the third part in a a series of step-by-step instructions.
+
+  They are intended to be read in sequence. Head over to the [[file:README.org][docs README]] to see all parts.
+
+* About This Document
+
+This document is a [[https://www.offerzen.com/blog/literate-programming-empower-your-writing-with-emacs-org-mode][literate]] [[https://orgmode.org/worg/org-contrib/babel/intro.html][program]].
+You can read it like a normal article, either [[https://github.com/apauley/hledger-makeitso/blob/master/docs/part3.org][on the web]] or [[https://pauley.org.za/hledger-makeitso/][as a slide show]].
+
+But you can also [[https://github.com/apauley/hledger-makeitso][clone the repository]] and open [[https://raw.githubusercontent.com/apauley/hledger-makeitso/master/docs/part3.org][this org-mode file]] in emacs.
+Then you can execute each code snippet by pressing =C-c C-c= with your cursor on the relevant code block.
+
+* Adding More Statements
+
+Now that the all the boilerplate for the first statement has been done,
+adding some more should be easy:
+
+#+NAME: more-input-files
+#+BEGIN_SRC sh :results org :exports both
+cp --force Downloads/Bogart/123456789_2016*.csv \
+  my-finances/import/gawie/bogart/cheque/1-in/2016/
+hledger-makeitso import ./my-finances
+hledger -f my-finances/import-all.journal incomestatement \
+  --pretty-tables --monthly --average --begin 2016-03-01
+#+END_SRC
+
+#+REVEAL: split
+
+#+RESULTS: more-input-files
+#+BEGIN_SRC org
+Income Statement 2016/03/01-2016/05/25
+
+                  ║       Mar        Apr        May    Average
+══════════════════╬════════════════════════════════════════════
+ Revenues         ║
+──────────────────╫────────────────────────────────────────────
+ income:unknown   ║ R37256.28  R37256.28  R37256.28  R37256.28
+──────────────────╫────────────────────────────────────────────
+                  ║ R37256.28  R37256.28  R37256.28  R37256.28
+══════════════════╬════════════════════════════════════════════
+ Expenses         ║
+──────────────────╫────────────────────────────────────────────
+ expenses:unknown ║ R37284.66  R40333.49  R37234.43  R38284.19
+──────────────────╫────────────────────────────────────────────
+                  ║ R37284.66  R40333.49  R37234.43  R38284.19
+══════════════════╬════════════════════════════════════════════
+ Net:             ║   R-28.38  R-3077.21     R21.85  R-1027.91
+
+#+END_SRC
+
+#+REVEAL: split
+
+Actually this doesn't look so good.
+In March and April, Gawie spent more than he earned.
+
+It is time to classify each transaction so that he can have a better view into
+what is going on.
+
+#+REVEAL: split
+
+#+NAME: git-checkpoint-more-statements
+#+BEGIN_SRC sh :results none :exports both
+cd my-finances/
+git add .
+git commit -m 'Added a few more statements'
+cd ..
+#+END_SRC
+
+#+REVEAL: split
+
+#+NAME: git-push-hledger-makeitso-example-finances
+#+BEGIN_SRC sh :results none :exports results
+cd my-finances/
+git remote add origin git@github.com:apauley/hledger-makeitso-example-finances.git
+git push --force -u origin master
+cd ..
+#+END_SRC

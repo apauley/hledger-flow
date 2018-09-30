@@ -1,0 +1,125 @@
+#+STARTUP: showall
+#+TITLE: hledger-makeitso Step-By-Step
+#+AUTHOR:
+#+REVEAL_TRANS: default
+#+REVEAL_THEME: beige
+#+OPTIONS: num:nil
+#+PROPERTY: header-args:sh :prologue exec 2>&1 :epilogue echo :
+
+* hledger-makeitso Step-By-Step: Part 2
+
+  This is the second part in a a series of step-by-step instructions.
+
+  They are intended to be read in sequence. Head over to the [[file:README.org][docs README]] to see all parts.
+
+* About This Document
+
+This document is a [[https://www.offerzen.com/blog/literate-programming-empower-your-writing-with-emacs-org-mode][literate]] [[https://orgmode.org/worg/org-contrib/babel/intro.html][program]].
+You can read it like a normal article, either [[https://github.com/apauley/hledger-makeitso/blob/master/docs/part2.org][on the web]] or [[https://pauley.org.za/hledger-makeitso/][as a slide show]].
+
+But you can also [[https://github.com/apauley/hledger-makeitso][clone the repository]] and open [[https://raw.githubusercontent.com/apauley/hledger-makeitso/master/docs/part2.org][this org-mode file]] in emacs.
+Then you can execute each code snippet by pressing =C-c C-c= with your cursor on the relevant code block.
+
+* An hledger report
+
+Now that we have [[file:part1.org][our first successful import]], can hledger show us some useful information?
+
+#+NAME: hledger-err-balance
+#+BEGIN_SRC sh :results none :exports code
+hledger -f my-finances/import-all.journal incomestatement
+#+END_SRC
+
+#+REVEAL: split
+
+#+BEGIN_SRC hledger
+hledger: balance assertion error in
+"my-finances/import/gawie/bogart/cheque/3-journal/2016/123456789_2016-03-30.journal"
+(line 2, column 56):
+
+in transaction:
+2016/03/01 * #Monthly Bank Fee//
+    Assets:Current:Gawie:Bogart:Cheque    R-500.00 = R40000.00
+    expenses:unknown                      R500.00
+after posting:
+    Assets:Current:Gawie:Bogart:Cheque    R-500.00
+balance assertion details:
+date:       2016/03/01
+account:    Assets:Current:Gawie:Bogart:Cheque
+commodity:  R
+calculated: R-500.00
+asserted:   R40000.00 (difference: +R40500.00)
+#+END_SRC
+
+#+REVEAL: split
+
+Not yet - we have a balance assertion error.
+=hledger= thinks the balance should be =-R500=, but our import asserted that it should be =R40000=.
+
+#+REVEAL: split
+
+Remember the =balance= field we added to the rules file?
+#+NAME: balance-field-rules-file
+#+BEGIN_SRC hledger
+fields _, _, date, desc1, desc2, desc3, amount, balance, _
+#+END_SRC
+
+It adds a balance assertion to each transaction, using the data helpfully provided by Bogart Bank.
+
+#+REVEAL: split
+
+Clearly the cheque account has a pre-existing balance of =R40500=.
+To make =hledger= happy, we need to tell it what the opening balance for this account is:
+#+NAME: bogart-cheque-opening-balance
+#+BEGIN_SRC hledger :tangle my-finances/import/gawie/bogart/cheque/opening.journal
+2016-03-01 Cheque Account Opening Balance
+    Assets:Current:Gawie:Bogart:Cheque              R40500
+    Equity:Opening Balances:Gawie:Bogart:Cheque
+#+END_SRC
+
+Save this as =my-finances/import/gawie/bogart/cheque/opening.journal=.
+
+#+REVEAL: split
+
+#+NAME: git-checkpoint-opening-balance
+#+BEGIN_SRC sh :results none :exports both
+cd my-finances/
+git add .
+git commit -m 'Added an opening balance for Bogart Cheque Account'
+cd ..
+#+END_SRC
+
+#+REVEAL: split
+
+Now we can try the income statement again.
+
+#+NAME: hledger-incomestatement
+#+BEGIN_SRC sh :results org :exports both
+hledger -f my-finances/import-all.journal incomestatement \
+  --pretty-tables
+#+END_SRC
+
+#+REVEAL: split
+
+#+RESULTS: hledger-incomestatement
+#+BEGIN_SRC org
+Income Statement 2016/03/01-2016/03/25
+
+                  ║ 2016/03/01-2016/03/25
+══════════════════╬═══════════════════════
+ Revenues         ║
+──────────────────╫───────────────────────
+ income:unknown   ║             R37256.28
+──────────────────╫───────────────────────
+                  ║             R37256.28
+══════════════════╬═══════════════════════
+ Expenses         ║
+──────────────────╫───────────────────────
+ expenses:unknown ║             R36734.43
+──────────────────╫───────────────────────
+                  ║             R36734.43
+══════════════════╬═══════════════════════
+ Net:             ║               R521.85
+
+#+END_SRC
+
+It worked!

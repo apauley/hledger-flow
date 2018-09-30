@@ -3,12 +3,6 @@
 * The TODO List
 ** Script Hooks
 *** Stop executing if any script hook exits with a non-zero exit status
-** Rules Files
-*** Use a statement suffix instead of a prefix to indicate a rules file override
-    This is so that you can better control the sort order of your statements.
-    Ledger, for example, complains about balance assertions when statements aren't included
-    in chronological order.
-
 ** Generate reports
 *** Monthly reports for the past 6 months
 *** Quarterly reports for the past year

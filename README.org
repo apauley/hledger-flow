@@ -248,6 +248,18 @@
    !include manual/post-import.journal
    #+END_SRC
 
+* Compatibility with Ledger
+
+  When writing out the journal include files, =hledger-makeitso= sorts the include statements by filename.
+
+  [[https://www.ledger-cli.org/][Ledger]] fails any balance assertions when the transactions aren't included in chronological order.
+
+  An easy way around this is to name your input files so that March's statement is listed before December's statement.
+
+  Another option is to add =--permissive= to any [[https://www.ledger-cli.org/][ledger]] command.
+
+  So you should easily be able to use both =ledger= and =hledger= on these journals.
+
 * Project Goals
 
   My =hledger= files started to collect a bunch of supporting code that weren't really
