@@ -20,7 +20,7 @@
    - Don't re-process statements that have already been processed
 ** Documentation
    - Ensure that the error messages guide the user to the next action, with helpful links
-   - Create an example user with a life that can be used for example financial transactions
+   - Expand the step-by-step instructions with more scenarios
 ** Random Thoughts
    - Instead of assuming a rigid structure under =import=, start by find all input files in =*in=
      Assume as little as possible about the structure, get account, bank and year dirs as relative to input files
