@@ -6,9 +6,9 @@
 #+OPTIONS: num:nil
 #+PROPERTY: header-args:sh :prologue exec 2>&1 :epilogue echo :
 
-* hledger-makeitso Step-By-Step: Part 1
+* Part 1
 
-  This is the second part in a a series of step-by-step instructions.
+  This is the first part in a a series of step-by-step instructions.
 
   They are intended to be read in sequence. Head over to the [[file:README.org][docs README]] to see all parts.
 
