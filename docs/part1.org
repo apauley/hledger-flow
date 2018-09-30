@@ -38,7 +38,7 @@ Business has been good the last few years, but Gawie wants to make sure that he'
 
 It is time for Gawie to take charge of his finances.
 
-* Part 1: The First CSV Statement
+* The First CSV Statement
 
 Gawie followed the [[https://github.com/apauley/hledger-makeitso#build-instructions][build instructions]] and ended up with his very own =hledger-makeitso= executable.
 
