@@ -139,10 +139,10 @@
     statements you had to download from somewhere else, like Mint, because your bank is being daft
     with older statements.
 
-    If you add a prefix, separated by an underscore (=_=), to your input file name, and also have a rules file with that prefix
+    If you add a suffix, separated by an underscore (=_=), to your input file name, and also have a rules file with that suffix
     as its name, then =hledger-makeitso= will use that rules file instead.
 
-    For example: assuming you've named your statement =mint_99966633_20171223_1844.csv=.
+    For example: assuming you've named your statement =99966633_20171223_1844_mint.csv=.
 
     =hledger-makeitso= will look for a rules file named =mint.rules= in the following places:
       - in the import directory, e.g. =import/mint.rules=

@@ -6,7 +6,7 @@ module CSVImport
 
 import Turtle
 import Prelude hiding (FilePath, putStrLn)
-import Data.Text (breakOn, intercalate)
+import Data.Text (breakOnEnd, intercalate)
 import Data.Text.IO (putStrLn)
 import Data.Maybe
 import Common
@@ -165,8 +165,8 @@ generalRulesFiles csvSrc = do
 statementSpecificRulesFiles :: FilePath -> [FilePath]
 statementSpecificRulesFiles csvSrc = do
   let (importDir, ownerDir, bankDir, accountDir) = dirsRelativeToInputFile csvSrc
-  let srcPrefix = fst $ breakOn "_" (format fp (basename csvSrc))
-  let srcSpecificFilename = fromText srcPrefix <.> "rules"
+  let srcSuffix = snd $ breakOnEnd "_" (format fp (basename csvSrc))
+  let srcSpecificFilename = fromText srcSuffix <.> "rules"
   map (</> srcSpecificFilename) [accountDir, bankDir, ownerDir, importDir]
 
 dirsRelativeToInputFile :: FilePath -> (FilePath, FilePath, FilePath, FilePath)
