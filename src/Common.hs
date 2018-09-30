@@ -6,18 +6,19 @@ module Common
     , onlyFiles
     , validDirs
     , filterPaths
-    , searchUp
-    , echoShell
-    , printShell
     , basenameLine
     , buildFilename
     , dontSort
+    , takeLast
+    , firstLine
+    , firstExistingFile
     ) where
 
 import Turtle
 import Prelude hiding (FilePath, putStrLn)
 import Data.Text.IO (putStrLn)
 import Data.Text (intercalate)
+import qualified Data.List.NonEmpty as NonEmpty
 
 lsDirs :: FilePath -> Shell FilePath
 lsDirs = validDirs . ls
@@ -40,20 +41,13 @@ validDirs = excludeWeirdPaths . onlyDirs
 excludeWeirdPaths :: Shell FilePath -> Shell FilePath
 excludeWeirdPaths = findtree (suffix $ noneOf "_")
 
-searchUp :: Int -> FilePath -> FilePath -> Shell (Maybe FilePath)
-searchUp remainingLevels dir filename = do
-  let filepath = dir </> filename
-  exists <- testfile filepath
-  case (exists, remainingLevels) of
-    (True, _) -> return $ Just filepath
-    (_,    0) -> return Nothing
-    otherwise -> searchUp (remainingLevels - 1) (parent dir) filename
-
-echoShell :: Line -> Shell ()
-echoShell line = liftIO $ echo line
-
-printShell :: Show a => a -> Shell ()
-printShell o = liftIO $ print o
+firstExistingFile :: [FilePath] -> Shell (Maybe FilePath)
+firstExistingFile files = do
+  case files of
+    []   -> return Nothing
+    f:fs -> do
+      exists <- testfile f
+      if exists then return (Just f) else firstExistingFile fs
 
 basenameLine :: FilePath -> Shell Line
 basenameLine path = case (textToLine $ format fp $ basename path) of
@@ -67,3 +61,9 @@ dontSort :: Shell FilePath -> Shell [FilePath]
 dontSort files = do
   f <- files
   return [f]
+
+takeLast :: Int -> [a] -> [a]
+takeLast n = reverse . take n . reverse
+
+firstLine :: Text -> Line
+firstLine = NonEmpty.head . textToLines

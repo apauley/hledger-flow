@@ -6,7 +6,7 @@ module CSVImport
 
 import Turtle
 import Prelude hiding (FilePath, putStrLn)
-import Data.Text (breakOn)
+import Data.Text (breakOn, intercalate)
 import Data.Text.IO (putStrLn)
 import Data.Maybe
 import Common
@@ -132,20 +132,57 @@ preprocess script bank account src = do
 
 hledgerImport :: FilePath -> FilePath -> FilePath -> Shell FilePath
 hledgerImport defaultRulesFile csvSrc journalOut = do
-  rf <- rulesFile csvSrc defaultRulesFile
-  rulesFileExists <- testfile rf
-  if rulesFileExists
-    then
-    do
+  let candidates = rulesFileCandidates csvSrc
+  maybeRulesFile <- firstExistingFile candidates
+  case maybeRulesFile of
+    Just rf -> do
       procs "hledger" ["print", "--rules-file", format fp rf, "--file", format fp csvSrc, "--output-file", format fp journalOut] empty
       return journalOut
-    else
-    do
-      let msg = format ("I couldn't find an hledger rules file at\n"%fp
-                        %"\n\nhledger-makitso looks for a rules file in a select few places.\n\n"%
-                        "The documentation will tell you everything you need to know:\n"%l) rf docURL
-      stderr $ select $ textToLines msg
-      exit $ ExitFailure 1
+    Nothing ->
+      do
+        let candidatesTxt = intercalate "\n" $ map (format fp) candidates
+        let msg = format ("I couldn't find an hledger rules file while trying to import\n"%fp
+                          %"\n\nI will happily use the first rules file I can find from any one of these "%d%" files:\n"%s
+                          %"\n\nHere is a bit of documentation about rules files that you may find helpful:\n"%l)
+                  csvSrc (length candidates) candidatesTxt docURL
+        stderr $ select $ textToLines msg
+        exit $ ExitFailure 1
+
+rulesFileCandidates :: FilePath -> [FilePath]
+rulesFileCandidates csvSrc = statementSpecificRulesFiles csvSrc ++ generalRulesFiles csvSrc
+
+generalRulesFiles :: FilePath -> [FilePath]
+generalRulesFiles csvSrc = do
+  let (importDir, ownerDir, bankDir, accountDir) = dirsRelativeToInputFile csvSrc
+  let (owner,bank,account) = ownerBankAcc accountDir
+
+  let accountRulesFile = accountDir </> buildFilename [bank, account] "rules"
+  let globalAccountRulesFile = importDir </> buildFilename [bank, account] "rules"
+
+  let bankRulesFile = importDir </> buildFilename [bank] "rules"
+  [accountRulesFile, globalAccountRulesFile, bankRulesFile]
+
+statementSpecificRulesFiles :: FilePath -> [FilePath]
+statementSpecificRulesFiles csvSrc = do
+  let (importDir, ownerDir, bankDir, accountDir) = dirsRelativeToInputFile csvSrc
+  let srcPrefix = fst $ breakOn "_" (format fp (basename csvSrc))
+  let srcSpecificFilename = fromText srcPrefix <.> "rules"
+  map (</> srcSpecificFilename) [accountDir, bankDir, ownerDir, importDir]
+
+dirsRelativeToInputFile :: FilePath -> (FilePath, FilePath, FilePath, FilePath)
+dirsRelativeToInputFile csvSrc = do
+  let accountDir = (parent . parent . parent) csvSrc
+  let bankDir = parent accountDir
+  let ownerDir = parent bankDir
+  let importDir = parent ownerDir
+  (importDir, ownerDir, bankDir, accountDir)
+
+ownerBankAcc :: FilePath -> (Line, Line, Line)
+ownerBankAcc accountDir = do
+  let dirs = takeLast 3 $ splitDirectories accountDir
+  let dirToLine = firstLine . (format fp) . dirname
+  let o:b:a:_ = map dirToLine dirs
+  (o,b,a)
 
 customImport :: FilePath -> Line -> Line -> FilePath -> FilePath -> Shell FilePath
 customImport importScript bank account csvSrc journalOut = do
@@ -153,15 +190,6 @@ customImport importScript bank account csvSrc journalOut = do
   let importOut = inproc script [format fp csvSrc, "-", lineToText bank, lineToText account] empty
   procs "hledger" ["print", "--ignore-assertions", "--file", "-", "--output-file", format fp journalOut] importOut
   return journalOut
-
-rulesFile :: FilePath -> FilePath -> Shell FilePath
-rulesFile csvSrc defaultRulesFile = do
-  let srcPrefix = fst $ breakOn "_" (format fp (basename csvSrc))
-  let srcSpecificFilename = fromText srcPrefix <.> "rules"
-  srcSpecificFile <- searchUp 2 ((parent . parent . parent) csvSrc) srcSpecificFilename
-  case srcSpecificFile of
-    Just file -> return file
-    Nothing   -> return defaultRulesFile
 
 changePathAndExtension :: FilePath -> Text -> FilePath -> FilePath
 changePathAndExtension newOutputLocation newExt = (changeOutputPath newOutputLocation) . (changeExtension newExt)
