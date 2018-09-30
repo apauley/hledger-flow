@@ -274,3 +274,9 @@
      maybe I would be able to do it later, so I should be able to leave things half-done and pick them up later
    - Ability to refactor is a must. I want to be able to go back and change the way I am doing things,
      with as little effort as possible and without fear of irrevocably breaking things.
+
+* Still To Be Done
+
+  I add ideas and thoughts in [[file:TODO.org][TODO.org]]
+
+  Let me know if you can think of some improvements.
