@@ -135,20 +135,22 @@
 *** Statement-specific Rules Files
 
     What happens if some of the statements for an account has a different format than the others?
+
     This can happen if you normally get your statements directly from your bank, but some
     statements you had to download from somewhere else, like Mint, because your bank is being daft
     with older statements.
 
-    If you add a suffix, separated by an underscore (=_=), to your input file name, and also have a rules file with that suffix
-    as its name, then =hledger-makeitso= will use that rules file instead.
+    In order to tell =hledger-makeitso= that you want to override the rules file for a specific statement,
+    you need to add a suffix, separated by an underscore (=_=) and starting with the letters =rfo= (rules file override)
+    to the filename of that statement.
 
-    For example: assuming you've named your statement =99966633_20171223_1844_mint.csv=.
+    For example: assuming you've named your statement =99966633_20171223_1844_rfo-mint.csv=.
 
-    =hledger-makeitso= will look for a rules file named =mint.rules= in the following places:
-      - in the import directory, e.g. =import/mint.rules=
-      - in the owner directory, e.g. =import/spouse/mint.rules=
-      - in the bank directory, e.g. =import/john/mybank/mint.rules=
-      - in the account directory, e.g. =import/john/mybank/savings/mint.rules=
+    =hledger-makeitso= will look for a rules file named =rfo-mint.rules= in the following places:
+      - in the import directory, e.g. =import/rfo-mint.rules=
+      - in the owner directory, e.g. =import/spouse/rfo-mint.rules=
+      - in the bank directory, e.g. =import/john/mybank/rfo-mint.rules=
+      - in the account directory, e.g. =import/john/mybank/savings/rfo-mint.rules=
 
 ** Opening Balances
 

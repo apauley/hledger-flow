@@ -5,8 +5,8 @@ module CSVImport
     ) where
 
 import Turtle
-import Prelude hiding (FilePath, putStrLn)
-import Data.Text (breakOnEnd, intercalate)
+import Prelude hiding (FilePath, putStrLn, take)
+import Data.Text (breakOnEnd, intercalate, take)
 import Data.Text.IO (putStrLn)
 import Data.Maybe
 import Common
@@ -166,8 +166,13 @@ statementSpecificRulesFiles :: FilePath -> [FilePath]
 statementSpecificRulesFiles csvSrc = do
   let (importDir, ownerDir, bankDir, accountDir) = dirsRelativeToInputFile csvSrc
   let srcSuffix = snd $ breakOnEnd "_" (format fp (basename csvSrc))
-  let srcSpecificFilename = fromText srcSuffix <.> "rules"
-  map (</> srcSpecificFilename) [accountDir, bankDir, ownerDir, importDir]
+
+  if ((take 3 srcSuffix) == "rfo")
+    then
+    do
+      let srcSpecificFilename = fromText srcSuffix <.> "rules"
+      map (</> srcSpecificFilename) [accountDir, bankDir, ownerDir, importDir]
+    else []
 
 dirsRelativeToInputFile :: FilePath -> (FilePath, FilePath, FilePath, FilePath)
 dirsRelativeToInputFile csvSrc = do
