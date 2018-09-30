@@ -2,26 +2,26 @@
 
 * The TODO List
 ** Script Hooks
-*** Stop executing if any script hook exits with a non-zero exit status
-*** Pass the owner as a parameter to =preprocess= and =import=
-*** Rename the =import= script to something else, e.g. =convert=?
-    To avoid confusion with the import directory.
+   - Stop executing if any script hook exits with a non-zero exit status
+   - Pass the owner as a parameter to =preprocess= and =import=
+   - Rename the =import= script to something else, e.g. =convert=?
+     To avoid confusion with the import directory.
 
 ** Generate reports
-*** Monthly reports for the past 6 months
-*** Quarterly reports for the past year
-*** Yearly reports for the past 5 years
-*** How much money went towards expenses, assets and liabilities, expressed as a percentage of income
-*** Overall reports, and reports per owner
-*** More useful reports?
+   - Monthly reports for the past 6 months
+   - Quarterly reports for the past year
+   - Yearly reports for the past 5 years
+   - How much money went towards expenses, assets and liabilities, expressed as a percentage of income
+   - Overall reports, and reports per owner
+   - More useful reports?
 ** Performance
-*** Process statements in parallel
-*** Generate reports in parallel
-*** Don't re-process statements that have already been processed
+   - Process statements in parallel
+   - Generate reports in parallel
+   - Don't re-process statements that have already been processed
 ** Documentation
-*** Ensure that the error messages guide the user to the next action, with helpful links
-*** Create an example user with a life that can be used for example financial transactions
+   - Ensure that the error messages guide the user to the next action, with helpful links
+   - Create an example user with a life that can be used for example financial transactions
 ** Random Thoughts
-*** Instead of assuming a rigid structure under =import=, start by find all input files in =*in=
-**** Assume as little as possible about the structure, get account, bank and year dirs as relative to input files
-**** First build a list of actions, then perform the actions
+   - Instead of assuming a rigid structure under =import=, start by find all input files in =*in=
+     Assume as little as possible about the structure, get account, bank and year dirs as relative to input files
+   - First build a list of actions, then perform the actions
