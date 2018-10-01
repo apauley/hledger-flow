@@ -154,20 +154,23 @@
 
 *** Example rules file usage
 
-    A common scenario is multiple accounts that share the same file format, but have a different =account1= directive.
+    A common scenario is multiple accounts that share the same file format, but have different =account1= directives.
 
     One possible approach would be to include a shared rules file in your account-specific rules file.
 
     If you are lucky enough that all statements at =mybank= share a common format across all accounts,
     then you can =include= a rules file that just defines the parts that are shared across accounts.
 
-    Two accounts at =mybank= may have rules files similar to these:
+    Two accounts at =mybank= may have rules files similar to these.
+
+    A checking account at mybank:
     #+BEGIN_SRC hledger
     # Saved as: import/john/mybank/checking/mybank-checking.rules
     include ../../../mybank-fileformat.rules
     account1 Assets:Current:John:MyBank:Checking
     #+END_SRC
 
+    Another account at mybank:
     #+BEGIN_SRC hledger
     # Saved as: import/alice/mybank/savings/mybank-savings.rules
     include ../../../mybank-fileformat.rules
