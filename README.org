@@ -82,7 +82,7 @@
 
 * Feature Reference
 
-** The Input Files
+** Input Files
 
    Your input files will probably be CSV files with a line for each transaction,
    although other file types will work fine if you use a =preprocess= or an =import= script that can read them.
@@ -93,10 +93,10 @@
    For example, assuming you have a =savings= account at =mybank=, you'll put your first CSV statement here:
    =import/john/mybank/savings/1-in/2018/123456789_2018-06-30.csv=.
 
-   And some people may want to include accounts belonging to their spouse as part of the household finances:
+   Some people may want to include accounts belonging to their spouse as part of the household finances:
    =import/spouse/otherbank/checking/1-in/2018/987654321_2018-06-30.csv=.
 
-*** More About The Input Files
+*** More About Input Files
 
     All files and directories under the =import= directory is related to the automatic importing and classification of transactions.
 
@@ -119,7 +119,7 @@
     Under =1-in= you'll create a directory for the year, e.g. =2018=, and within that you can copy the statements for that year:
     =import/john/mybank/savings/1-in/2018/123456789_2018-06-30.csv=
 
-** The Rules File
+** Rules Files
 
    If your input file is in CSV format, or converted to CSV by your =preprocess= script,
    then you'll need an [[http://hledger.org/csv.html][hledger rules file]].
@@ -151,6 +151,46 @@
       - in the owner directory, e.g. =import/spouse/rfo-mint.rules=
       - in the bank directory, e.g. =import/john/mybank/rfo-mint.rules=
       - in the account directory, e.g. =import/john/mybank/savings/rfo-mint.rules=
+
+*** Example rules file usage
+
+    A common scenario is multiple accounts that share the same file format, but have a different =account1= directive.
+
+    One possible approach would be to include a shared rules file in your account-specific rules file.
+
+    If you are lucky enough that all statements at =mybank= share a common format across all accounts,
+    then you can =include= a rules file that just defines the parts that are shared across accounts.
+
+    Two accounts at =mybank= may have rules files similar to these:
+    #+BEGIN_SRC hledger
+    # Saved as: import/john/mybank/checking/mybank-checking.rules
+    include ../../../mybank-fileformat.rules
+    account1 Assets:Current:John:MyBank:Checking
+    #+END_SRC
+
+    #+BEGIN_SRC hledger
+    # Saved as: import/alice/mybank/savings/mybank-savings.rules
+    include ../../../mybank-fileformat.rules
+    account1 Assets:Current:Alice:MyBank:Savings
+    #+END_SRC
+
+    Where =import/mybank=fileformat.rules= may define some shared attributes:
+    #+BEGIN_SRC hledger
+    skip 1
+
+    fields date, description, amount, balance
+
+    date-format %Y-%m-%d
+    currency $
+    #+END_SRC
+
+    Another possible approach could be to use your =preprocess= script to write out a CSV file
+    that has extra fields for =account1= and =account2=.
+
+    You could then create the above mentioned global =import/mybank.rules= with the fields defined more or less like this:
+    #+BEGIN_SRC hledger
+    fields date, description, amount, balance, account1, account2
+    #+END_SRC
 
 ** Opening Balances
 
