@@ -11,8 +11,8 @@ import Data.Text.IO (putStrLn)
 import Data.Maybe
 import Common
 
-docURL :: Line
-docURL = "https://github.com/apauley/hledger-makeitso#how-to-use-it"
+docURL :: Line -> Text
+docURL = format ("https://github.com/apauley/hledger-makeitso#"%l)
 
 importCSVs :: FilePath -> IO ()
 importCSVs baseDir = do
@@ -27,7 +27,7 @@ importCSVs baseDir = do
     do
       let msg = format ("I couldn't find a directory named \"import\" underneath "%fp
                         %"\n\nhledger-makitso expects to find its input files in specifically\nnamed directories.\n\n"%
-                        "Have a look at the documentation for a detailed explanation:\n"%l) baseDir docURL
+                        "Have a look at the documentation for a detailed explanation:\n"%s) baseDir (docURL "input-files")
       stderr $ select $ textToLines msg
       exit $ ExitFailure 1
 
@@ -143,8 +143,8 @@ hledgerImport defaultRulesFile csvSrc journalOut = do
         let candidatesTxt = intercalate "\n" $ map (format fp) candidates
         let msg = format ("I couldn't find an hledger rules file while trying to import\n"%fp
                           %"\n\nI will happily use the first rules file I can find from any one of these "%d%" files:\n"%s
-                          %"\n\nHere is a bit of documentation about rules files that you may find helpful:\n"%l)
-                  csvSrc (length candidates) candidatesTxt docURL
+                          %"\n\nHere is a bit of documentation about rules files that you may find helpful:\n"%s)
+                  csvSrc (length candidates) candidatesTxt (docURL "rules-files")
         stderr $ select $ textToLines msg
         exit $ ExitFailure 1
 

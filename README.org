@@ -166,18 +166,18 @@
     A checking account at mybank:
     #+BEGIN_SRC hledger
     # Saved as: import/john/mybank/checking/mybank-checking.rules
-    include ../../../mybank-fileformat.rules
+    include ../../../mybank-shared.rules
     account1 Assets:Current:John:MyBank:Checking
     #+END_SRC
 
     Another account at mybank:
     #+BEGIN_SRC hledger
     # Saved as: import/alice/mybank/savings/mybank-savings.rules
-    include ../../../mybank-fileformat.rules
+    include ../../../mybank-shared.rules
     account1 Assets:Current:Alice:MyBank:Savings
     #+END_SRC
 
-    Where =import/mybank=fileformat.rules= may define some shared attributes:
+    Where =import/mybank-shared.rules= may define some shared attributes:
     #+BEGIN_SRC hledger
     skip 1
 
