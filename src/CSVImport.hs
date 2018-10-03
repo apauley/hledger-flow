@@ -157,10 +157,9 @@ generalRulesFiles csvSrc = do
   let (owner,bank,account) = ownerBankAcc accountDir
 
   let accountRulesFile = accountDir </> buildFilename [bank, account] "rules"
-  let globalAccountRulesFile = importDir </> buildFilename [bank, account] "rules"
 
   let bankRulesFile = importDir </> buildFilename [bank] "rules"
-  [accountRulesFile, globalAccountRulesFile, bankRulesFile]
+  [accountRulesFile, bankRulesFile]
 
 statementSpecificRulesFiles :: FilePath -> [FilePath]
 statementSpecificRulesFiles csvSrc = do
@@ -171,7 +170,7 @@ statementSpecificRulesFiles csvSrc = do
     then
     do
       let srcSpecificFilename = fromText srcSuffix <.> "rules"
-      map (</> srcSpecificFilename) [accountDir, bankDir, ownerDir, importDir]
+      map (</> srcSpecificFilename) [accountDir, bankDir, importDir]
     else []
 
 dirsRelativeToInputFile :: FilePath -> (FilePath, FilePath, FilePath, FilePath)
