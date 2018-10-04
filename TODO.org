@@ -3,7 +3,9 @@
 * The TODO List
 ** Script Hooks
    - Stop executing if any script hook exits with a non-zero exit status
-   - Pass the owner as a parameter to =preprocess= and =import=
+   - Pass the owner as a parameter to =preprocess= and =construct=
+** Generated Journal Includes
+   - Have separate include files per year
 ** Generate reports
    - Monthly reports for the past 6 months
    - Quarterly reports for the past year
@@ -16,7 +18,6 @@
    - Generate reports in parallel
    - Don't re-process statements that have already been processed
 ** Documentation
-   - Ensure that the error messages guide the user to the next action, with helpful links
    - Expand the step-by-step instructions with more scenarios
 ** Random Thoughts
    - Instead of assuming a rigid structure under =import=, start by find all input files in =*in=
