@@ -129,7 +129,6 @@
    of the same specific bank.
 
    - A global rules file for any =mybank= statement can be saved here: =import/mybank.rules=
-   - A rules file for any account named =myaccount= at =mybank= (regardless of the owner) can be saved here: =import/mybank-myaccount.rules=
    - A rules file for all statements of a specific account: =import/spouse/bigbankinc/savings/bigbankinc-savings.rules=
 
 *** Statement-specific Rules Files
@@ -148,7 +147,6 @@
 
     =hledger-makeitso= will look for a rules file named =rfo-mint.rules= in the following places:
       - in the import directory, e.g. =import/rfo-mint.rules=
-      - in the owner directory, e.g. =import/spouse/rfo-mint.rules=
       - in the bank directory, e.g. =import/john/mybank/rfo-mint.rules=
       - in the account directory, e.g. =import/john/mybank/savings/rfo-mint.rules=
 

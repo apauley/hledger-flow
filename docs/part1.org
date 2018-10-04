@@ -205,13 +205,12 @@ hledger-makeitso import ./my-finances
 I couldn't find an hledger rules file while trying to import
 ./my-finances/import/gawie/bogart/cheque/1-in/2016/123456789_2016-03-30.csv
 
-I will happily use the first rules file I can find from any one of these 3 files:
+I will happily use the first rules file I can find from any one of these 2 files:
 ./my-finances/import/gawie/bogart/cheque/bogart-cheque.rules
-./my-finances/import/bogart-cheque.rules
 ./my-finances/import/bogart.rules
 
 Here is a bit of documentation about rules files that you may find helpful:
-https://github.com/apauley/hledger-makeitso#how-to-use-it
+https://github.com/apauley/hledger-makeitso#rules-files
 
 #+END_SRC
 
