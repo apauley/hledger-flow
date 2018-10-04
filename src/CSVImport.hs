@@ -94,9 +94,9 @@ importAccounts bankName accountDirs = do
   accName <- basenameLine accDir
   let defaultRulesFile = accDir </> buildFilename [bankName, accName] "rules"
   let preprocessScript = accDir </> fromText "preprocess"
-  let importScript = accDir </> fromText "import"
+  let constructScript = accDir </> fromText "construct"
   let accountSrcFiles = onlyFiles $ find (has (text "1-in")) accDir
-  let accJournals = importAccountFiles bankName accName defaultRulesFile preprocessScript importScript accountSrcFiles
+  let accJournals = importAccountFiles bankName accName defaultRulesFile preprocessScript constructScript accountSrcFiles
   let aggregateJournal = accDir </> buildFilename [bankName, accName] "journal"
   let openingJournal = accDir </> "opening.journal"
   liftIO $ touch openingJournal
@@ -104,12 +104,12 @@ importAccounts bankName accountDirs = do
   return aggregateJournal
 
 importAccountFiles :: Line -> Line -> FilePath -> FilePath -> FilePath -> Shell FilePath -> Shell FilePath
-importAccountFiles bankName accountName defaultRulesFile preprocessScript importScript accountSrcFiles = do
+importAccountFiles bankName accountName defaultRulesFile preprocessScript constructScript accountSrcFiles = do
   srcFile <- accountSrcFiles
   csvFile <- preprocessIfNeeded preprocessScript bankName accountName srcFile
-  doCustomImort <- testfile importScript
-  let importFun = if doCustomImort
-        then customImport importScript bankName accountName
+  doCustomConstruct <- testfile constructScript
+  let importFun = if doCustomConstruct
+        then customConstruct constructScript bankName accountName
         else hledgerImport defaultRulesFile
   let journalOut = changePathAndExtension "3-journal" "journal" csvFile
   mktree $ directory journalOut
@@ -188,9 +188,9 @@ ownerBankAcc accountDir = do
   let o:b:a:_ = map dirToLine dirs
   (o,b,a)
 
-customImport :: FilePath -> Line -> Line -> FilePath -> FilePath -> Shell FilePath
-customImport importScript bank account csvSrc journalOut = do
-  let script = format fp importScript :: Text
+customConstruct :: FilePath -> Line -> Line -> FilePath -> FilePath -> Shell FilePath
+customConstruct constructScript bank account csvSrc journalOut = do
+  let script = format fp constructScript :: Text
   let importOut = inproc script [format fp csvSrc, "-", lineToText bank, lineToText account] empty
   procs "hledger" ["print", "--ignore-assertions", "--file", "-", "--output-file", format fp journalOut] importOut
   return journalOut

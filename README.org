@@ -85,7 +85,7 @@
 ** Input Files
 
    Your input files will probably be CSV files with a line for each transaction,
-   although other file types will work fine if you use a =preprocess= or an =import= script that can read them.
+   although other file types will work fine if you use a =preprocess= or a =construct= script that can read them.
    These scripts are explained later.
 
    We mostly use conventions based on a predefined directory structure for your input statements.
@@ -226,12 +226,12 @@
      - write a new output file at the supplied path that works with your rules file
      - be idempotent. Running =preprocess= multiple times on the same files will produce the same result.
 
-** The =import= script
+** The =construct= Script
 
     If you need even more power and flexibility than what you can get from the =preprocess= script and =hledger='s CSV import functionality,
-    then your own custom =import= script will give you the power.
+    then you can create your own custom script to =construct= transactions exactly as you need them.
 
-    At the expense of more work for you, of course.
+    At the expense of more construction work for you, of course.
 
     As an example, =hledger='s CSV import currently [[https://github.com/simonmichael/hledger/issues/627][only supports two postings per transaction]], even though =hledger= itself
     is perfectly happy with transactions containing more than two postings, e.g.:
@@ -243,22 +243,22 @@
     Assets:Cash                                         -1833.33
     #+END_SRC
 
-    The =import= script can be used in addition to the =preprocess= script, or on it's own.
-    But since the =import= script is more powerful than the =preprocess= script, you could tell your =import= script to do
+    The =construct= script can be used in addition to the =preprocess= script, or on it's own.
+    But since the =construct= script is more powerful than the =preprocess= script, you could tell your =construct= script to do
     anything that the =preprocess= script would have done.
 
-    Save your =import= script in the account directory, e.g. =import/john/mybank/savings/import=.
+    Save your =construct= script in the account directory, e.g. =import/john/mybank/savings/construct=.
 
-    =hledger-makeitso= will call your =import= script with 4 positional parameters:
+    =hledger-makeitso= will call your =construct= script with 4 positional parameters:
      1. The path to the input statement, e.g. =import/john/mybank/savings/1-in/2018/123456789_2018-06-30.csv=
      2. A "-" (indicating that output should be sent to =stdout=)
      3. The name of the bank, e.g. =mybank=
      4. The name of the account, e.g. =savings=
 
-    Your =import= script is expected to:
+    Your =construct= script is expected to:
      - read the input file
      - generate your own =hledger= journal transactions
-     - be idempotent. Running =import= multiple times on the same files should produce the same result.
+     - be idempotent. Running =construct= multiple times on the same files should produce the same result.
      - send all output to =stdout=. =hledger-makeitso= will pipe your output into =hledger= which will format it and save it to an output file.
 
 
