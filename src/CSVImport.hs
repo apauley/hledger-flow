@@ -153,7 +153,7 @@ rulesFileCandidates csvSrc = statementSpecificRulesFiles csvSrc ++ generalRulesF
 
 generalRulesFiles :: FilePath -> [FilePath]
 generalRulesFiles csvSrc = do
-  let (importDir, ownerDir, bankDir, accountDir) = dirsRelativeToInputFile csvSrc
+  let (importDir, ownerDir, bankDir, accountDir, _, _) = dirsRelativeToInputFile csvSrc
   let (owner,bank,account) = ownerBankAcc accountDir
 
   let accountRulesFile = accountDir </> buildFilename [bank, account] "rules"
@@ -163,7 +163,7 @@ generalRulesFiles csvSrc = do
 
 statementSpecificRulesFiles :: FilePath -> [FilePath]
 statementSpecificRulesFiles csvSrc = do
-  let (importDir, ownerDir, bankDir, accountDir) = dirsRelativeToInputFile csvSrc
+  let (importDir, ownerDir, bankDir, accountDir, _, _) = dirsRelativeToInputFile csvSrc
   let srcSuffix = snd $ breakOnEnd "_" (format fp (basename csvSrc))
 
   if ((take 3 srcSuffix) == "rfo")
@@ -173,13 +173,15 @@ statementSpecificRulesFiles csvSrc = do
       map (</> srcSpecificFilename) [accountDir, bankDir, importDir]
     else []
 
-dirsRelativeToInputFile :: FilePath -> (FilePath, FilePath, FilePath, FilePath)
+dirsRelativeToInputFile :: FilePath -> (FilePath, FilePath, FilePath, FilePath, FilePath, FilePath)
 dirsRelativeToInputFile csvSrc = do
-  let accountDir = (parent . parent . parent) csvSrc
+  let yearDir = parent csvSrc
+  let stateDir = parent yearDir
+  let accountDir = parent stateDir
   let bankDir = parent accountDir
   let ownerDir = parent bankDir
   let importDir = parent ownerDir
-  (importDir, ownerDir, bankDir, accountDir)
+  (importDir, ownerDir, bankDir, accountDir, stateDir, yearDir)
 
 ownerBankAcc :: FilePath -> (Line, Line, Line)
 ownerBankAcc accountDir = do
