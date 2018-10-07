@@ -8,8 +8,18 @@ import Turtle
 import Prelude hiding (FilePath, putStrLn, take)
 import Data.Text (breakOnEnd, intercalate, take)
 import Data.Text.IO (putStrLn)
+import Data.List (partition)
 import Data.Maybe
+import qualified Data.List.NonEmpty as NonEmpty
 import Common
+
+data ImportDirs = ImportDirs { importDir  :: FilePath
+                             , ownerDir   :: FilePath
+                             , bankDir    :: FilePath
+                             , accountDir :: FilePath
+                             , stateDir   :: FilePath
+                             , yearDir    :: FilePath
+                             } deriving (Show)
 
 docURL :: Line -> Text
 docURL = format ("https://github.com/apauley/hledger-makeitso#"%l)
@@ -132,7 +142,8 @@ preprocess script bank account src = do
 
 hledgerImport :: FilePath -> FilePath -> FilePath -> Shell FilePath
 hledgerImport defaultRulesFile csvSrc journalOut = do
-  let candidates = rulesFileCandidates csvSrc
+  importDirs <- extractImportDirs csvSrc
+  let candidates = rulesFileCandidates csvSrc importDirs
   maybeRulesFile <- firstExistingFile candidates
   case maybeRulesFile of
     Just rf -> do
@@ -148,47 +159,54 @@ hledgerImport defaultRulesFile csvSrc journalOut = do
         stderr $ select $ textToLines msg
         exit $ ExitFailure 1
 
-rulesFileCandidates :: FilePath -> [FilePath]
-rulesFileCandidates csvSrc = statementSpecificRulesFiles csvSrc ++ generalRulesFiles csvSrc
+importDirs ::  FilePath -> [FilePath]
+importDirs = importDirs' []
 
-generalRulesFiles :: FilePath -> [FilePath]
-generalRulesFiles csvSrc = do
-  let (importDir, ownerDir, bankDir, accountDir, _, _) = dirsRelativeToInputFile csvSrc
-  let (owner,bank,account) = ownerBankAcc accountDir
+importDirs' :: [FilePath] -> FilePath -> [FilePath]
+importDirs' acc path = do
+  let dir = directory path
+  if (dirname dir == "import" || (dirname dir == ""))
+    then dir:acc
+    else importDirs' (dir:acc) $ parent dir
 
-  let accountRulesFile = accountDir </> buildFilename [bank, account] "rules"
+extractImportDirs :: FilePath -> Shell ImportDirs
+extractImportDirs inputFile = do
+  case importDirs inputFile of
+    [importDir,owner,bank,account,filestate,year] -> return $ ImportDirs importDir owner bank account filestate year
+    otherwise -> do
+      let msg = format ("I couldn't find the right number of directories between \"import\" and the input file:\n"%fp
+                        %"\n\nhledger-makitso expects to find input files in this structure:\n"%
+                        "import/owner/bank/account/filestate/year/trxfile\n\n"%
+                        "Have a look at the documentation for a detailed explanation:\n"%s) inputFile (docURL "input-files")
+      stderr $ select $ textToLines msg
+      exit $ ExitFailure 1
 
-  let bankRulesFile = importDir </> buildFilename [bank] "rules"
+
+rulesFileCandidates :: FilePath -> ImportDirs -> [FilePath]
+rulesFileCandidates csvSrc importDirs = statementSpecificRulesFiles csvSrc importDirs ++ generalRulesFiles csvSrc importDirs
+
+importDirLines :: (ImportDirs -> FilePath) -> ImportDirs -> [Line]
+importDirLines dirFun importDirs = NonEmpty.toList $ textToLines $ format fp $ dirname $ dirFun importDirs
+
+generalRulesFiles :: FilePath -> ImportDirs -> [FilePath]
+generalRulesFiles csvSrc importDirs = do
+  let bank = importDirLines bankDir importDirs
+  let account = importDirLines accountDir importDirs
+  let accountRulesFile = accountDir importDirs </> buildFilename (bank ++ account) "rules"
+
+  let bankRulesFile = importDir importDirs </> buildFilename bank "rules"
   [accountRulesFile, bankRulesFile]
 
-statementSpecificRulesFiles :: FilePath -> [FilePath]
-statementSpecificRulesFiles csvSrc = do
-  let (importDir, ownerDir, bankDir, accountDir, _, _) = dirsRelativeToInputFile csvSrc
+statementSpecificRulesFiles :: FilePath -> ImportDirs -> [FilePath]
+statementSpecificRulesFiles csvSrc importDirs = do
   let srcSuffix = snd $ breakOnEnd "_" (format fp (basename csvSrc))
 
   if ((take 3 srcSuffix) == "rfo")
     then
     do
       let srcSpecificFilename = fromText srcSuffix <.> "rules"
-      map (</> srcSpecificFilename) [accountDir, bankDir, importDir]
+      map (</> srcSpecificFilename) [accountDir importDirs, bankDir importDirs, importDir importDirs]
     else []
-
-dirsRelativeToInputFile :: FilePath -> (FilePath, FilePath, FilePath, FilePath, FilePath, FilePath)
-dirsRelativeToInputFile csvSrc = do
-  let yearDir = parent csvSrc
-  let stateDir = parent yearDir
-  let accountDir = parent stateDir
-  let bankDir = parent accountDir
-  let ownerDir = parent bankDir
-  let importDir = parent ownerDir
-  (importDir, ownerDir, bankDir, accountDir, stateDir, yearDir)
-
-ownerBankAcc :: FilePath -> (Line, Line, Line)
-ownerBankAcc accountDir = do
-  let dirs = takeLast 3 $ splitDirectories accountDir
-  let dirToLine = firstLine . (format fp) . dirname
-  let o:b:a:_ = map dirToLine dirs
-  (o,b,a)
 
 customConstruct :: FilePath -> Line -> Line -> FilePath -> FilePath -> Shell FilePath
 customConstruct constructScript bank account csvSrc journalOut = do
