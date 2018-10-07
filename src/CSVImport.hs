@@ -102,25 +102,24 @@ importAccounts :: Line -> Shell FilePath -> Shell FilePath
 importAccounts bankName accountDirs = do
   accDir <- accountDirs
   accName <- basenameLine accDir
-  let defaultRulesFile = accDir </> buildFilename [bankName, accName] "rules"
   let preprocessScript = accDir </> fromText "preprocess"
   let constructScript = accDir </> fromText "construct"
   let accountSrcFiles = onlyFiles $ find (has (text "1-in")) accDir
-  let accJournals = importAccountFiles bankName accName defaultRulesFile preprocessScript constructScript accountSrcFiles
+  let accJournals = importAccountFiles bankName accName preprocessScript constructScript accountSrcFiles
   let aggregateJournal = accDir </> buildFilename [bankName, accName] "journal"
   let openingJournal = accDir </> "opening.journal"
   liftIO $ touch openingJournal
   writeJournals aggregateJournal $ (return openingJournal) + accJournals
   return aggregateJournal
 
-importAccountFiles :: Line -> Line -> FilePath -> FilePath -> FilePath -> Shell FilePath -> Shell FilePath
-importAccountFiles bankName accountName defaultRulesFile preprocessScript constructScript accountSrcFiles = do
+importAccountFiles :: Line -> Line -> FilePath -> FilePath -> Shell FilePath -> Shell FilePath
+importAccountFiles bankName accountName preprocessScript constructScript accountSrcFiles = do
   srcFile <- accountSrcFiles
   csvFile <- preprocessIfNeeded preprocessScript bankName accountName srcFile
   doCustomConstruct <- testfile constructScript
   let importFun = if doCustomConstruct
         then customConstruct constructScript bankName accountName
-        else hledgerImport defaultRulesFile
+        else hledgerImport
   let journalOut = changePathAndExtension "3-journal" "journal" csvFile
   mktree $ directory journalOut
   importFun csvFile journalOut
@@ -140,9 +139,16 @@ preprocess script bank account src = do
   procs script' [format fp src, format fp csvOut, lineToText bank, lineToText account] empty
   return csvOut
 
-hledgerImport :: FilePath -> FilePath -> FilePath -> Shell FilePath
-hledgerImport defaultRulesFile csvSrc journalOut = do
-  importDirs <- extractImportDirs csvSrc
+hledgerImport :: FilePath  -> FilePath -> Shell FilePath
+hledgerImport csvSrc journalOut = do
+  case extractImportDirs csvSrc of
+    Right importDirs -> hledgerImport' importDirs csvSrc journalOut
+    Left errorMessage -> do
+      stderr $ select $ textToLines errorMessage
+      exit $ ExitFailure 1
+
+hledgerImport' :: ImportDirs -> FilePath -> FilePath -> Shell FilePath
+hledgerImport' importDirs csvSrc journalOut = do
   let candidates = rulesFileCandidates csvSrc importDirs
   maybeRulesFile <- firstExistingFile candidates
   case maybeRulesFile of
@@ -169,18 +175,15 @@ importDirs' acc path = do
     then dir:acc
     else importDirs' (dir:acc) $ parent dir
 
-extractImportDirs :: FilePath -> Shell ImportDirs
+extractImportDirs :: FilePath -> Either Text ImportDirs
 extractImportDirs inputFile = do
   case importDirs inputFile of
-    [importDir,owner,bank,account,filestate,year] -> return $ ImportDirs importDir owner bank account filestate year
+    [importDir,owner,bank,account,filestate,year] -> Right $ ImportDirs importDir owner bank account filestate year
     otherwise -> do
-      let msg = format ("I couldn't find the right number of directories between \"import\" and the input file:\n"%fp
-                        %"\n\nhledger-makitso expects to find input files in this structure:\n"%
-                        "import/owner/bank/account/filestate/year/trxfile\n\n"%
-                        "Have a look at the documentation for a detailed explanation:\n"%s) inputFile (docURL "input-files")
-      stderr $ select $ textToLines msg
-      exit $ ExitFailure 1
-
+      Left $ format ("I couldn't find the right number of directories between \"import\" and the input file:\n"%fp
+                      %"\n\nhledger-makitso expects to find input files in this structure:\n"%
+                      "import/owner/bank/account/filestate/year/trxfile\n\n"%
+                      "Have a look at the documentation for a detailed explanation:\n"%s) inputFile (docURL "input-files")
 
 rulesFileCandidates :: FilePath -> ImportDirs -> [FilePath]
 rulesFileCandidates csvSrc importDirs = statementSpecificRulesFiles csvSrc importDirs ++ generalRulesFiles csvSrc importDirs
