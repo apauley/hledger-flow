@@ -27,6 +27,7 @@ library:
   dependencies:
   - turtle
   - text
+  - foldl
 
 executables:
   hledger-makeitso:

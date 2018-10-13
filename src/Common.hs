@@ -8,7 +8,7 @@ module Common
     , filterPaths
     , basenameLine
     , buildFilename
-    , dontSort
+    , shellToList
     , takeLast
     , firstLine
     , firstExistingFile
@@ -19,6 +19,7 @@ import Prelude hiding (FilePath, putStrLn)
 import Data.Text.IO (putStrLn)
 import Data.Text (intercalate)
 import qualified Data.List.NonEmpty as NonEmpty
+import qualified Control.Foldl as Fold
 
 lsDirs :: FilePath -> Shell FilePath
 lsDirs = validDirs . ls
@@ -57,10 +58,8 @@ basenameLine path = case (textToLine $ format fp $ basename path) of
 buildFilename :: [Line] -> Text -> FilePath
 buildFilename identifiers extension = fromText (intercalate "-" (map lineToText identifiers)) <.> extension
 
-dontSort :: Shell FilePath -> Shell [FilePath]
-dontSort files = do
-  f <- files
-  return [f]
+shellToList :: Shell FilePath -> Shell [FilePath]
+shellToList files = fold files Fold.list
 
 takeLast :: Int -> [a] -> [a]
 takeLast n = reverse . take n . reverse

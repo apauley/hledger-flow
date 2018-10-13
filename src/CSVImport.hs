@@ -52,7 +52,7 @@ writeMakeItSoJournal baseDir importedJournals = do
   touch pre
   touch post
   let makeitsoJournal = baseDir </> "makeitso.journal"
-  writeJournals' dontSort makeitsoJournal $ select [pre, importAggregateJournal, post]
+  writeJournals' shellToList makeitsoJournal $ select [pre, importAggregateJournal, post]
 
 writeJournals :: FilePath -> Shell FilePath -> Shell ()
 writeJournals = writeJournals' sort
