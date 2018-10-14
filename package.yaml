@@ -53,4 +53,5 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - hledger-makeitso
+    - turtle
     - HUnit
