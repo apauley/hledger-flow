@@ -4,7 +4,6 @@ import Test.HUnit
 import Turtle
 
 import Common
-import CSVImport
 
 test1 = TestCase (assertEqual "takeLast" [3,5,7] (takeLast 3 [1,3,5,7]))
 

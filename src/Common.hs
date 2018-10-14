@@ -1,7 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Common
-    ( lsDirs
+    ( docURL
+    , lsDirs
     , onlyDirs
     , onlyFiles
     , validDirs
@@ -20,6 +21,9 @@ import Data.Text.IO (putStrLn)
 import Data.Text (intercalate)
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Control.Foldl as Fold
+
+docURL :: Line -> Text
+docURL = format ("https://github.com/apauley/hledger-makeitso#"%l)
 
 lsDirs :: FilePath -> Shell FilePath
 lsDirs = validDirs . ls

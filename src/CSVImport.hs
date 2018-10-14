@@ -21,9 +21,6 @@ data ImportDirs = ImportDirs { importDir  :: FilePath
                              , yearDir    :: FilePath
                              } deriving (Show)
 
-docURL :: Line -> Text
-docURL = format ("https://github.com/apauley/hledger-makeitso#"%l)
-
 importCSVs :: FilePath -> IO ()
 importCSVs baseDir = do
   let importDir = baseDir </> "import"
