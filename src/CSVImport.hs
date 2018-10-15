@@ -11,6 +11,8 @@ import Data.Text.IO (putStrLn)
 import Data.List (partition)
 import Data.Maybe
 import qualified Data.List.NonEmpty as NonEmpty
+import qualified Control.Foldl as Fold
+import qualified Data.Map.Strict as Map
 import Common
 
 data ImportDirs = ImportDirs { importDir  :: FilePath
@@ -90,15 +92,35 @@ importAccounts :: Line -> Shell FilePath -> Shell FilePath
 importAccounts bankName accountDirs = do
   accDir <- accountDirs
   accName <- basenameLine accDir
-  let preprocessScript = accDir </> fromText "preprocess"
-  let constructScript = accDir </> fromText "construct"
+  let preprocessScript = accDir </> "preprocess"
+  let constructScript = accDir </> "construct"
   let accountSrcFiles = onlyFiles $ find (has (text "1-in")) accDir
   let accJournals = importAccountFiles bankName accName preprocessScript constructScript accountSrcFiles
+  wrj accJournals
   let aggregateJournal = accDir </> buildFilename [bankName, accName] "journal"
   let openingJournal = accDir </> "opening.journal"
   liftIO $ touch openingJournal
   writeJournals aggregateJournal $ (return openingJournal) + accJournals
   return aggregateJournal
+
+wrj :: Shell FilePath -> Shell FilePath
+wrj paths = do
+  pathMap <- groupPaths paths
+  paths
+
+-- writeDict :: Map.Map FilePath FilePath -> Shell ()
+-- writeDict mapped = do
+--   let fff = fmap  -- fold?
+
+groupPaths :: Shell FilePath -> Shell (Map.Map FilePath FilePath)
+groupPaths paths = do
+  pathList <- shellToList paths
+  let paired = map (\p -> (dirname p <.> "journal", p)) pathList
+  let mapped = Map.fromList paired
+  liftIO $ putStrLn $ repr paired
+  liftIO $ putStrLn $ repr mapped
+  liftIO $ putStrLn $ repr $ Map.toList mapped
+  return mapped
 
 importAccountFiles :: Line -> Line -> FilePath -> FilePath -> Shell FilePath -> Shell FilePath
 importAccountFiles bankName accountName preprocessScript constructScript accountSrcFiles = do

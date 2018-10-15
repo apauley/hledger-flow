@@ -13,6 +13,7 @@ module Common
     , takeLast
     , firstLine
     , firstExistingFile
+    , groupShell
     ) where
 
 import Turtle
@@ -21,6 +22,7 @@ import Data.Text.IO (putStrLn)
 import Data.Text (intercalate)
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Control.Foldl as Fold
+import qualified Data.Map.Strict as Map
 
 docURL :: Line -> Text
 docURL = format ("https://github.com/apauley/hledger-makeitso#"%l)
@@ -70,3 +72,8 @@ takeLast n = reverse . take n . reverse
 
 firstLine :: Text -> Line
 firstLine = NonEmpty.head . textToLines
+
+groupShell :: Ord k => (v -> k) -> Shell v -> Shell (Map.Map k v)
+groupShell keyFun shellValues = do
+  let paired = fmap (\f -> (keyFun f, f)) shellValues
+  fold paired Fold.map

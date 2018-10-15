@@ -28,6 +28,7 @@ library:
   - turtle
   - text
   - foldl
+  - containers
 
 executables:
   hledger-makeitso:
@@ -55,3 +56,5 @@ tests:
     - hledger-makeitso
     - turtle
     - HUnit
+    - containers
+    - foldl
