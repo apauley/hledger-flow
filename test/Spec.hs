@@ -12,7 +12,7 @@ import Common
 
 test1 = TestCase (assertEqual "takeLast" [3,5,7] (takeLast 3 [1,3,5,7]))
 
-testGroupShell = TestCase (do
+testGroupBy = TestCase (do
                               let files = ["dir1/d1f1", "dir1/d1f2", "dir2/d2f1", "dir2/d2f2"] :: [FilePath]
                               let shFiles = select files :: Shell FilePath
                               let expected = [("dir1","dir1/d1f1"), ("dir1","dir1/d1f2"), ("dir2","dir2/d2f1"), ("dir2","dir2/d2f2")] :: [(FilePath, FilePath)]
@@ -20,7 +20,7 @@ testGroupShell = TestCase (do
                               actual <- single shList
                               assertEqual "Group Files by Dir" expected actual)
 
-tests = TestList [test1, testGroupShell]
+tests = TestList [test1, testGroupBy]
 
 main :: IO Counts
 main = do
