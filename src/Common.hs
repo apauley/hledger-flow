@@ -13,7 +13,7 @@ module Common
     , takeLast
     , firstLine
     , firstExistingFile
-    , groupShell
+    , groupBy
     ) where
 
 import Turtle
@@ -73,7 +73,7 @@ takeLast n = reverse . take n . reverse
 firstLine :: Text -> Line
 firstLine = NonEmpty.head . textToLines
 
-groupShell :: Ord k => (v -> k) -> Shell v -> Shell (Map.Map k v)
-groupShell keyFun shellValues = do
+groupBy :: Ord k => (v -> k) -> Shell v -> Shell (Map.Map k v)
+groupBy keyFun shellValues = do
   let paired = fmap (\f -> (keyFun f, f)) shellValues
   fold paired Fold.map

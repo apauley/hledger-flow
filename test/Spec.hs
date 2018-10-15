@@ -16,7 +16,7 @@ testGroupShell = TestCase (do
                               let files = ["dir1/d1f1", "dir1/d1f2", "dir2/d2f1", "dir2/d2f2"] :: [FilePath]
                               let shFiles = select files :: Shell FilePath
                               let expected = [[("dir1","dir1/d1f1"), ("dir1","dir1/d1f2"), ("dir2","dir2/d2f1"), ("dir2","dir2/d2f2")]] :: [[(FilePath, FilePath)]]
-                              let shList = fmap Map.assocs (groupShell dirname shFiles) :: Shell [(FilePath, FilePath)]
+                              let shList = fmap Map.assocs (groupBy dirname shFiles) :: Shell [(FilePath, FilePath)]
                               actual <- fold shList Fold.list
                               assertEqual "Group Files by Dir" expected actual)
 
