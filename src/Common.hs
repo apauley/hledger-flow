@@ -13,6 +13,7 @@ module Common
     , takeLast
     , firstLine
     , firstExistingFile
+    , toIncludeLines
     , groupValuesBy
     , groupPairs
     ) where
@@ -21,6 +22,7 @@ import Turtle
 import Prelude hiding (FilePath, putStrLn)
 import Data.Text.IO (putStrLn)
 import Data.Text (intercalate)
+import Data.Maybe
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Control.Foldl as Fold
 import qualified Data.Map.Strict as Map
@@ -90,3 +92,8 @@ takeLast n = reverse . take n . reverse
 
 firstLine :: Text -> Line
 firstLine = NonEmpty.head . textToLines
+
+toIncludeLines :: Shell FilePath -> Shell Line
+toIncludeLines paths = do
+  journalFile <- paths
+  return $ fromMaybe "" $ textToLine $ format ("!include "%fp) journalFile

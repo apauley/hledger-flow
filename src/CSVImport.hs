@@ -65,11 +65,6 @@ writeJournals' sortFun aggregateJournal journals = do
   let strippedJournal = fromMaybe journalFile $ stripPrefix journalBaseDir journalFile
   liftIO $ append aggregateJournal $ toIncludeLines $ return $ strippedJournal
 
-toIncludeLines :: Shell FilePath -> Shell Line
-toIncludeLines paths = do
-  journalFile <- paths
-  return $ fromMaybe "" $ textToLine $ format ("!include "%fp) journalFile
-
 importOwners :: Shell FilePath -> Shell FilePath
 importOwners ownerDirs = do
   ownerDir <- ownerDirs
