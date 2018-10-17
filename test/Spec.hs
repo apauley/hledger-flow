@@ -10,15 +10,17 @@ import qualified Control.Foldl as Fold
 
 import Common
 
+files = ["dir1/d1f1.journal", "dir1/d1f2.journal", "dir2/d2f1.journal", "dir2/d2f2.journal"] :: [FilePath]
+
 test1 = TestCase (assertEqual "takeLast" [3,5,7] (takeLast 3 [1,3,5,7]))
 
 testGroupBy = TestCase (do
-                              let files = ["dir1/d1f1", "dir1/d1f2", "dir2/d2f1", "dir2/d2f2"] :: [FilePath]
-                              let shFiles = select files :: Shell FilePath
-                              let expected = [("dir1","dir1/d1f1"), ("dir1","dir1/d1f2"), ("dir2","dir2/d2f1"), ("dir2","dir2/d2f2")] :: [(FilePath, FilePath)]
-                              let shList = fmap Map.assocs (groupBy dirname shFiles) :: Shell [(FilePath, FilePath)]
-                              actual <- single shList
-                              assertEqual "Group Files by Dir" expected actual)
+                           let expected = [("dir1","dir1/d1f1.journal"), ("dir1","dir1/d1f2.journal"),
+                                           ("dir2","dir2/d2f1.journal"), ("dir2","dir2/d2f2.journal")] :: [(FilePath, FilePath)]
+                           let grouped = groupBy dirname $ select files :: Shell (Map.Map FilePath FilePath)
+                           let shList = fmap Map.assocs grouped :: Shell [(FilePath, FilePath)]
+                           actual <- single shList
+                           assertEqual "Group Files by Dir" expected actual)
 
 tests = TestList [test1, testGroupBy]
 
