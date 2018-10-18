@@ -12,19 +12,19 @@ import Common
 
 files = ["dir1/d1f1.journal", "dir1/d1f2.journal", "dir2/d2f1.journal", "dir2/d2f2.journal"] :: [FilePath]
 
-expectedMap :: Map.Map FilePath [FilePath]
-expectedMap = Map.fromList [("dir1.journal", ["dir1/d1f1.journal", "dir1/d1f2.journal"]),
-                            ("dir2.journal", ["dir2/d2f1.journal", "dir2/d2f2.journal"])]
+groupedIncludeFiles :: Map.Map FilePath [FilePath]
+groupedIncludeFiles = Map.fromList [("dir1.journal", ["dir1/d1f1.journal", "dir1/d1f2.journal"]),
+                                    ("dir2.journal", ["dir2/d2f1.journal", "dir2/d2f2.journal"])]
 
 test1 = TestCase (assertEqual "takeLast" [3,5,7] (takeLast 3 [1,3,5,7]))
 
 testGroupBy = TestCase (do
                            let grouped = groupValuesBy aggregateFileName files :: Map.Map FilePath [FilePath]
-                           assertEqual "Group Files by Dir'" expectedMap grouped)
+                           assertEqual "Group Files by Dir" groupedIncludeFiles grouped)
 
 testGroupPairs = TestCase (do
                               let actual = groupPairs . pairBy aggregateFileName $ files
-                              assertEqual "Sort And Group: Sorted" expectedMap actual)
+                              assertEqual "Group files, paired by the directories they live in" groupedIncludeFiles actual)
 
 tests = TestList [test1, testGroupBy, testGroupPairs]
 
