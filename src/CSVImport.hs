@@ -91,21 +91,11 @@ importAccounts bankName accountDirs = do
   let constructScript = accDir </> "construct"
   let accountSrcFiles = onlyFiles $ find (has (text "1-in")) accDir
   let accJournals = importAccountFiles bankName accName preprocessScript constructScript accountSrcFiles
-  wrj accJournals
   let aggregateJournal = accDir </> buildFilename [bankName, accName] "journal"
   let openingJournal = accDir </> "opening.journal"
   liftIO $ touch openingJournal
   writeJournals aggregateJournal $ (return openingJournal) + accJournals
   return aggregateJournal
-
-wrj :: Shell FilePath -> Shell FilePath
-wrj paths = do
-  pathMap <- groupPaths paths
-  paths
-
--- writeDict :: Map.Map FilePath FilePath -> Shell ()
--- writeDict mapped = do
---   let fff = fmap  -- fold?
 
 groupPaths :: Shell FilePath -> Shell (Map.Map FilePath FilePath)
 groupPaths paths = do
