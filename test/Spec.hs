@@ -15,14 +15,21 @@ files = ["dir1/d1f1.journal", "dir1/d1f2.journal", "dir2/d2f1.journal", "dir2/d2
 test1 = TestCase (assertEqual "takeLast" [3,5,7] (takeLast 3 [1,3,5,7]))
 
 testGroupBy = TestCase (do
-                           let expected = [("dir1","dir1/d1f1.journal"), ("dir1","dir1/d1f2.journal"),
-                                           ("dir2","dir2/d2f1.journal"), ("dir2","dir2/d2f2.journal")] :: [(FilePath, FilePath)]
-                           let grouped = groupBy dirname $ select files :: Shell (Map.Map FilePath FilePath)
-                           let shList = fmap Map.assocs grouped :: Shell [(FilePath, FilePath)]
-                           actual <- single shList
-                           assertEqual "Group Files by Dir" expected actual)
+                           let expected = [("dir1.journal", ["dir1/d1f1.journal", "dir1/d1f2.journal"]),
+                                           ("dir2.journal", ["dir2/d2f1.journal", "dir2/d2f2.journal"])] :: [(FilePath, [FilePath])]
+                           let grouped = groupValuesBy ((<.> "journal") . dirname) files :: Map.Map FilePath [FilePath]
+                           let actual = Map.assocs grouped
+                           assertEqual "Group Files by Dir'" expected actual)
 
-tests = TestList [test1, testGroupBy]
+testGroupPairs = TestCase (do
+                              let keyFun = (<.> "journal") . dirname
+                              let paired = fmap (\v -> (keyFun v, v)) files
+                              let expected = [("dir1.journal", ["dir1/d1f1.journal", "dir1/d1f2.journal"]),
+                                              ("dir2.journal", ["dir2/d2f1.journal", "dir2/d2f2.journal"])] :: [(FilePath, [FilePath])]
+                              let actual = Map.assocs $ groupPairs paired
+                              assertEqual "Sort And Group: Sorted" expected actual)
+
+tests = TestList [test1, testGroupBy, testGroupPairs]
 
 main :: IO Counts
 main = do

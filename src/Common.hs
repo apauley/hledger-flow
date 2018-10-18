@@ -13,7 +13,8 @@ module Common
     , takeLast
     , firstLine
     , firstExistingFile
-    , groupBy
+    , groupValuesBy
+    , groupPairs
     ) where
 
 import Turtle
@@ -23,6 +24,23 @@ import Data.Text (intercalate)
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Control.Foldl as Fold
 import qualified Data.Map.Strict as Map
+
+import Data.Function (on)
+import qualified Data.List as List (sortBy, groupBy)
+import Data.Ord (comparing)
+
+groupPairs' :: (Eq a, Ord a) => [(a, b)] -> [(a, [b])]
+groupPairs' = map (\l -> (fst . head $ l, map snd l)) . List.groupBy ((==) `on` fst)
+              . List.sortBy (comparing fst)
+
+groupPairs :: (Eq a, Ord a) => [(a, b)] -> Map.Map a [b]
+groupPairs = Map.fromList . groupPairs'
+
+pairBy :: (a -> b) -> [a] -> [(b, a)]
+pairBy keyFun = map (\v -> (keyFun v, v))
+
+groupValuesBy :: (Ord k, Ord v) => (v -> k) -> [v] -> Map.Map k [v]
+groupValuesBy keyFun = groupPairs . pairBy keyFun
 
 docURL :: Line -> Text
 docURL = format ("https://github.com/apauley/hledger-makeitso#"%l)
@@ -72,8 +90,3 @@ takeLast n = reverse . take n . reverse
 
 firstLine :: Text -> Line
 firstLine = NonEmpty.head . textToLines
-
-groupBy :: Ord k => (v -> k) -> Shell v -> Shell (Map.Map k v)
-groupBy keyFun shellValues = do
-  let paired = fmap (\f -> (keyFun f, f)) shellValues
-  fold paired Fold.map
