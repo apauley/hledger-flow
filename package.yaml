@@ -58,3 +58,4 @@ tests:
     - HUnit
     - containers
     - foldl
+    - text
