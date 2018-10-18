@@ -22,10 +22,9 @@ testGroupBy = TestCase (do
                            assertEqual "Group Files by Dir'" expected actual)
 
 testGroupPairs = TestCase (do
-                              let paired = fmap (\v -> (aggregateFileName v, v)) files
                               let expected = [("dir1.journal", ["dir1/d1f1.journal", "dir1/d1f2.journal"]),
                                               ("dir2.journal", ["dir2/d2f1.journal", "dir2/d2f2.journal"])] :: [(FilePath, [FilePath])]
-                              let actual = Map.assocs $ groupPairs paired
+                              let actual = Map.assocs $ groupPairs . pairBy aggregateFileName $ files
                               assertEqual "Sort And Group: Sorted" expected actual)
 
 tests = TestList [test1, testGroupBy, testGroupPairs]

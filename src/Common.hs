@@ -16,6 +16,7 @@ module Common
     , toIncludeLines
     , groupValuesBy
     , groupPairs
+    , pairBy
     , aggregateFileName
     ) where
 
