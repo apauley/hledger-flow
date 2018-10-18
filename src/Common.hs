@@ -16,6 +16,7 @@ module Common
     , toIncludeLines
     , groupValuesBy
     , groupPairs
+    , aggregateFileName
     ) where
 
 import Turtle
@@ -97,3 +98,6 @@ toIncludeLines :: Shell FilePath -> Shell Line
 toIncludeLines paths = do
   journalFile <- paths
   return $ fromMaybe "" $ textToLine $ format ("!include "%fp) journalFile
+
+aggregateFileName :: FilePath -> FilePath
+aggregateFileName = (<.> "journal") . dirname

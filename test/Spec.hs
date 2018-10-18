@@ -17,13 +17,12 @@ test1 = TestCase (assertEqual "takeLast" [3,5,7] (takeLast 3 [1,3,5,7]))
 testGroupBy = TestCase (do
                            let expected = [("dir1.journal", ["dir1/d1f1.journal", "dir1/d1f2.journal"]),
                                            ("dir2.journal", ["dir2/d2f1.journal", "dir2/d2f2.journal"])] :: [(FilePath, [FilePath])]
-                           let grouped = groupValuesBy ((<.> "journal") . dirname) files :: Map.Map FilePath [FilePath]
+                           let grouped = groupValuesBy aggregateFileName files :: Map.Map FilePath [FilePath]
                            let actual = Map.assocs grouped
                            assertEqual "Group Files by Dir'" expected actual)
 
 testGroupPairs = TestCase (do
-                              let keyFun = (<.> "journal") . dirname
-                              let paired = fmap (\v -> (keyFun v, v)) files
+                              let paired = fmap (\v -> (aggregateFileName v, v)) files
                               let expected = [("dir1.journal", ["dir1/d1f1.journal", "dir1/d1f2.journal"]),
                                               ("dir2.journal", ["dir2/d2f1.journal", "dir2/d2f2.journal"])] :: [(FilePath, [FilePath])]
                               let actual = Map.assocs $ groupPairs paired
