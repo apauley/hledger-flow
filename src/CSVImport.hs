@@ -6,7 +6,7 @@ module CSVImport
 
 import Turtle
 import Prelude hiding (FilePath, putStrLn, take)
-import Data.Text (breakOnEnd, intercalate, take)
+import qualified Data.Text as T
 import Data.Text.IO (putStrLn)
 import Data.List (partition)
 import Data.Maybe
@@ -162,7 +162,7 @@ hledgerImport' importDirs csvSrc journalOut = do
       return journalOut
     Nothing ->
       do
-        let candidatesTxt = intercalate "\n" $ map (format fp) candidates
+        let candidatesTxt = T.intercalate "\n" $ map (format fp) candidates
         let msg = format ("I couldn't find an hledger rules file while trying to import\n"%fp
                           %"\n\nI will happily use the first rules file I can find from any one of these "%d%" files:\n"%s
                           %"\n\nHere is a bit of documentation about rules files that you may find helpful:\n"%s)
@@ -207,9 +207,9 @@ generalRulesFiles csvSrc importDirs = do
 
 statementSpecificRulesFiles :: FilePath -> ImportDirs -> [FilePath]
 statementSpecificRulesFiles csvSrc importDirs = do
-  let srcSuffix = snd $ breakOnEnd "_" (format fp (basename csvSrc))
+  let srcSuffix = snd $ T.breakOnEnd "_" (format fp (basename csvSrc))
 
-  if ((take 3 srcSuffix) == "rfo")
+  if ((T.take 3 srcSuffix) == "rfo")
     then
     do
       let srcSpecificFilename = fromText srcSuffix <.> "rules"
