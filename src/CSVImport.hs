@@ -7,12 +7,8 @@ module CSVImport
 import Turtle
 import Prelude hiding (FilePath, putStrLn, take)
 import qualified Data.Text as T
-import Data.Text.IO (putStrLn)
-import Data.List (partition)
 import Data.Maybe
 import qualified Data.List.NonEmpty as NonEmpty
-import qualified Control.Foldl as Fold
-import qualified Data.Map.Strict as Map
 import Common
 
 data ImportDirs = ImportDirs { importDir  :: FilePath
@@ -25,12 +21,12 @@ data ImportDirs = ImportDirs { importDir  :: FilePath
 
 importCSVs :: FilePath -> IO ()
 importCSVs baseDir = do
-  let importDir = baseDir </> "import"
-  importExists <- testdir importDir
+  let importBase = baseDir </> "import"
+  importExists <- testdir importBase
   if importExists
     then
     do
-      let importedJournals = importOwners $ lsDirs importDir
+      let importedJournals = importOwners $ lsDirs importBase
       sh $ writeMakeItSoJournal baseDir importedJournals
     else
     do
@@ -67,19 +63,19 @@ writeJournals' sortFun aggregateJournal journals = do
 
 importOwners :: Shell FilePath -> Shell FilePath
 importOwners ownerDirs = do
-  ownerDir <- ownerDirs
-  ownerName <- basenameLine ownerDir
-  let ownerJournals = importBanks ownerName $ lsDirs ownerDir
-  let aggregateJournal = ownerDir </> buildFilename [ownerName] "journal"
+  od <- ownerDirs
+  ownerName <- basenameLine od
+  let ownerJournals = importBanks ownerName $ lsDirs od
+  let aggregateJournal = od </> buildFilename [ownerName] "journal"
   writeJournals aggregateJournal ownerJournals
   return aggregateJournal
 
 importBanks :: Line -> Shell FilePath -> Shell FilePath
-importBanks ownerName bankDirs = do
-  bankDir <- bankDirs
-  bankName <- basenameLine bankDir
-  let bankJournals = importAccounts bankName $ lsDirs bankDir
-  let aggregateJournal = bankDir </> buildFilename [bankName] "journal"
+importBanks _ownerName bankDirs = do
+  bd <- bankDirs
+  bankName <- basenameLine bd
+  let bankJournals = importAccounts bankName $ lsDirs bd
+  let aggregateJournal = bd </> buildFilename [bankName] "journal"
   writeJournals aggregateJournal bankJournals
   return aggregateJournal
 
@@ -96,16 +92,6 @@ importAccounts bankName accountDirs = do
   liftIO $ touch openingJournal
   writeJournals aggregateJournal $ (return openingJournal) + accJournals
   return aggregateJournal
-
-groupPaths :: Shell FilePath -> Shell (Map.Map FilePath FilePath)
-groupPaths paths = do
-  pathList <- shellToList paths
-  let paired = map (\p -> (dirname p <.> "journal", p)) pathList
-  let mapped = Map.fromList paired
-  liftIO $ putStrLn $ repr paired
-  liftIO $ putStrLn $ repr mapped
-  liftIO $ putStrLn $ repr $ Map.toList mapped
-  return mapped
 
 importAccountFiles :: Line -> Line -> FilePath -> FilePath -> Shell FilePath -> Shell FilePath
 importAccountFiles bankName accountName preprocessScript constructScript accountSrcFiles = do
@@ -160,34 +146,34 @@ hledgerImport' importDirs csvSrc journalOut = do
         stderr $ select $ textToLines msg
         exit $ ExitFailure 1
 
-importDirs ::  FilePath -> [FilePath]
-importDirs = importDirs' []
+importDirBreakdown ::  FilePath -> [FilePath]
+importDirBreakdown = importDirBreakdown' []
 
-importDirs' :: [FilePath] -> FilePath -> [FilePath]
-importDirs' acc path = do
+importDirBreakdown' :: [FilePath] -> FilePath -> [FilePath]
+importDirBreakdown' acc path = do
   let dir = directory path
   if (dirname dir == "import" || (dirname dir == ""))
     then dir:acc
-    else importDirs' (dir:acc) $ parent dir
+    else importDirBreakdown' (dir:acc) $ parent dir
 
 extractImportDirs :: FilePath -> Either Text ImportDirs
 extractImportDirs inputFile = do
-  case importDirs inputFile of
-    [importDir,owner,bank,account,filestate,year] -> Right $ ImportDirs importDir owner bank account filestate year
-    otherwise -> do
+  case importDirBreakdown inputFile of
+    [baseDir,owner,bank,account,filestate,year] -> Right $ ImportDirs baseDir owner bank account filestate year
+    _ -> do
       Left $ format ("I couldn't find the right number of directories between \"import\" and the input file:\n"%fp
                       %"\n\nhledger-makitso expects to find input files in this structure:\n"%
                       "import/owner/bank/account/filestate/year/trxfile\n\n"%
                       "Have a look at the documentation for a detailed explanation:\n"%s) inputFile (docURL "input-files")
 
 rulesFileCandidates :: FilePath -> ImportDirs -> [FilePath]
-rulesFileCandidates csvSrc importDirs = statementSpecificRulesFiles csvSrc importDirs ++ generalRulesFiles csvSrc importDirs
+rulesFileCandidates csvSrc importDirs = statementSpecificRulesFiles csvSrc importDirs ++ generalRulesFiles importDirs
 
 importDirLines :: (ImportDirs -> FilePath) -> ImportDirs -> [Line]
 importDirLines dirFun importDirs = NonEmpty.toList $ textToLines $ format fp $ dirname $ dirFun importDirs
 
-generalRulesFiles :: FilePath -> ImportDirs -> [FilePath]
-generalRulesFiles csvSrc importDirs = do
+generalRulesFiles :: ImportDirs -> [FilePath]
+generalRulesFiles importDirs = do
   let bank = importDirLines bankDir importDirs
   let account = importDirLines accountDir importDirs
   let accountRulesFile = accountDir importDirs </> buildFilename (bank ++ account) "rules"
@@ -217,8 +203,8 @@ changePathAndExtension :: FilePath -> Text -> FilePath -> FilePath
 changePathAndExtension newOutputLocation newExt = (changeOutputPath newOutputLocation) . (changeExtension newExt)
 
 changeExtension :: Text -> FilePath -> FilePath
-changeExtension extension path = (dropExtension path) <.> extension
+changeExtension ext path = (dropExtension path) <.> ext
 
 changeOutputPath :: FilePath -> FilePath -> FilePath
 changeOutputPath newOutputLocation srcFile = mconcat $ map changeSrcDir $ splitDirectories srcFile
-  where changeSrcDir f = if (f == "1-in/" || f == "2-preprocessed/") then newOutputLocation else f
+  where changeSrcDir file = if (file == "1-in/" || file == "2-preprocessed/") then newOutputLocation else file
