@@ -32,7 +32,7 @@
   Then run:
   #+NAME: stack-build
   #+BEGIN_SRC sh :results none :exports both
-  stack build
+  stack test
   stack install
   #+END_SRC
 
