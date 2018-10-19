@@ -26,6 +26,7 @@ library:
   source-dirs: src
   ghc-options:
   - -Wall
+  - -Werror
   dependencies:
   - turtle
   - text
@@ -41,6 +42,7 @@ executables:
     - -rtsopts
     - -with-rtsopts=-N
     - -Wall
+    - -Werror
     dependencies:
     - hledger-makeitso
     - turtle

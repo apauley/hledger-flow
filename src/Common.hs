@@ -26,7 +26,6 @@ module Common
 
 import Turtle
 import Prelude hiding (FilePath, putStrLn)
-import Data.Text.IO (putStrLn)
 import qualified Data.Text as T
 import Data.Maybe
 import qualified Data.List.NonEmpty as NonEmpty
@@ -38,7 +37,7 @@ import qualified Data.List as List (sortBy, groupBy)
 import Data.Ord (comparing)
 
 groupPairs' :: (Eq a, Ord a) => [(a, b)] -> [(a, [b])]
-groupPairs' = map (\l -> (fst . head $ l, map snd l)) . List.groupBy ((==) `on` fst)
+groupPairs' = map (\ll -> (fst . head $ ll, map snd ll)) . List.groupBy ((==) `on` fst)
               . List.sortBy (comparing fst)
 
 groupPairs :: (Eq a, Ord a) => [(a, b)] -> Map.Map a [b]
@@ -78,9 +77,9 @@ firstExistingFile :: [FilePath] -> Shell (Maybe FilePath)
 firstExistingFile files = do
   case files of
     []   -> return Nothing
-    f:fs -> do
-      exists <- testfile f
-      if exists then return (Just f) else firstExistingFile fs
+    file:fs -> do
+      exists <- testfile file
+      if exists then return (Just file) else firstExistingFile fs
 
 basenameLine :: FilePath -> Shell Line
 basenameLine path = case (textToLine $ format fp $ basename path) of
@@ -115,7 +114,7 @@ toIncludeFiles :: Map.Map FilePath [FilePath] -> Map.Map FilePath Text
 toIncludeFiles fileMap = Map.mapWithKey generatedIncludeText fileMap
 
 toIncludeLine :: FilePath -> FilePath -> Text
-toIncludeLine base fle = format ("!include "%fp) $ fromMaybe f $ stripPrefix (directory base) fle
+toIncludeLine base file = format ("!include "%fp) $ fromMaybe file $ stripPrefix (directory base) file
 
 generatedIncludeText :: FilePath -> [FilePath] -> Text
 generatedIncludeText outputFile files = do
