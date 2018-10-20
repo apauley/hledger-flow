@@ -89,7 +89,7 @@ basenameLine path = case (textToLine $ format fp $ basename path) of
 buildFilename :: [Line] -> Text -> FilePath
 buildFilename identifiers ext = fromText (T.intercalate "-" (map lineToText identifiers)) <.> ext
 
-shellToList :: Shell FilePath -> Shell [FilePath]
+shellToList :: Shell a -> Shell [a]
 shellToList files = fold files Fold.list
 
 takeLast :: Int -> [a] -> [a]
