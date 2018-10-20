@@ -133,4 +133,4 @@ writeFiles fileMap = do
   select $ Map.keys fileMap
 
 writeFiles' :: Map.Map FilePath Text -> IO ()
-writeFiles' fileMap = Map.foldlWithKey (\_ k v -> writeTextFile k v) (return ()) fileMap
+writeFiles' fileMap = Map.foldlWithKey (\a k v -> a <> writeTextFile k v) (return ()) fileMap
