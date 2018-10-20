@@ -9,7 +9,7 @@ import Prelude hiding (FilePath)
 import qualified Data.Map.Strict as Map
 import qualified Control.Foldl as Fold
 import qualified Data.Text as T
-
+import qualified Integration
 import Common
 
 files = ["./base/dir1/d1f1.journal", "./base/dir1/d1f2.journal", "./base/dir2/d2f1.journal", "./base/dir2/d2f2.journal"] :: [FilePath]
@@ -45,7 +45,9 @@ testToIncludeFiles = TestCase (
     let txt = toIncludeFiles groupedIncludeFiles :: Map.Map FilePath Text
     assertEqual "Convert a grouped map of paths, to a map with text contents for each file" expected txt)
 
-tests = TestList [test1, testGroupBy, testGroupPairs, testToIncludeLine, testToIncludeFiles]
+unitTests = TestList [test1, testGroupBy, testGroupPairs, testToIncludeLine, testToIncludeFiles]
+
+tests = TestList [unitTests, Integration.tests]
 
 main :: IO Counts
 main = do
