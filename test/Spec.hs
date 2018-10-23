@@ -21,11 +21,11 @@ groupedIncludeFiles = [("./base/dir1-include.journal", ["./base/dir1/d1f1.journa
 test1 = TestCase (assertEqual "takeLast" [3,5,7] (takeLast 3 [1,3,5,7]))
 
 testGroupBy = TestCase (do
-                           let grouped = groupValuesBy aggregateFilePath files :: Map.Map FilePath [FilePath]
+                           let grouped = groupValuesBy aggregateIncludeFilePath files :: Map.Map FilePath [FilePath]
                            assertEqual "Group Files by Dir" groupedIncludeFiles grouped)
 
 testGroupPairs = TestCase (do
-                              let actual = groupPairs . pairBy aggregateFilePath $ files
+                              let actual = groupPairs . pairBy aggregateIncludeFilePath $ files
                               assertEqual "Group files, paired by the directories they live in" groupedIncludeFiles actual)
 
 testToIncludeLine = TestCase (do
