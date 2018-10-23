@@ -61,7 +61,7 @@ importAccounts bankName accountDirs = do
   let constructScript = accDir </> "construct"
   let accountSrcFiles = onlyFiles $ find (has (text "1-in")) accDir
   let accJournals = importAccountFiles bankName accName preprocessScript constructScript accountSrcFiles
-  let yearJournals = writeIncludeFiles accJournals
+  let yearJournals = groupAndWriteIncludeFiles accJournals
   let aggregateJournal = accDir </> buildFilename [bankName, accName] "journal"
   let openingJournal = accDir </> "opening.journal"
   liftIO $ touch openingJournal

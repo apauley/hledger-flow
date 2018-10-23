@@ -31,11 +31,11 @@ testWriteIncludeFiles = TestCase (
         let j2 = tmpdir </> "dir2-include.journal"
         let expected = [j1, j2]
 
-        reportedAsWritten <- single $ shellToList $ writeIncludeFiles' tmpfiles
-        liftIO $ assertEqual "writeIncludeFiles should return which files it wrote" expected reportedAsWritten
+        reportedAsWritten <- single $ shellToList $ groupAndWriteIncludeFiles' tmpfiles
+        liftIO $ assertEqual "groupAndWriteIncludeFiles should return which files it wrote" expected reportedAsWritten
 
         includeFilesOnDisk <- single $ sort $ onlyFiles $ ls tmpdir
-        liftIO $ assertEqual "The actual files on disk should match what writeIncludeFiles reported" expected includeFilesOnDisk
+        liftIO $ assertEqual "The actual files on disk should match what groupAndWriteIncludeFiles reported" expected includeFilesOnDisk
 
         let expectedJ1Contents = includePreamble <> "\n"
               <> "!include dir1/2018-03-30.journal\n"
