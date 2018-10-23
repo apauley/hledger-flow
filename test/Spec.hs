@@ -12,13 +12,13 @@ import qualified Data.Text as T
 import qualified Integration
 import Common
 
-files = ["./base/dir1/d1f1.journal",
-         "./base/dir1/d1f2.journal",
+files = ["./base/dir1/d1f2.journal",
          "./base/dir2/d2f1.journal",
+         "./base/dir1/d1f1.journal",
          "./base/dir2/d2f2.journal"] :: [FilePath]
 
 groupedIncludeFiles :: Map.Map FilePath [FilePath]
-groupedIncludeFiles = [("./base/dir1-include.journal", ["./base/dir1/d1f1.journal", "./base/dir1/d1f2.journal"]),
+groupedIncludeFiles = [("./base/dir1-include.journal", ["./base/dir1/d1f2.journal", "./base/dir1/d1f1.journal"]),
                        ("./base/dir2-include.journal", ["./base/dir2/d2f1.journal", "./base/dir2/d2f2.journal"])]
 
 testGroupBy = TestCase (do
