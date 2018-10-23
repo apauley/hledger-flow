@@ -31,7 +31,7 @@ testWriteIncludeFiles = TestCase (
         let j2 = tmpdir </> "dir2-include.journal"
         let expected = [j1, j2]
 
-        reportedAsWritten <- single $ shellToList $ writeIncludeFiles tmpfiles
+        reportedAsWritten <- single $ shellToList $ writeIncludeFiles' tmpfiles
         liftIO $ assertEqual "writeIncludeFiles should return which files it wrote" expected reportedAsWritten
 
         includeFilesOnDisk <- single $ sort $ onlyFiles $ ls tmpdir
