@@ -23,14 +23,14 @@ makeDirForFile acc p = acc <> (mktree $ directory p)
 testWriteIncludeFiles = TestCase (
   sh (
       do
-        tmpdir <- using (mktempdir "/tmp" "makeitso")
+        tmpdir <- using (mktempdir "." "makeitso")
         let tmpfiles = map (tmpdir </>) files :: [FilePath]
         liftIO $ makeDirs tmpfiles
         let expected = [tmpdir </> "dir1.journal", tmpdir </> "dir2.journal"]
         reportedAsWritten <- single $ shellToList $ writeIncludeFiles tmpfiles
         liftIO $ assertEqual "writeIncludeFiles should return which files it wrote" expected reportedAsWritten
 
-        includeFilesOnDisk <- single $ shellToList $ onlyFiles $ ls tmpdir
+        includeFilesOnDisk <- single $ sort $ onlyFiles $ ls tmpdir
         liftIO $ assertEqual "The actual files on disk should match what writeIncludeFiles reported" expected includeFilesOnDisk
      )
   )
