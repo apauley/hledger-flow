@@ -7,7 +7,6 @@ module CSVImport
 import Turtle
 import Prelude hiding (FilePath, putStrLn, take)
 import qualified Data.Text as T
-import Data.Maybe
 import qualified Data.List.NonEmpty as NonEmpty
 import Common
 
@@ -35,31 +34,6 @@ importCSVs baseDir = do
                         "Have a look at the documentation for a detailed explanation:\n"%s) baseDir (docURL "input-files")
       stderr $ select $ textToLines msg
       exit $ ExitFailure 1
-
-writeMakeItSoJournal :: FilePath -> Shell FilePath -> Shell ()
-writeMakeItSoJournal baseDir importedJournals = do
-  let importAggregateJournal = baseDir </> "import-all.journal"
-  writeJournals importAggregateJournal importedJournals
-  let manualDir = baseDir </> "manual"
-  let pre = manualDir </> "pre-import.journal"
-  let post = manualDir </> "post-import.journal"
-  mktree manualDir
-  touch pre
-  touch post
-  let makeitsoJournal = baseDir </> "makeitso.journal"
-  writeJournals' shellToList makeitsoJournal $ select [pre, importAggregateJournal, post]
-
-writeJournals :: FilePath -> Shell FilePath -> Shell ()
-writeJournals = writeJournals' sort
-
-writeJournals' :: (Shell FilePath -> Shell [FilePath]) -> FilePath -> Shell FilePath -> Shell ()
-writeJournals' sortFun aggregateJournal journals = do
-  let journalBaseDir = directory aggregateJournal
-  liftIO $ writeTextFile aggregateJournal $ includePreamble <> "\n"
-  journalFiles <- sortFun journals
-  journalFile <- uniq $ select journalFiles
-  let strippedJournal = fromMaybe journalFile $ stripPrefix journalBaseDir journalFile
-  liftIO $ append aggregateJournal $ toIncludeLines $ return $ strippedJournal
 
 importOwners :: Shell FilePath -> Shell FilePath
 importOwners ownerDirs = do

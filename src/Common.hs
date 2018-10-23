@@ -24,6 +24,9 @@ module Common
     , generatedIncludeText
     , writeIncludeFiles'
     , writeIncludeFiles
+    , writeJournals
+    , writeJournals'
+    , writeMakeItSoJournal
     ) where
 
 import Turtle
@@ -139,3 +142,28 @@ writeFiles fileMap = do
 
 writeFiles' :: Map.Map FilePath Text -> IO ()
 writeFiles' fileMap = Map.foldlWithKey (\a k v -> a <> writeTextFile k v) (return ()) fileMap
+
+writeJournals :: FilePath -> Shell FilePath -> Shell ()
+writeJournals = writeJournals' sort
+
+writeJournals' :: (Shell FilePath -> Shell [FilePath]) -> FilePath -> Shell FilePath -> Shell ()
+writeJournals' sortFun aggregateJournal journals = do
+  let journalBaseDir = directory aggregateJournal
+  liftIO $ writeTextFile aggregateJournal $ includePreamble <> "\n"
+  journalFiles <- sortFun journals
+  journalFile <- uniq $ select journalFiles
+  let strippedJournal = fromMaybe journalFile $ stripPrefix journalBaseDir journalFile
+  liftIO $ append aggregateJournal $ toIncludeLines $ return $ strippedJournal
+
+writeMakeItSoJournal :: FilePath -> Shell FilePath -> Shell ()
+writeMakeItSoJournal baseDir importedJournals = do
+  let importAggregateJournal = baseDir </> "import-all.journal"
+  writeJournals importAggregateJournal importedJournals
+  let manualDir = baseDir </> "manual"
+  let pre = manualDir </> "pre-import.journal"
+  let post = manualDir </> "post-import.journal"
+  mktree manualDir
+  touch pre
+  touch post
+  let makeitsoJournal = baseDir </> "makeitso.journal"
+  writeJournals' shellToList makeitsoJournal $ select [pre, importAggregateJournal, post]
