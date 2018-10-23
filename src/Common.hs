@@ -18,6 +18,7 @@ module Common
     , groupPairs
     , pairBy
     , aggregateFilePath
+    , includePreamble
     , toIncludeFiles
     , toIncludeLine
     , generatedIncludeText
@@ -33,7 +34,7 @@ import qualified Control.Foldl as Fold
 import qualified Data.Map.Strict as Map
 
 import Data.Function (on)
-import qualified Data.List as List (sortBy, groupBy)
+import qualified Data.List as List (sort, sortBy, groupBy)
 import Data.Ord (comparing)
 
 groupPairs' :: (Eq a, Ord a) => [(a, b)] -> [(a, [b])]
@@ -118,7 +119,7 @@ toIncludeLine base file = format ("!include "%fp) $ fromMaybe file $ stripPrefix
 
 generatedIncludeText :: FilePath -> [FilePath] -> Text
 generatedIncludeText outputFile files = do
-  let lns = map (toIncludeLine outputFile) files
+  let lns = map (toIncludeLine outputFile) $ List.sort files
   T.intercalate "\n" $ includePreamble:(lns ++ [""])
 
 includePreamble :: Text

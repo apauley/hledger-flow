@@ -12,7 +12,7 @@ import qualified Data.Text as T
 
 import Common
 
-files = ["dir1/d1f1.journal", "dir1/d1f2.journal", "dir2/d2f1.journal", "dir2/d2f2.journal"] :: [FilePath]
+files = ["dir1/2018-04-30.journal", "dir2/d2f1.journal", "dir1/2018-03-30.journal", "dir2/d2f2.journal", "dir1/2018-05-30.journal"] :: [FilePath]
 
 makeDirs :: [FilePath] -> IO ()
 makeDirs = foldl makeDirForFile (return ())
@@ -26,12 +26,27 @@ testWriteIncludeFiles = TestCase (
         tmpdir <- using (mktempdir "." "makeitso")
         let tmpfiles = map (tmpdir </>) files :: [FilePath]
         liftIO $ makeDirs tmpfiles
-        let expected = [tmpdir </> "dir1.journal", tmpdir </> "dir2.journal"]
+
+        let j1 = tmpdir </> "dir1.journal"
+        let j2 = tmpdir </> "dir2.journal"
+        let expected = [j1, j2]
+
         reportedAsWritten <- single $ shellToList $ writeIncludeFiles tmpfiles
         liftIO $ assertEqual "writeIncludeFiles should return which files it wrote" expected reportedAsWritten
 
         includeFilesOnDisk <- single $ sort $ onlyFiles $ ls tmpdir
         liftIO $ assertEqual "The actual files on disk should match what writeIncludeFiles reported" expected includeFilesOnDisk
+
+        let expectedJ1Contents = includePreamble <> "\n"
+              <> "!include dir1/2018-03-30.journal\n"
+              <> "!include dir1/2018-04-30.journal\n"
+              <> "!include dir1/2018-05-30.journal\n"
+        actualJ1Contents <- liftIO $ readTextFile j1
+        liftIO $ assertEqual "J1: The include file contents should be the journal files" expectedJ1Contents actualJ1Contents
+
+        let expectedJ2Contents = includePreamble <> "\n!include dir2/d2f1.journal\n" <> "!include dir2/d2f2.journal\n"
+        actualJ2Contents <- liftIO $ readTextFile j2
+        liftIO $ assertEqual "J2: The include file contents should be the journal files" expectedJ2Contents actualJ2Contents
      )
   )
 
