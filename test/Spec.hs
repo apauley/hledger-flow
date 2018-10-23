@@ -12,13 +12,14 @@ import qualified Data.Text as T
 import qualified Integration
 import Common
 
-files = ["./base/dir1/d1f1.journal", "./base/dir1/d1f2.journal", "./base/dir2/d2f1.journal", "./base/dir2/d2f2.journal"] :: [FilePath]
+files = ["./base/dir1/d1f1.journal",
+         "./base/dir1/d1f2.journal",
+         "./base/dir2/d2f1.journal",
+         "./base/dir2/d2f2.journal"] :: [FilePath]
 
 groupedIncludeFiles :: Map.Map FilePath [FilePath]
 groupedIncludeFiles = [("./base/dir1-include.journal", ["./base/dir1/d1f1.journal", "./base/dir1/d1f2.journal"]),
                        ("./base/dir2-include.journal", ["./base/dir2/d2f1.journal", "./base/dir2/d2f2.journal"])]
-
-test1 = TestCase (assertEqual "takeLast" [3,5,7] (takeLast 3 [1,3,5,7]))
 
 testGroupBy = TestCase (do
                            let grouped = groupValuesBy includeFilePath files :: Map.Map FilePath [FilePath]
@@ -45,7 +46,7 @@ testToIncludeFiles = TestCase (
     let txt = toIncludeFiles groupedIncludeFiles :: Map.Map FilePath Text
     assertEqual "Convert a grouped map of paths, to a map with text contents for each file" expected txt)
 
-unitTests = TestList [test1, testGroupBy, testGroupPairs, testToIncludeLine, testToIncludeFiles]
+unitTests = TestList [testGroupBy, testGroupPairs, testToIncludeLine, testToIncludeFiles]
 
 tests = TestList [unitTests, Integration.tests]
 

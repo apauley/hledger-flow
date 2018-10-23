@@ -12,7 +12,11 @@ import qualified Data.Text as T
 
 import Common
 
-files = ["dir1/2018-04-30.journal", "dir2/d2f1.journal", "dir1/2018-03-30.journal", "dir2/d2f2.journal", "dir1/2018-05-30.journal"] :: [FilePath]
+files = ["dir1/2018-04-30.journal",
+         "dir2/d2f1.journal",
+         "dir1/2018-03-30.journal",
+         "dir2/d2f2.journal",
+         "dir1/2018-05-30.journal"] :: [FilePath]
 
 makeDirs :: [FilePath] -> IO ()
 makeDirs = foldl makeDirForFile (return ())
