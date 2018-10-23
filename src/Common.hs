@@ -23,7 +23,6 @@ module Common
     , toIncludeFiles
     , toIncludeLine
     , generatedIncludeText
-    , groupAndWriteIncludeFiles'
     , groupAndWriteIncludeFiles
     , writeJournals
     , writeJournals'

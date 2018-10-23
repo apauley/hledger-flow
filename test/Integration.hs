@@ -20,24 +20,27 @@ inputFiles = ["dir1/2018-04-30.csv",
 
 journalFiles = map (changeExtension "journal") inputFiles
 
-makeDirs :: [FilePath] -> IO ()
-makeDirs = foldl makeDirForFile (return ())
+touchAll :: [FilePath] -> Shell ()
+touchAll = foldl (\acc file -> acc <> superTouch file) (return ())
 
-makeDirForFile :: IO () -> FilePath -> IO ()
-makeDirForFile acc p = acc <> (mktree $ directory p)
+superTouch :: FilePath -> Shell ()
+superTouch file = do
+  mktree $ directory file
+  touch file
 
 testWriteIncludeFiles = TestCase (
   sh (
       do
         tmpdir <- using (mktempdir "." "makeitso")
         let tmpfiles = map (tmpdir </>) journalFiles :: [FilePath]
-        liftIO $ makeDirs tmpfiles
+        touchAll tmpfiles
+        let importedJournals = select tmpfiles :: Shell FilePath
 
         let j1 = tmpdir </> "dir1-include.journal"
         let j2 = tmpdir </> "dir2-include.journal"
         let expected = [j1, j2]
 
-        reportedAsWritten <- single $ shellToList $ groupAndWriteIncludeFiles' tmpfiles
+        reportedAsWritten <- single $ shellToList $ groupAndWriteIncludeFiles importedJournals
         liftIO $ assertEqual "groupAndWriteIncludeFiles should return which files it wrote" expected reportedAsWritten
 
         includeFilesOnDisk <- single $ sort $ onlyFiles $ ls tmpdir
