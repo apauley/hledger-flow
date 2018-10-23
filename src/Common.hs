@@ -7,6 +7,7 @@ module Common
     , onlyFiles
     , validDirs
     , filterPaths
+    , changeExtension
     , basenameLine
     , buildFilename
     , shellToList
@@ -167,3 +168,6 @@ writeMakeItSoJournal baseDir importedJournals = do
   touch post
   let makeitsoJournal = baseDir </> "makeitso.journal"
   writeJournals' shellToList makeitsoJournal $ select [pre, importAggregateJournal, post]
+
+changeExtension :: Text -> FilePath -> FilePath
+changeExtension ext path = (dropExtension path) <.> ext

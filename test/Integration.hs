@@ -12,11 +12,13 @@ import qualified Data.Text as T
 
 import Common
 
-files = ["dir1/2018-04-30.journal",
-         "dir2/d2f1.journal",
-         "dir1/2018-03-30.journal",
-         "dir2/d2f2.journal",
-         "dir1/2018-05-30.journal"] :: [FilePath]
+inputFiles = ["dir1/2018-04-30.csv",
+              "dir2/d2f1.csv",
+              "dir1/2018-03-30.csv",
+              "dir2/d2f2.csv",
+              "dir1/2018-05-30.csv"] :: [FilePath]
+
+journalFiles = map (changeExtension "journal") inputFiles
 
 makeDirs :: [FilePath] -> IO ()
 makeDirs = foldl makeDirForFile (return ())
@@ -28,7 +30,7 @@ testWriteIncludeFiles = TestCase (
   sh (
       do
         tmpdir <- using (mktempdir "." "makeitso")
-        let tmpfiles = map (tmpdir </>) files :: [FilePath]
+        let tmpfiles = map (tmpdir </>) journalFiles :: [FilePath]
         liftIO $ makeDirs tmpfiles
 
         let j1 = tmpdir </> "dir1-include.journal"

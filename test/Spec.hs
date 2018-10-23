@@ -12,21 +12,23 @@ import qualified Data.Text as T
 import qualified Integration
 import Common
 
-files = ["./base/dir1/d1f2.journal",
-         "./base/dir2/d2f1.journal",
-         "./base/dir1/d1f1.journal",
-         "./base/dir2/d2f2.journal"] :: [FilePath]
+inputFiles = ["./base/dir1/d1f2.csv",
+              "./base/dir2/d2f1.csv",
+              "./base/dir1/d1f1.csv",
+              "./base/dir2/d2f2.csv"] :: [FilePath]
+
+journalFiles = map (changeExtension "journal") inputFiles
 
 groupedIncludeFiles :: Map.Map FilePath [FilePath]
 groupedIncludeFiles = [("./base/dir1-include.journal", ["./base/dir1/d1f2.journal", "./base/dir1/d1f1.journal"]),
                        ("./base/dir2-include.journal", ["./base/dir2/d2f1.journal", "./base/dir2/d2f2.journal"])]
 
 testGroupBy = TestCase (do
-                           let grouped = groupValuesBy includeFilePath files :: Map.Map FilePath [FilePath]
+                           let grouped = groupValuesBy includeFilePath journalFiles :: Map.Map FilePath [FilePath]
                            assertEqual "Group Files by Dir" groupedIncludeFiles grouped)
 
 testGroupPairs = TestCase (do
-                              let actual = groupPairs . pairBy includeFilePath $ files
+                              let actual = groupPairs . pairBy includeFilePath $ journalFiles
                               assertEqual "Group files, paired by the directories they live in" groupedIncludeFiles actual)
 
 testToIncludeLine = TestCase (do

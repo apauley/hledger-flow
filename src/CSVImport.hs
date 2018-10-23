@@ -177,9 +177,6 @@ customConstruct constructScript bank account csvSrc journalOut = do
 changePathAndExtension :: FilePath -> Text -> FilePath -> FilePath
 changePathAndExtension newOutputLocation newExt = (changeOutputPath newOutputLocation) . (changeExtension newExt)
 
-changeExtension :: Text -> FilePath -> FilePath
-changeExtension ext path = (dropExtension path) <.> ext
-
 changeOutputPath :: FilePath -> FilePath -> FilePath
 changeOutputPath newOutputLocation srcFile = mconcat $ map changeSrcDir $ splitDirectories srcFile
   where changeSrcDir file = if (file == "1-in/" || file == "2-preprocessed/") then newOutputLocation else file
