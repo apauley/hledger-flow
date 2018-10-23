@@ -27,8 +27,8 @@ testWriteIncludeFiles = TestCase (
         let tmpfiles = map (tmpdir </>) files :: [FilePath]
         liftIO $ makeDirs tmpfiles
 
-        let j1 = tmpdir </> "dir1.journal"
-        let j2 = tmpdir </> "dir2.journal"
+        let j1 = tmpdir </> "dir1-include.journal"
+        let j2 = tmpdir </> "dir2-include.journal"
         let expected = [j1, j2]
 
         reportedAsWritten <- single $ shellToList $ writeIncludeFiles tmpfiles

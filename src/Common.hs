@@ -105,7 +105,7 @@ toIncludeLines paths = do
   return $ fromMaybe "" $ textToLine $ format ("!include "%fp) journalFile
 
 aggregateFileName :: FilePath -> FilePath
-aggregateFileName = (<.> "journal") . dirname
+aggregateFileName = (<.> "journal"). fromText . (format (fp%"-include")) . dirname
 
 aggregateFilePath :: FilePath -> FilePath
 aggregateFilePath p = do
