@@ -19,6 +19,7 @@ inputFiles = ["dir1/2018-04-30.csv",
               "dir1/2018-05-30.csv"] :: [FilePath]
 
 journalFiles = map (changeExtension "journal") inputFiles
+extraFiles = ["dir2-opening.journal"]
 
 touchAll :: [FilePath] -> Shell ()
 touchAll = foldl (\acc file -> acc <> superTouch file) (return ())
@@ -32,19 +33,21 @@ testWriteIncludeFiles = TestCase (
   sh (
       do
         tmpdir <- using (mktempdir "." "makeitso")
-        let tmpfiles = map (tmpdir </>) journalFiles :: [FilePath]
-        touchAll tmpfiles
-        let importedJournals = select tmpfiles :: Shell FilePath
+        let tmpJournals = map (tmpdir </>) journalFiles :: [FilePath]
+        let tmpExtras = map (tmpdir </>) extraFiles :: [FilePath]
+        touchAll $ tmpJournals ++ tmpExtras
+        let importedJournals = select tmpJournals :: Shell FilePath
 
         let j1 = tmpdir </> "dir1-include.journal"
         let j2 = tmpdir </> "dir2-include.journal"
-        let expected = [j1, j2]
+        let expectedIncludes = [j1, j2]
 
         reportedAsWritten <- single $ shellToList $ groupAndWriteIncludeFiles importedJournals
-        liftIO $ assertEqual "groupAndWriteIncludeFiles should return which files it wrote" expected reportedAsWritten
+        liftIO $ assertEqual "groupAndWriteIncludeFiles should return which files it wrote" expectedIncludes reportedAsWritten
 
+        let expectedOnDisk = expectedIncludes ++ tmpExtras
         includeFilesOnDisk <- single $ sort $ onlyFiles $ ls tmpdir
-        liftIO $ assertEqual "The actual files on disk should match what groupAndWriteIncludeFiles reported" expected includeFilesOnDisk
+        liftIO $ assertEqual "The actual files on disk should match what groupAndWriteIncludeFiles reported" expectedOnDisk includeFilesOnDisk
 
         let expectedJ1Contents = includePreamble <> "\n"
               <> "!include dir1/2018-03-30.journal\n"
