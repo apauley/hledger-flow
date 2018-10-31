@@ -6,6 +6,7 @@ module Common
     , onlyDirs
     , onlyFiles
     , validDirs
+    , filterPaths
     , changeExtension
     , basenameLine
     , buildFilename
@@ -82,6 +83,16 @@ filterPathsByFileStatus' filepred acc (file:files) = do
   filestat <- stat file
   let filtered = if (filepred filestat) then file:acc else acc
   filterPathsByFileStatus' filepred filtered files
+
+filterPaths :: (FilePath -> IO Bool) -> [FilePath] -> Shell [FilePath]
+filterPaths = filterPaths' []
+
+filterPaths' :: [FilePath] -> (FilePath -> IO Bool) -> [FilePath] -> Shell [FilePath]
+filterPaths' acc _ [] = return acc
+filterPaths' acc filepred (file:files) = do
+  shouldInclude <- liftIO $ filepred file
+  let filtered = if shouldInclude then file:acc else acc
+  filterPaths' filtered filepred files
 
 validDirs :: Shell FilePath -> Shell FilePath
 validDirs = excludeWeirdPaths . onlyDirs

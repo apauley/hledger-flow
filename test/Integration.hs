@@ -9,6 +9,7 @@ import Prelude hiding (FilePath)
 import qualified Data.Map.Strict as Map
 import qualified Control.Foldl as Fold
 import qualified Data.Text as T
+import qualified Data.List as List (sort)
 
 import Common
 
@@ -28,6 +29,24 @@ superTouch :: FilePath -> Shell ()
 superTouch file = do
   mktree $ directory file
   touch file
+
+testFilterPaths = TestCase (
+  sh (
+      do
+        tmpdir <- using (mktempdir "." "makeitso")
+        let tmpJournals = map (tmpdir </>) journalFiles :: [FilePath]
+        let tmpExtras = map (tmpdir </>) extraFiles :: [FilePath]
+        let onDisk = List.sort $ tmpJournals ++ tmpExtras
+        touchAll onDisk
+        let importedJournals = select tmpJournals :: Shell FilePath
+
+        let nonExistant = map (tmpdir </>) ["where", "is", "my", "mind"]
+        let toFilter = nonExistant ++ onDisk
+        filtered <- single $ filterPaths testfile toFilter
+        let actual = List.sort filtered
+        liftIO $ assertEqual "The pre-include lines should include the opening journal" onDisk actual
+     )
+  )
 
 testWriteIncludeFiles = TestCase (
   sh (
@@ -56,10 +75,13 @@ testWriteIncludeFiles = TestCase (
         actualJ1Contents <- liftIO $ readTextFile j1
         liftIO $ assertEqual "J1: The include file contents should be the journal files" expectedJ1Contents actualJ1Contents
 
-        let expectedJ2Contents = includePreamble <> "\n!include dir2/d2f1.journal\n" <> "!include dir2/d2f2.journal\n"
+        let expectedJ2Contents = includePreamble <> "\n"
+              -- <> "!include dir2-opening.journal\n"
+              <> "!include dir2/d2f1.journal\n"
+              <> "!include dir2/d2f2.journal\n"
         actualJ2Contents <- liftIO $ readTextFile j2
         liftIO $ assertEqual "J2: The include file contents should be the journal files" expectedJ2Contents actualJ2Contents
      )
   )
 
-tests = TestList [testWriteIncludeFiles]
+tests = TestList [testFilterPaths, testWriteIncludeFiles]
