@@ -134,16 +134,15 @@ includeFileName :: FilePath -> FilePath
 includeFileName = (<.> "journal"). fromText . (format (fp%"-include")) . dirname
 
 includeFilePath :: FilePath -> FilePath
-includeFilePath p = do
-  (parent . parent) p </> includeFileName p
+includeFilePath p = (parent . parent) p </> includeFileName p
 
 toIncludeFiles :: Shell (Map.Map FilePath [FilePath]) -> Shell (Map.Map FilePath Text)
 toIncludeFiles fileMap = do
   m <- fileMap
-  return $ (addPreamble . toIncludeFiles') m
+  return $ (addPreamble . toIncludeFiles' Map.empty) m
 
-toIncludeFiles' :: Map.Map FilePath [FilePath] -> Map.Map FilePath Text
-toIncludeFiles' = Map.mapWithKey generatedIncludeText
+toIncludeFiles' :: Map.Map FilePath [FilePath] -> Map.Map FilePath [FilePath] -> Map.Map FilePath Text
+toIncludeFiles' preMap = Map.mapWithKey $ generatedIncludeText preMap
 
 addPreamble :: Map.Map FilePath Text -> Map.Map FilePath Text
 addPreamble = Map.map (\txt -> includePreamble <> "\n" <> txt)
@@ -151,12 +150,10 @@ addPreamble = Map.map (\txt -> includePreamble <> "\n" <> txt)
 toIncludeLine :: FilePath -> FilePath -> Text
 toIncludeLine base file = format ("!include "%fp) $ fromMaybe file $ stripPrefix (directory base) file
 
-generatedIncludeText :: FilePath -> [FilePath] -> Text
-generatedIncludeText = generatedIncludeText' List.sort
-
-generatedIncludeText' :: ([FilePath] -> [FilePath]) -> FilePath -> [FilePath] -> Text
-generatedIncludeText' sortFun outputFile files = do
-  let lns = map (toIncludeLine outputFile) $ sortFun files
+generatedIncludeText :: Map.Map FilePath [FilePath] -> FilePath -> [FilePath] -> Text
+generatedIncludeText preMap outputFile files = do
+  let preFiles = fromMaybe [] $ Map.lookup outputFile preMap
+  let lns = map (toIncludeLine outputFile) $ preFiles ++ List.sort files
   T.intercalate "\n" $ lns ++ [""]
 
 includePreamble :: Text
