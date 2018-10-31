@@ -20,7 +20,7 @@ module Common
     , pairBy
     , includeFilePath
     , includePreamble
-    , toIncludeFiles'
+    , toIncludeFiles
     , toIncludeLine
     , generatedIncludeText
     , groupAndWriteIncludeFiles
