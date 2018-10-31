@@ -139,7 +139,25 @@ includeFilePath p = (parent . parent) p </> includeFileName p
 toIncludeFiles :: Shell (Map.Map FilePath [FilePath]) -> Shell (Map.Map FilePath Text)
 toIncludeFiles fileMap = do
   m <- fileMap
-  return $ (addPreamble . toIncludeFiles' Map.empty) m
+  preMap <- preIncludes $ Map.keys m
+  return $ (addPreamble . toIncludeFiles' preMap) m
+
+preIncludes :: [FilePath] -> Shell (Map.Map FilePath [FilePath])
+preIncludes = preIncludes' Map.empty
+
+preIncludes' :: Map.Map FilePath [FilePath] -> [FilePath] -> Shell (Map.Map FilePath [FilePath])
+preIncludes' acc [] = return acc
+preIncludes' acc (file:files) = do
+  pre <- preIncludesForFile file
+  preIncludes' (Map.unionWith (++) acc pre) files
+
+preIncludesForFile :: FilePath -> Shell (Map.Map FilePath [FilePath])
+preIncludesForFile file = do
+  let dirprefix = fst $ T.breakOn "-" $ format fp $ basename file
+  let opening = fromText $ format (s%"-opening.journal") dirprefix :: FilePath
+  let preFiles = map (directory file </>) [opening]
+  filtered <- filterPaths testfile preFiles
+  return $ Map.fromList [(file, filtered)]
 
 toIncludeFiles' :: Map.Map FilePath [FilePath] -> Map.Map FilePath [FilePath] -> Map.Map FilePath Text
 toIncludeFiles' preMap = Map.mapWithKey $ generatedIncludeText preMap

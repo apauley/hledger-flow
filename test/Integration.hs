@@ -44,7 +44,7 @@ testFilterPaths = TestCase (
         let toFilter = nonExistant ++ onDisk
         filtered <- single $ filterPaths testfile toFilter
         let actual = List.sort filtered
-        liftIO $ assertEqual "The pre-include lines should include the opening journal" onDisk actual
+        liftIO $ assertEqual "The filtered paths should exclude files not actually on disk" onDisk actual
      )
   )
 
@@ -76,7 +76,7 @@ testWriteIncludeFiles = TestCase (
         liftIO $ assertEqual "J1: The include file contents should be the journal files" expectedJ1Contents actualJ1Contents
 
         let expectedJ2Contents = includePreamble <> "\n"
-              -- <> "!include dir2-opening.journal\n"
+              <> "!include dir2-opening.journal\n"
               <> "!include dir2/d2f1.journal\n"
               <> "!include dir2/d2f2.journal\n"
         actualJ2Contents <- liftIO $ readTextFile j2
