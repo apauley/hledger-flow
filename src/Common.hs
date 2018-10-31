@@ -6,7 +6,6 @@ module Common
     , onlyDirs
     , onlyFiles
     , validDirs
-    , filterPaths
     , changeExtension
     , basenameLine
     , buildFilename
@@ -66,23 +65,23 @@ lsDirs :: FilePath -> Shell FilePath
 lsDirs = validDirs . ls
 
 onlyDirs :: Shell FilePath -> Shell FilePath
-onlyDirs = filterPaths isDirectory
+onlyDirs = filterPathsByFileStatus isDirectory
 
 onlyFiles :: Shell FilePath -> Shell FilePath
-onlyFiles = filterPaths isRegularFile
+onlyFiles = filterPathsByFileStatus isRegularFile
 
-filterPaths :: (FileStatus -> Bool) -> Shell FilePath -> Shell FilePath
-filterPaths filepred files = do
+filterPathsByFileStatus :: (FileStatus -> Bool) -> Shell FilePath -> Shell FilePath
+filterPathsByFileStatus filepred files = do
   files' <- shellToList files
-  filtered <- filterPaths' filepred [] files'
+  filtered <- filterPathsByFileStatus' filepred [] files'
   select filtered
 
-filterPaths' :: (FileStatus -> Bool) -> [FilePath] -> [FilePath] -> Shell [FilePath]
-filterPaths' _ acc [] = return acc
-filterPaths' filepred acc (file:files) = do
+filterPathsByFileStatus' :: (FileStatus -> Bool) -> [FilePath] -> [FilePath] -> Shell [FilePath]
+filterPathsByFileStatus' _ acc [] = return acc
+filterPathsByFileStatus' filepred acc (file:files) = do
   filestat <- stat file
   let filtered = if (filepred filestat) then file:acc else acc
-  filterPaths' filepred filtered files
+  filterPathsByFileStatus' filepred filtered files
 
 validDirs :: Shell FilePath -> Shell FilePath
 validDirs = excludeWeirdPaths . onlyDirs
