@@ -73,9 +73,16 @@ onlyFiles = filterPaths isRegularFile
 
 filterPaths :: (FileStatus -> Bool) -> Shell FilePath -> Shell FilePath
 filterPaths filepred files = do
-  path <- files
-  filestat <- stat path
-  if (filepred filestat) then select [path] else select []
+  files' <- shellToList files
+  filtered <- filterPaths' filepred [] files'
+  select filtered
+
+filterPaths' :: (FileStatus -> Bool) -> [FilePath] -> [FilePath] -> Shell [FilePath]
+filterPaths' _ acc [] = return acc
+filterPaths' filepred acc (file:files) = do
+  filestat <- stat file
+  let filtered = if (filepred filestat) then file:acc else acc
+  filterPaths' filepred filtered files
 
 validDirs :: Shell FilePath -> Shell FilePath
 validDirs = excludeWeirdPaths . onlyDirs
