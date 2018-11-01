@@ -132,7 +132,7 @@ hledger-makitso expects to find its input files in specifically
 named directories.
 
 Have a look at the documentation for a detailed explanation:
-https://github.com/apauley/hledger-makeitso#how-to-use-it
+https://github.com/apauley/hledger-makeitso#input-files
 
 #+END_SRC
 
@@ -363,11 +363,11 @@ my-finances
 │       │       │   └── 2016
 │       │       │       └── 123456789_2016-03-30.csv
 │       │       ├── 3-journal
-│       │       │   └── 2016
-│       │       │       └── 123456789_2016-03-30.journal
+│       │       │   ├── 2016
+│       │       │   │   └── 123456789_2016-03-30.journal
+│       │       │   └── 2016-include.journal
 │       │       ├── bogart-cheque.journal
 │       │       ├── bogart-cheque.rules
-│       │       ├── opening.journal
 │       │       └── preprocess -> ../../../../fnb-csv-demoronizer/fnb-csv-demoronizer
 │       └── gawie.journal
 ├── import-all.journal
