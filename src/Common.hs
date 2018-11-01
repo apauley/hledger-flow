@@ -139,42 +139,25 @@ includeFilePath p = (parent . parent) p </> includeFileName p
 toIncludeFiles :: Shell (Map.Map FilePath [FilePath]) -> Shell (Map.Map FilePath Text)
 toIncludeFiles fileMap = do
   m <- fileMap
-  preMap <- preIncludes $ Map.keys m
-  postMap <- postIncludes $ Map.keys m
+  preMap <- extraIncludes (Map.keys m) ["opening.journal"]
+  postMap <- extraIncludes (Map.keys m) ["closing.journal"]
   return $ (addPreamble . toIncludeFiles' preMap postMap) m
 
-preIncludes :: [FilePath] -> Shell (Map.Map FilePath [FilePath])
-preIncludes = preIncludes' Map.empty
+extraIncludes :: [FilePath] -> [Text] -> Shell (Map.Map FilePath [FilePath])
+extraIncludes = extraIncludes' Map.empty
 
-preIncludes' :: Map.Map FilePath [FilePath] -> [FilePath] -> Shell (Map.Map FilePath [FilePath])
-preIncludes' acc [] = return acc
-preIncludes' acc (file:files) = do
-  pre <- preIncludesForFile file
-  preIncludes' (Map.unionWith (++) acc pre) files
+extraIncludes' :: Map.Map FilePath [FilePath] -> [FilePath] -> [Text] -> Shell (Map.Map FilePath [FilePath])
+extraIncludes' acc [] _ = return acc
+extraIncludes' acc (file:files) fileSuffixes = do
+  extra <- extraIncludesForFile file fileSuffixes
+  extraIncludes' (Map.unionWith (++) acc extra) files fileSuffixes
 
-preIncludesForFile :: FilePath -> Shell (Map.Map FilePath [FilePath])
-preIncludesForFile file = do
+extraIncludesForFile :: FilePath -> [Text] -> Shell (Map.Map FilePath [FilePath])
+extraIncludesForFile file fileSuffixes = do
   let dirprefix = fst $ T.breakOn "-" $ format fp $ basename file
-  let opening = fromText $ format (s%"-opening.journal") dirprefix :: FilePath
-  let preFiles = map (directory file </>) [opening]
-  filtered <- filterPaths testfile preFiles
-  return $ Map.fromList [(file, filtered)]
-
-postIncludes :: [FilePath] -> Shell (Map.Map FilePath [FilePath])
-postIncludes = postIncludes' Map.empty
-
-postIncludes' :: Map.Map FilePath [FilePath] -> [FilePath] -> Shell (Map.Map FilePath [FilePath])
-postIncludes' acc [] = return acc
-postIncludes' acc (file:files) = do
-  post <- postIncludesForFile file
-  postIncludes' (Map.unionWith (++) acc post) files
-
-postIncludesForFile :: FilePath -> Shell (Map.Map FilePath [FilePath])
-postIncludesForFile file = do
-  let dirprefix = fst $ T.breakOn "-" $ format fp $ basename file
-  let closing = fromText $ format (s%"-closing.journal") dirprefix :: FilePath
-  let postFiles = map (directory file </>) [closing]
-  filtered <- filterPaths testfile postFiles
+  let fileNames = map (\suff -> fromText $ format (s%"-"%s) dirprefix suff) fileSuffixes
+  let extraFiles = map (directory file </>) fileNames
+  filtered <- filterPaths testfile extraFiles
   return $ Map.fromList [(file, filtered)]
 
 toIncludeFiles' :: Map.Map FilePath [FilePath] -> Map.Map FilePath [FilePath] -> Map.Map FilePath [FilePath] -> Map.Map FilePath Text
