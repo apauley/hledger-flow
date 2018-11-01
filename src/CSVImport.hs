@@ -63,9 +63,7 @@ importAccounts bankName accountDirs = do
   let accJournals = importAccountFiles bankName accName preprocessScript constructScript accountSrcFiles
   let yearJournals = groupAndWriteIncludeFiles accJournals
   let aggregateJournal = accDir </> buildFilename [bankName, accName] "journal"
-  let openingJournal = accDir </> "opening.journal"
-  liftIO $ touch openingJournal
-  writeJournals aggregateJournal $ (return openingJournal) + yearJournals
+  writeJournals aggregateJournal yearJournals
   return aggregateJournal
 
 importAccountFiles :: Line -> Line -> FilePath -> FilePath -> Shell FilePath -> Shell FilePath
