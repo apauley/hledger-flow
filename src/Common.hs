@@ -3,18 +3,13 @@
 module Common
     ( docURL
     , lsDirs
-    , onlyDirs
     , onlyFiles
-    , validDirs
     , filterPaths
     , changeExtension
     , basenameLine
     , buildFilename
     , shellToList
-    , takeLast
-    , firstLine
     , firstExistingFile
-    , toIncludeLines
     , groupValuesBy
     , groupPairs
     , pairBy
@@ -22,7 +17,6 @@ module Common
     , includePreamble
     , toIncludeFiles
     , toIncludeLine
-    , generatedIncludeText
     , groupAndWriteIncludeFiles
     , writeJournals
     , writeJournals'
@@ -33,7 +27,6 @@ import Turtle
 import Prelude hiding (FilePath, putStrLn)
 import qualified Data.Text as T
 import Data.Maybe
-import qualified Data.List.NonEmpty as NonEmpty
 import qualified Control.Foldl as Fold
 import qualified Data.Map.Strict as Map
 
@@ -118,12 +111,6 @@ buildFilename identifiers ext = fromText (T.intercalate "-" (map lineToText iden
 
 shellToList :: Shell a -> Shell [a]
 shellToList files = fold files Fold.list
-
-takeLast :: Int -> [a] -> [a]
-takeLast n = reverse . take n . reverse
-
-firstLine :: Text -> Line
-firstLine = NonEmpty.head . textToLines
 
 toIncludeLines :: Shell FilePath -> Shell Line
 toIncludeLines paths = do
