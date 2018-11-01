@@ -39,9 +39,14 @@ importOwners :: Shell FilePath -> Shell FilePath
 importOwners ownerDirs = do
   od <- ownerDirs
   ownerName <- basenameLine od
-  let ownerJournals = importBanks ownerName $ lsDirs od
+  ownerJournals <- sort $ importBanks ownerName $ lsDirs od
   let aggregateJournal = od </> buildFilename [ownerName] "journal"
-  writeJournals aggregateJournal ownerJournals
+
+  let manualDir = od </> "_manual_"
+  pre  <- filterPaths testfile [manualDir </> "pre-import.journal"]
+  post <- filterPaths testfile [manualDir </> "post-import.journal"]
+
+  writeJournals' shellToList aggregateJournal $ select (pre ++ ownerJournals ++ post)
   return aggregateJournal
 
 importBanks :: Line -> Shell FilePath -> Shell FilePath

@@ -211,14 +211,8 @@ writeMakeItSoJournal :: FilePath -> Shell FilePath -> Shell ()
 writeMakeItSoJournal baseDir importedJournals = do
   let importAggregateJournal = baseDir </> "import-all.journal"
   writeJournals importAggregateJournal importedJournals
-  let manualDir = baseDir </> "manual"
-  let pre = manualDir </> "pre-import.journal"
-  let post = manualDir </> "post-import.journal"
-  mktree manualDir
-  touch pre
-  touch post
   let makeitsoJournal = baseDir </> "makeitso.journal"
-  writeJournals' shellToList makeitsoJournal $ select [pre, importAggregateJournal, post]
+  writeJournals makeitsoJournal $ return importAggregateJournal
 
 changeExtension :: Text -> FilePath -> FilePath
 changeExtension ext path = (dropExtension path) <.> ext
