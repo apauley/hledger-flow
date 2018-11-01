@@ -140,7 +140,8 @@ toIncludeFiles :: Shell (Map.Map FilePath [FilePath]) -> Shell (Map.Map FilePath
 toIncludeFiles fileMap = do
   m <- fileMap
   preMap <- preIncludes $ Map.keys m
-  return $ (addPreamble . toIncludeFiles' preMap) m
+  postMap <- postIncludes $ Map.keys m
+  return $ (addPreamble . toIncludeFiles' preMap postMap) m
 
 preIncludes :: [FilePath] -> Shell (Map.Map FilePath [FilePath])
 preIncludes = preIncludes' Map.empty
@@ -159,8 +160,25 @@ preIncludesForFile file = do
   filtered <- filterPaths testfile preFiles
   return $ Map.fromList [(file, filtered)]
 
-toIncludeFiles' :: Map.Map FilePath [FilePath] -> Map.Map FilePath [FilePath] -> Map.Map FilePath Text
-toIncludeFiles' preMap = Map.mapWithKey $ generatedIncludeText preMap
+postIncludes :: [FilePath] -> Shell (Map.Map FilePath [FilePath])
+postIncludes = postIncludes' Map.empty
+
+postIncludes' :: Map.Map FilePath [FilePath] -> [FilePath] -> Shell (Map.Map FilePath [FilePath])
+postIncludes' acc [] = return acc
+postIncludes' acc (file:files) = do
+  post <- postIncludesForFile file
+  postIncludes' (Map.unionWith (++) acc post) files
+
+postIncludesForFile :: FilePath -> Shell (Map.Map FilePath [FilePath])
+postIncludesForFile file = do
+  let dirprefix = fst $ T.breakOn "-" $ format fp $ basename file
+  let closing = fromText $ format (s%"-closing.journal") dirprefix :: FilePath
+  let postFiles = map (directory file </>) [closing]
+  filtered <- filterPaths testfile postFiles
+  return $ Map.fromList [(file, filtered)]
+
+toIncludeFiles' :: Map.Map FilePath [FilePath] -> Map.Map FilePath [FilePath] -> Map.Map FilePath [FilePath] -> Map.Map FilePath Text
+toIncludeFiles' preMap postMap = Map.mapWithKey $ generatedIncludeText preMap postMap
 
 addPreamble :: Map.Map FilePath Text -> Map.Map FilePath Text
 addPreamble = Map.map (\txt -> includePreamble <> "\n" <> txt)
@@ -168,10 +186,11 @@ addPreamble = Map.map (\txt -> includePreamble <> "\n" <> txt)
 toIncludeLine :: FilePath -> FilePath -> Text
 toIncludeLine base file = format ("!include "%fp) $ fromMaybe file $ stripPrefix (directory base) file
 
-generatedIncludeText :: Map.Map FilePath [FilePath] -> FilePath -> [FilePath] -> Text
-generatedIncludeText preMap outputFile files = do
+generatedIncludeText :: Map.Map FilePath [FilePath] -> Map.Map FilePath [FilePath] -> FilePath -> [FilePath] -> Text
+generatedIncludeText preMap postMap outputFile files = do
   let preFiles = fromMaybe [] $ Map.lookup outputFile preMap
-  let lns = map (toIncludeLine outputFile) $ preFiles ++ List.sort files
+  let postFiles = fromMaybe [] $ Map.lookup outputFile postMap
+  let lns = map (toIncludeLine outputFile) $ preFiles ++ List.sort files ++ postFiles
   T.intercalate "\n" $ lns ++ [""]
 
 includePreamble :: Text
