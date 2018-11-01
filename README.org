@@ -195,8 +195,11 @@
 
 ** Opening Balances
 
-   =hledger-makeitso= creates an empty file named =opening.journal= in each account directory and includes it
-   in the generated journal file for that account.
+   =hledger-makeitso= looks for a file named =3-journal/YEAR-opening.journal= in each account directory, where =YEAR=
+   corresponds to an actual year directory, eg. *1983*
+   (if you have electronic statements [[https://en.wikipedia.org/wiki/Online_banking#First_online_banking_services_in_the_United_States][dating back to 1983]]).
+
+   If it exists the file will automatically be included in the generated journal include file for that year.
 
    You need to edit this file for each account to specify the opening balance at the date of the first available transaction.
 
