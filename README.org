@@ -193,13 +193,15 @@
     fields date, description, amount, balance, account1, account2
     #+END_SRC
 
-** Opening Balances
+** Opening and Closing Balances
+
+*** Opening Balances
 
    =hledger-makeitso= looks for a file named =3-journal/YEAR-opening.journal= in each account directory, where =YEAR=
    corresponds to an actual year directory, eg. *1983*
    (if you have electronic statements [[https://en.wikipedia.org/wiki/Online_banking#First_online_banking_services_in_the_United_States][dating back to 1983]]).
 
-   If it exists the file will automatically be included in the generated journal include file for that year.
+   If it exists the file will automatically be included at the beginning of the generated journal include file for that year.
 
    You need to edit this file for each account to specify the opening balance at the date of the first available transaction.
 
@@ -208,6 +210,19 @@
    2018-06-01 Savings Account Opening Balance
    assets:Current:MyBank:Savings               $102.01
    equity:Opening Balances:MyBank:Savings
+   #+END_SRC
+
+*** Closing Balances
+
+   Similar to opening balances, =hledger-makeitso= looks for an optional file named =3-journal/YEAR-closing.journal= in each account directory.
+
+   If it exists the file will automatically be included at the end of the generated journal include file for that year.
+
+   A closing balance may look something like this:
+   #+BEGIN_SRC hledger
+   2018-06-01 Savings Account Closing Balance
+   assets:Current:MyBank:Savings               $-234.56 = $0.00
+   equity:Closing Balances:MyBank:Savings
    #+END_SRC
 
 ** The =preprocess= Script
