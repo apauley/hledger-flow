@@ -4,8 +4,6 @@
 ** Script Hooks
    - Stop executing if any script hook exits with a non-zero exit status
    - Pass the owner as a parameter to =preprocess= and =construct=
-** Generated Journal Includes
-   - Have separate include files per year
 ** Generate reports
    - Monthly reports for the past 6 months
    - Quarterly reports for the past year
