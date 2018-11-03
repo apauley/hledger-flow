@@ -52,19 +52,18 @@ testWriteIncludeFiles = TestCase (
   sh (
       do
         tmpdir <- using (mktempdir "." "makeitso")
-        let tmpJournals = map (tmpdir </>) journalFiles :: [FilePath]
-        let tmpExtras = map (tmpdir </>) extraFiles :: [FilePath]
-        touchAll $ tmpJournals ++ tmpExtras
-        let importedJournals = select tmpJournals :: Shell FilePath
+        let importedJournals = map (tmpdir </>) journalFiles :: [FilePath]
+        let extras = map (tmpdir </>) extraFiles :: [FilePath]
+        touchAll $ importedJournals ++ extras
 
         let j1 = tmpdir </> "dir1-include.journal"
         let j2 = tmpdir </> "dir2-include.journal"
         let expectedIncludes = [j1, j2]
 
-        reportedAsWritten <- single $ shellToList $ groupAndWriteIncludeFiles importedJournals
+        reportedAsWritten <- single $ groupAndWriteIncludeFiles importedJournals
         liftIO $ assertEqual "groupAndWriteIncludeFiles should return which files it wrote" expectedIncludes reportedAsWritten
 
-        let expectedOnDisk = expectedIncludes ++ tmpExtras
+        let expectedOnDisk = expectedIncludes ++ extras
         includeFilesOnDisk <- single $ sort $ onlyFiles $ ls tmpdir
         liftIO $ assertEqual "The actual files on disk should match what groupAndWriteIncludeFiles reported" expectedOnDisk includeFilesOnDisk
 

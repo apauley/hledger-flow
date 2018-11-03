@@ -65,10 +65,10 @@ importAccounts bankName accountDirs = do
   let preprocessScript = accDir </> "preprocess"
   let constructScript = accDir </> "construct"
   let accountSrcFiles = onlyFiles $ find (has (text "1-in")) accDir
-  let accJournals = importAccountFiles bankName accName preprocessScript constructScript accountSrcFiles
-  let yearJournals = groupAndWriteIncludeFiles accJournals
+  accJournals <- shellToList $ importAccountFiles bankName accName preprocessScript constructScript accountSrcFiles
+  yearJournals <- groupAndWriteIncludeFiles accJournals
   let aggregateJournal = accDir </> buildFilename [bankName, accName] "journal"
-  writeJournals aggregateJournal yearJournals
+  writeJournals aggregateJournal $ select yearJournals
   return aggregateJournal
 
 importAccountFiles :: Line -> Line -> FilePath -> FilePath -> Shell FilePath -> Shell FilePath
