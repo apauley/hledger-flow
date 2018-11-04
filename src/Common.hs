@@ -124,24 +124,26 @@ includeFilePath p = (parent . parent) p </> includeFileName p
 
 toIncludeFiles :: Map.Map FilePath [FilePath] -> Shell (Map.Map FilePath Text)
 toIncludeFiles m = do
-  preMap <- extraIncludes (Map.keys m) ["opening.journal"]
-  postMap <- extraIncludes (Map.keys m) ["closing.journal"]
+  preMap  <- extraIncludes (Map.keys m) ["opening.journal",  "pre-import.journal"] ["_manual_/pre-import.journal"]
+  postMap <- extraIncludes (Map.keys m) ["post-import.journal", "closing.journal"] ["_manual_/post-import.journal"]
   return $ (addPreamble . toIncludeFiles' preMap postMap) m
 
-extraIncludes :: [FilePath] -> [Text] -> Shell (Map.Map FilePath [FilePath])
+extraIncludes :: [FilePath] -> [Text] -> [FilePath] -> Shell (Map.Map FilePath [FilePath])
 extraIncludes = extraIncludes' Map.empty
 
-extraIncludes' :: Map.Map FilePath [FilePath] -> [FilePath] -> [Text] -> Shell (Map.Map FilePath [FilePath])
-extraIncludes' acc [] _ = return acc
-extraIncludes' acc (file:files) fileSuffixes = do
-  extra <- extraIncludesForFile file fileSuffixes
-  extraIncludes' (Map.unionWith (++) acc extra) files fileSuffixes
+extraIncludes' :: Map.Map FilePath [FilePath] -> [FilePath] -> [Text] -> [FilePath] -> Shell (Map.Map FilePath [FilePath])
+extraIncludes' acc [] _ _ = return acc
+extraIncludes' acc (file:files) extraSuffixes filesToTest = do
+  extra <- extraIncludesForFile file extraSuffixes filesToTest
+  extraIncludes' (Map.unionWith (++) acc extra) files extraSuffixes filesToTest
 
-extraIncludesForFile :: FilePath -> [Text] -> Shell (Map.Map FilePath [FilePath])
-extraIncludesForFile file fileSuffixes = do
-  let dirprefix = fst $ T.breakOn "-" $ format fp $ basename file
-  let fileNames = map (\suff -> fromText $ format (s%"-"%s) dirprefix suff) fileSuffixes
-  let extraFiles = map (directory file </>) fileNames
+extraIncludesForFile :: FilePath -> [Text] -> [FilePath] -> Shell (Map.Map FilePath [FilePath])
+extraIncludesForFile file extraSuffixes filesToTest = do
+  let dirprefix = fromText $ fst $ T.breakOn "-" $ format fp $ basename file
+  let fileNames = map (\suff -> fromText $ format (fp%"-"%s) dirprefix suff) extraSuffixes
+  let suffixFiles = map (directory file </>) fileNames
+  let suffixDirFiles = map (directory file </> dirprefix </>) filesToTest
+  let extraFiles = suffixFiles ++ suffixDirFiles
   filtered <- filterPaths testfile extraFiles
   return $ Map.fromList [(file, filtered)]
 
