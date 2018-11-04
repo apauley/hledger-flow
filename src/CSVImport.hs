@@ -23,11 +23,19 @@ importCSVs = sh . importCSVs'
 
 importCSVs' :: FilePath -> Shell [FilePath]
 importCSVs' baseDir = do
-  let inputFiles = onlyFiles $ find (has (suffix "1-in/")) baseDir
-  importedJournals <- shellToList $ extractAndImport inputFiles
-
-  importIncludes <- writeIncludesUpTo "import" importedJournals
-  writeMakeItSoJournal baseDir importIncludes
+  inputFiles <- shellToList . onlyFiles $ find (has (suffix "1-in/")) baseDir
+  if (length inputFiles == 0) then
+    do
+      let msg = format ("I couldn't find any input files underneath "%fp
+                        %"\n\nhledger-makitso expects to find its input files in specifically\nnamed directories.\n\n"%
+                        "Have a look at the documentation for a detailed explanation:\n"%s) (baseDir </> "import/") (docURL "input-files")
+      stderr $ select $ textToLines msg
+      exit $ ExitFailure 1
+    else
+    do
+      importedJournals <- shellToList . extractAndImport . select $ inputFiles
+      importIncludes <- writeIncludesUpTo "import" importedJournals
+      writeMakeItSoJournal baseDir importIncludes
 
 extractAndImport :: Shell FilePath -> Shell FilePath
 extractAndImport inputFiles = do

@@ -187,6 +187,7 @@ writeFileMap :: Map.Map FilePath [FilePath] -> Shell [FilePath]
 writeFileMap = writeFiles . toIncludeFiles
 
 writeIncludesUpTo :: FilePath -> [FilePath] -> Shell [FilePath]
+writeIncludesUpTo _ [] = return []
 writeIncludesUpTo stopAt paths = do
   let shouldStop = any (\dir -> dir == stopAt) $ map dirname paths
   if shouldStop
