@@ -25,25 +25,25 @@
 <body>
 <div class="reveal">
 <div class="slides">
-<section id="sec-title-slide"><h1 class="title">hledger-makeitso Step-By-Step</h1>
+<section id="sec-title-slide"><h1 class="title">hledger-makeitso Step-By-Step</h1><p class="date">Created: 2018-11-04 Sun 21:06</p>
 </section>
 <section id="table-of-contents">
 <div id="table-of-contents">
 <h2>Table of Contents</h2>
 <div id="text-table-of-contents">
 <ul>
-<li><a href="#/slide-org65a2e65">Part 1</a></li>
-<li><a href="#/slide-orgabbdfb2">About This Document</a></li>
-<li><a href="#/slide-org061e1e5">The Story of an African Chef</a></li>
-<li><a href="#/slide-orgb4b6f3a">The First CSV Statement</a></li>
+<li><a href="#/slide-orgc4bb5a7">Part 1</a></li>
+<li><a href="#/slide-orgca82cad">About This Document</a></li>
+<li><a href="#/slide-org9f7df18">The Story of an African Chef</a></li>
+<li><a href="#/slide-orge32811e">The First CSV Statement</a></li>
 </ul>
 </div>
 </div>
 </section>
 
 <section>
-<section id="slide-org65a2e65">
-<h2 id="org65a2e65">Part 1</h2>
+<section id="slide-orgc4bb5a7">
+<h2 id="orgc4bb5a7">Part 1</h2>
 <p>
 This is the first part in a a series of step-by-step instructions.
 </p>
@@ -55,8 +55,8 @@ They are intended to be read in sequence. Head over to the <a href="README.html"
 </section>
 </section>
 <section>
-<section id="slide-orgabbdfb2">
-<h2 id="orgabbdfb2">About This Document</h2>
+<section id="slide-orgca82cad">
+<h2 id="orgca82cad">About This Document</h2>
 <p>
 This document is a <a href="https://www.offerzen.com/blog/literate-programming-empower-your-writing-with-emacs-org-mode">literate</a> <a href="https://orgmode.org/worg/org-contrib/babel/intro.html">program</a>.
 You can read it like a normal article, either <a href="https://github.com/apauley/hledger-makeitso/blob/master/docs/part1.org">on the web</a> or <a href="https://pauley.org.za/hledger-makeitso/">as a slide show</a>.
@@ -70,8 +70,8 @@ Then you can execute each code snippet by pressing <code>C-c C-c</code> with you
 </section>
 </section>
 <section>
-<section id="slide-org061e1e5">
-<h2 id="org061e1e5">The Story of an African Chef</h2>
+<section id="slide-org9f7df18">
+<h2 id="org9f7df18">The Story of an African Chef</h2>
 <p>
 Meet Gawie de Groot. Gawie is a successful <a href="https://en.wikipedia.org/wiki/Gonimbrasia_belina#As_food">mopane worm</a> chef, based in the northernmost section of the <a href="https://en.wikipedia.org/wiki/Kruger_National_Park">Kruger National Park</a>.
 </p>
@@ -114,8 +114,8 @@ It is time for Gawie to take charge of his finances.
 </section>
 </section>
 <section>
-<section id="slide-orgb4b6f3a">
-<h2 id="orgb4b6f3a">The First CSV Statement</h2>
+<section id="slide-orge32811e">
+<h2 id="orge32811e">The First CSV Statement</h2>
 <p>
 Gawie followed the <a href="https://github.com/apauley/hledger-makeitso#build-instructions">build instructions</a> and ended up with his very own <code>hledger-makeitso</code> executable.
 </p>
@@ -211,13 +211,13 @@ Hmmm, an error:
 </p>
 <div class="org-src-container">
 
-<pre  class="src src-org">I couldn't find a directory named "import" underneath ./my-finances
+<pre  class="src src-org">I couldn't find any input files underneath ./my-finances/import/
 
 hledger-makitso expects to find its input files in specifically
 named directories.
 
 Have a look at the documentation for a detailed explanation:
-<span style="color: #2aa1ae; text-decoration: underline;"><a href="https://github.com/apauley/hledger-makeitso#how-to-use-it">https://github.com/apauley/hledger-makeitso#how-to-use-it</a></span>
+<span style="color: #2aa1ae; text-decoration: underline;"><a href="https://github.com/apauley/hledger-makeitso#input-files">https://github.com/apauley/hledger-makeitso#input-files</a></span>
 
 </pre>
 </div>
@@ -315,13 +315,12 @@ Let's try the import again:
 <pre  class="src src-org">I couldn't find an hledger rules file while trying to import
 ./my-finances/import/gawie/bogart/cheque/1-in/2016/123456789_2016-03-30.csv
 
-I will happily use the first rules file I can find from any one of these 3 files:
+I will happily use the first rules file I can find from any one of these 2 files:
 ./my-finances/import/gawie/bogart/cheque/bogart-cheque.rules
-./my-finances/import/bogart-cheque.rules
 ./my-finances/import/bogart.rules
 
 Here is a bit of documentation about rules files that you may find helpful:
-<span style="color: #2aa1ae; text-decoration: underline;"><a href="https://github.com/apauley/hledger-makeitso#how-to-use-it">https://github.com/apauley/hledger-makeitso#how-to-use-it</a></span>
+<span style="color: #2aa1ae; text-decoration: underline;"><a href="https://github.com/apauley/hledger-makeitso#rules-files">https://github.com/apauley/hledger-makeitso#rules-files</a></span>
 
 </pre>
 </div>
@@ -507,31 +506,29 @@ tree my-finances
 &#9474;&#160;&#160; &#9500;&#9472;&#9472; fnb-csv-demoronizer
 &#9474;&#160;&#160; &#9492;&#9472;&#9472; README.org
 &#9500;&#9472;&#9472; import
-&#9474;&#160;&#160; &#9492;&#9472;&#9472; gawie
-&#9474;&#160;&#160;     &#9500;&#9472;&#9472; bogart
-&#9474;&#160;&#160;     &#9474;&#160;&#160; &#9500;&#9472;&#9472; bogart.journal
-&#9474;&#160;&#160;     &#9474;&#160;&#160; &#9492;&#9472;&#9472; cheque
-&#9474;&#160;&#160;     &#9474;&#160;&#160;     &#9500;&#9472;&#9472; 1-in
-&#9474;&#160;&#160;     &#9474;&#160;&#160;     &#9474;&#160;&#160; &#9492;&#9472;&#9472; 2016
-&#9474;&#160;&#160;     &#9474;&#160;&#160;     &#9474;&#160;&#160;     &#9492;&#9472;&#9472; 123456789_2016-03-30.csv
-&#9474;&#160;&#160;     &#9474;&#160;&#160;     &#9500;&#9472;&#9472; 2-preprocessed
-&#9474;&#160;&#160;     &#9474;&#160;&#160;     &#9474;&#160;&#160; &#9492;&#9472;&#9472; 2016
-&#9474;&#160;&#160;     &#9474;&#160;&#160;     &#9474;&#160;&#160;     &#9492;&#9472;&#9472; 123456789_2016-03-30.csv
-&#9474;&#160;&#160;     &#9474;&#160;&#160;     &#9500;&#9472;&#9472; 3-journal
-&#9474;&#160;&#160;     &#9474;&#160;&#160;     &#9474;&#160;&#160; &#9492;&#9472;&#9472; 2016
-&#9474;&#160;&#160;     &#9474;&#160;&#160;     &#9474;&#160;&#160;     &#9492;&#9472;&#9472; 123456789_2016-03-30.journal
-&#9474;&#160;&#160;     &#9474;&#160;&#160;     &#9500;&#9472;&#9472; bogart-cheque.journal
-&#9474;&#160;&#160;     &#9474;&#160;&#160;     &#9500;&#9472;&#9472; bogart-cheque.rules
-&#9474;&#160;&#160;     &#9474;&#160;&#160;     &#9500;&#9472;&#9472; opening.journal
-&#9474;&#160;&#160;     &#9474;&#160;&#160;     &#9492;&#9472;&#9472; preprocess -&gt; ../../../../fnb-csv-demoronizer/fnb-csv-demoronizer
-&#9474;&#160;&#160;     &#9492;&#9472;&#9472; gawie.journal
-&#9500;&#9472;&#9472; import-all.journal
-&#9500;&#9472;&#9472; makeitso.journal
-&#9492;&#9472;&#9472; manual
-    &#9500;&#9472;&#9472; post-import.journal
-    &#9492;&#9472;&#9472; pre-import.journal
+&#9474;&#160;&#160; &#9500;&#9472;&#9472; gawie
+&#9474;&#160;&#160; &#9474;&#160;&#160; &#9500;&#9472;&#9472; bogart
+&#9474;&#160;&#160; &#9474;&#160;&#160; &#9474;&#160;&#160; &#9500;&#9472;&#9472; cheque
+&#9474;&#160;&#160; &#9474;&#160;&#160; &#9474;&#160;&#160; &#9474;&#160;&#160; &#9500;&#9472;&#9472; 1-in
+&#9474;&#160;&#160; &#9474;&#160;&#160; &#9474;&#160;&#160; &#9474;&#160;&#160; &#9474;&#160;&#160; &#9492;&#9472;&#9472; 2016
+&#9474;&#160;&#160; &#9474;&#160;&#160; &#9474;&#160;&#160; &#9474;&#160;&#160; &#9474;&#160;&#160;     &#9492;&#9472;&#9472; 123456789_2016-03-30.csv
+&#9474;&#160;&#160; &#9474;&#160;&#160; &#9474;&#160;&#160; &#9474;&#160;&#160; &#9500;&#9472;&#9472; 2-preprocessed
+&#9474;&#160;&#160; &#9474;&#160;&#160; &#9474;&#160;&#160; &#9474;&#160;&#160; &#9474;&#160;&#160; &#9492;&#9472;&#9472; 2016
+&#9474;&#160;&#160; &#9474;&#160;&#160; &#9474;&#160;&#160; &#9474;&#160;&#160; &#9474;&#160;&#160;     &#9492;&#9472;&#9472; 123456789_2016-03-30.csv
+&#9474;&#160;&#160; &#9474;&#160;&#160; &#9474;&#160;&#160; &#9474;&#160;&#160; &#9500;&#9472;&#9472; 3-journal
+&#9474;&#160;&#160; &#9474;&#160;&#160; &#9474;&#160;&#160; &#9474;&#160;&#160; &#9474;&#160;&#160; &#9500;&#9472;&#9472; 2016
+&#9474;&#160;&#160; &#9474;&#160;&#160; &#9474;&#160;&#160; &#9474;&#160;&#160; &#9474;&#160;&#160; &#9474;&#160;&#160; &#9492;&#9472;&#9472; 123456789_2016-03-30.journal
+&#9474;&#160;&#160; &#9474;&#160;&#160; &#9474;&#160;&#160; &#9474;&#160;&#160; &#9474;&#160;&#160; &#9492;&#9472;&#9472; 2016-include.journal
+&#9474;&#160;&#160; &#9474;&#160;&#160; &#9474;&#160;&#160; &#9474;&#160;&#160; &#9500;&#9472;&#9472; 3-journal-include.journal
+&#9474;&#160;&#160; &#9474;&#160;&#160; &#9474;&#160;&#160; &#9474;&#160;&#160; &#9500;&#9472;&#9472; bogart-cheque.rules
+&#9474;&#160;&#160; &#9474;&#160;&#160; &#9474;&#160;&#160; &#9474;&#160;&#160; &#9492;&#9472;&#9472; preprocess -&gt; ../../../../fnb-csv-demoronizer/fnb-csv-demoronizer
+&#9474;&#160;&#160; &#9474;&#160;&#160; &#9474;&#160;&#160; &#9492;&#9472;&#9472; cheque-include.journal
+&#9474;&#160;&#160; &#9474;&#160;&#160; &#9492;&#9472;&#9472; bogart-include.journal
+&#9474;&#160;&#160; &#9492;&#9472;&#9472; gawie-include.journal
+&#9500;&#9472;&#9472; import-include.journal
+&#9492;&#9472;&#9472; makeitso.journal
 
-12 directories, 15 files
+11 directories, 14 files
 
 </pre>
 </div>

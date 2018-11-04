@@ -126,7 +126,7 @@ hledger-makeitso import ./my-finances
 Hmmm, an error:
 #+RESULTS: import1
 #+BEGIN_SRC org
-I couldn't find a directory named "import" underneath ./my-finances
+I couldn't find any input files underneath ./my-finances/import/
 
 hledger-makitso expects to find its input files in specifically
 named directories.
@@ -352,31 +352,29 @@ my-finances
 │   ├── fnb-csv-demoronizer
 │   └── README.org
 ├── import
-│   └── gawie
-│       ├── bogart
-│       │   ├── bogart.journal
-│       │   └── cheque
-│       │       ├── 1-in
-│       │       │   └── 2016
-│       │       │       └── 123456789_2016-03-30.csv
-│       │       ├── 2-preprocessed
-│       │       │   └── 2016
-│       │       │       └── 123456789_2016-03-30.csv
-│       │       ├── 3-journal
-│       │       │   ├── 2016
-│       │       │   │   └── 123456789_2016-03-30.journal
-│       │       │   └── 2016-include.journal
-│       │       ├── bogart-cheque.journal
-│       │       ├── bogart-cheque.rules
-│       │       └── preprocess -> ../../../../fnb-csv-demoronizer/fnb-csv-demoronizer
-│       └── gawie.journal
-├── import-all.journal
-├── makeitso.journal
-└── manual
-    ├── post-import.journal
-    └── pre-import.journal
+│   ├── gawie
+│   │   ├── bogart
+│   │   │   ├── cheque
+│   │   │   │   ├── 1-in
+│   │   │   │   │   └── 2016
+│   │   │   │   │       └── 123456789_2016-03-30.csv
+│   │   │   │   ├── 2-preprocessed
+│   │   │   │   │   └── 2016
+│   │   │   │   │       └── 123456789_2016-03-30.csv
+│   │   │   │   ├── 3-journal
+│   │   │   │   │   ├── 2016
+│   │   │   │   │   │   └── 123456789_2016-03-30.journal
+│   │   │   │   │   └── 2016-include.journal
+│   │   │   │   ├── 3-journal-include.journal
+│   │   │   │   ├── bogart-cheque.rules
+│   │   │   │   └── preprocess -> ../../../../fnb-csv-demoronizer/fnb-csv-demoronizer
+│   │   │   └── cheque-include.journal
+│   │   └── bogart-include.journal
+│   └── gawie-include.journal
+├── import-include.journal
+└── makeitso.journal
 
-12 directories, 15 files
+11 directories, 14 files
 
 #+END_SRC
 
