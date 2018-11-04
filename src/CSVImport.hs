@@ -23,60 +23,27 @@ importCSVs = sh . importCSVs'
 
 importCSVs' :: FilePath -> Shell [FilePath]
 importCSVs' baseDir = do
-  let importBase = baseDir </> "import"
-  importExists <- testdir importBase
-  if importExists
-    then
-    do
-      importedJournals <- sort . importOwners . lsDirs $ importBase
-      writeMakeItSoJournal baseDir importedJournals
-    else
-    do
-      let msg = format ("I couldn't find a directory named \"import\" underneath "%fp
-                        %"\n\nhledger-makitso expects to find its input files in specifically\nnamed directories.\n\n"%
-                        "Have a look at the documentation for a detailed explanation:\n"%s) baseDir (docURL "input-files")
-      stderr $ select $ textToLines msg
+  let inputFiles = onlyFiles $ find (has (suffix "1-in/")) baseDir
+  importedJournals <- shellToList $ extractAndImport inputFiles
+
+  importIncludes <- writeIncludesUpTo "import" importedJournals
+  writeMakeItSoJournal baseDir importIncludes
+
+extractAndImport :: Shell FilePath -> Shell FilePath
+extractAndImport inputFiles = do
+  inputFile <- inputFiles
+  case extractImportDirs inputFile of
+    Right importDirs -> importCSV importDirs inputFile
+    Left errorMessage -> do
+      stderr $ select $ textToLines errorMessage
       exit $ ExitFailure 1
 
-importOwners :: Shell FilePath -> Shell FilePath
-importOwners ownerDirs = do
-  od <- ownerDirs
-  ownerName <- basenameLine od
-  ownerJournals <- sort $ importBanks ownerName $ lsDirs od
-  let aggregateJournal = od </> buildFilename [ownerName] "journal"
-
-  let manualDir = od </> "_manual_"
-  pre  <- filterPaths testfile [manualDir </> "pre-import.journal"]
-  post <- filterPaths testfile [manualDir </> "post-import.journal"]
-
-  writeJournals' shellToList aggregateJournal $ select (pre ++ ownerJournals ++ post)
-  return aggregateJournal
-
-importBanks :: Line -> Shell FilePath -> Shell FilePath
-importBanks _ownerName bankDirs = do
-  bd <- bankDirs
-  bankName <- basenameLine bd
-  let bankJournals = importAccounts bankName $ lsDirs bd
-  let aggregateJournal = bd </> buildFilename [bankName] "journal"
-  writeJournals aggregateJournal bankJournals
-  return aggregateJournal
-
-importAccounts :: Line -> Shell FilePath -> Shell FilePath
-importAccounts bankName accountDirs = do
-  accDir <- accountDirs
-  accName <- basenameLine accDir
-  let preprocessScript = accDir </> "preprocess"
-  let constructScript = accDir </> "construct"
-  let accountSrcFiles = onlyFiles $ find (has (text "1-in")) accDir
-  accJournals <- shellToList $ importAccountFiles bankName accName preprocessScript constructScript accountSrcFiles
-  yearJournals <- groupAndWriteIncludeFiles accJournals
-  let aggregateJournal = accDir </> buildFilename [bankName, accName] "journal"
-  writeJournals aggregateJournal $ select yearJournals
-  return aggregateJournal
-
-importAccountFiles :: Line -> Line -> FilePath -> FilePath -> Shell FilePath -> Shell FilePath
-importAccountFiles bankName accountName preprocessScript constructScript accountSrcFiles = do
-  srcFile <- accountSrcFiles
+importCSV :: ImportDirs -> FilePath -> Shell FilePath
+importCSV importDirs srcFile = do
+  let preprocessScript = accountDir importDirs </> "preprocess"
+  let constructScript = accountDir importDirs </> "construct"
+  let bankName = importDirLine bankDir importDirs
+  let accountName = importDirLine accountDir importDirs
   csvFile <- preprocessIfNeeded preprocessScript bankName accountName srcFile
   doCustomConstruct <- testfile constructScript
   let importFun = if doCustomConstruct
@@ -152,6 +119,9 @@ rulesFileCandidates csvSrc importDirs = statementSpecificRulesFiles csvSrc impor
 
 importDirLines :: (ImportDirs -> FilePath) -> ImportDirs -> [Line]
 importDirLines dirFun importDirs = NonEmpty.toList $ textToLines $ format fp $ dirname $ dirFun importDirs
+
+importDirLine :: (ImportDirs -> FilePath) -> ImportDirs -> Line
+importDirLine dirFun importDirs = foldl (<>) "" $ importDirLines dirFun importDirs
 
 generalRulesFiles :: ImportDirs -> [FilePath]
 generalRulesFiles importDirs = do

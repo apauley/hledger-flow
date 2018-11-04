@@ -19,8 +19,7 @@ module Common
     , toIncludeFiles
     , toIncludeLine
     , groupAndWriteIncludeFiles
-    , writeJournals
-    , writeJournals'
+    , writeIncludesUpTo
     , writeMakeItSoJournal
     ) where
 
@@ -117,11 +116,6 @@ buildFilename identifiers ext = fromText (T.intercalate "-" (map lineToText iden
 shellToList :: Shell a -> Shell [a]
 shellToList files = fold files Fold.list
 
-toIncludeLines :: Shell FilePath -> Shell Line
-toIncludeLines paths = do
-  journalFile <- paths
-  return $ fromMaybe "" $ textToLine $ format ("!include "%fp) journalFile
-
 includeFileName :: FilePath -> FilePath
 includeFileName = (<.> "journal"). fromText . (format (fp%"-include")) . dirname
 
@@ -190,17 +184,14 @@ writeTextMap = Map.foldlWithKey (\a k v -> a <> writeTextFile k v) (return ())
 writeFileMap :: Map.Map FilePath [FilePath] -> Shell [FilePath]
 writeFileMap = writeFiles . toIncludeFiles
 
-writeJournals :: FilePath -> Shell FilePath -> Shell ()
-writeJournals = writeJournals' sort
-
-writeJournals' :: (Shell FilePath -> Shell [FilePath]) -> FilePath -> Shell FilePath -> Shell ()
-writeJournals' sortFun aggregateJournal journals = do
-  let journalBaseDir = directory aggregateJournal
-  liftIO $ writeTextFile aggregateJournal $ includePreamble <> "\n"
-  journalFiles <- sortFun journals
-  journalFile <- uniq $ select journalFiles
-  let strippedJournal = fromMaybe journalFile $ stripPrefix journalBaseDir journalFile
-  liftIO $ append aggregateJournal $ toIncludeLines $ return $ strippedJournal
+writeIncludesUpTo :: FilePath -> [FilePath] -> Shell [FilePath]
+writeIncludesUpTo stopAt paths = do
+  let shouldStop = any (\dir -> dir == stopAt) $ map dirname paths
+  if shouldStop
+    then groupAndWriteIncludeFiles paths else
+    do
+      newPaths <- groupAndWriteIncludeFiles paths
+      writeIncludesUpTo stopAt newPaths
 
 writeMakeItSoJournal :: FilePath -> [FilePath] -> Shell [FilePath]
 writeMakeItSoJournal baseDir importedJournals = do

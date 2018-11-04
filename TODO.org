@@ -18,6 +18,4 @@
 ** Documentation
    - Expand the step-by-step instructions with more scenarios
 ** Random Thoughts
-   - Instead of assuming a rigid structure under =import=, start by find all input files in =*in=
-     Assume as little as possible about the structure, get account, bank and year dirs as relative to input files
    - First build a list of actions, then perform the actions
