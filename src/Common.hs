@@ -2,6 +2,7 @@
 
 module Common
     ( docURL
+    , logErr
     , lsDirs
     , onlyFiles
     , filterPaths
@@ -29,10 +30,19 @@ import qualified Data.Text as T
 import Data.Maybe
 import qualified Control.Foldl as Fold
 import qualified Data.Map.Strict as Map
+import Data.Time.Clock
 
 import Data.Function (on)
 import qualified Data.List as List (sort, sortBy, groupBy)
 import Data.Ord (comparing)
+
+logLines :: (Shell Line -> IO ()) -> Text -> Shell ()
+logLines logfun msg = do
+  t <- liftIO $ getCurrentTime
+  liftIO $ logfun $ select $ textToLines $ format (s%" "%s) (repr t) msg
+
+logErr :: Text -> Shell ()
+logErr = logLines stderr
 
 groupPairs' :: (Eq a, Ord a) => [(a, b)] -> [(a, [b])]
 groupPairs' = map (\ll -> (fst . head $ ll, map snd ll)) . List.groupBy ((==) `on` fst)
