@@ -202,12 +202,10 @@ writeJournals' sortFun aggregateJournal journals = do
   let strippedJournal = fromMaybe journalFile $ stripPrefix journalBaseDir journalFile
   liftIO $ append aggregateJournal $ toIncludeLines $ return $ strippedJournal
 
-writeMakeItSoJournal :: FilePath -> Shell FilePath -> Shell ()
+writeMakeItSoJournal :: FilePath -> [FilePath] -> Shell [FilePath]
 writeMakeItSoJournal baseDir importedJournals = do
-  let importAggregateJournal = baseDir </> "import-all.journal"
-  writeJournals importAggregateJournal importedJournals
   let makeitsoJournal = baseDir </> "makeitso.journal"
-  writeJournals makeitsoJournal $ return importAggregateJournal
+  writeFileMap $ Map.singleton makeitsoJournal importedJournals
 
 changeExtension :: Text -> FilePath -> FilePath
 changeExtension ext path = (dropExtension path) <.> ext

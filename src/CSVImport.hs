@@ -19,14 +19,17 @@ data ImportDirs = ImportDirs { importDir  :: FilePath
                              } deriving (Show)
 
 importCSVs :: FilePath -> IO ()
-importCSVs baseDir = do
+importCSVs = sh . importCSVs'
+
+importCSVs' :: FilePath -> Shell [FilePath]
+importCSVs' baseDir = do
   let importBase = baseDir </> "import"
   importExists <- testdir importBase
   if importExists
     then
     do
-      let importedJournals = importOwners $ lsDirs importBase
-      sh $ writeMakeItSoJournal baseDir importedJournals
+      importedJournals <- sort . importOwners . lsDirs $ importBase
+      writeMakeItSoJournal baseDir importedJournals
     else
     do
       let msg = format ("I couldn't find a directory named \"import\" underneath "%fp
