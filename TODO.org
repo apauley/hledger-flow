@@ -1,6 +1,8 @@
 #+STARTUP: content
 
 * The TODO List
+** Include Files
+   - Generate include files by year, combine years at every level to get all transactions at that level
 ** Script Hooks
    - Stop executing if any script hook exits with a non-zero exit status
 ** Generate reports
