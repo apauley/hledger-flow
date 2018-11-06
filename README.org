@@ -299,7 +299,7 @@
    or just after (the =post= file) the journal containing all the automatic imports:
 
    #+BEGIN_SRC sh
-   cat import/john/john.journal
+   cat import/john-include.journal
    #+END_SRC
 
    #+BEGIN_SRC hledger
