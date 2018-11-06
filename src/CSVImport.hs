@@ -52,28 +52,29 @@ importCSV importDirs srcFile = do
   let constructScript = accountDir importDirs </> "construct"
   let bankName = importDirLine bankDir importDirs
   let accountName = importDirLine accountDir importDirs
-  csvFile <- preprocessIfNeeded preprocessScript bankName accountName srcFile
+  let ownerName = importDirLine ownerDir importDirs
+  csvFile <- preprocessIfNeeded preprocessScript bankName accountName ownerName srcFile
   doCustomConstruct <- testfile constructScript
   let importFun = if doCustomConstruct
-        then customConstruct constructScript bankName accountName
+        then customConstruct constructScript bankName accountName ownerName
         else hledgerImport
   let journalOut = changePathAndExtension "3-journal" "journal" csvFile
   mktree $ directory journalOut
   importFun csvFile journalOut
 
-preprocessIfNeeded :: FilePath -> Line -> Line -> FilePath -> Shell FilePath
-preprocessIfNeeded script bank account src = do
+preprocessIfNeeded :: FilePath -> Line -> Line -> Line -> FilePath -> Shell FilePath
+preprocessIfNeeded script bank account owner src = do
   shouldPreprocess <- testfile script
   if shouldPreprocess
-    then preprocess script bank account src
+    then preprocess script bank account owner src
     else return src
 
-preprocess :: FilePath -> Line -> Line -> FilePath -> Shell FilePath
-preprocess script bank account src = do
+preprocess :: FilePath -> Line -> Line -> Line -> FilePath -> Shell FilePath
+preprocess script bank account owner src = do
   let csvOut = changePathAndExtension "2-preprocessed" "csv" src
   mktree $ directory csvOut
   let script' = format fp script :: Text
-  procs script' [format fp src, format fp csvOut, lineToText bank, lineToText account] empty
+  procs script' [format fp src, format fp csvOut, lineToText bank, lineToText account, lineToText owner] empty
   return csvOut
 
 hledgerImport :: FilePath  -> FilePath -> Shell FilePath
@@ -151,10 +152,10 @@ statementSpecificRulesFiles csvSrc importDirs = do
       map (</> srcSpecificFilename) [accountDir importDirs, bankDir importDirs, importDir importDirs]
     else []
 
-customConstruct :: FilePath -> Line -> Line -> FilePath -> FilePath -> Shell FilePath
-customConstruct constructScript bank account csvSrc journalOut = do
+customConstruct :: FilePath -> Line -> Line -> Line -> FilePath -> FilePath -> Shell FilePath
+customConstruct constructScript bank account owner csvSrc journalOut = do
   let script = format fp constructScript :: Text
-  let importOut = inproc script [format fp csvSrc, "-", lineToText bank, lineToText account] empty
+  let importOut = inproc script [format fp csvSrc, "-", lineToText bank, lineToText account, lineToText owner] empty
   procs "hledger" ["print", "--ignore-assertions", "--file", "-", "--output-file", format fp journalOut] importOut
   return journalOut
 

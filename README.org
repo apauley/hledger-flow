@@ -238,6 +238,7 @@
      2. The path to an output file that can be sent to =hledger=, e.g. =import/john/mybank/savings/2-preprocessed/2018/123456789_2018-06-30.csv=
      3. The name of the bank, e.g. =mybank=
      4. The name of the account, e.g. =savings=
+     5. The name of the owner, e.g. =john=
 
     Your =preprocess= script is expected to:
      - read the input file
@@ -272,6 +273,7 @@
      2. A "-" (indicating that output should be sent to =stdout=)
      3. The name of the bank, e.g. =mybank=
      4. The name of the account, e.g. =savings=
+     5. The name of the owner, e.g. =john=
 
     Your =construct= script is expected to:
      - read the input file
