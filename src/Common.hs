@@ -5,6 +5,7 @@ module Common
     , logErr
     , lsDirs
     , onlyFiles
+    , onlyDirs
     , filterPaths
     , changeExtension
     , basenameLine
@@ -60,13 +61,13 @@ docURL :: Line -> Text
 docURL = format ("https://github.com/apauley/hledger-makeitso#"%l)
 
 lsDirs :: FilePath -> Shell FilePath
-lsDirs = validDirs . ls
+lsDirs = onlyDirs . ls
 
 onlyDirs :: Shell FilePath -> Shell FilePath
-onlyDirs = filterPathsByFileStatus isDirectory
+onlyDirs = excludeHiddenFiles . excludeWeirdPaths . filterPathsByFileStatus isDirectory
 
 onlyFiles :: Shell FilePath -> Shell FilePath
-onlyFiles = filterPathsByFileStatus isRegularFile
+onlyFiles = excludeHiddenFiles . filterPathsByFileStatus isRegularFile
 
 filterPathsByFileStatus :: (FileStatus -> Bool) -> Shell FilePath -> Shell FilePath
 filterPathsByFileStatus filepred files = do
@@ -91,8 +92,12 @@ filterPaths' acc filepred (file:files) = do
   let filtered = if shouldInclude then file:acc else acc
   filterPaths' filtered filepred files
 
-validDirs :: Shell FilePath -> Shell FilePath
-validDirs = excludeWeirdPaths . onlyDirs
+excludeHiddenFiles :: Shell FilePath -> Shell FilePath
+excludeHiddenFiles paths = do
+  p <- paths
+  case (match (prefix ".") $ format fp $ filename p) of
+    [] -> select [p]
+    _  -> select []
 
 excludeWeirdPaths :: Shell FilePath -> Shell FilePath
 excludeWeirdPaths = findtree (suffix $ noneOf "_")

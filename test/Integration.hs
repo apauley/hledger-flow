@@ -21,6 +21,7 @@ inputFiles = ["dir1/2018-04-30.csv",
 
 journalFiles = map (changeExtension "journal") inputFiles
 extraFiles = ["dir2-opening.journal"]
+hiddenFiles = [".hiddenfile", "dir1/.DS_Store", "dir2/.anotherhiddenfile"]
 
 touchAll :: [FilePath] -> Shell ()
 touchAll = foldl (\acc file -> acc <> superTouch file) (return ())
@@ -30,15 +31,30 @@ superTouch file = do
   mktree $ directory file
   touch file
 
+testHiddenFiles = TestCase (
+  sh (
+      do
+        tmpdir <- using (mktempdir "." "makeitso")
+        let tmpJournals = map (tmpdir </>) journalFiles :: [FilePath]
+        let tmpExtras = map (tmpdir </>) extraFiles :: [FilePath]
+        let tmpHidden = map (tmpdir </>) hiddenFiles :: [FilePath]
+        let onDisk = List.sort $ tmpJournals ++ tmpExtras ++ tmpHidden
+        touchAll onDisk
+        filtered <- (fmap List.sort) $ shellToList $ onlyFiles $ select onDisk
+        let expected = List.sort $ tmpExtras ++ tmpJournals
+        liftIO $ assertEqual "Hidden files should be excluded" expected filtered
+     )
+  )
+
 testFilterPaths = TestCase (
   sh (
       do
         tmpdir <- using (mktempdir "." "makeitso")
         let tmpJournals = map (tmpdir </>) journalFiles :: [FilePath]
         let tmpExtras = map (tmpdir </>) extraFiles :: [FilePath]
-        let onDisk = List.sort $ tmpJournals ++ tmpExtras
+        let tmpHidden = map (tmpdir </>) hiddenFiles :: [FilePath]
+        let onDisk = List.sort $ tmpJournals ++ tmpExtras ++ tmpHidden
         touchAll onDisk
-        let importedJournals = select tmpJournals :: Shell FilePath
 
         let nonExistant = map (tmpdir </>) ["where", "is", "my", "mind"]
         let toFilter = nonExistant ++ onDisk
@@ -54,7 +70,8 @@ testWriteIncludeFiles = TestCase (
         tmpdir <- using (mktempdir "." "makeitso")
         let importedJournals = map (tmpdir </>) journalFiles :: [FilePath]
         let extras = map (tmpdir </>) extraFiles :: [FilePath]
-        touchAll $ importedJournals ++ extras
+        let hidden = map (tmpdir </>) hiddenFiles :: [FilePath]
+        touchAll $ importedJournals ++ extras ++ hidden
 
         let j1 = tmpdir </> "dir1-include.journal"
         let j2 = tmpdir </> "dir2-include.journal"
@@ -83,4 +100,4 @@ testWriteIncludeFiles = TestCase (
      )
   )
 
-tests = TestList [testFilterPaths, testWriteIncludeFiles]
+tests = TestList [testHiddenFiles, testFilterPaths, testWriteIncludeFiles]
