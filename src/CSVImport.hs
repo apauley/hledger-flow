@@ -158,10 +158,3 @@ customConstruct constructScript bank account owner csvSrc journalOut = do
   let importOut = inproc script [format fp csvSrc, "-", lineToText bank, lineToText account, lineToText owner] empty
   procs "hledger" ["print", "--ignore-assertions", "--file", "-", "--output-file", format fp journalOut] importOut
   return journalOut
-
-changePathAndExtension :: FilePath -> Text -> FilePath -> FilePath
-changePathAndExtension newOutputLocation newExt = (changeOutputPath newOutputLocation) . (changeExtension newExt)
-
-changeOutputPath :: FilePath -> FilePath -> FilePath
-changeOutputPath newOutputLocation srcFile = mconcat $ map changeSrcDir $ splitDirectories srcFile
-  where changeSrcDir file = if (file == "1-in/" || file == "2-preprocessed/") then newOutputLocation else file

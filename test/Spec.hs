@@ -18,6 +18,7 @@ inputFiles = ["./base/dir1/d1f2.csv",
               "./base/dir2/d2f2.csv"] :: [FilePath]
 
 journalFiles = map (changeExtension "journal") inputFiles
+--journalFiles = map (changePathAndExtension "3-journal" "journal") inputFiles
 
 groupedIncludeFiles :: Map.Map FilePath [FilePath]
 groupedIncludeFiles = [("./base/dir1-include.journal", ["./base/dir1/d1f2.journal", "./base/dir1/d1f1.journal"]),
