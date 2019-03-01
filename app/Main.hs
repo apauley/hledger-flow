@@ -8,21 +8,34 @@ import Data.Maybe
 import Reports
 import CSVImport
 
-data Command = Import (Maybe FilePath) | Report (Maybe FilePath) deriving (Show)
+data Options = Options { baseDir :: FilePath, verbosityLevel :: Int }
+
+type SubcommandParams = (Maybe FilePath, Maybe Bool)
+data Command = Import SubcommandParams | Report SubcommandParams deriving (Show)
 
 main :: IO ()
 main = do
   cmd <- options "Manage your hledger CSV imports and classification:\nhttps://github.com/apauley/hledger-makeitso#readme" parser
   case cmd of
-    Import maybeBaseDir -> baseDir maybeBaseDir >>= importCSVs
-    Report maybeBaseDir -> baseDir maybeBaseDir >>= generateReports
+    Import (maybeBaseDir, _) -> toBaseDir maybeBaseDir >>= importCSVs
+    Report (maybeBaseDir, _) -> toBaseDir maybeBaseDir >>= generateReports
 
-baseDir :: Maybe FilePath -> IO FilePath
-baseDir maybeBaseDir = fromMaybe pwd $ fmap return maybeBaseDir
+toOptions :: SubcommandParams -> IO Options
+toOptions (maybeBaseDir, maybeVerbose) = do
+  bd <- toBaseDir maybeBaseDir
+  let v = case maybeVerbose of
+        Nothing    -> 0
+        Just False -> 0
+        Just True  -> 1
+  return Options {baseDir = bd, verbosityLevel = v}
+
+toBaseDir :: Maybe FilePath -> IO FilePath
+toBaseDir maybeBaseDir = fromMaybe pwd $ fmap return maybeBaseDir
 
 parser :: Parser Command
-parser = fmap Import (subcommand "import" "Converts CSV transactions into categorised journal files" optionalBaseDir)
-     <|> fmap Report (subcommand "report" "Generate Reports" optionalBaseDir)
+parser = fmap Import (subcommand "import" "Converts CSV transactions into categorised journal files" subcommandParser)
+     <|> fmap Report (subcommand "report" "Generate Reports" subcommandParser)
 
-optionalBaseDir :: Parser (Maybe FilePath)
-optionalBaseDir = optional (argPath "basedir" "The hledger-makeitso base directory")
+subcommandParser :: Parser SubcommandParams
+subcommandParser = (,) <$> optional (argPath "basedir" "The hledger-makeitso base directory")
+                       <*> optional (switch  "verbose" 'v' "Print more verbose output")
