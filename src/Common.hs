@@ -32,7 +32,7 @@ import qualified Data.Text as T
 import Data.Maybe
 import qualified Control.Foldl as Fold
 import qualified Data.Map.Strict as Map
-import Data.Time.Clock
+import Data.Time.LocalTime
 
 import Data.Function (on)
 import qualified Data.List as List (nub, sort, sortBy, groupBy)
@@ -41,7 +41,7 @@ import Hledger.MakeItSo.Data.Types
 
 logLines :: (Shell Line -> IO ()) -> Text -> Shell ()
 logLines logfun msg = do
-  t <- liftIO $ getCurrentTime
+  t <- liftIO $ getZonedTime
   liftIO $ logfun $ select $ textToLines $ format (s%" "%s) (repr t) msg
 
 logErr :: Text -> Shell ()
