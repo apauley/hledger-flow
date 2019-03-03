@@ -34,28 +34,28 @@ importCSVs' opts = do
       exit $ ExitFailure 1
     else
     do
-      importedJournals <- shellToList . extractAndImport . select $ inputFiles
+      importedJournals <- shellToList . (extractAndImport opts) . select $ inputFiles
       importIncludes <- writeIncludesUpTo "import" importedJournals
       writeMakeItSoJournal (baseDir opts) importIncludes
 
-extractAndImport :: Shell FilePath -> Shell FilePath
-extractAndImport inputFiles = do
+extractAndImport :: HMISOptions -> Shell FilePath -> Shell FilePath
+extractAndImport opts inputFiles = do
   inputFile <- inputFiles
   case extractImportDirs inputFile of
-    Right importDirs -> importCSV importDirs inputFile
+    Right importDirs -> importCSV opts importDirs inputFile
     Left errorMessage -> do
       stderr $ select $ textToLines errorMessage
       exit $ ExitFailure 1
 
-importCSV :: ImportDirs -> FilePath -> Shell FilePath
-importCSV importDirs srcFile = do
+importCSV :: HMISOptions -> ImportDirs -> FilePath -> Shell FilePath
+importCSV opts importDirs srcFile = do
   let preprocessScript = accountDir importDirs </> "preprocess"
   let constructScript = accountDir importDirs </> "construct"
   let bankName = importDirLine bankDir importDirs
   let accountName = importDirLine accountDir importDirs
   let ownerName = importDirLine ownerDir importDirs
-  csvFile <- preprocessIfNeeded preprocessScript bankName accountName ownerName srcFile
-  doCustomConstruct <- testfile constructScript
+  csvFile <- preprocessIfNeeded opts preprocessScript bankName accountName ownerName srcFile
+  doCustomConstruct <- verboseTestFile opts constructScript
   let importFun = if doCustomConstruct
         then customConstruct constructScript bankName accountName ownerName
         else hledgerImport
@@ -63,9 +63,9 @@ importCSV importDirs srcFile = do
   mktree $ directory journalOut
   importFun csvFile journalOut
 
-preprocessIfNeeded :: FilePath -> Line -> Line -> Line -> FilePath -> Shell FilePath
-preprocessIfNeeded script bank account owner src = do
-  shouldPreprocess <- testfile script
+preprocessIfNeeded :: HMISOptions -> FilePath -> Line -> Line -> Line -> FilePath -> Shell FilePath
+preprocessIfNeeded opts script bank account owner src = do
+  shouldPreprocess <- verboseTestFile opts script
   if shouldPreprocess
     then preprocess script bank account owner src
     else return src

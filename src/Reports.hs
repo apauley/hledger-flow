@@ -4,7 +4,6 @@ module Reports
     ( generateReports
     ) where
 
-import Turtle
 import Prelude hiding (FilePath, putStrLn)
 import Data.Text.IO (putStrLn)
 import Hledger.MakeItSo.Data.Types

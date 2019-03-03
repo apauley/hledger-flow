@@ -2,7 +2,8 @@
 
 module Common
     ( docURL
-    , logErr
+    , logVerbose
+    , verboseTestFile
     , lsDirs
     , onlyFiles
     , onlyDirs
@@ -36,6 +37,7 @@ import Data.Time.Clock
 import Data.Function (on)
 import qualified Data.List as List (nub, sort, sortBy, groupBy)
 import Data.Ord (comparing)
+import Hledger.MakeItSo.Data.Types
 
 logLines :: (Shell Line -> IO ()) -> Text -> Shell ()
 logLines logfun msg = do
@@ -44,6 +46,17 @@ logLines logfun msg = do
 
 logErr :: Text -> Shell ()
 logErr = logLines stderr
+
+logVerbose :: HMISOptions -> Text -> Shell ()
+logVerbose opts msg = if (verbosityLevel opts > 0) then logErr msg else return ()
+
+verboseTestFile :: HMISOptions -> FilePath -> Shell Bool
+verboseTestFile opts aPath = do
+  fileExists <- testfile aPath
+  if fileExists
+    then logVerbose opts $ format ("Found a "%fp%" file at "%fp) (basename aPath) aPath
+    else logVerbose opts $ format ("Did not find a "%fp%" file at "%fp) (basename aPath) aPath
+  return fileExists
 
 groupPairs' :: (Eq a, Ord a) => [(a, b)] -> [(a, [b])]
 groupPairs' = map (\ll -> (fst . head $ ll, map snd ll)) . List.groupBy ((==) `on` fst)
@@ -203,8 +216,8 @@ writeIncludesUpTo stopAt paths = do
       writeIncludesUpTo stopAt newPaths
 
 writeMakeItSoJournal :: FilePath -> [FilePath] -> Shell [FilePath]
-writeMakeItSoJournal baseDir importedJournals = do
-  let makeitsoJournal = baseDir </> "makeitso.journal"
+writeMakeItSoJournal bd importedJournals = do
+  let makeitsoJournal = bd </> "makeitso.journal"
   writeFileMap $ Map.singleton makeitsoJournal importedJournals
 
 changeExtension :: Text -> FilePath -> FilePath
