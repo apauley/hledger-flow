@@ -8,6 +8,7 @@ import Turtle
 import Prelude hiding (FilePath, putStrLn, take)
 import qualified Data.Text as T
 import qualified Data.List.NonEmpty as NonEmpty
+import Hledger.MakeItSo.Data.Types
 import Common
 
 data ImportDirs = ImportDirs { importDir  :: FilePath
@@ -18,24 +19,24 @@ data ImportDirs = ImportDirs { importDir  :: FilePath
                              , yearDir    :: FilePath
                              } deriving (Show)
 
-importCSVs :: FilePath -> IO ()
+importCSVs :: HMISOptions -> IO ()
 importCSVs = sh . importCSVs'
 
-importCSVs' :: FilePath -> Shell [FilePath]
-importCSVs' baseDir = do
-  inputFiles <- shellToList . onlyFiles $ find (has (suffix "1-in/")) baseDir
+importCSVs' :: HMISOptions -> Shell [FilePath]
+importCSVs' options = do
+  inputFiles <- shellToList . onlyFiles $ find (has (suffix "1-in/")) $ baseDir options
   if (length inputFiles == 0) then
     do
       let msg = format ("I couldn't find any input files underneath "%fp
                         %"\n\nhledger-makitso expects to find its input files in specifically\nnamed directories.\n\n"%
-                        "Have a look at the documentation for a detailed explanation:\n"%s) (baseDir </> "import/") (docURL "input-files")
+                        "Have a look at the documentation for a detailed explanation:\n"%s) (baseDir options </> "import/") (docURL "input-files")
       stderr $ select $ textToLines msg
       exit $ ExitFailure 1
     else
     do
       importedJournals <- shellToList . extractAndImport . select $ inputFiles
       importIncludes <- writeIncludesUpTo "import" importedJournals
-      writeMakeItSoJournal baseDir importIncludes
+      writeMakeItSoJournal (baseDir options) importIncludes
 
 extractAndImport :: Shell FilePath -> Shell FilePath
 extractAndImport inputFiles = do

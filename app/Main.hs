@@ -5,10 +5,9 @@ module Main where
 import Turtle
 import Prelude hiding (FilePath, putStrLn)
 import Data.Maybe
+import Hledger.MakeItSo.Data.Types
 import Reports
 import CSVImport
-
-data Options = Options { baseDir :: FilePath, verbosityLevel :: Int }
 
 type SubcommandParams = (Maybe FilePath, Maybe Bool)
 data Command = Import SubcommandParams | Report SubcommandParams deriving (Show)
@@ -17,17 +16,17 @@ main :: IO ()
 main = do
   cmd <- options "Manage your hledger CSV imports and classification:\nhttps://github.com/apauley/hledger-makeitso#readme" parser
   case cmd of
-    Import (maybeBaseDir, _) -> toBaseDir maybeBaseDir >>= importCSVs
-    Report (maybeBaseDir, _) -> toBaseDir maybeBaseDir >>= generateReports
+    Import subParams -> toHMISOptions subParams >>= importCSVs
+    Report subParams -> toHMISOptions subParams >>= generateReports
 
-toOptions :: SubcommandParams -> IO Options
-toOptions (maybeBaseDir, maybeVerbose) = do
+toHMISOptions :: SubcommandParams -> IO HMISOptions
+toHMISOptions (maybeBaseDir, maybeVerbose) = do
   bd <- toBaseDir maybeBaseDir
   let v = case maybeVerbose of
         Nothing    -> 0
         Just False -> 0
         Just True  -> 1
-  return Options {baseDir = bd, verbosityLevel = v}
+  return HMISOptions {baseDir = bd, verbosityLevel = v}
 
 toBaseDir :: Maybe FilePath -> IO FilePath
 toBaseDir maybeBaseDir = fromMaybe pwd $ fmap return maybeBaseDir
