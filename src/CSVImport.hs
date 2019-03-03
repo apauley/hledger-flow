@@ -25,8 +25,11 @@ importCSVs = sh . importCSVs'
 
 importCSVs' :: HMISOptions -> Shell [FilePath]
 importCSVs' opts = do
+  logVerbose opts "Collecting input files..."
   inputFiles <- shellToList . onlyFiles $ find (has (suffix "1-in/")) $ baseDir opts
-  if (length inputFiles == 0) then
+  let fileCount = length inputFiles
+  logVerbose opts $ format ("Found "%d%" input files") $ fileCount
+  if (fileCount == 0) then
     do
       let msg = format ("I couldn't find any input files underneath "%fp
                         %"\n\nhledger-makitso expects to find its input files in specifically\nnamed directories.\n\n"%
