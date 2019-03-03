@@ -8,6 +8,7 @@ import Turtle
 import Prelude hiding (FilePath, putStrLn, take)
 import qualified Data.Text as T
 import qualified Data.List.NonEmpty as NonEmpty
+import Data.Maybe
 import Hledger.MakeItSo.Data.Types
 import Common
 
@@ -57,8 +58,8 @@ importCSV opts importDirs srcFile = do
   csvFile <- preprocessIfNeeded opts preprocessScript bankName accountName ownerName srcFile
   doCustomConstruct <- verboseTestFile opts constructScript
   let importFun = if doCustomConstruct
-        then customConstruct constructScript bankName accountName ownerName
-        else hledgerImport
+        then customConstruct opts constructScript bankName accountName ownerName
+        else hledgerImport opts
   let journalOut = changePathAndExtension "3-journal" "journal" csvFile
   mktree $ directory journalOut
   importFun csvFile journalOut
@@ -67,32 +68,38 @@ preprocessIfNeeded :: HMISOptions -> FilePath -> Line -> Line -> Line -> FilePat
 preprocessIfNeeded opts script bank account owner src = do
   shouldPreprocess <- verboseTestFile opts script
   if shouldPreprocess
-    then preprocess script bank account owner src
+    then preprocess opts script bank account owner src
     else return src
 
-preprocess :: FilePath -> Line -> Line -> Line -> FilePath -> Shell FilePath
-preprocess script bank account owner src = do
+preprocess :: HMISOptions -> FilePath -> Line -> Line -> Line -> FilePath -> Shell FilePath
+preprocess opts script bank account owner src = do
   let csvOut = changePathAndExtension "2-preprocessed" "csv" src
   mktree $ directory csvOut
   let script' = format fp script :: Text
   procs script' [format fp src, format fp csvOut, lineToText bank, lineToText account, lineToText owner] empty
+  let rel = fromMaybe script $ stripPrefix (directory $ baseDir opts) script
+  logVerbose opts $ format ("Finished executing "%fp) rel
   return csvOut
 
-hledgerImport :: FilePath  -> FilePath -> Shell FilePath
-hledgerImport csvSrc journalOut = do
+hledgerImport :: HMISOptions -> FilePath  -> FilePath -> Shell FilePath
+hledgerImport opts csvSrc journalOut = do
   case extractImportDirs csvSrc of
-    Right importDirs -> hledgerImport' importDirs csvSrc journalOut
+    Right importDirs -> hledgerImport' opts importDirs csvSrc journalOut
     Left errorMessage -> do
       stderr $ select $ textToLines errorMessage
       exit $ ExitFailure 1
 
-hledgerImport' :: ImportDirs -> FilePath -> FilePath -> Shell FilePath
-hledgerImport' importDirs csvSrc journalOut = do
+hledgerImport' :: HMISOptions -> ImportDirs -> FilePath -> FilePath -> Shell FilePath
+hledgerImport' opts importDirs csvSrc journalOut = do
   let candidates = rulesFileCandidates csvSrc importDirs
   maybeRulesFile <- firstExistingFile candidates
   case maybeRulesFile of
     Just rf -> do
+      let relCSV = fromMaybe csvSrc $ stripPrefix (directory $ baseDir opts) csvSrc
+      let relRules = fromMaybe rf $ stripPrefix (directory $ baseDir opts) rf
+      logVerbose opts $ format ("Starting import of "%fp%" using rules file at "%fp) relCSV relRules
       procs "hledger" ["print", "--rules-file", format fp rf, "--file", format fp csvSrc, "--output-file", format fp journalOut] empty
+      logVerbose opts $ format ("Finished importing "%fp%" using rules file at "%fp) relCSV relRules
       return journalOut
     Nothing ->
       do
@@ -153,9 +160,11 @@ statementSpecificRulesFiles csvSrc importDirs = do
       map (</> srcSpecificFilename) [accountDir importDirs, bankDir importDirs, importDir importDirs]
     else []
 
-customConstruct :: FilePath -> Line -> Line -> Line -> FilePath -> FilePath -> Shell FilePath
-customConstruct constructScript bank account owner csvSrc journalOut = do
+customConstruct :: HMISOptions -> FilePath -> Line -> Line -> Line -> FilePath -> FilePath -> Shell FilePath
+customConstruct opts constructScript bank account owner csvSrc journalOut = do
   let script = format fp constructScript :: Text
   let importOut = inproc script [format fp csvSrc, "-", lineToText bank, lineToText account, lineToText owner] empty
   procs "hledger" ["print", "--ignore-assertions", "--file", "-", "--output-file", format fp journalOut] importOut
+  let rel = fromMaybe constructScript $ stripPrefix (directory $ baseDir opts) constructScript
+  logVerbose opts $ format ("Finished executing "%fp) rel
   return journalOut
