@@ -23,20 +23,20 @@ importCSVs :: HMISOptions -> IO ()
 importCSVs = sh . importCSVs'
 
 importCSVs' :: HMISOptions -> Shell [FilePath]
-importCSVs' options = do
-  inputFiles <- shellToList . onlyFiles $ find (has (suffix "1-in/")) $ baseDir options
+importCSVs' opts = do
+  inputFiles <- shellToList . onlyFiles $ find (has (suffix "1-in/")) $ baseDir opts
   if (length inputFiles == 0) then
     do
       let msg = format ("I couldn't find any input files underneath "%fp
                         %"\n\nhledger-makitso expects to find its input files in specifically\nnamed directories.\n\n"%
-                        "Have a look at the documentation for a detailed explanation:\n"%s) (baseDir options </> "import/") (docURL "input-files")
+                        "Have a look at the documentation for a detailed explanation:\n"%s) (baseDir opts </> "import/") (docURL "input-files")
       stderr $ select $ textToLines msg
       exit $ ExitFailure 1
     else
     do
       importedJournals <- shellToList . extractAndImport . select $ inputFiles
       importIncludes <- writeIncludesUpTo "import" importedJournals
-      writeMakeItSoJournal (baseDir options) importIncludes
+      writeMakeItSoJournal (baseDir opts) importIncludes
 
 extractAndImport :: Shell FilePath -> Shell FilePath
 extractAndImport inputFiles = do
@@ -117,7 +117,7 @@ importDirBreakdown' acc path = do
 extractImportDirs :: FilePath -> Either Text ImportDirs
 extractImportDirs inputFile = do
   case importDirBreakdown inputFile of
-    [baseDir,owner,bank,account,filestate,year] -> Right $ ImportDirs baseDir owner bank account filestate year
+    [bd,owner,bank,account,filestate,year] -> Right $ ImportDirs bd owner bank account filestate year
     _ -> do
       Left $ format ("I couldn't find the right number of directories between \"import\" and the input file:\n"%fp
                       %"\n\nhledger-makitso expects to find input files in this structure:\n"%
