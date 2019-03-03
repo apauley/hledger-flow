@@ -53,9 +53,10 @@ logVerbose opts msg = if (verbosityLevel opts > 0) then logErr msg else return (
 verboseTestFile :: HMISOptions -> FilePath -> Shell Bool
 verboseTestFile opts aPath = do
   fileExists <- testfile aPath
+  let rel = fromMaybe aPath $ stripPrefix (directory $ baseDir opts) aPath
   if fileExists
-    then logVerbose opts $ format ("Found a "%fp%" file at "%fp) (basename aPath) aPath
-    else logVerbose opts $ format ("Did not find a "%fp%" file at "%fp) (basename aPath) aPath
+    then logVerbose opts $ format ("Found a "       %fp%" file at "%fp) (basename rel) rel
+    else logVerbose opts $ format ("Did not find a "%fp%" file at "%fp) (basename rel) rel
   return fileExists
 
 groupPairs' :: (Eq a, Ord a) => [(a, b)] -> [(a, [b])]
