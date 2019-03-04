@@ -61,9 +61,9 @@ logVerboseTime opts msg action = do
   return (result, diff)
 
 verboseTestFile :: HMISOptions -> FilePath -> Shell Bool
-verboseTestFile opts aPath = do
-  fileExists <- testfile aPath
-  let rel = fromMaybe aPath $ stripPrefix (directory $ baseDir opts) aPath
+verboseTestFile opts p = do
+  fileExists <- testfile p
+  let rel = relativeToBase opts p
   if fileExists
     then logVerbose opts $ format ("Found a "       %fp%" file at '"%fp%"'") (basename rel) rel
     else logVerbose opts $ format ("Did not find a "%fp%" file at '"%fp%"'") (basename rel) rel

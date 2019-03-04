@@ -8,7 +8,6 @@ import Turtle
 import Prelude hiding (FilePath, putStrLn, take)
 import qualified Data.Text as T
 import qualified Data.List.NonEmpty as NonEmpty
-import Data.Maybe
 import Hledger.MakeItSo.Data.Types
 import Common
 
@@ -80,8 +79,8 @@ preprocess opts script bank account owner src = do
   mktree $ directory csvOut
   let script' = format fp script :: Text
   let action = procs script' [format fp src, format fp csvOut, lineToText bank, lineToText account, lineToText owner] empty
-  let relScript = fromMaybe script $ stripPrefix (directory $ baseDir opts) script
-  let relSrc = fromMaybe src $ stripPrefix (directory $ baseDir opts) src
+  let relScript = relativeToBase opts script
+  let relSrc = relativeToBase opts src
   let msg = format ("executing '"%fp%"' on '"%fp%"'") relScript relSrc
   _ <- liftIO $ logVerboseTime opts msg action
   return csvOut
@@ -98,10 +97,10 @@ hledgerImport' :: HMISOptions -> ImportDirs -> FilePath -> FilePath -> Shell Fil
 hledgerImport' opts importDirs csvSrc journalOut = do
   let candidates = rulesFileCandidates csvSrc importDirs
   maybeRulesFile <- firstExistingFile candidates
-  let relCSV = fromMaybe csvSrc $ stripPrefix (directory $ baseDir opts) csvSrc
+  let relCSV = relativeToBase opts csvSrc
   case maybeRulesFile of
     Just rf -> do
-      let relRules = fromMaybe rf $ stripPrefix (directory $ baseDir opts) rf
+      let relRules = relativeToBase opts rf
       let action = procs "hledger" ["print", "--rules-file", format fp rf, "--file", format fp csvSrc, "--output-file", format fp journalOut] empty
       let msg = format ("importing '"%fp%"' using rules file '"%fp%"'") relCSV relRules
       _ <- liftIO $ logVerboseTime opts msg action
@@ -171,8 +170,8 @@ customConstruct opts constructScript bank account owner csvSrc journalOut = do
   let script = format fp constructScript :: Text
   let importOut = inproc script [format fp csvSrc, "-", lineToText bank, lineToText account, lineToText owner] empty
   let action = procs "hledger" ["print", "--ignore-assertions", "--file", "-", "--output-file", format fp journalOut] importOut
-  let relScript = fromMaybe constructScript $ stripPrefix (directory $ baseDir opts) constructScript
-  let relSrc = fromMaybe csvSrc $ stripPrefix (directory $ baseDir opts) csvSrc
+  let relScript = relativeToBase opts constructScript
+  let relSrc = relativeToBase opts csvSrc
   let msg = format ("executing '"%fp%"' on '"%fp%"'") relScript relSrc
   _ <- liftIO $ logVerboseTime opts msg action
 
