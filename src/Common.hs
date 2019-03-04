@@ -24,6 +24,7 @@ module Common
     , groupAndWriteIncludeFiles
     , writeIncludesUpTo
     , writeMakeItSoJournal
+    , dirOrPwd
     ) where
 
 import Turtle
@@ -230,3 +231,6 @@ changePathAndExtension newOutputLocation newExt = (changeOutputPath newOutputLoc
 changeOutputPath :: FilePath -> FilePath -> FilePath
 changeOutputPath newOutputLocation srcFile = mconcat $ map changeSrcDir $ splitDirectories srcFile
   where changeSrcDir file = if (file == "1-in/" || file == "2-preprocessed/") then newOutputLocation else file
+
+dirOrPwd :: Maybe FilePath -> IO FilePath
+dirOrPwd maybeBaseDir = fromMaybe pwd $ fmap return maybeBaseDir

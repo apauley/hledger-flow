@@ -4,8 +4,8 @@ module Main where
 
 import Turtle
 import Prelude hiding (FilePath, putStrLn)
-import Data.Maybe
 import Hledger.MakeItSo.Data.Types
+import Common
 import Reports
 import CSVImport
 
@@ -27,9 +27,6 @@ toHMISOptions (maybeBaseDir, maybeVerbose) = do
         Just False -> 0
         Just True  -> 1
   return HMISOptions {baseDir = bd, verbosityLevel = v}
-
-dirOrPwd :: Maybe FilePath -> IO FilePath
-dirOrPwd maybeBaseDir = fromMaybe pwd $ fmap return maybeBaseDir
 
 parser :: Parser Command
 parser = fmap Import (subcommand "import" "Converts CSV transactions into categorised journal files" subcommandParser)
