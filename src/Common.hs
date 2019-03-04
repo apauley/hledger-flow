@@ -233,4 +233,4 @@ changeOutputPath newOutputLocation srcFile = mconcat $ map changeSrcDir $ splitD
   where changeSrcDir file = if (file == "1-in/" || file == "2-preprocessed/") then newOutputLocation else file
 
 dirOrPwd :: Maybe FilePath -> IO FilePath
-dirOrPwd maybeBaseDir = fmap (\p -> directory (p </> "temp")) (fromMaybe pwd $ fmap return maybeBaseDir)
+dirOrPwd maybeBaseDir = fmap (\p -> directory (p </> "temp")) (fromMaybe pwd $ fmap realpath maybeBaseDir)

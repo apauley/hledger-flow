@@ -29,11 +29,11 @@ testDirOrPwd = TestCase (do
                             d1 <- dirOrPwd Nothing
                             assertEqual "dirOrPwd returns pwd as a fallback" currentDir d1
                             assertEqual "dirOrPwd assumes the fallback is a directory" (directory d1) d1
-                            d2 <- dirOrPwd $ Just "/foo/bar"
-                            assertEqual "dirOrPwd returns the supplied dir - no trailing slash supplied" "/foo/bar/" d2
+                            d2 <- dirOrPwd $ Just "/tmp"
+                            assertEqual "dirOrPwd returns the supplied dir - no trailing slash supplied" "/tmp/" d2
                             assertEqual "dirOrPwd assumes the supplied dir is a directory - no trailing slash supplied" (directory d2) d2
-                            d3 <- dirOrPwd $ Just "/foo/baz/"
-                            assertEqual "dirOrPwd returns the supplied dir - trailing slash supplied" "/foo/baz/" d3
+                            d3 <- dirOrPwd $ Just "/etc/"
+                            assertEqual "dirOrPwd returns the supplied dir - trailing slash supplied" "/etc/" d3
                             assertEqual "dirOrPwd assumes the supplied dir is a directory - trailing slash supplied" (directory d3) d3
                         )
 
