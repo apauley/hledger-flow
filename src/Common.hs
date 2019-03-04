@@ -3,6 +3,7 @@
 module Common
     ( docURL
     , logVerbose
+    , logVerboseTime
     , verboseTestFile
     , lsDirs
     , onlyFiles
@@ -50,6 +51,13 @@ logErr = logLines stderr
 
 logVerbose :: HMISOptions -> Text -> Shell ()
 logVerbose opts msg = if (verbosityLevel opts > 0) then logErr msg else return ()
+
+logVerboseTime :: HMISOptions -> Text -> IO a -> IO (a, NominalDiffTime)
+logVerboseTime opts msg action = do
+  sh $ logVerbose opts $ format ("Begin: "%s) msg
+  (result, diff) <- time action
+  sh $ logVerbose opts $ format ("End:   "%s%" ("%s%")") msg $ repr diff
+  return (result, diff)
 
 verboseTestFile :: HMISOptions -> FilePath -> Shell Bool
 verboseTestFile opts aPath = do

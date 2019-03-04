@@ -79,9 +79,10 @@ preprocess opts script bank account owner src = do
   let csvOut = changePathAndExtension "2-preprocessed" "csv" src
   mktree $ directory csvOut
   let script' = format fp script :: Text
-  procs script' [format fp src, format fp csvOut, lineToText bank, lineToText account, lineToText owner] empty
+  let action = procs script' [format fp src, format fp csvOut, lineToText bank, lineToText account, lineToText owner] empty
   let rel = fromMaybe script $ stripPrefix (directory $ baseDir opts) script
-  logVerbose opts $ format ("Finished executing "%fp) rel
+  let msg = format ("executing '"%fp%"'") rel
+  _ <- liftIO $ logVerboseTime opts msg action
   return csvOut
 
 hledgerImport :: HMISOptions -> FilePath  -> FilePath -> Shell FilePath
@@ -100,9 +101,9 @@ hledgerImport' opts importDirs csvSrc journalOut = do
     Just rf -> do
       let relCSV = fromMaybe csvSrc $ stripPrefix (directory $ baseDir opts) csvSrc
       let relRules = fromMaybe rf $ stripPrefix (directory $ baseDir opts) rf
-      logVerbose opts $ format ("Starting import of "%fp%" using rules file at "%fp) relCSV relRules
-      procs "hledger" ["print", "--rules-file", format fp rf, "--file", format fp csvSrc, "--output-file", format fp journalOut] empty
-      logVerbose opts $ format ("Finished importing "%fp%" using rules file at "%fp) relCSV relRules
+      let action = procs "hledger" ["print", "--rules-file", format fp rf, "--file", format fp csvSrc, "--output-file", format fp journalOut] empty
+      let msg = format ("importing '"%fp%"' using rules file '"%fp%"'") relCSV relRules
+      _ <- liftIO $ logVerboseTime opts msg action
       return journalOut
     Nothing ->
       do
@@ -167,7 +168,9 @@ customConstruct :: HMISOptions -> FilePath -> Line -> Line -> Line -> FilePath -
 customConstruct opts constructScript bank account owner csvSrc journalOut = do
   let script = format fp constructScript :: Text
   let importOut = inproc script [format fp csvSrc, "-", lineToText bank, lineToText account, lineToText owner] empty
-  procs "hledger" ["print", "--ignore-assertions", "--file", "-", "--output-file", format fp journalOut] importOut
+  let action = procs "hledger" ["print", "--ignore-assertions", "--file", "-", "--output-file", format fp journalOut] importOut
   let rel = fromMaybe constructScript $ stripPrefix (directory $ baseDir opts) constructScript
-  logVerbose opts $ format ("Finished executing "%fp) rel
+  let msg = format ("executing '"%fp%"'") rel
+  _ <- liftIO $ logVerboseTime opts msg action
+
   return journalOut
