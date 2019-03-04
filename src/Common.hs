@@ -51,7 +51,7 @@ logErr :: Text -> Shell ()
 logErr = logLines stderr
 
 logVerbose :: HMISOptions -> Text -> Shell ()
-logVerbose opts msg = if (verbosityLevel opts > 0) then logErr msg else return ()
+logVerbose opts msg = if (verbose opts) then logErr msg else return ()
 
 logVerboseTime :: HMISOptions -> Text -> IO a -> IO (a, NominalDiffTime)
 logVerboseTime opts msg action = do

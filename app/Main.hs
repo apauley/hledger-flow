@@ -4,6 +4,7 @@ module Main where
 
 import Turtle
 import Prelude hiding (FilePath, putStrLn)
+import Data.Maybe (fromMaybe)
 import Hledger.MakeItSo.Data.Types
 import Common
 import Reports
@@ -22,11 +23,7 @@ main = do
 toHMISOptions :: SubcommandParams -> IO HMISOptions
 toHMISOptions (maybeBaseDir, maybeVerbose) = do
   bd <- dirOrPwd maybeBaseDir
-  let v = case maybeVerbose of
-        Nothing    -> 0
-        Just False -> 0
-        Just True  -> 1
-  return HMISOptions {baseDir = bd, verbosityLevel = v}
+  return HMISOptions {baseDir = bd, verbose = fromMaybe False maybeVerbose}
 
 parser :: Parser Command
 parser = fmap Import (subcommand "import" "Converts CSV transactions into categorised journal files" subcommandParser)

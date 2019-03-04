@@ -4,4 +4,4 @@ where
 import Turtle
 import Prelude hiding (FilePath, putStrLn)
 
-data HMISOptions = HMISOptions { baseDir :: FilePath, verbosityLevel :: Int }
+data HMISOptions = HMISOptions { baseDir :: FilePath, verbose :: Bool }
