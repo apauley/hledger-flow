@@ -25,25 +25,25 @@
 <body>
 <div class="reveal">
 <div class="slides">
-<section id="sec-title-slide"><h1 class="title">hledger-makeitso Step-By-Step</h1><p class="date">Created: 2018-11-04 Sun 21:06</p>
+<section id="sec-title-slide"><h1 class="title">hledger-makeitso Step-By-Step</h1><p class="date">Created: 2019-03-04 Mon 23:34</p>
 </section>
 <section id="table-of-contents">
 <div id="table-of-contents">
 <h2>Table of Contents</h2>
 <div id="text-table-of-contents">
 <ul>
-<li><a href="#/slide-orgc4bb5a7">Part 1</a></li>
-<li><a href="#/slide-orgca82cad">About This Document</a></li>
-<li><a href="#/slide-org9f7df18">The Story of an African Chef</a></li>
-<li><a href="#/slide-orge32811e">The First CSV Statement</a></li>
+<li><a href="#/slide-org24a9c20">Part 1</a></li>
+<li><a href="#/slide-org97f70bf">About This Document</a></li>
+<li><a href="#/slide-orga731c02">The Story of an African Chef</a></li>
+<li><a href="#/slide-org38d5a3a">The First CSV Statement</a></li>
 </ul>
 </div>
 </div>
 </section>
 
 <section>
-<section id="slide-orgc4bb5a7">
-<h2 id="orgc4bb5a7">Part 1</h2>
+<section id="slide-org24a9c20">
+<h2 id="org24a9c20">Part 1</h2>
 <p>
 This is the first part in a a series of step-by-step instructions.
 </p>
@@ -55,8 +55,8 @@ They are intended to be read in sequence. Head over to the <a href="README.html"
 </section>
 </section>
 <section>
-<section id="slide-orgca82cad">
-<h2 id="orgca82cad">About This Document</h2>
+<section id="slide-org97f70bf">
+<h2 id="org97f70bf">About This Document</h2>
 <p>
 This document is a <a href="https://www.offerzen.com/blog/literate-programming-empower-your-writing-with-emacs-org-mode">literate</a> <a href="https://orgmode.org/worg/org-contrib/babel/intro.html">program</a>.
 You can read it like a normal article, either <a href="https://github.com/apauley/hledger-makeitso/blob/master/docs/part1.org">on the web</a> or <a href="https://pauley.org.za/hledger-makeitso/">as a slide show</a>.
@@ -70,8 +70,8 @@ Then you can execute each code snippet by pressing <code>C-c C-c</code> with you
 </section>
 </section>
 <section>
-<section id="slide-org9f7df18">
-<h2 id="org9f7df18">The Story of an African Chef</h2>
+<section id="slide-orga731c02">
+<h2 id="orga731c02">The Story of an African Chef</h2>
 <p>
 Meet Gawie de Groot. Gawie is a successful <a href="https://en.wikipedia.org/wiki/Gonimbrasia_belina#As_food">mopane worm</a> chef, based in the northernmost section of the <a href="https://en.wikipedia.org/wiki/Kruger_National_Park">Kruger National Park</a>.
 </p>
@@ -114,8 +114,8 @@ It is time for Gawie to take charge of his finances.
 </section>
 </section>
 <section>
-<section id="slide-orge32811e">
-<h2 id="orge32811e">The First CSV Statement</h2>
+<section id="slide-org38d5a3a">
+<h2 id="org38d5a3a">The First CSV Statement</h2>
 <p>
 Gawie followed the <a href="https://github.com/apauley/hledger-makeitso#build-instructions">build instructions</a> and ended up with his very own <code>hledger-makeitso</code> executable.
 </p>
@@ -171,11 +171,12 @@ Luckily the <code>import</code> subcommand has a bit of help text as well:
 
 <div class="org-src-container">
 
-<pre  class="src src-org">Usage: hledger-makeitso import [BASEDIR]
+<pre  class="src src-org">Usage: hledger-makeitso import [BASEDIR] [-v|--verbose]
   Converts CSV transactions into categorised journal files
 
 Available options:
   BASEDIR                  The hledger-makeitso base directory
+  -v,--verbose             Print more verbose output
   -h,--help                Show this help text
 
 </pre>
@@ -211,7 +212,7 @@ Hmmm, an error:
 </p>
 <div class="org-src-container">
 
-<pre  class="src src-org">I couldn't find any input files underneath ./my-finances/import/
+<pre  class="src src-org">I couldn't find any input files underneath my-finances/import/
 
 hledger-makitso expects to find its input files in specifically
 named directories.
@@ -313,11 +314,11 @@ Let's try the import again:
 <div class="org-src-container">
 
 <pre  class="src src-org">I couldn't find an hledger rules file while trying to import
-./my-finances/import/gawie/bogart/cheque/1-in/2016/123456789_2016-03-30.csv
+import/gawie/bogart/cheque/1-in/2016/123456789_2016-03-30.csv
 
 I will happily use the first rules file I can find from any one of these 2 files:
-./my-finances/import/gawie/bogart/cheque/bogart-cheque.rules
-./my-finances/import/bogart.rules
+import/gawie/bogart/cheque/bogart-cheque.rules
+import/bogart.rules
 
 Here is a bit of documentation about rules files that you may find helpful:
 <span style="color: #2aa1ae; text-decoration: underline;"><a href="https://github.com/apauley/hledger-makeitso#rules-files">https://github.com/apauley/hledger-makeitso#rules-files</a></span>
@@ -401,7 +402,7 @@ ln -s ../../../../fnb-csv-demoronizer/fnb-csv-demoronizer preprocess
 
 <p>
 Now when we try the import again, it still displays an error due to our missing rules file.
-But this time we can see that our statement was preprocessed:
+Let's run it verbosely for a change:
 </p>
 
 </section>
@@ -409,9 +410,34 @@ But this time we can see that our statement was preprocessed:
 
 <div class="org-src-container">
 
-<pre  class="src src-sh" id="import3">hledger-makeitso import ./my-finances
+<pre  class="src src-sh" id="import3">hledger-makeitso import --verbose ./my-finances
 </pre>
 </div>
+
+<div class="org-src-container">
+
+<pre  class="src src-org">2019-03-04 23:25:57.751060758 SAST  hledger-makeitso Collecting input files...
+2019-03-04 23:25:57.872693876 SAST  hledger-makeitso Found 1 input files
+2019-03-04 23:25:57.872873856 SAST  hledger-makeitso Found a preprocess file at 'import/gawie/bogart/cheque/preprocess'
+2019-03-04 23:25:57.873181697 SAST  hledger-makeitso Begin: executing 'import/gawie/bogart/cheque/preprocess' on 'import/gawie/bogart/cheque/1-in/2016/123456789_2016-03-30.csv'
+2019-03-04 23:25:57.89569617 SAST hledger-makeitso End:   executing 'import/gawie/bogart/cheque/preprocess' on 'import/gawie/bogart/cheque/1-in/2016/123456789_2016-03-30.csv' (0.022211083s)
+2019-03-04 23:25:57.896106771 SAST  hledger-makeitso Did not find a construct file at 'import/gawie/bogart/cheque/construct'
+I couldn't find an hledger rules file while trying to import
+import/gawie/bogart/cheque/2-preprocessed/2016/123456789_2016-03-30.csv
+
+I will happily use the first rules file I can find from any one of these 2 files:
+import/gawie/bogart/cheque/bogart-cheque.rules
+import/bogart.rules
+
+Here is a bit of documentation about rules files that you may find helpful:
+<span style="color: #2aa1ae; text-decoration: underline;"><a href="https://github.com/apauley/hledger-makeitso#rules-files">https://github.com/apauley/hledger-makeitso#rules-files</a></span>
+
+</pre>
+</div>
+
+<p>
+This time we can see that our statement was preprocessed despite the rules file error:
+</p>
 
 <div class="org-src-container">
 

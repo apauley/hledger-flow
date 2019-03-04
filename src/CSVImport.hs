@@ -8,6 +8,7 @@ import Turtle
 import Prelude hiding (FilePath, putStrLn, take)
 import qualified Data.Text as T
 import qualified Data.List.NonEmpty as NonEmpty
+import Hledger.MakeItSo.Data.Types
 import Common
 
 data ImportDirs = ImportDirs { importDir  :: FilePath
@@ -18,88 +19,100 @@ data ImportDirs = ImportDirs { importDir  :: FilePath
                              , yearDir    :: FilePath
                              } deriving (Show)
 
-importCSVs :: FilePath -> IO ()
+importCSVs :: HMISOptions -> IO ()
 importCSVs = sh . importCSVs'
 
-importCSVs' :: FilePath -> Shell [FilePath]
-importCSVs' baseDir = do
-  inputFiles <- shellToList . onlyFiles $ find (has (suffix "1-in/")) baseDir
-  if (length inputFiles == 0) then
+importCSVs' :: HMISOptions -> Shell [FilePath]
+importCSVs' opts = do
+  logVerbose opts "Collecting input files..."
+  inputFiles <- shellToList . onlyFiles $ find (has (suffix "1-in/")) $ baseDir opts
+  let fileCount = length inputFiles
+  logVerbose opts $ format ("Found "%d%" input files") $ fileCount
+  if (fileCount == 0) then
     do
       let msg = format ("I couldn't find any input files underneath "%fp
                         %"\n\nhledger-makitso expects to find its input files in specifically\nnamed directories.\n\n"%
-                        "Have a look at the documentation for a detailed explanation:\n"%s) (baseDir </> "import/") (docURL "input-files")
+                        "Have a look at the documentation for a detailed explanation:\n"%s) (dirname (baseDir opts) </> "import/") (docURL "input-files")
       stderr $ select $ textToLines msg
       exit $ ExitFailure 1
     else
     do
-      importedJournals <- shellToList . extractAndImport . select $ inputFiles
+      importedJournals <- shellToList . (extractAndImport opts) . select $ inputFiles
       importIncludes <- writeIncludesUpTo "import" importedJournals
-      writeMakeItSoJournal baseDir importIncludes
+      writeMakeItSoJournal (baseDir opts) importIncludes
 
-extractAndImport :: Shell FilePath -> Shell FilePath
-extractAndImport inputFiles = do
+extractAndImport :: HMISOptions -> Shell FilePath -> Shell FilePath
+extractAndImport opts inputFiles = do
   inputFile <- inputFiles
   case extractImportDirs inputFile of
-    Right importDirs -> importCSV importDirs inputFile
+    Right importDirs -> importCSV opts importDirs inputFile
     Left errorMessage -> do
       stderr $ select $ textToLines errorMessage
       exit $ ExitFailure 1
 
-importCSV :: ImportDirs -> FilePath -> Shell FilePath
-importCSV importDirs srcFile = do
+importCSV :: HMISOptions -> ImportDirs -> FilePath -> Shell FilePath
+importCSV opts importDirs srcFile = do
   let preprocessScript = accountDir importDirs </> "preprocess"
   let constructScript = accountDir importDirs </> "construct"
   let bankName = importDirLine bankDir importDirs
   let accountName = importDirLine accountDir importDirs
   let ownerName = importDirLine ownerDir importDirs
-  csvFile <- preprocessIfNeeded preprocessScript bankName accountName ownerName srcFile
-  doCustomConstruct <- testfile constructScript
+  csvFile <- preprocessIfNeeded opts preprocessScript bankName accountName ownerName srcFile
+  doCustomConstruct <- verboseTestFile opts constructScript
   let importFun = if doCustomConstruct
-        then customConstruct constructScript bankName accountName ownerName
-        else hledgerImport
+        then customConstruct opts constructScript bankName accountName ownerName
+        else hledgerImport opts
   let journalOut = changePathAndExtension "3-journal" "journal" csvFile
   mktree $ directory journalOut
   importFun csvFile journalOut
 
-preprocessIfNeeded :: FilePath -> Line -> Line -> Line -> FilePath -> Shell FilePath
-preprocessIfNeeded script bank account owner src = do
-  shouldPreprocess <- testfile script
+preprocessIfNeeded :: HMISOptions -> FilePath -> Line -> Line -> Line -> FilePath -> Shell FilePath
+preprocessIfNeeded opts script bank account owner src = do
+  shouldPreprocess <- verboseTestFile opts script
   if shouldPreprocess
-    then preprocess script bank account owner src
+    then preprocess opts script bank account owner src
     else return src
 
-preprocess :: FilePath -> Line -> Line -> Line -> FilePath -> Shell FilePath
-preprocess script bank account owner src = do
+preprocess :: HMISOptions -> FilePath -> Line -> Line -> Line -> FilePath -> Shell FilePath
+preprocess opts script bank account owner src = do
   let csvOut = changePathAndExtension "2-preprocessed" "csv" src
   mktree $ directory csvOut
   let script' = format fp script :: Text
-  procs script' [format fp src, format fp csvOut, lineToText bank, lineToText account, lineToText owner] empty
+  let action = procs script' [format fp src, format fp csvOut, lineToText bank, lineToText account, lineToText owner] empty
+  let relScript = relativeToBase opts script
+  let relSrc = relativeToBase opts src
+  let msg = format ("executing '"%fp%"' on '"%fp%"'") relScript relSrc
+  _ <- liftIO $ logVerboseTime opts msg action
   return csvOut
 
-hledgerImport :: FilePath  -> FilePath -> Shell FilePath
-hledgerImport csvSrc journalOut = do
+hledgerImport :: HMISOptions -> FilePath  -> FilePath -> Shell FilePath
+hledgerImport opts csvSrc journalOut = do
   case extractImportDirs csvSrc of
-    Right importDirs -> hledgerImport' importDirs csvSrc journalOut
+    Right importDirs -> hledgerImport' opts importDirs csvSrc journalOut
     Left errorMessage -> do
       stderr $ select $ textToLines errorMessage
       exit $ ExitFailure 1
 
-hledgerImport' :: ImportDirs -> FilePath -> FilePath -> Shell FilePath
-hledgerImport' importDirs csvSrc journalOut = do
+hledgerImport' :: HMISOptions -> ImportDirs -> FilePath -> FilePath -> Shell FilePath
+hledgerImport' opts importDirs csvSrc journalOut = do
   let candidates = rulesFileCandidates csvSrc importDirs
   maybeRulesFile <- firstExistingFile candidates
+  let relCSV = relativeToBase opts csvSrc
   case maybeRulesFile of
     Just rf -> do
-      procs "hledger" ["print", "--rules-file", format fp rf, "--file", format fp csvSrc, "--output-file", format fp journalOut] empty
+      let relRules = relativeToBase opts rf
+      let action = procs "hledger" ["print", "--rules-file", format fp rf, "--file", format fp csvSrc, "--output-file", format fp journalOut] empty
+      let msg = format ("importing '"%fp%"' using rules file '"%fp%"'") relCSV relRules
+      _ <- liftIO $ logVerboseTime opts msg action
       return journalOut
     Nothing ->
       do
-        let candidatesTxt = T.intercalate "\n" $ map (format fp) candidates
+        let relativeCandidates = map (relativeToBase opts) candidates
+        let candidatesTxt = T.intercalate "\n" $ map (format fp) relativeCandidates
         let msg = format ("I couldn't find an hledger rules file while trying to import\n"%fp
                           %"\n\nI will happily use the first rules file I can find from any one of these "%d%" files:\n"%s
                           %"\n\nHere is a bit of documentation about rules files that you may find helpful:\n"%s)
-                  csvSrc (length candidates) candidatesTxt (docURL "rules-files")
+                  relCSV (length candidates) candidatesTxt (docURL "rules-files")
         stderr $ select $ textToLines msg
         exit $ ExitFailure 1
 
@@ -116,7 +129,7 @@ importDirBreakdown' acc path = do
 extractImportDirs :: FilePath -> Either Text ImportDirs
 extractImportDirs inputFile = do
   case importDirBreakdown inputFile of
-    [baseDir,owner,bank,account,filestate,year] -> Right $ ImportDirs baseDir owner bank account filestate year
+    [bd,owner,bank,account,filestate,year] -> Right $ ImportDirs bd owner bank account filestate year
     _ -> do
       Left $ format ("I couldn't find the right number of directories between \"import\" and the input file:\n"%fp
                       %"\n\nhledger-makitso expects to find input files in this structure:\n"%
@@ -152,9 +165,14 @@ statementSpecificRulesFiles csvSrc importDirs = do
       map (</> srcSpecificFilename) [accountDir importDirs, bankDir importDirs, importDir importDirs]
     else []
 
-customConstruct :: FilePath -> Line -> Line -> Line -> FilePath -> FilePath -> Shell FilePath
-customConstruct constructScript bank account owner csvSrc journalOut = do
+customConstruct :: HMISOptions -> FilePath -> Line -> Line -> Line -> FilePath -> FilePath -> Shell FilePath
+customConstruct opts constructScript bank account owner csvSrc journalOut = do
   let script = format fp constructScript :: Text
   let importOut = inproc script [format fp csvSrc, "-", lineToText bank, lineToText account, lineToText owner] empty
-  procs "hledger" ["print", "--ignore-assertions", "--file", "-", "--output-file", format fp journalOut] importOut
+  let action = procs "hledger" ["print", "--ignore-assertions", "--file", "-", "--output-file", format fp journalOut] importOut
+  let relScript = relativeToBase opts constructScript
+  let relSrc = relativeToBase opts csvSrc
+  let msg = format ("executing '"%fp%"' on '"%fp%"'") relScript relSrc
+  _ <- liftIO $ logVerboseTime opts msg action
+
   return journalOut

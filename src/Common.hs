@@ -2,7 +2,10 @@
 
 module Common
     ( docURL
-    , logErr
+    , logVerbose
+    , logVerboseTime
+    , verboseTestFile
+    , relativeToBase
     , lsDirs
     , onlyFiles
     , onlyDirs
@@ -23,6 +26,7 @@ module Common
     , groupAndWriteIncludeFiles
     , writeIncludesUpTo
     , writeMakeItSoJournal
+    , dirOrPwd
     ) where
 
 import Turtle
@@ -31,19 +35,42 @@ import qualified Data.Text as T
 import Data.Maybe
 import qualified Control.Foldl as Fold
 import qualified Data.Map.Strict as Map
-import Data.Time.Clock
+import Data.Time.LocalTime
 
 import Data.Function (on)
 import qualified Data.List as List (nub, sort, sortBy, groupBy)
 import Data.Ord (comparing)
+import Hledger.MakeItSo.Data.Types
 
 logLines :: (Shell Line -> IO ()) -> Text -> Shell ()
 logLines logfun msg = do
-  t <- liftIO $ getCurrentTime
-  liftIO $ logfun $ select $ textToLines $ format (s%" "%s) (repr t) msg
+  t <- liftIO $ getZonedTime
+  liftIO $ logfun $ select $ textToLines $ format (s%"\thledger-makeitso "%s) (repr t) msg
 
 logErr :: Text -> Shell ()
 logErr = logLines stderr
+
+logVerbose :: HMISOptions -> Text -> Shell ()
+logVerbose opts msg = if (verbose opts) then logErr msg else return ()
+
+logVerboseTime :: HMISOptions -> Text -> IO a -> IO (a, NominalDiffTime)
+logVerboseTime opts msg action = do
+  sh $ logVerbose opts $ format ("Begin: "%s) msg
+  (result, diff) <- time action
+  sh $ logVerbose opts $ format ("End:   "%s%" ("%s%")") msg $ repr diff
+  return (result, diff)
+
+verboseTestFile :: HMISOptions -> FilePath -> Shell Bool
+verboseTestFile opts p = do
+  fileExists <- testfile p
+  let rel = relativeToBase opts p
+  if fileExists
+    then logVerbose opts $ format ("Found a "       %fp%" file at '"%fp%"'") (basename rel) rel
+    else logVerbose opts $ format ("Did not find a "%fp%" file at '"%fp%"'") (basename rel) rel
+  return fileExists
+
+relativeToBase :: HMISOptions -> FilePath -> FilePath
+relativeToBase opts p = fromMaybe p $ stripPrefix (directory $ baseDir opts) p
 
 groupPairs' :: (Eq a, Ord a) => [(a, b)] -> [(a, [b])]
 groupPairs' = map (\ll -> (fst . head $ ll, map snd ll)) . List.groupBy ((==) `on` fst)
@@ -203,8 +230,8 @@ writeIncludesUpTo stopAt paths = do
       writeIncludesUpTo stopAt newPaths
 
 writeMakeItSoJournal :: FilePath -> [FilePath] -> Shell [FilePath]
-writeMakeItSoJournal baseDir importedJournals = do
-  let makeitsoJournal = baseDir </> "makeitso.journal"
+writeMakeItSoJournal bd importedJournals = do
+  let makeitsoJournal = bd </> "makeitso.journal"
   writeFileMap $ Map.singleton makeitsoJournal importedJournals
 
 changeExtension :: Text -> FilePath -> FilePath
@@ -216,3 +243,6 @@ changePathAndExtension newOutputLocation newExt = (changeOutputPath newOutputLoc
 changeOutputPath :: FilePath -> FilePath -> FilePath
 changeOutputPath newOutputLocation srcFile = mconcat $ map changeSrcDir $ splitDirectories srcFile
   where changeSrcDir file = if (file == "1-in/" || file == "2-preprocessed/") then newOutputLocation else file
+
+dirOrPwd :: Maybe FilePath -> IO FilePath
+dirOrPwd maybeBaseDir = fmap (\p -> directory (p </> "temp")) (fromMaybe pwd $ fmap realpath maybeBaseDir)
