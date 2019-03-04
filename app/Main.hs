@@ -21,15 +21,15 @@ main = do
 
 toHMISOptions :: SubcommandParams -> IO HMISOptions
 toHMISOptions (maybeBaseDir, maybeVerbose) = do
-  bd <- toBaseDir maybeBaseDir
+  bd <- dirOrPwd maybeBaseDir
   let v = case maybeVerbose of
         Nothing    -> 0
         Just False -> 0
         Just True  -> 1
   return HMISOptions {baseDir = bd, verbosityLevel = v}
 
-toBaseDir :: Maybe FilePath -> IO FilePath
-toBaseDir maybeBaseDir = fromMaybe pwd $ fmap return maybeBaseDir
+dirOrPwd :: Maybe FilePath -> IO FilePath
+dirOrPwd maybeBaseDir = fromMaybe pwd $ fmap return maybeBaseDir
 
 parser :: Parser Command
 parser = fmap Import (subcommand "import" "Converts CSV transactions into categorised journal files" subcommandParser)
