@@ -92,11 +92,12 @@ hledger-makeitso import --help
 
 #+RESULTS: hm-import-help
 #+BEGIN_SRC org
-Usage: hledger-makeitso import [BASEDIR]
+Usage: hledger-makeitso import [BASEDIR] [-v|--verbose]
   Converts CSV transactions into categorised journal files
 
 Available options:
   BASEDIR                  The hledger-makeitso base directory
+  -v,--verbose             Print more verbose output
   -h,--help                Show this help text
 
 #+END_SRC
@@ -126,7 +127,7 @@ hledger-makeitso import ./my-finances
 Hmmm, an error:
 #+RESULTS: import1
 #+BEGIN_SRC org
-I couldn't find any input files underneath ./my-finances/import/
+I couldn't find any input files underneath my-finances/import/
 
 hledger-makitso expects to find its input files in specifically
 named directories.
@@ -203,11 +204,11 @@ hledger-makeitso import ./my-finances
 #+RESULTS: import2
 #+BEGIN_SRC org
 I couldn't find an hledger rules file while trying to import
-./my-finances/import/gawie/bogart/cheque/1-in/2016/123456789_2016-03-30.csv
+import/gawie/bogart/cheque/1-in/2016/123456789_2016-03-30.csv
 
 I will happily use the first rules file I can find from any one of these 2 files:
-./my-finances/import/gawie/bogart/cheque/bogart-cheque.rules
-./my-finances/import/bogart.rules
+import/gawie/bogart/cheque/bogart-cheque.rules
+import/bogart.rules
 
 Here is a bit of documentation about rules files that you may find helpful:
 https://github.com/apauley/hledger-makeitso#rules-files
@@ -264,14 +265,36 @@ ln -s ../../../../fnb-csv-demoronizer/fnb-csv-demoronizer preprocess
 #+END_SRC
 
 Now when we try the import again, it still displays an error due to our missing rules file.
-But this time we can see that our statement was preprocessed:
+Let's run it verbosely for a change:
 
 #+REVEAL: split
 
 #+NAME: import3
-#+BEGIN_SRC sh :results none :exports both
-hledger-makeitso import ./my-finances
+#+BEGIN_SRC sh :results org :exports both
+hledger-makeitso import --verbose ./my-finances
 #+END_SRC
+
+#+RESULTS: import3
+#+BEGIN_SRC org
+2019-03-04 23:25:57.751060758 SAST	hledger-makeitso Collecting input files...
+2019-03-04 23:25:57.872693876 SAST	hledger-makeitso Found 1 input files
+2019-03-04 23:25:57.872873856 SAST	hledger-makeitso Found a preprocess file at 'import/gawie/bogart/cheque/preprocess'
+2019-03-04 23:25:57.873181697 SAST	hledger-makeitso Begin: executing 'import/gawie/bogart/cheque/preprocess' on 'import/gawie/bogart/cheque/1-in/2016/123456789_2016-03-30.csv'
+2019-03-04 23:25:57.89569617 SAST	hledger-makeitso End:   executing 'import/gawie/bogart/cheque/preprocess' on 'import/gawie/bogart/cheque/1-in/2016/123456789_2016-03-30.csv' (0.022211083s)
+2019-03-04 23:25:57.896106771 SAST	hledger-makeitso Did not find a construct file at 'import/gawie/bogart/cheque/construct'
+I couldn't find an hledger rules file while trying to import
+import/gawie/bogart/cheque/2-preprocessed/2016/123456789_2016-03-30.csv
+
+I will happily use the first rules file I can find from any one of these 2 files:
+import/gawie/bogart/cheque/bogart-cheque.rules
+import/bogart.rules
+
+Here is a bit of documentation about rules files that you may find helpful:
+https://github.com/apauley/hledger-makeitso#rules-files
+
+#+END_SRC
+
+This time we can see that our statement was preprocessed despite the rules file error:
 
 #+NAME: head-preprocess
 #+BEGIN_SRC sh :results org :exports both

@@ -5,6 +5,7 @@ module Common
     , logVerbose
     , logVerboseTime
     , verboseTestFile
+    , relativeToBase
     , lsDirs
     , onlyFiles
     , onlyDirs
@@ -67,6 +68,9 @@ verboseTestFile opts aPath = do
     then logVerbose opts $ format ("Found a "       %fp%" file at '"%fp%"'") (basename rel) rel
     else logVerbose opts $ format ("Did not find a "%fp%" file at '"%fp%"'") (basename rel) rel
   return fileExists
+
+relativeToBase :: HMISOptions -> FilePath -> FilePath
+relativeToBase opts p = fromMaybe p $ stripPrefix (directory $ baseDir opts) p
 
 groupPairs' :: (Eq a, Ord a) => [(a, b)] -> [(a, [b])]
 groupPairs' = map (\ll -> (fst . head $ ll, map snd ll)) . List.groupBy ((==) `on` fst)

@@ -33,7 +33,7 @@ importCSVs' opts = do
     do
       let msg = format ("I couldn't find any input files underneath "%fp
                         %"\n\nhledger-makitso expects to find its input files in specifically\nnamed directories.\n\n"%
-                        "Have a look at the documentation for a detailed explanation:\n"%s) (baseDir opts </> "import/") (docURL "input-files")
+                        "Have a look at the documentation for a detailed explanation:\n"%s) (dirname (baseDir opts) </> "import/") (docURL "input-files")
       stderr $ select $ textToLines msg
       exit $ ExitFailure 1
     else
@@ -98,9 +98,9 @@ hledgerImport' :: HMISOptions -> ImportDirs -> FilePath -> FilePath -> Shell Fil
 hledgerImport' opts importDirs csvSrc journalOut = do
   let candidates = rulesFileCandidates csvSrc importDirs
   maybeRulesFile <- firstExistingFile candidates
+  let relCSV = fromMaybe csvSrc $ stripPrefix (directory $ baseDir opts) csvSrc
   case maybeRulesFile of
     Just rf -> do
-      let relCSV = fromMaybe csvSrc $ stripPrefix (directory $ baseDir opts) csvSrc
       let relRules = fromMaybe rf $ stripPrefix (directory $ baseDir opts) rf
       let action = procs "hledger" ["print", "--rules-file", format fp rf, "--file", format fp csvSrc, "--output-file", format fp journalOut] empty
       let msg = format ("importing '"%fp%"' using rules file '"%fp%"'") relCSV relRules
@@ -108,11 +108,12 @@ hledgerImport' opts importDirs csvSrc journalOut = do
       return journalOut
     Nothing ->
       do
-        let candidatesTxt = T.intercalate "\n" $ map (format fp) candidates
+        let relativeCandidates = map (relativeToBase opts) candidates
+        let candidatesTxt = T.intercalate "\n" $ map (format fp) relativeCandidates
         let msg = format ("I couldn't find an hledger rules file while trying to import\n"%fp
                           %"\n\nI will happily use the first rules file I can find from any one of these "%d%" files:\n"%s
                           %"\n\nHere is a bit of documentation about rules files that you may find helpful:\n"%s)
-                  csvSrc (length candidates) candidatesTxt (docURL "rules-files")
+                  relCSV (length candidates) candidatesTxt (docURL "rules-files")
         stderr $ select $ textToLines msg
         exit $ ExitFailure 1
 
