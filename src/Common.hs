@@ -44,7 +44,7 @@ import Hledger.MakeItSo.Data.Types
 logLines :: (Shell Line -> IO ()) -> Text -> Shell ()
 logLines logfun msg = do
   t <- liftIO $ getZonedTime
-  liftIO $ logfun $ select $ textToLines $ format (s%"\thledger-makeitso: "%s) (repr t) msg
+  liftIO $ logfun $ select $ textToLines $ format (s%"\thledger-makeitso "%s) (repr t) msg
 
 logErr :: Text -> Shell ()
 logErr = logLines stderr

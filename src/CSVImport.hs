@@ -80,8 +80,9 @@ preprocess opts script bank account owner src = do
   mktree $ directory csvOut
   let script' = format fp script :: Text
   let action = procs script' [format fp src, format fp csvOut, lineToText bank, lineToText account, lineToText owner] empty
-  let rel = fromMaybe script $ stripPrefix (directory $ baseDir opts) script
-  let msg = format ("executing '"%fp%"'") rel
+  let relScript = fromMaybe script $ stripPrefix (directory $ baseDir opts) script
+  let relSrc = fromMaybe src $ stripPrefix (directory $ baseDir opts) src
+  let msg = format ("executing '"%fp%"' on '"%fp%"'") relScript relSrc
   _ <- liftIO $ logVerboseTime opts msg action
   return csvOut
 
@@ -169,8 +170,9 @@ customConstruct opts constructScript bank account owner csvSrc journalOut = do
   let script = format fp constructScript :: Text
   let importOut = inproc script [format fp csvSrc, "-", lineToText bank, lineToText account, lineToText owner] empty
   let action = procs "hledger" ["print", "--ignore-assertions", "--file", "-", "--output-file", format fp journalOut] importOut
-  let rel = fromMaybe constructScript $ stripPrefix (directory $ baseDir opts) constructScript
-  let msg = format ("executing '"%fp%"'") rel
+  let relScript = fromMaybe constructScript $ stripPrefix (directory $ baseDir opts) constructScript
+  let relSrc = fromMaybe csvSrc $ stripPrefix (directory $ baseDir opts) csvSrc
+  let msg = format ("executing '"%fp%"' on '"%fp%"'") relScript relSrc
   _ <- liftIO $ logVerboseTime opts msg action
 
   return journalOut
