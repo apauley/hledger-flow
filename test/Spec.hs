@@ -24,19 +24,6 @@ groupedIncludeFiles :: Map.Map FilePath [FilePath]
 groupedIncludeFiles = [("./base/dir1-include.journal", ["./base/dir1/d1f2.journal", "./base/dir1/d1f1.journal"]),
                        ("./base/dir2-include.journal", ["./base/dir2/d2f1.journal", "./base/dir2/d2f2.journal"])]
 
-testDirOrPwd = TestCase (do
-                            currentDir <- fmap (\p -> directory (p </> "t"))pwd
-                            d1 <- dirOrPwd Nothing
-                            assertEqual "dirOrPwd returns pwd as a fallback" currentDir d1
-                            assertEqual "dirOrPwd assumes the fallback is a directory" (directory d1) d1
-                            d2 <- dirOrPwd $ Just "/tmp"
-                            assertEqual "dirOrPwd returns the supplied dir - no trailing slash supplied" "/tmp/" d2
-                            assertEqual "dirOrPwd assumes the supplied dir is a directory - no trailing slash supplied" (directory d2) d2
-                            d3 <- dirOrPwd $ Just "/etc/"
-                            assertEqual "dirOrPwd returns the supplied dir - trailing slash supplied" "/etc/" d3
-                            assertEqual "dirOrPwd assumes the supplied dir is a directory - trailing slash supplied" (directory d3) d3
-                        )
-
 testGroupBy = TestCase (do
                            let grouped = groupValuesBy includeFilePath journalFiles :: Map.Map FilePath [FilePath]
                            assertEqual "Group Files by Dir" groupedIncludeFiles grouped)
@@ -62,7 +49,7 @@ testToIncludeFiles = TestCase (
     txt <- single $ toIncludeFiles groupedIncludeFiles
     assertEqual "Convert a grouped map of paths, to a map with text contents for each file" expected txt)
 
-unitTests = TestList [testDirOrPwd, testGroupBy, testGroupPairs, testToIncludeLine, testToIncludeFiles]
+unitTests = TestList [testGroupBy, testGroupPairs, testToIncludeLine, testToIncludeFiles]
 
 tests = TestList [unitTests, Integration.tests]
 
