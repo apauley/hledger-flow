@@ -13,15 +13,15 @@ import qualified Data.List as List (sort)
 
 import Common
 
-inputFiles = ["checking/1-in/2018/2018-04-30.csv",
-              "savings/1-in/2018/d2f1.csv",
-              "checking/1-in/2018/2018-03-30.csv",
-              "savings/1-in/2018/d2f2.csv",
-              "checking/1-in/2018/2018-05-30.csv"] :: [FilePath]
+inputFiles = ["import/john/bogartbank/checking/1-in/2018/2018-04-30.csv",
+              "import/john/bogartbank/savings/1-in/2018/d2f1.csv",
+              "import/john/bogartbank/checking/1-in/2018/2018-03-30.csv",
+              "import/john/bogartbank/savings/1-in/2018/d2f2.csv",
+              "import/john/bogartbank/checking/1-in/2018/2018-05-30.csv"] :: [FilePath]
 
 journalFiles = map (changePathAndExtension "3-journal" "journal") inputFiles
-extraFiles = ["savings/3-journal/2018-opening.journal"]
-hiddenFiles = [".hiddenfile", "checking/.DS_Store", "savings/1-in/.anotherhiddenfile", "checking/1-in/2018/.hidden"]
+extraFiles = ["import/john/bogartbank/savings/3-journal/2018-opening.journal"]
+hiddenFiles = [".hiddenfile", "checking/.DS_Store", "import/john/bogartbank/savings/1-in/.anotherhiddenfile", "import/john/bogartbank/checking/1-in/2018/.hidden"]
 
 touchAll :: [FilePath] -> Shell ()
 touchAll = foldl (\acc file -> acc <> superTouch file) (return ())
@@ -94,8 +94,8 @@ testWriteIncludeFiles = TestCase (
         let hidden = map (tmpdir </>) hiddenFiles :: [FilePath]
         touchAll $ importedJournals ++ extras ++ hidden
 
-        let j1 = tmpdir </> "checking/3-journal/2018-include.journal"
-        let j2 = tmpdir </> "savings/3-journal/2018-include.journal"
+        let j1 = tmpdir </> "import/john/bogartbank/checking/3-journal/2018-include.journal"
+        let j2 = tmpdir </> "import/john/bogartbank/savings/3-journal/2018-include.journal"
         let expectedIncludes = [j1, j2]
 
         reportedAsWritten <- single $ groupAndWriteIncludeFiles importedJournals
