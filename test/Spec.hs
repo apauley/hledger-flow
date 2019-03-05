@@ -25,7 +25,7 @@ groupedIncludeFiles = [("./base/dir1-include.journal", ["./base/dir1/d1f2.journa
                        ("./base/dir2-include.journal", ["./base/dir2/d2f1.journal", "./base/dir2/d2f2.journal"])]
 
 testGroupBy = TestCase (do
-                           let grouped = groupValuesBy includeFilePath journalFiles :: Map.Map FilePath [FilePath]
+                           let grouped = groupIncludeFiles journalFiles :: Map.Map FilePath [FilePath]
                            assertEqual "Group Files by Dir" groupedIncludeFiles grouped)
 
 testGroupPairs = TestCase (do
