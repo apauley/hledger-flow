@@ -143,7 +143,7 @@ He concludes that =hledger-makeitso= expects to find its input files in specific
 
 #+REVEAL: split
 
-Looking at the documentation he sees there should be several account and bank-specific directories
+Looking at the [[https://github.com/apauley/hledger-makeitso#input-files][documentation]] he sees there should be several account and bank-specific directories
 under the =import= directory.
 
 #+REVEAL: split
