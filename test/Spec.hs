@@ -23,9 +23,40 @@ groupedIncludeFiles = [("./import/john/bogartbank/checking/3-journal/2018-includ
                         ["import/john/bogartbank/savings/3-journal/2018/d2f1.journal",
                          "import/john/bogartbank/savings/3-journal/2018/d2f2.journal"])]
 
-testGroupBy = TestCase (do
-                           let grouped = groupIncludeFiles journalFiles :: Map.Map FilePath [FilePath]
-                           assertEqual "Group Files by Dir" groupedIncludeFiles grouped)
+testGroupIncludeFiles = TestCase (
+  do
+    let group1 = groupIncludeFiles journalFiles :: Map.Map FilePath [FilePath]
+    assertEqual "groupIncludeFiles 1" groupedIncludeFiles group1
+
+    let group2 = groupIncludeFiles (Map.keys group1) :: Map.Map FilePath [FilePath]
+    let expectedGroup2 = [("./import/john/bogartbank/checking/3-journal-include.journal",
+                           ["./import/john/bogartbank/checking/3-journal/2018-include.journal"]),
+                          ("./import/john/bogartbank/savings/3-journal-include.journal",
+                           ["./import/john/bogartbank/savings/3-journal/2018-include.journal"])]
+    assertEqual "groupIncludeFiles 2" expectedGroup2 group2
+
+    let group3 = groupIncludeFiles (Map.keys group2) :: Map.Map FilePath [FilePath]
+    let expectedGroup3 = [("./import/john/bogartbank/checking-include.journal",
+                           ["./import/john/bogartbank/checking/3-journal-include.journal"]),
+                          ("./import/john/bogartbank/savings-include.journal",
+                           ["./import/john/bogartbank/savings/3-journal-include.journal"])]
+    assertEqual "groupIncludeFiles 3" expectedGroup3 group3
+
+    let group4 = groupIncludeFiles (Map.keys group3) :: Map.Map FilePath [FilePath]
+    let expectedGroup4 = [("./import/john/bogartbank-include.journal",
+                           ["./import/john/bogartbank/checking-include.journal",
+                            "./import/john/bogartbank/savings-include.journal"])]
+    assertEqual "groupIncludeFiles 4" expectedGroup4 group4
+
+    let group5 = groupIncludeFiles (Map.keys group4) :: Map.Map FilePath [FilePath]
+    let expectedGroup5 = [("./import/john-include.journal",
+                           ["./import/john/bogartbank-include.journal"])]
+    assertEqual "groupIncludeFiles 5" expectedGroup5 group5
+
+    let group6 = groupIncludeFiles (Map.keys group5) :: Map.Map FilePath [FilePath]
+    let expectedGroup6 = [("./import-include.journal",["./import/john-include.journal"])]
+    assertEqual "groupIncludeFiles 6" expectedGroup6 group6
+  )
 
 testGroupPairs = TestCase (do
                               let actual = groupPairs . pairBy includeFilePath $ journalFiles
@@ -49,7 +80,7 @@ testToIncludeFiles = TestCase (
     txt <- single $ toIncludeFiles groupedIncludeFiles
     assertEqual "Convert a grouped map of paths, to a map with text contents for each file" expected txt)
 
-unitTests = TestList [testGroupBy, testGroupPairs, testToIncludeLine, testToIncludeFiles]
+unitTests = TestList [testGroupIncludeFiles, testGroupPairs, testToIncludeLine, testToIncludeFiles]
 
 tests = TestList [unitTests, Integration.tests]
 
