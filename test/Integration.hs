@@ -78,8 +78,10 @@ testWriteIncludeFiles = TestCase (
         touchAll $ importedJournals ++ extras ++ hidden
 
         let j1 = tmpdir </> "import/john/bogartbank/checking/3-journal/2018-include.journal"
-        let j2 = tmpdir </> "import/john/bogartbank/savings/3-journal/2018-include.journal"
-        let expectedIncludes = [j1, j2]
+        let j2 = tmpdir </> "import/john/bogartbank/checking/3-journal/2019-include.journal"
+        let j3 = tmpdir </> "import/john/bogartbank/savings/3-journal/2017-include.journal"
+        let j4 = tmpdir </> "import/john/bogartbank/savings/3-journal/2018-include.journal"
+        let expectedIncludes = [j1, j2, j3, j4]
 
         reportedAsWritten <- single $ groupAndWriteIncludeFiles importedJournals
         liftIO $ assertEqual "groupAndWriteIncludeFiles should return which files it wrote" expectedIncludes reportedAsWritten
@@ -96,11 +98,23 @@ testWriteIncludeFiles = TestCase (
         liftIO $ assertEqual "J1: The include file contents should be the journal files" expectedJ1Contents actualJ1Contents
 
         let expectedJ2Contents = includePreamble <> "\n"
-              <> "!include 2018-opening.journal\n"
-              <> "!include 2018/d2f1.journal\n"
-              <> "!include 2018/d2f2.journal\n"
+              <> "!include 2019/2019-01-30.journal\n"
+              <> "!include 2019/2019-02-30.journal\n"
         actualJ2Contents <- liftIO $ readTextFile j2
         liftIO $ assertEqual "J2: The include file contents should be the journal files" expectedJ2Contents actualJ2Contents
+
+        let expectedJ3Contents = includePreamble <> "\n"
+              <> "!include 2017-opening.journal\n"
+              <> "!include 2017/2017-11-30.journal\n"
+              <> "!include 2017/2017-12-30.journal\n"
+        actualJ3Contents <- liftIO $ readTextFile j3
+        liftIO $ assertEqual "J3: The include file contents should be the journal files" expectedJ3Contents actualJ3Contents
+
+        let expectedJ4Contents = includePreamble <> "\n"
+              <> "!include 2018/2018-01-30.journal\n"
+              <> "!include 2018/2018-02-30.journal\n"
+        actualJ4Contents <- liftIO $ readTextFile j4
+        liftIO $ assertEqual "J4: The include file contents should be the journal files" expectedJ4Contents actualJ4Contents
      )
   )
 

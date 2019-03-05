@@ -13,14 +13,18 @@ import qualified Data.List as List (sort)
 
 import Common
 
-inputFiles = ["import/john/bogartbank/checking/1-in/2018/2018-04-30.csv",
-              "import/john/bogartbank/savings/1-in/2018/d2f1.csv",
+inputFiles = ["import/john/bogartbank/savings/1-in/2017/2017-11-30.csv",
+              "import/john/bogartbank/savings/1-in/2017/2017-12-30.csv",
+              "import/john/bogartbank/checking/1-in/2018/2018-04-30.csv",
+              "import/john/bogartbank/savings/1-in/2018/2018-01-30.csv",
               "import/john/bogartbank/checking/1-in/2018/2018-03-30.csv",
-              "import/john/bogartbank/savings/1-in/2018/d2f2.csv",
-              "import/john/bogartbank/checking/1-in/2018/2018-05-30.csv"] :: [FilePath]
+              "import/john/bogartbank/savings/1-in/2018/2018-02-30.csv",
+              "import/john/bogartbank/checking/1-in/2018/2018-05-30.csv",
+              "import/john/bogartbank/checking/1-in/2019/2019-01-30.csv",
+              "import/john/bogartbank/checking/1-in/2019/2019-02-30.csv"] :: [FilePath]
 
 journalFiles = map (changePathAndExtension "3-journal" "journal") inputFiles :: [FilePath]
-extraFiles = ["import/john/bogartbank/savings/3-journal/2018-opening.journal"] :: [FilePath]
+extraFiles = ["import/john/bogartbank/savings/3-journal/2017-opening.journal"] :: [FilePath]
 hiddenFiles = [".hiddenfile", "checking/.DS_Store", "import/john/bogartbank/savings/1-in/.anotherhiddenfile", "import/john/bogartbank/checking/1-in/2018/.hidden"] :: [FilePath]
 
 touchAll :: [FilePath] -> Shell ()
