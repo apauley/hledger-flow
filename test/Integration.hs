@@ -77,11 +77,25 @@ testWriteIncludeFiles = TestCase (
         let hidden = map (tmpdir </>) hiddenFiles :: [FilePath]
         touchAll $ importedJournals ++ extras ++ hidden
 
-        let j1 = tmpdir </> "import/john/bogartbank/checking/3-journal/2018-include.journal"
-        let j2 = tmpdir </> "import/john/bogartbank/checking/3-journal/2019-include.journal"
-        let j3 = tmpdir </> "import/john/bogartbank/savings/3-journal/2017-include.journal"
-        let j4 = tmpdir </> "import/john/bogartbank/savings/3-journal/2018-include.journal"
-        let expectedIncludes = [j1, j2, j3, j4]
+        let jane1 = tmpdir </> "import/jane/bogartbank/checking/3-journal/2018-include.journal"
+        let jane2 = tmpdir </> "import/jane/bogartbank/checking/3-journal/2019-include.journal"
+        let jane3 = tmpdir </> "import/jane/bogartbank/savings/3-journal/2017-include.journal"
+        let jane4 = tmpdir </> "import/jane/bogartbank/savings/3-journal/2018-include.journal"
+        let jane5 = tmpdir </> "import/jane/otherbank/creditcard/3-journal/2017-include.journal"
+        let jane6 = tmpdir </> "import/jane/otherbank/creditcard/3-journal/2018-include.journal"
+        let jane7 = tmpdir </> "import/jane/otherbank/investments/3-journal/2018-include.journal"
+        let jane8 = tmpdir </> "import/jane/otherbank/investments/3-journal/2019-include.journal"
+
+        let john1 = tmpdir </> "import/john/bogartbank/checking/3-journal/2018-include.journal"
+        let john2 = tmpdir </> "import/john/bogartbank/checking/3-journal/2019-include.journal"
+        let john3 = tmpdir </> "import/john/bogartbank/savings/3-journal/2017-include.journal"
+        let john4 = tmpdir </> "import/john/bogartbank/savings/3-journal/2018-include.journal"
+        let john5 = tmpdir </> "import/john/otherbank/creditcard/3-journal/2017-include.journal"
+        let john6 = tmpdir </> "import/john/otherbank/creditcard/3-journal/2018-include.journal"
+        let john7 = tmpdir </> "import/john/otherbank/investments/3-journal/2018-include.journal"
+        let john8 = tmpdir </> "import/john/otherbank/investments/3-journal/2019-include.journal"
+        let expectedIncludes = [jane1, jane2, jane3, jane4, jane5, jane6, jane7, jane8,
+                                john1, john2, john3, john4, john5, john6, john7, john8]
 
         reportedAsWritten <- single $ groupAndWriteIncludeFiles importedJournals
         liftIO $ assertEqual "groupAndWriteIncludeFiles should return which files it wrote" expectedIncludes reportedAsWritten
@@ -90,31 +104,37 @@ testWriteIncludeFiles = TestCase (
         allFilesOnDisk <- single $ sort $ onlyFiles $ lstree tmpdir
         liftIO $ assertEqual "The actual files on disk should match what groupAndWriteIncludeFiles reported" expectedOnDisk allFilesOnDisk
 
-        let expectedJ1Contents = includePreamble <> "\n"
+        let expectedJohn1Contents = includePreamble <> "\n"
               <> "!include 2018/2018-10-30.journal\n"
               <> "!include 2018/2018-11-30.journal\n"
               <> "!include 2018/2018-12-30.journal\n"
-        actualJ1Contents <- liftIO $ readTextFile j1
-        liftIO $ assertEqual "J1: The include file contents should be the journal files" expectedJ1Contents actualJ1Contents
+        actualJohn1Contents <- liftIO $ readTextFile john1
+        liftIO $ assertEqual "John1: The include file contents should be the journal files" expectedJohn1Contents actualJohn1Contents
 
-        let expectedJ2Contents = includePreamble <> "\n"
+        let expectedJohn2Contents = includePreamble <> "\n"
               <> "!include 2019/2019-01-30.journal\n"
               <> "!include 2019/2019-02-30.journal\n"
-        actualJ2Contents <- liftIO $ readTextFile j2
-        liftIO $ assertEqual "J2: The include file contents should be the journal files" expectedJ2Contents actualJ2Contents
+        actualJohn2Contents <- liftIO $ readTextFile john2
+        liftIO $ assertEqual "John2: The include file contents should be the journal files" expectedJohn2Contents actualJohn2Contents
 
-        let expectedJ3Contents = includePreamble <> "\n"
+        let expectedJohn3Contents = includePreamble <> "\n"
               <> "!include 2017-opening.journal\n"
               <> "!include 2017/2017-11-30.journal\n"
               <> "!include 2017/2017-12-30.journal\n"
-        actualJ3Contents <- liftIO $ readTextFile j3
-        liftIO $ assertEqual "J3: The include file contents should be the journal files" expectedJ3Contents actualJ3Contents
+        actualJohn3Contents <- liftIO $ readTextFile john3
+        liftIO $ assertEqual "John3: The include file contents should be the journal files" expectedJohn3Contents actualJohn3Contents
 
-        let expectedJ4Contents = includePreamble <> "\n"
+        let expectedJohn4Contents = includePreamble <> "\n"
               <> "!include 2018/2018-01-30.journal\n"
               <> "!include 2018/2018-02-30.journal\n"
-        actualJ4Contents <- liftIO $ readTextFile j4
-        liftIO $ assertEqual "J4: The include file contents should be the journal files" expectedJ4Contents actualJ4Contents
+        actualJohn4Contents <- liftIO $ readTextFile john4
+        liftIO $ assertEqual "John4: The include file contents should be the journal files" expectedJohn4Contents actualJohn4Contents
+
+        let expectedJane7Contents = includePreamble <> "\n"
+              <> "!include 2018/2018-12-30.journal\n"
+        actualJane7Contents <- liftIO $ readTextFile jane7
+        liftIO $ assertEqual "Jane7: The include file contents should be the journal files" expectedJane7Contents actualJane7Contents
+
      )
   )
 
