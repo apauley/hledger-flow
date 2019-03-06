@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Reports
+module Hledger.MakeItSo.Reports
     ( generateReports
     ) where
 

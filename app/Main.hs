@@ -7,7 +7,7 @@ import Prelude hiding (FilePath, putStrLn)
 import Data.Maybe (fromMaybe)
 import Hledger.MakeItSo.Data.Types
 import Common
-import Reports
+import Hledger.MakeItSo.Reports
 import CSVImport
 
 type SubcommandParams = (Maybe FilePath, Maybe Bool)
