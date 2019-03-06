@@ -91,9 +91,9 @@ testWriteIncludeFiles = TestCase (
         liftIO $ assertEqual "The actual files on disk should match what groupAndWriteIncludeFiles reported" expectedOnDisk allFilesOnDisk
 
         let expectedJ1Contents = includePreamble <> "\n"
-              <> "!include 2018/2018-03-30.journal\n"
-              <> "!include 2018/2018-04-30.journal\n"
-              <> "!include 2018/2018-05-30.journal\n"
+              <> "!include 2018/2018-10-30.journal\n"
+              <> "!include 2018/2018-11-30.journal\n"
+              <> "!include 2018/2018-12-30.journal\n"
         actualJ1Contents <- liftIO $ readTextFile j1
         liftIO $ assertEqual "J1: The include file contents should be the journal files" expectedJ1Contents actualJ1Contents
 

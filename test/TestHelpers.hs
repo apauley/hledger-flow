@@ -15,11 +15,11 @@ import Common
 
 inputFiles = ["import/john/bogartbank/savings/1-in/2017/2017-11-30.csv",
               "import/john/bogartbank/savings/1-in/2017/2017-12-30.csv",
-              "import/john/bogartbank/checking/1-in/2018/2018-04-30.csv",
-              "import/john/bogartbank/savings/1-in/2018/2018-01-30.csv",
-              "import/john/bogartbank/checking/1-in/2018/2018-03-30.csv",
               "import/john/bogartbank/savings/1-in/2018/2018-02-30.csv",
-              "import/john/bogartbank/checking/1-in/2018/2018-05-30.csv",
+              "import/john/bogartbank/savings/1-in/2018/2018-01-30.csv",
+              "import/john/bogartbank/checking/1-in/2018/2018-11-30.csv",
+              "import/john/bogartbank/checking/1-in/2018/2018-10-30.csv",
+              "import/john/bogartbank/checking/1-in/2018/2018-12-30.csv",
               "import/john/bogartbank/checking/1-in/2019/2019-01-30.csv",
               "import/john/bogartbank/checking/1-in/2019/2019-02-30.csv"] :: [FilePath]
 
