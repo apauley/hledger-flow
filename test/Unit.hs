@@ -14,44 +14,58 @@ import qualified Integration
 import TestHelpers
 import Common
 
+groupedJaneBogart :: Map.Map FilePath [FilePath]
+groupedJaneBogart = [
+  ("./import/jane/bogartbank/checking/3-journal/2018-include.journal",
+    ["import/jane/bogartbank/checking/3-journal/2018/2018-12-30.journal"]),
+  ("./import/jane/bogartbank/checking/3-journal/2019-include.journal",
+    ["import/jane/bogartbank/checking/3-journal/2019/2019-01-30.journal"]),
+  ("./import/jane/bogartbank/savings/3-journal/2017-include.journal",
+    ["import/jane/bogartbank/savings/3-journal/2017/2017-12-30.journal"]),
+  ("./import/jane/bogartbank/savings/3-journal/2018-include.journal",
+    ["import/jane/bogartbank/savings/3-journal/2018/2018-01-30.journal"])]
+
+groupedJaneOther :: Map.Map FilePath [FilePath]
+groupedJaneOther = [
+  ("./import/jane/otherbank/creditcard/3-journal/2017-include.journal",
+    ["import/jane/otherbank/creditcard/3-journal/2017/2017-12-30.journal"]),
+  ("./import/jane/otherbank/creditcard/3-journal/2018-include.journal",
+    ["import/jane/otherbank/creditcard/3-journal/2018/2018-01-30.journal"]),
+  ("./import/jane/otherbank/investments/3-journal/2018-include.journal",
+    ["import/jane/otherbank/investments/3-journal/2018/2018-12-30.journal"]),
+  ("./import/jane/otherbank/investments/3-journal/2019-include.journal",
+    ["import/jane/otherbank/investments/3-journal/2019/2019-01-30.journal"])]
+
+groupedJohnBogart :: Map.Map FilePath [FilePath]
+groupedJohnBogart = [
+  ("./import/john/bogartbank/checking/3-journal/2018-include.journal",
+    ["import/john/bogartbank/checking/3-journal/2018/2018-11-30.journal",
+     "import/john/bogartbank/checking/3-journal/2018/2018-10-30.journal",
+     "import/john/bogartbank/checking/3-journal/2018/2018-12-30.journal"]),
+  ("./import/john/bogartbank/checking/3-journal/2019-include.journal",
+    ["import/john/bogartbank/checking/3-journal/2019/2019-01-30.journal",
+     "import/john/bogartbank/checking/3-journal/2019/2019-02-30.journal"]),
+  ("./import/john/bogartbank/savings/3-journal/2017-include.journal",
+    ["import/john/bogartbank/savings/3-journal/2017/2017-11-30.journal",
+     "import/john/bogartbank/savings/3-journal/2017/2017-12-30.journal"]),
+  ("./import/john/bogartbank/savings/3-journal/2018-include.journal",
+    ["import/john/bogartbank/savings/3-journal/2018/2018-02-30.journal",
+     "import/john/bogartbank/savings/3-journal/2018/2018-01-30.journal"])]
+
+groupedJohnOther :: Map.Map FilePath [FilePath]
+groupedJohnOther = [
+  ("./import/john/otherbank/creditcard/3-journal/2017-include.journal",
+    ["import/john/otherbank/creditcard/3-journal/2017/2017-12-30.journal"]),
+  ("./import/john/otherbank/creditcard/3-journal/2018-include.journal",
+    ["import/john/otherbank/creditcard/3-journal/2018/2018-01-30.journal"]),
+  ("./import/john/otherbank/investments/3-journal/2018-include.journal",
+    ["import/john/otherbank/investments/3-journal/2018/2018-12-30.journal"]),
+  ("./import/john/otherbank/investments/3-journal/2019-include.journal",
+    ["import/john/otherbank/investments/3-journal/2019/2019-01-30.journal"])]
+
 groupedIncludeFiles :: Map.Map FilePath [FilePath]
-groupedIncludeFiles = [("./import/jane/bogartbank/checking/3-journal/2018-include.journal",
-                        ["import/jane/bogartbank/checking/3-journal/2018/2018-12-30.journal"]),
-                       ("./import/jane/bogartbank/checking/3-journal/2019-include.journal",
-                        ["import/jane/bogartbank/checking/3-journal/2019/2019-01-30.journal"]),
-                       ("./import/jane/bogartbank/savings/3-journal/2017-include.journal",
-                        ["import/jane/bogartbank/savings/3-journal/2017/2017-12-30.journal"]),
-                       ("./import/jane/bogartbank/savings/3-journal/2018-include.journal",
-                        ["import/jane/bogartbank/savings/3-journal/2018/2018-01-30.journal"]),
-                       ("./import/jane/otherbank/creditcard/3-journal/2017-include.journal",
-                        ["import/jane/otherbank/creditcard/3-journal/2017/2017-12-30.journal"]),
-                       ("./import/jane/otherbank/creditcard/3-journal/2018-include.journal",
-                        ["import/jane/otherbank/creditcard/3-journal/2018/2018-01-30.journal"]),
-                       ("./import/jane/otherbank/investments/3-journal/2018-include.journal",
-                        ["import/jane/otherbank/investments/3-journal/2018/2018-12-30.journal"]),
-                       ("./import/jane/otherbank/investments/3-journal/2019-include.journal",
-                        ["import/jane/otherbank/investments/3-journal/2019/2019-01-30.journal"]),
-                       ("./import/john/bogartbank/checking/3-journal/2018-include.journal",
-                        ["import/john/bogartbank/checking/3-journal/2018/2018-11-30.journal",
-                         "import/john/bogartbank/checking/3-journal/2018/2018-10-30.journal",
-                         "import/john/bogartbank/checking/3-journal/2018/2018-12-30.journal"]),
-                       ("./import/john/bogartbank/checking/3-journal/2019-include.journal",
-                        ["import/john/bogartbank/checking/3-journal/2019/2019-01-30.journal",
-                         "import/john/bogartbank/checking/3-journal/2019/2019-02-30.journal"]),
-                       ("./import/john/bogartbank/savings/3-journal/2017-include.journal",
-                        ["import/john/bogartbank/savings/3-journal/2017/2017-11-30.journal",
-                         "import/john/bogartbank/savings/3-journal/2017/2017-12-30.journal"]),
-                       ("./import/john/bogartbank/savings/3-journal/2018-include.journal",
-                        ["import/john/bogartbank/savings/3-journal/2018/2018-02-30.journal",
-                         "import/john/bogartbank/savings/3-journal/2018/2018-01-30.journal"]),
-                       ("./import/john/otherbank/creditcard/3-journal/2017-include.journal",
-                        ["import/john/otherbank/creditcard/3-journal/2017/2017-12-30.journal"]),
-                       ("./import/john/otherbank/creditcard/3-journal/2018-include.journal",
-                        ["import/john/otherbank/creditcard/3-journal/2018/2018-01-30.journal"]),
-                       ("./import/john/otherbank/investments/3-journal/2018-include.journal",
-                        ["import/john/otherbank/investments/3-journal/2018/2018-12-30.journal"]),
-                       ("./import/john/otherbank/investments/3-journal/2019-include.journal",
-                        ["import/john/otherbank/investments/3-journal/2019/2019-01-30.journal"])]
+groupedIncludeFiles = groupedJaneBogart <> groupedJaneOther <>
+                      groupedJohnBogart <> groupedJohnOther
 
 testGroupIncludeFiles = TestCase (
   do
