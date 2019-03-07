@@ -21,13 +21,11 @@ module Hledger.MakeItSo.Common
     , extraIncludesForFile
     , groupPairs
     , pairBy
-    , includeFilePath
     , includePreamble
     , toIncludeFiles
     , toIncludeLine
     , groupAndWriteIncludeFiles
     , writeIncludesUpTo
-    , writeMakeItSoJournal
     , dirOrPwd
     , extractImportDirs
     ) where
@@ -91,8 +89,19 @@ pairBy keyFun = map (\v -> (keyFun v, v))
 groupValuesBy :: (Ord k, Ord v) => (v -> k) -> [v] -> Map.Map k [v]
 groupValuesBy keyFun = groupPairs . pairBy keyFun
 
+initialIncludeFilePath :: FilePath -> FilePath
+initialIncludeFilePath p = (parent . parent . parent) p </> includeFileName p
+
+parentIncludeFilePath :: FilePath -> FilePath
+parentIncludeFilePath p = (parent . parent) p </> (filename p)
+
 groupIncludeFiles :: [FilePath] -> Map.Map FilePath [FilePath]
-groupIncludeFiles = groupValuesBy includeFilePath
+groupIncludeFiles [] = Map.empty
+groupIncludeFiles ps@(p:_) = if (dirname p == "import")
+  then Map.singleton "./makeitso.journal" ps
+  else case extractImportDirs p of
+    Right _ -> (groupValuesBy initialIncludeFilePath) ps
+    Left  _ -> (groupValuesBy parentIncludeFilePath) ps
 
 docURL :: Line -> Text
 docURL = format ("https://github.com/apauley/hledger-makeitso#"%l)
@@ -159,10 +168,7 @@ shellToList :: Shell a -> Shell [a]
 shellToList files = fold files Fold.list
 
 includeFileName :: FilePath -> FilePath
-includeFileName = (<.> "journal"). fromText . (format (fp%"-include")) . dirname
-
-includeFilePath :: FilePath -> FilePath
-includeFilePath p = (parent . parent) p </> includeFileName p
+includeFileName = (<.> "journal") . fromText . (format (fp%"-include")) . dirname
 
 toIncludeFiles :: HMISOptions -> Map.Map FilePath [FilePath] -> Shell (Map.Map FilePath Text)
 toIncludeFiles opts m = do
@@ -244,11 +250,6 @@ writeIncludesUpTo opts stopAt paths = do
     do
       newPaths <- groupAndWriteIncludeFiles opts paths
       writeIncludesUpTo opts stopAt newPaths
-
-writeMakeItSoJournal :: HMISOptions -> FilePath -> [FilePath] -> Shell [FilePath]
-writeMakeItSoJournal opts bd importedJournals = do
-  let makeitsoJournal = bd </> "makeitso.journal"
-  writeFileMap opts $ Map.singleton makeitsoJournal importedJournals
 
 changeExtension :: Text -> FilePath -> FilePath
 changeExtension ext path = (dropExtension path) <.> ext
