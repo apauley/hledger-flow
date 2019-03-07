@@ -65,6 +65,11 @@ groupedIncludeFiles :: Map.Map FilePath [FilePath]
 groupedIncludeFiles = groupedJaneBogart <> groupedJaneOther <>
                       groupedJohnBogart <> groupedJohnOther
 
+testGroupSmall = TestCase (
+  do
+    assertEqual "groupIncludeFiles small set" groupedJaneBogart (groupIncludeFiles inputJaneBogart)
+  )
+
 testGroupIncludeFiles = TestCase (
   do
     let group1 = groupIncludeFiles journalFiles :: Map.Map FilePath [FilePath]
@@ -206,4 +211,4 @@ testToIncludeFiles = TestCase (
     txt <- single $ toIncludeFiles (defaultOpts ".") groupedJohnBogart
     assertEqual "Convert a grouped map of paths, to a map with text contents for each file" expected txt)
 
-tests = TestList [testGroupIncludeFiles, testGroupPairs, testRelativeToBase, testToIncludeLine, testToIncludeFiles]
+tests = TestList [testGroupSmall, testGroupIncludeFiles, testGroupPairs, testRelativeToBase, testToIncludeLine, testToIncludeFiles]
