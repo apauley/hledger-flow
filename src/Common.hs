@@ -10,7 +10,6 @@ module Common
     , onlyFiles
     , onlyDirs
     , filterPaths
-    , changeExtension
     , changePathAndExtension
     , basenameLine
     , buildFilename
