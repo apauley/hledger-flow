@@ -11,14 +11,6 @@ import qualified Data.List.NonEmpty as NonEmpty
 import Hledger.MakeItSo.Data.Types
 import Common
 
-data ImportDirs = ImportDirs { importDir  :: FilePath
-                             , ownerDir   :: FilePath
-                             , bankDir    :: FilePath
-                             , accountDir :: FilePath
-                             , stateDir   :: FilePath
-                             , yearDir    :: FilePath
-                             } deriving (Show)
-
 importCSVs :: HMISOptions -> IO ()
 importCSVs = sh . importCSVs'
 
@@ -115,26 +107,6 @@ hledgerImport' opts importDirs csvSrc journalOut = do
                   relCSV (length candidates) candidatesTxt (docURL "rules-files")
         stderr $ select $ textToLines msg
         exit $ ExitFailure 1
-
-importDirBreakdown ::  FilePath -> [FilePath]
-importDirBreakdown = importDirBreakdown' []
-
-importDirBreakdown' :: [FilePath] -> FilePath -> [FilePath]
-importDirBreakdown' acc path = do
-  let dir = directory path
-  if (dirname dir == "import" || (dirname dir == ""))
-    then dir:acc
-    else importDirBreakdown' (dir:acc) $ parent dir
-
-extractImportDirs :: FilePath -> Either Text ImportDirs
-extractImportDirs inputFile = do
-  case importDirBreakdown inputFile of
-    [bd,owner,bank,account,filestate,year] -> Right $ ImportDirs bd owner bank account filestate year
-    _ -> do
-      Left $ format ("I couldn't find the right number of directories between \"import\" and the input file:\n"%fp
-                      %"\n\nhledger-makitso expects to find input files in this structure:\n"%
-                      "import/owner/bank/account/filestate/year/trxfile\n\n"%
-                      "Have a look at the documentation for a detailed explanation:\n"%s) inputFile (docURL "input-files")
 
 rulesFileCandidates :: FilePath -> ImportDirs -> [FilePath]
 rulesFileCandidates csvSrc importDirs = statementSpecificRulesFiles csvSrc importDirs ++ generalRulesFiles importDirs
