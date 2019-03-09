@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module CSVImport
+module Hledger.MakeItSo.CSVImport
     ( importCSVs
     ) where
 

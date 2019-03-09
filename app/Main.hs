@@ -8,7 +8,7 @@ import Data.Maybe (fromMaybe)
 import Hledger.MakeItSo.Data.Types
 import Hledger.MakeItSo.Common
 import Hledger.MakeItSo.Reports
-import CSVImport
+import Hledger.MakeItSo.CSVImport
 
 type SubcommandParams = (Maybe FilePath, Maybe Bool)
 data Command = Import SubcommandParams | Report SubcommandParams deriving (Show)
