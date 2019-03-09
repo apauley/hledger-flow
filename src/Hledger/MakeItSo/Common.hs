@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Common
+module Hledger.MakeItSo.Common
     ( docURL
     , logVerbose
     , logVerboseTime

@@ -11,7 +11,7 @@ import qualified Control.Foldl as Fold
 import qualified Data.Text as T
 import qualified Data.List as List (sort)
 
-import Common
+import Hledger.MakeItSo.Common
 
 inputJohnBogart = [
   "import/john/bogartbank/savings/1-in/2017/2017-11-30.csv",

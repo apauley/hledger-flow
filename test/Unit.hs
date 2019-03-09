@@ -12,7 +12,7 @@ import qualified Data.Text as T
 import qualified Integration
 
 import TestHelpers
-import Common
+import Hledger.MakeItSo.Common
 
 groupedJaneBogart :: Map.Map FilePath [FilePath]
 groupedJaneBogart = [

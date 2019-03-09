@@ -6,7 +6,7 @@ import Turtle
 import Prelude hiding (FilePath, putStrLn)
 import Data.Maybe (fromMaybe)
 import Hledger.MakeItSo.Data.Types
-import Common
+import Hledger.MakeItSo.Common
 import Hledger.MakeItSo.Reports
 import CSVImport
 

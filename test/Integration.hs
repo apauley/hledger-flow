@@ -12,7 +12,7 @@ import qualified Data.Text as T
 import qualified Data.List as List (sort)
 
 import TestHelpers
-import Common
+import Hledger.MakeItSo.Common
 
 testHiddenFiles = TestCase (
   sh (

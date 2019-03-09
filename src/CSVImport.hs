@@ -9,7 +9,7 @@ import Prelude hiding (FilePath, putStrLn, take)
 import qualified Data.Text as T
 import qualified Data.List.NonEmpty as NonEmpty
 import Hledger.MakeItSo.Data.Types
-import Common
+import Hledger.MakeItSo.Common
 
 importCSVs :: HMISOptions -> IO ()
 importCSVs = sh . importCSVs'
