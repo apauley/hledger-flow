@@ -68,6 +68,35 @@ testFilterPaths = TestCase (
      )
   )
 
+testExtraIncludesForFile = TestCase (
+  sh (
+      do
+        tmpdir <- using (mktempdir "." "makeitso")
+        let importedJournals = map (tmpdir </>) journalFiles :: [FilePath]
+        let accountDir = "import/john/bogartbank/savings"
+        let opening = tmpdir </> accountDir </> "2017-opening.journal"
+        let closing = tmpdir </> accountDir </> "2017-closing.journal"
+        let hidden = map (tmpdir </>) hiddenFiles :: [FilePath]
+        touchAll $ importedJournals ++ hidden
+
+        let accountInclude = tmpdir </> accountDir </> "2017-include.journal"
+        let expectedEmpty = [(accountInclude, [])]
+
+        extraOpening1 <- extraIncludesForFile accountInclude ["opening.journal"] []
+        liftIO $ assertEqual "The opening journal should not be included when it is not on disk" expectedEmpty extraOpening1
+
+        extraClosing1 <- extraIncludesForFile accountInclude ["closing.journal"] []
+        liftIO $ assertEqual "The closing journal should not be included when it is not on disk" expectedEmpty extraClosing1
+
+        touchAll [opening, closing]
+
+        extraOpening2 <- extraIncludesForFile accountInclude ["opening.journal"] []
+        liftIO $ assertEqual "The opening journal should be included when it is on disk" [(accountInclude, [opening])] extraOpening2
+
+        extraClosing2 <- extraIncludesForFile accountInclude ["closing.journal"] []
+        liftIO $ assertEqual "The closing journal should be included when it is on disk" [(accountInclude, [closing])] extraClosing2
+     ))
+
 testWriteIncludeFiles = TestCase (
   sh (
       do
@@ -138,4 +167,4 @@ testWriteIncludeFiles = TestCase (
      )
   )
 
-tests = TestList [testDirOrPwd, testHiddenFiles, testFilterPaths, testWriteIncludeFiles]
+tests = TestList [testDirOrPwd, testExtraIncludesForFile, testHiddenFiles, testFilterPaths, testWriteIncludeFiles]

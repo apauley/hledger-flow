@@ -17,6 +17,7 @@ module Hledger.MakeItSo.Common
     , firstExistingFile
     , groupValuesBy
     , groupIncludeFiles
+    , extraIncludesForFile
     , groupPairs
     , pairBy
     , includeFilePath

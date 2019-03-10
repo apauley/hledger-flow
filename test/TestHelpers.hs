@@ -44,9 +44,12 @@ inputJaneOther = [
 
 inputFiles = inputJohnBogart <> inputJohnOther <> inputJaneBogart <> inputJaneOther
 
-journalFiles = map (changePathAndExtension "3-journal" "journal") inputFiles :: [FilePath]
+journalFiles = toJournals inputFiles :: [FilePath]
 extraFiles = ["import/john/bogartbank/savings/3-journal/2017-opening.journal"] :: [FilePath]
 hiddenFiles = [".hiddenfile", "checking/.DS_Store", "import/john/bogartbank/savings/1-in/.anotherhiddenfile", "import/john/bogartbank/checking/1-in/2018/.hidden"] :: [FilePath]
+
+toJournals :: [FilePath] -> [FilePath]
+toJournals = map (changePathAndExtension "3-journal" "journal")
 
 touchAll :: [FilePath] -> Shell ()
 touchAll = foldl (\acc file -> acc <> superTouch file) (return ())
