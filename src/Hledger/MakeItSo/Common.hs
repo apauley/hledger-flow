@@ -6,6 +6,7 @@ module Hledger.MakeItSo.Common
     , logVerboseTime
     , verboseTestFile
     , relativeToBase
+    , relativeToBase'
     , lsDirs
     , onlyFiles
     , onlyDirs
@@ -72,7 +73,10 @@ verboseTestFile opts p = do
   return fileExists
 
 relativeToBase :: HMISOptions -> FilePath -> FilePath
-relativeToBase opts p = fromMaybe p $ stripPrefix (directory $ baseDir opts) p
+relativeToBase opts = relativeToBase' (baseDir opts)
+
+relativeToBase' :: FilePath -> FilePath -> FilePath
+relativeToBase' bd p = fromMaybe p $ stripPrefix (forceTrailingSlash bd) p
 
 groupPairs' :: (Eq a, Ord a) => [(a, b)] -> [(a, [b])]
 groupPairs' = map (\ll -> (fst . head $ ll, map snd ll)) . List.groupBy ((==) `on` fst)
@@ -198,14 +202,14 @@ addPreamble :: Map.Map FilePath Text -> Map.Map FilePath Text
 addPreamble = Map.map (\txt -> includePreamble <> "\n" <> txt)
 
 toIncludeLine :: FilePath -> FilePath -> Text
-toIncludeLine base file = format ("!include "%fp) $ fromMaybe file $ stripPrefix (directory base) file
+toIncludeLine base file = format ("!include "%fp) $ relativeToBase' base file
 
 generatedIncludeText :: Map.Map FilePath [FilePath] -> Map.Map FilePath [FilePath] -> FilePath -> [FilePath] -> Text
 generatedIncludeText preMap postMap outputFile fs = do
   let preFiles = fromMaybe [] $ Map.lookup outputFile preMap
   let files = List.nub . List.sort $ fs
   let postFiles = fromMaybe [] $ Map.lookup outputFile postMap
-  let lns = map (toIncludeLine outputFile) $ preFiles ++ files ++ postFiles
+  let lns = map (toIncludeLine $ directory outputFile) $ preFiles ++ files ++ postFiles
   T.intercalate "\n" $ lns ++ [""]
 
 includePreamble :: Text
@@ -256,7 +260,10 @@ changeOutputPath newOutputLocation srcFile = mconcat $ map changeSrcDir $ splitD
   where changeSrcDir file = if (file == "1-in/" || file == "2-preprocessed/") then newOutputLocation else file
 
 dirOrPwd :: Maybe FilePath -> IO FilePath
-dirOrPwd maybeBaseDir = fmap (\p -> directory (p </> "temp")) (fromMaybe pwd $ fmap realpath maybeBaseDir)
+dirOrPwd maybeBaseDir = fmap forceTrailingSlash (fromMaybe pwd $ fmap realpath maybeBaseDir)
+
+forceTrailingSlash :: FilePath -> FilePath
+forceTrailingSlash p = directory (p </> "temp")
 
 importDirBreakdown ::  FilePath -> [FilePath]
 importDirBreakdown = importDirBreakdown' []

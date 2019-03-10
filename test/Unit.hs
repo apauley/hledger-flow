@@ -153,10 +153,41 @@ testGroupPairs = TestCase (do
                               let actual = groupPairs . pairBy includeFilePath $ journalFiles
                               assertEqual "Group files, paired by the directories they live in" groupedIncludeFiles actual)
 
-testToIncludeLine = TestCase (do
-                                 let expected = "!include file1.journal"
-                                 let actual = toIncludeLine "./base/dir/" "./base/dir/file1.journal"
-                                 assertEqual "Include line" expected actual)
+testRelativeToBase = TestCase (
+  do
+    let expected = "file1.journal"
+    let relativeWithTrailingSlash = relativeToBase' "./base/dir/" "./base/dir/file1.journal"
+    assertEqual "relative base dir with trailing slash" expected relativeWithTrailingSlash
+
+    let relativeNoTrailingSlash = relativeToBase' "./base/dir" "./base/dir/file1.journal"
+    assertEqual "relative base dir without a trailing slash" expected relativeNoTrailingSlash
+
+    let absoluteWithTrailingSlash = relativeToBase' "/base/dir/" "/base/dir/file1.journal"
+    assertEqual "absolute base dir with trailing slash" expected absoluteWithTrailingSlash
+
+    let absoluteNoTrailingSlash = relativeToBase' "/base/dir" "/base/dir/file1.journal"
+    assertEqual "absolute base dir without a trailing slash" expected absoluteNoTrailingSlash
+
+    let mismatch = relativeToBase' "/base/dir" "/unrelated/dir/file1.journal"
+    assertEqual "A basedir with no shared prefix should return the supplied file unchanged" "/unrelated/dir/file1.journal" mismatch
+  )
+
+testToIncludeLine = TestCase (
+  do
+    let expected = "!include file1.journal"
+    let relativeWithTrailingSlash = toIncludeLine "./base/dir/" "./base/dir/file1.journal"
+    assertEqual "Include line - relative base dir with trailing slash" expected relativeWithTrailingSlash
+
+    let relativeNoTrailingSlash = toIncludeLine "./base/dir" "./base/dir/file1.journal"
+    assertEqual "Include line - relative base dir without a trailing slash" expected relativeNoTrailingSlash
+
+    let absoluteWithTrailingSlash = toIncludeLine "/base/dir/" "/base/dir/file1.journal"
+    assertEqual "Include line - absolute base dir with trailing slash" expected absoluteWithTrailingSlash
+
+    let absoluteNoTrailingSlash = toIncludeLine "/base/dir" "/base/dir/file1.journal"
+    assertEqual "Include line - absolute base dir without a trailing slash" expected absoluteNoTrailingSlash
+  )
+
 testToIncludeFiles = TestCase (
   do
     let expected = [
@@ -181,4 +212,4 @@ testToIncludeFiles = TestCase (
     txt <- single $ toIncludeFiles (defaultOpts ".") groupedJohnBogart
     assertEqual "Convert a grouped map of paths, to a map with text contents for each file" expected txt)
 
-tests = TestList [testGroupIncludeFiles, testGroupPairs, testToIncludeLine, testToIncludeFiles]
+tests = TestList [testGroupIncludeFiles, testGroupPairs, testRelativeToBase, testToIncludeLine, testToIncludeFiles]
