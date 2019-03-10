@@ -98,7 +98,7 @@ parentIncludeFilePath p = (parent . parent) p </> (filename p)
 groupIncludeFiles :: [FilePath] -> Map.Map FilePath [FilePath]
 groupIncludeFiles [] = Map.empty
 groupIncludeFiles ps@(p:_) = if (dirname p == "import")
-  then Map.singleton "./makeitso.journal" ps
+  then Map.singleton (((parent . parent) p) </> "makeitso.journal") ps
   else case extractImportDirs p of
     Right _ -> (groupValuesBy initialIncludeFilePath) ps
     Left  _ -> (groupValuesBy parentIncludeFilePath) ps
