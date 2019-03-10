@@ -178,7 +178,7 @@ testToIncludeFiles = TestCase (
             "!include import/john/bogartbank/savings/3-journal/2018/2018-01-30.journal\n" <>
             "!include import/john/bogartbank/savings/3-journal/2018/2018-02-30.journal\n")]
 
-    txt <- single $ toIncludeFiles groupedJohnBogart
+    txt <- single $ toIncludeFiles (defaultOpts ".") groupedJohnBogart
     assertEqual "Convert a grouped map of paths, to a map with text contents for each file" expected txt)
 
 tests = TestList [testGroupIncludeFiles, testGroupPairs, testToIncludeLine, testToIncludeFiles]

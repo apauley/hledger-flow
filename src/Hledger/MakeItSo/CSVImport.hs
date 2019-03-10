@@ -30,8 +30,8 @@ importCSVs' opts = do
     else
     do
       importedJournals <- shellToList . (extractAndImport opts) . select $ inputFiles
-      importIncludes <- writeIncludesUpTo "import" importedJournals
-      writeMakeItSoJournal (baseDir opts) importIncludes
+      importIncludes <- writeIncludesUpTo opts "import" importedJournals
+      writeMakeItSoJournal opts (baseDir opts) importIncludes
 
 extractAndImport :: HMISOptions -> Shell FilePath -> Shell FilePath
 extractAndImport opts inputFiles = do

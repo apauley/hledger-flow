@@ -82,18 +82,18 @@ testExtraIncludesForFile = TestCase (
         let accountInclude = tmpdir </> accountDir </> "2017-include.journal"
         let expectedEmpty = [(accountInclude, [])]
 
-        extraOpening1 <- extraIncludesForFile accountInclude ["opening.journal"] []
+        extraOpening1 <- extraIncludesForFile (defaultOpts tmpdir) accountInclude ["opening.journal"] []
         liftIO $ assertEqual "The opening journal should not be included when it is not on disk" expectedEmpty extraOpening1
 
-        extraClosing1 <- extraIncludesForFile accountInclude ["closing.journal"] []
+        extraClosing1 <- extraIncludesForFile (defaultOpts tmpdir) accountInclude ["closing.journal"] []
         liftIO $ assertEqual "The closing journal should not be included when it is not on disk" expectedEmpty extraClosing1
 
         touchAll [opening, closing]
 
-        extraOpening2 <- extraIncludesForFile accountInclude ["opening.journal"] []
+        extraOpening2 <- extraIncludesForFile (defaultOpts tmpdir) accountInclude ["opening.journal"] []
         liftIO $ assertEqual "The opening journal should be included when it is on disk" [(accountInclude, [opening])] extraOpening2
 
-        extraClosing2 <- extraIncludesForFile accountInclude ["closing.journal"] []
+        extraClosing2 <- extraIncludesForFile (defaultOpts tmpdir) accountInclude ["closing.journal"] []
         liftIO $ assertEqual "The closing journal should be included when it is on disk" [(accountInclude, [closing])] extraClosing2
      ))
 
@@ -126,7 +126,7 @@ testWriteIncludeFiles = TestCase (
         let expectedIncludes = [jane1, jane2, jane3, jane4, jane5, jane6, jane7, jane8,
                                 john1, john2, john3, john4, john5, john6, john7, john8]
 
-        reportedAsWritten <- single $ groupAndWriteIncludeFiles importedJournals
+        reportedAsWritten <- single $ groupAndWriteIncludeFiles (defaultOpts tmpdir) importedJournals
         liftIO $ assertEqual "groupAndWriteIncludeFiles should return which files it wrote" expectedIncludes reportedAsWritten
 
         let expectedOnDisk = List.sort $ reportedAsWritten ++ extras ++ importedJournals
