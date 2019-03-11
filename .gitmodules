@@ -1,6 +1,3 @@
-[submodule "example/fnb-csv-demoronizer"]
-	path = example/fnb-csv-demoronizer
-	url = https://github.com/apauley/fnb-csv-demoronizer.git
 [submodule "docs/reveal.js"]
 	path = docs/reveal.js
 	url = https://github.com/hakimel/reveal.js.git
