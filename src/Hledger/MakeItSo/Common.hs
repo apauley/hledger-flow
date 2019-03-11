@@ -190,9 +190,8 @@ extraIncludesForFile opts file extraSuffixes filesToTest = do
   let dirprefix = fromText $ fst $ T.breakOn "-" $ format fp $ basename file
   let fileNames = map (\suff -> fromText $ format (fp%"-"%s) dirprefix suff) extraSuffixes
   let suffixFiles = map (directory file </>) fileNames
-  let oldJournalDirSuffixFiles = map (directory file </> "3-journal" </>) fileNames
   let suffixDirFiles = map (directory file </> dirprefix </>) filesToTest
-  let extraFiles = suffixFiles ++ oldJournalDirSuffixFiles ++ suffixDirFiles
+  let extraFiles = suffixFiles ++ suffixDirFiles
   filtered <- filterPaths testfile extraFiles
   let logMsg = format ("Looking for possible extra include files for '"%fp%"' among these "%d%" options: "%s%". Found "%d%": "%s)
                (relativeToBase opts file) (length extraFiles) (repr $ relativeFilesAsText opts extraFiles)

@@ -95,11 +95,6 @@ testExtraIncludesForFile = TestCase (
 
         extraClosing2 <- extraIncludesForFile (defaultOpts tmpdir) accountInclude ["closing.journal"] []
         liftIO $ assertEqual "The closing journal should be included when it is on disk" [(accountInclude, [closing])] extraClosing2
-
-        let oldJournalOpening = tmpdir </> accountDir </> "3-journal" </> "2017-opening.journal"
-        superTouch oldJournalOpening
-        extraJournalOpening <- extraIncludesForFile (defaultOpts tmpdir) accountInclude ["opening.journal"] []
-        liftIO $ assertEqual "The old opening file in 3-journal should be included when it is on disk" [(accountInclude, [oldJournalOpening, opening])] extraJournalOpening
      ))
 
 testWriteIncludeFiles = TestCase (
