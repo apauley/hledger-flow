@@ -187,8 +187,9 @@ extraIncludesForFile opts file extraSuffixes filesToTest = do
   let suffixDirFiles = map (directory file </> dirprefix </>) filesToTest
   let extraFiles = suffixFiles ++ suffixDirFiles
   filtered <- filterPaths testfile extraFiles
-  let logMsg = format ("Looking for possible extra include files for '"%fp%"' among these options: "%s%". Found: "%s)
-               (relativeToBase opts file) (repr $ relativeFilesAsText opts extraFiles) (repr $ relativeFilesAsText opts filtered)
+  let logMsg = format ("Looking for possible extra include files for '"%fp%"' among these "%d%" options: "%s%". Found "%d%": "%s)
+               (relativeToBase opts file) (length extraFiles) (repr $ relativeFilesAsText opts extraFiles)
+               (length filtered) (repr $ relativeFilesAsText opts filtered)
   logVerbose opts logMsg
   return $ Map.fromList [(file, filtered)]
 
