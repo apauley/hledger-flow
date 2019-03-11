@@ -172,8 +172,8 @@ includeFileName = (<.> "journal") . fromText . (format (fp%"-include")) . dirnam
 
 toIncludeFiles :: HMISOptions -> Map.Map FilePath [FilePath] -> Shell (Map.Map FilePath Text)
 toIncludeFiles opts m = do
-  preMap  <- extraIncludes opts (Map.keys m) ["opening.journal",  "pre-import.journal"] ["_manual_/pre-import.journal"]
-  postMap <- extraIncludes opts (Map.keys m) ["post-import.journal", "closing.journal"] ["_manual_/post-import.journal"]
+  preMap  <- extraIncludes opts (Map.keys m) ["opening.journal"] ["pre-import.journal"]
+  postMap <- extraIncludes opts (Map.keys m) ["closing.journal"] ["post-import.journal"]
   return $ (addPreamble . toIncludeFiles' preMap postMap) m
 
 extraIncludes :: HMISOptions -> [FilePath] -> [Text] -> [FilePath] -> Shell (Map.Map FilePath [FilePath])
@@ -181,16 +181,16 @@ extraIncludes opts = extraIncludes' opts Map.empty
 
 extraIncludes' :: HMISOptions -> Map.Map FilePath [FilePath] -> [FilePath] -> [Text] -> [FilePath] -> Shell (Map.Map FilePath [FilePath])
 extraIncludes' _ acc [] _ _ = return acc
-extraIncludes' opts acc (file:files) extraSuffixes filesToTest = do
-  extra <- extraIncludesForFile opts file extraSuffixes filesToTest
-  extraIncludes' opts (Map.unionWith (++) acc extra) files extraSuffixes filesToTest
+extraIncludes' opts acc (file:files) extraSuffixes manualFiles = do
+  extra <- extraIncludesForFile opts file extraSuffixes manualFiles
+  extraIncludes' opts (Map.unionWith (++) acc extra) files extraSuffixes manualFiles
 
 extraIncludesForFile :: HMISOptions -> FilePath -> [Text] -> [FilePath] -> Shell (Map.Map FilePath [FilePath])
-extraIncludesForFile opts file extraSuffixes filesToTest = do
+extraIncludesForFile opts file extraSuffixes manualFiles = do
   let dirprefix = fromText $ fst $ T.breakOn "-" $ format fp $ basename file
   let fileNames = map (\suff -> fromText $ format (fp%"-"%s) dirprefix suff) extraSuffixes
   let suffixFiles = map (directory file </>) fileNames
-  let suffixDirFiles = map (directory file </> dirprefix </>) filesToTest
+  let suffixDirFiles = map (directory file </> "_manual_" </> dirprefix </>) manualFiles
   let extraFiles = suffixFiles ++ suffixDirFiles
   filtered <- filterPaths testfile extraFiles
   let logMsg = format ("Looking for possible extra include files for '"%fp%"' among these "%d%" options: "%s%". Found "%d%": "%s)

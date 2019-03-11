@@ -12,6 +12,7 @@ import qualified Data.Text as T
 import qualified Data.List as List (sort)
 
 import TestHelpers
+import Hledger.MakeItSo.Data.Types
 import Hledger.MakeItSo.Common
 
 testHiddenFiles = TestCase (
@@ -97,6 +98,51 @@ testExtraIncludesForFile = TestCase (
         liftIO $ assertEqual "The closing journal should be included when it is on disk" [(accountInclude, [closing])] extraClosing2
      ))
 
+testIncludesPrePost = TestCase (
+  sh (
+      do
+        tmpdir <- using (mktempdir "." "makeitso")
+        let ownerDir = tmpdir </> "import/john"
+        let includeFile = ownerDir </> "2019-include.journal"
+        let pre  = ownerDir </> "_manual_" </> "2019" </> "pre-import.journal"
+        let post = ownerDir </> "_manual_" </> "2019" </> "post-import.journal"
+        touchAll [pre, post]
+
+        let includeMap = Map.singleton includeFile [ownerDir </> "bank1" </> "2019-include.journal",
+                                                    ownerDir </> "bank2" </> "2019-include.journal"]
+
+        fileMap <- toIncludeFiles (defaultOpts tmpdir) includeMap
+        let expectedText = includePreamble <> "\n"
+              <> "!include _manual_/2019/pre-import.journal\n"
+              <> "!include bank1/2019-include.journal\n"
+              <> "!include bank2/2019-include.journal\n"
+              <> "!include _manual_/2019/post-import.journal\n"
+        let expectedMap = Map.singleton includeFile expectedText
+        liftIO $ assertEqual "All pre/post files on disk should be included" expectedMap fileMap
+     ))
+
+testIncludesOpeningClosing = TestCase (
+  sh (
+      do
+        tmpdir <- using (mktempdir "." "makeitso")
+        let ownerDir = tmpdir </> "import/john"
+        let accountDir = ownerDir </> "bank1" </> "savings"
+        let includeFile = accountDir </> "2019-include.journal"
+        let opening = accountDir </> "2019-opening.journal"
+        let closing = accountDir </> "2019-closing.journal"
+        touchAll [opening, closing]
+
+        let includeMap = Map.singleton includeFile [accountDir </> "3-journal" </> "2019" </> "2019-01-30.journal"]
+
+        fileMap <- toIncludeFiles (defaultOpts tmpdir) includeMap
+        let expectedText = includePreamble <> "\n"
+              <> "!include 2019-opening.journal\n"
+              <> "!include 3-journal/2019/2019-01-30.journal\n"
+              <> "!include 2019-closing.journal\n"
+        let expectedMap = Map.singleton includeFile expectedText
+        liftIO $ assertEqual "All pre/post files on disk should be included" expectedMap fileMap
+     ))
+
 testWriteIncludeFiles = TestCase (
   sh (
       do
@@ -167,4 +213,5 @@ testWriteIncludeFiles = TestCase (
      )
   )
 
-tests = TestList [testDirOrPwd, testExtraIncludesForFile, testHiddenFiles, testFilterPaths, testWriteIncludeFiles]
+tests = TestList [testDirOrPwd, testExtraIncludesForFile, testIncludesPrePost, testIncludesOpeningClosing,
+                  testHiddenFiles, testFilterPaths, testWriteIncludeFiles]
