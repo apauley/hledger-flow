@@ -276,12 +276,12 @@ hledger-makeitso import --verbose ./my-finances
 
 #+RESULTS: import3
 #+BEGIN_SRC org
-2019-03-04 23:25:57.751060758 SAST	hledger-makeitso Collecting input files...
-2019-03-04 23:25:57.872693876 SAST	hledger-makeitso Found 1 input files
-2019-03-04 23:25:57.872873856 SAST	hledger-makeitso Found a preprocess file at 'import/gawie/bogart/cheque/preprocess'
-2019-03-04 23:25:57.873181697 SAST	hledger-makeitso Begin: executing 'import/gawie/bogart/cheque/preprocess' on 'import/gawie/bogart/cheque/1-in/2016/123456789_2016-03-30.csv'
-2019-03-04 23:25:57.89569617 SAST	hledger-makeitso End:   executing 'import/gawie/bogart/cheque/preprocess' on 'import/gawie/bogart/cheque/1-in/2016/123456789_2016-03-30.csv' (0.022211083s)
-2019-03-04 23:25:57.896106771 SAST	hledger-makeitso Did not find a construct file at 'import/gawie/bogart/cheque/construct'
+2019-03-12 22:45:33.523959252 SAST	hledger-makeitso Collecting input files...
+2019-03-12 22:45:33.633389137 SAST	hledger-makeitso Found 1 input files
+2019-03-12 22:45:33.633559857 SAST	hledger-makeitso Found a preprocess file at 'import/gawie/bogart/cheque/preprocess'
+2019-03-12 22:45:33.633866067 SAST	hledger-makeitso Begin: executing 'import/gawie/bogart/cheque/preprocess' on 'import/gawie/bogart/cheque/1-in/2016/123456789_2016-03-30.csv'
+2019-03-12 22:45:33.656106911 SAST	hledger-makeitso End:   executing 'import/gawie/bogart/cheque/preprocess' on 'import/gawie/bogart/cheque/1-in/2016/123456789_2016-03-30.csv' (0.021940573s)
+2019-03-12 22:45:33.656460821 SAST	hledger-makeitso Did not find a construct file at 'import/gawie/bogart/cheque/construct'
 I couldn't find an hledger rules file while trying to import
 import/gawie/bogart/cheque/2-preprocessed/2016/123456789_2016-03-30.csv
 
@@ -375,29 +375,27 @@ my-finances
 │   ├── fnb-csv-demoronizer
 │   └── README.org
 ├── import
-│   ├── gawie
-│   │   ├── bogart
-│   │   │   ├── cheque
-│   │   │   │   ├── 1-in
-│   │   │   │   │   └── 2016
-│   │   │   │   │       └── 123456789_2016-03-30.csv
-│   │   │   │   ├── 2-preprocessed
-│   │   │   │   │   └── 2016
-│   │   │   │   │       └── 123456789_2016-03-30.csv
-│   │   │   │   ├── 3-journal
-│   │   │   │   │   ├── 2016
-│   │   │   │   │   │   └── 123456789_2016-03-30.journal
-│   │   │   │   │   └── 2016-include.journal
-│   │   │   │   ├── 3-journal-include.journal
-│   │   │   │   ├── bogart-cheque.rules
-│   │   │   │   └── preprocess -> ../../../../fnb-csv-demoronizer/fnb-csv-demoronizer
-│   │   │   └── cheque-include.journal
-│   │   └── bogart-include.journal
-│   └── gawie-include.journal
-├── import-include.journal
+│   ├── 2016-include.journal
+│   └── gawie
+│       ├── 2016-include.journal
+│       └── bogart
+│           ├── 2016-include.journal
+│           └── cheque
+│               ├── 1-in
+│               │   └── 2016
+│               │       └── 123456789_2016-03-30.csv
+│               ├── 2016-include.journal
+│               ├── 2-preprocessed
+│               │   └── 2016
+│               │       └── 123456789_2016-03-30.csv
+│               ├── 3-journal
+│               │   └── 2016
+│               │       └── 123456789_2016-03-30.journal
+│               ├── bogart-cheque.rules
+│               └── preprocess -> ../../../../fnb-csv-demoronizer/fnb-csv-demoronizer
 └── makeitso.journal
 
-11 directories, 14 files
+11 directories, 12 files
 
 #+END_SRC
 

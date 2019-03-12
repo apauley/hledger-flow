@@ -16,56 +16,116 @@ import Hledger.MakeItSo.Common
 
 groupedJaneBogart :: Map.Map FilePath [FilePath]
 groupedJaneBogart = [
-  ("./import/jane/bogartbank/checking/3-journal/2018-include.journal",
-    ["import/jane/bogartbank/checking/3-journal/2018/2018-12-30.journal"]),
-  ("./import/jane/bogartbank/checking/3-journal/2019-include.journal",
-    ["import/jane/bogartbank/checking/3-journal/2019/2019-01-30.journal"]),
-  ("./import/jane/bogartbank/savings/3-journal/2017-include.journal",
-    ["import/jane/bogartbank/savings/3-journal/2017/2017-12-30.journal"]),
-  ("./import/jane/bogartbank/savings/3-journal/2018-include.journal",
-    ["import/jane/bogartbank/savings/3-journal/2018/2018-01-30.journal"])]
+  ("./import/jane/bogartbank/checking/2018-include.journal",
+   ["import/jane/bogartbank/checking/3-journal/2018/2018-12-30.journal"]),
+  ("./import/jane/bogartbank/checking/2019-include.journal",
+   ["import/jane/bogartbank/checking/3-journal/2019/2019-01-30.journal"]),
+  ("./import/jane/bogartbank/savings/2017-include.journal",
+   ["import/jane/bogartbank/savings/3-journal/2017/2017-12-30.journal"]),
+  ("./import/jane/bogartbank/savings/2018-include.journal",
+   ["import/jane/bogartbank/savings/3-journal/2018/2018-01-30.journal"])]
 
 groupedJaneOther :: Map.Map FilePath [FilePath]
 groupedJaneOther = [
-  ("./import/jane/otherbank/creditcard/3-journal/2017-include.journal",
-    ["import/jane/otherbank/creditcard/3-journal/2017/2017-12-30.journal"]),
-  ("./import/jane/otherbank/creditcard/3-journal/2018-include.journal",
-    ["import/jane/otherbank/creditcard/3-journal/2018/2018-01-30.journal"]),
-  ("./import/jane/otherbank/investments/3-journal/2018-include.journal",
-    ["import/jane/otherbank/investments/3-journal/2018/2018-12-30.journal"]),
-  ("./import/jane/otherbank/investments/3-journal/2019-include.journal",
-    ["import/jane/otherbank/investments/3-journal/2019/2019-01-30.journal"])]
+  ("./import/jane/otherbank/creditcard/2017-include.journal",
+   ["import/jane/otherbank/creditcard/3-journal/2017/2017-12-30.journal"]),
+  ("./import/jane/otherbank/creditcard/2018-include.journal",
+   ["import/jane/otherbank/creditcard/3-journal/2018/2018-01-30.journal"]),
+  ("./import/jane/otherbank/investments/2018-include.journal",
+   ["import/jane/otherbank/investments/3-journal/2018/2018-12-30.journal"]),
+  ("./import/jane/otherbank/investments/2019-include.journal",
+   ["import/jane/otherbank/investments/3-journal/2019/2019-01-30.journal"])]
 
 groupedJohnBogart :: Map.Map FilePath [FilePath]
 groupedJohnBogart = [
-  ("./import/john/bogartbank/checking/3-journal/2018-include.journal",
-    ["import/john/bogartbank/checking/3-journal/2018/2018-11-30.journal",
-     "import/john/bogartbank/checking/3-journal/2018/2018-10-30.journal",
-     "import/john/bogartbank/checking/3-journal/2018/2018-12-30.journal"]),
-  ("./import/john/bogartbank/checking/3-journal/2019-include.journal",
-    ["import/john/bogartbank/checking/3-journal/2019/2019-01-30.journal",
-     "import/john/bogartbank/checking/3-journal/2019/2019-02-30.journal"]),
-  ("./import/john/bogartbank/savings/3-journal/2017-include.journal",
-    ["import/john/bogartbank/savings/3-journal/2017/2017-11-30.journal",
-     "import/john/bogartbank/savings/3-journal/2017/2017-12-30.journal"]),
-  ("./import/john/bogartbank/savings/3-journal/2018-include.journal",
-    ["import/john/bogartbank/savings/3-journal/2018/2018-02-30.journal",
-     "import/john/bogartbank/savings/3-journal/2018/2018-01-30.journal"])]
+  ("./import/john/bogartbank/checking/2018-include.journal",
+   ["import/john/bogartbank/checking/3-journal/2018/2018-11-30.journal",
+    "import/john/bogartbank/checking/3-journal/2018/2018-10-30.journal",
+    "import/john/bogartbank/checking/3-journal/2018/2018-12-30.journal"]),
+  ("./import/john/bogartbank/checking/2019-include.journal",
+   ["import/john/bogartbank/checking/3-journal/2019/2019-01-30.journal",
+    "import/john/bogartbank/checking/3-journal/2019/2019-02-30.journal"]),
+  ("./import/john/bogartbank/savings/2017-include.journal",
+   ["import/john/bogartbank/savings/3-journal/2017/2017-11-30.journal",
+    "import/john/bogartbank/savings/3-journal/2017/2017-12-30.journal"]),
+  ("./import/john/bogartbank/savings/2018-include.journal",
+   ["import/john/bogartbank/savings/3-journal/2018/2018-02-30.journal",
+    "import/john/bogartbank/savings/3-journal/2018/2018-01-30.journal"])]
 
 groupedJohnOther :: Map.Map FilePath [FilePath]
 groupedJohnOther = [
-  ("./import/john/otherbank/creditcard/3-journal/2017-include.journal",
-    ["import/john/otherbank/creditcard/3-journal/2017/2017-12-30.journal"]),
-  ("./import/john/otherbank/creditcard/3-journal/2018-include.journal",
-    ["import/john/otherbank/creditcard/3-journal/2018/2018-01-30.journal"]),
-  ("./import/john/otherbank/investments/3-journal/2018-include.journal",
-    ["import/john/otherbank/investments/3-journal/2018/2018-12-30.journal"]),
-  ("./import/john/otherbank/investments/3-journal/2019-include.journal",
-    ["import/john/otherbank/investments/3-journal/2019/2019-01-30.journal"])]
+  ("./import/john/otherbank/creditcard/2017-include.journal",
+   ["import/john/otherbank/creditcard/3-journal/2017/2017-12-30.journal"]),
+  ("./import/john/otherbank/creditcard/2018-include.journal",
+   ["import/john/otherbank/creditcard/3-journal/2018/2018-01-30.journal"]),
+  ("./import/john/otherbank/investments/2018-include.journal",
+   ["import/john/otherbank/investments/3-journal/2018/2018-12-30.journal"]),
+  ("./import/john/otherbank/investments/2019-include.journal",
+   ["import/john/otherbank/investments/3-journal/2019/2019-01-30.journal"])]
 
 groupedIncludeFiles :: Map.Map FilePath [FilePath]
 groupedIncludeFiles = groupedJaneBogart <> groupedJaneOther <>
                       groupedJohnBogart <> groupedJohnOther
+
+testGroupIncludeFilesTinySet = TestCase (
+  do
+    let journals1 = [   "import/jane/bogartbank/savings/3-journals/2017/2017-12-30.journal"]
+    let expected1 = [("./import/jane/bogartbank/savings/2017-include.journal", journals1)] :: Map.Map FilePath [FilePath]
+    assertEqual "groupIncludeFiles small set 1" expected1 (groupIncludeFiles journals1)
+
+    let journals2 = [(fst . head . Map.toList) expected1] :: [FilePath]
+    let expected2 = [("./import/jane/bogartbank/2017-include.journal", journals2)] :: Map.Map FilePath [FilePath]
+    assertEqual "groupIncludeFiles small set 2" expected2 (groupIncludeFiles journals2)
+
+    let journals3 = [(fst . head . Map.toList) expected2] :: [FilePath]
+    let expected3 = [("./import/jane/2017-include.journal", journals3)] :: Map.Map FilePath [FilePath]
+    assertEqual "groupIncludeFiles small set 3" expected3 (groupIncludeFiles journals3)
+  )
+
+testGroupIncludeFilesSmallSet = TestCase (
+  do
+    let group1 = groupIncludeFiles (toJournals inputJaneBogart) :: Map.Map FilePath [FilePath]
+    assertEqual "groupIncludeFiles Jane 1" groupedJaneBogart group1
+
+    let group2 = groupIncludeFiles (Map.keys group1) :: Map.Map FilePath [FilePath]
+    let expectedGroup2 = [
+          ("./import/jane/bogartbank/2017-include.journal",
+           ["./import/jane/bogartbank/savings/2017-include.journal"]),
+          ("./import/jane/bogartbank/2018-include.journal",
+           ["./import/jane/bogartbank/checking/2018-include.journal",
+            "./import/jane/bogartbank/savings/2018-include.journal"]),
+          ("./import/jane/bogartbank/2019-include.journal",
+           ["./import/jane/bogartbank/checking/2019-include.journal"])]
+    assertEqual "groupIncludeFiles Jane 2" expectedGroup2 group2
+
+    let group3 = groupIncludeFiles (Map.keys group2) :: Map.Map FilePath [FilePath]
+    let expectedGroup3 = [
+          ("./import/jane/2017-include.journal",
+           ["./import/jane/bogartbank/2017-include.journal"]),
+          ("./import/jane/2018-include.journal",
+           ["./import/jane/bogartbank/2018-include.journal"]),
+          ("./import/jane/2019-include.journal",
+           ["./import/jane/bogartbank/2019-include.journal"])]
+    assertEqual "groupIncludeFiles Jane 3" expectedGroup3 group3
+
+    let group4 = groupIncludeFiles (Map.keys group3) :: Map.Map FilePath [FilePath]
+    let expectedGroup4 = [
+          ("./import/2017-include.journal",
+           ["./import/jane/2017-include.journal"]),
+          ("./import/2018-include.journal",
+           ["./import/jane/2018-include.journal"]),
+          ("./import/2019-include.journal",
+           ["./import/jane/2019-include.journal"])]
+    assertEqual "groupIncludeFiles Jane 4" expectedGroup4 group4
+
+    let group5 = groupIncludeFiles (Map.keys group4) :: Map.Map FilePath [FilePath]
+    let expectedGroup5 = [
+          ("./makeitso.journal",
+           ["./import/2017-include.journal",
+            "./import/2018-include.journal",
+            "./import/2019-include.journal"])]
+    assertEqual "groupIncludeFiles Jane 5" expectedGroup5 group5
+ )
 
 testGroupIncludeFiles = TestCase (
   do
@@ -73,85 +133,87 @@ testGroupIncludeFiles = TestCase (
     assertEqual "groupIncludeFiles 1" groupedIncludeFiles group1
 
     let group2 = groupIncludeFiles (Map.keys group1) :: Map.Map FilePath [FilePath]
-    let expectedGroup2 = [("./import/jane/bogartbank/checking/3-journal-include.journal",
-                           ["./import/jane/bogartbank/checking/3-journal/2018-include.journal",
-                            "./import/jane/bogartbank/checking/3-journal/2019-include.journal"]),
-                          ("./import/jane/bogartbank/savings/3-journal-include.journal",
-                           ["./import/jane/bogartbank/savings/3-journal/2017-include.journal",
-                            "./import/jane/bogartbank/savings/3-journal/2018-include.journal"]),
-                          ("./import/jane/otherbank/creditcard/3-journal-include.journal",
-                           ["./import/jane/otherbank/creditcard/3-journal/2017-include.journal",
-                            "./import/jane/otherbank/creditcard/3-journal/2018-include.journal"]),
-                          ("./import/jane/otherbank/investments/3-journal-include.journal",
-                           ["./import/jane/otherbank/investments/3-journal/2018-include.journal",
-                            "./import/jane/otherbank/investments/3-journal/2019-include.journal"]),
-                          ("./import/john/bogartbank/checking/3-journal-include.journal",
-                           ["./import/john/bogartbank/checking/3-journal/2018-include.journal",
-                            "./import/john/bogartbank/checking/3-journal/2019-include.journal"]),
-                          ("./import/john/bogartbank/savings/3-journal-include.journal",
-                           ["./import/john/bogartbank/savings/3-journal/2017-include.journal",
-                            "./import/john/bogartbank/savings/3-journal/2018-include.journal"]),
-                          ("./import/john/otherbank/creditcard/3-journal-include.journal",
-                           ["./import/john/otherbank/creditcard/3-journal/2017-include.journal",
-                            "./import/john/otherbank/creditcard/3-journal/2018-include.journal"]),
-                          ("./import/john/otherbank/investments/3-journal-include.journal",
-                           ["./import/john/otherbank/investments/3-journal/2018-include.journal",
-                            "./import/john/otherbank/investments/3-journal/2019-include.journal"])]
+    let expectedGroup2 = [("./import/jane/bogartbank/2017-include.journal",
+                           ["./import/jane/bogartbank/savings/2017-include.journal"]),
+                          ("./import/jane/bogartbank/2018-include.journal",
+                           ["./import/jane/bogartbank/checking/2018-include.journal",
+                            "./import/jane/bogartbank/savings/2018-include.journal"]),
+                          ("./import/jane/bogartbank/2019-include.journal",
+                           ["./import/jane/bogartbank/checking/2019-include.journal"]),
+
+                          ("./import/jane/otherbank/2017-include.journal",
+                           ["./import/jane/otherbank/creditcard/2017-include.journal"]),
+                          ("./import/jane/otherbank/2018-include.journal",
+                           ["./import/jane/otherbank/creditcard/2018-include.journal",
+                            "./import/jane/otherbank/investments/2018-include.journal"]),
+                          ("./import/jane/otherbank/2019-include.journal",
+                           ["./import/jane/otherbank/investments/2019-include.journal"]),
+
+                          ("./import/john/bogartbank/2017-include.journal",
+                           ["./import/john/bogartbank/savings/2017-include.journal"]),
+                          ("./import/john/bogartbank/2018-include.journal",
+                           ["./import/john/bogartbank/checking/2018-include.journal",
+                            "./import/john/bogartbank/savings/2018-include.journal"]),
+                          ("./import/john/bogartbank/2019-include.journal",
+                           ["./import/john/bogartbank/checking/2019-include.journal"]),
+
+                          ("./import/john/otherbank/2017-include.journal",
+                           ["./import/john/otherbank/creditcard/2017-include.journal"]),
+                          ("./import/john/otherbank/2018-include.journal",
+                           ["./import/john/otherbank/creditcard/2018-include.journal",
+                            "./import/john/otherbank/investments/2018-include.journal"]),
+                          ("./import/john/otherbank/2019-include.journal",
+                           ["./import/john/otherbank/investments/2019-include.journal"])]
+    assertEqual "groupIncludeFiles 2 - diff 1" [] (expectedGroup2 Map.\\ group2)
+    assertEqual "groupIncludeFiles 2 - diff 2" [] (group2 Map.\\ expectedGroup2)
     assertEqual "groupIncludeFiles 2" expectedGroup2 group2
 
     let group3 = groupIncludeFiles (Map.keys group2) :: Map.Map FilePath [FilePath]
-    let expectedGroup3 = [("./import/jane/bogartbank/checking-include.journal",
-                           ["./import/jane/bogartbank/checking/3-journal-include.journal"]),
-                          ("./import/jane/bogartbank/savings-include.journal",
-                           ["./import/jane/bogartbank/savings/3-journal-include.journal"]),
-                          ("./import/jane/otherbank/creditcard-include.journal",
-                           ["./import/jane/otherbank/creditcard/3-journal-include.journal"]),
-                          ("./import/jane/otherbank/investments-include.journal",
-                           ["./import/jane/otherbank/investments/3-journal-include.journal"]),
-                          ("./import/john/bogartbank/checking-include.journal",
-                           ["./import/john/bogartbank/checking/3-journal-include.journal"]),
-                          ("./import/john/bogartbank/savings-include.journal",
-                           ["./import/john/bogartbank/savings/3-journal-include.journal"]),
-                          ("./import/john/otherbank/creditcard-include.journal",
-                           ["./import/john/otherbank/creditcard/3-journal-include.journal"]),
-                          ("./import/john/otherbank/investments-include.journal",
-                           ["./import/john/otherbank/investments/3-journal-include.journal"])]
+    let expectedGroup3 = [("./import/jane/2017-include.journal",
+                           ["./import/jane/bogartbank/2017-include.journal",
+                            "./import/jane/otherbank/2017-include.journal"]),
+                          ("./import/jane/2018-include.journal",
+                           ["./import/jane/bogartbank/2018-include.journal",
+                            "./import/jane/otherbank/2018-include.journal"]),
+                          ("./import/jane/2019-include.journal",
+                           ["./import/jane/bogartbank/2019-include.journal",
+                            "./import/jane/otherbank/2019-include.journal"]),
+                          ("./import/john/2017-include.journal",
+                           ["./import/john/bogartbank/2017-include.journal",
+                            "./import/john/otherbank/2017-include.journal"]),
+                          ("./import/john/2018-include.journal",
+                           ["./import/john/bogartbank/2018-include.journal",
+                            "./import/john/otherbank/2018-include.journal"]),
+                          ("./import/john/2019-include.journal",
+                           ["./import/john/bogartbank/2019-include.journal",
+                            "./import/john/otherbank/2019-include.journal"])]
+    assertEqual "groupIncludeFiles 3 - diff 1" [] (expectedGroup3 Map.\\ group3)
+    assertEqual "groupIncludeFiles 3 - diff 2" [] (group3 Map.\\ expectedGroup3)
     assertEqual "groupIncludeFiles 3" expectedGroup3 group3
 
     let group4 = groupIncludeFiles (Map.keys group3) :: Map.Map FilePath [FilePath]
-    let expectedGroup4 = [("./import/jane/bogartbank-include.journal",
-                           ["./import/jane/bogartbank/checking-include.journal",
-                            "./import/jane/bogartbank/savings-include.journal"]),
-                          ("./import/jane/otherbank-include.journal",
-                           ["./import/jane/otherbank/creditcard-include.journal",
-                            "./import/jane/otherbank/investments-include.journal"]),
-                          ("./import/john/bogartbank-include.journal",
-                           ["./import/john/bogartbank/checking-include.journal",
-                            "./import/john/bogartbank/savings-include.journal"]),
-                          ("./import/john/otherbank-include.journal",
-                           ["./import/john/otherbank/creditcard-include.journal",
-                            "./import/john/otherbank/investments-include.journal"])]
+    let expectedGroup4 = [("./import/2017-include.journal",
+                           ["./import/jane/2017-include.journal",
+                            "./import/john/2017-include.journal"]),
+                          ("./import/2018-include.journal",
+                           ["./import/jane/2018-include.journal",
+                            "./import/john/2018-include.journal"]),
+                          ("./import/2019-include.journal",
+                           ["./import/jane/2019-include.journal",
+                            "./import/john/2019-include.journal"])]
+    assertEqual "groupIncludeFiles 4 - diff 1" [] (expectedGroup4 Map.\\ group4)
+    assertEqual "groupIncludeFiles 4 - diff 2" [] (group4 Map.\\ expectedGroup4)
     assertEqual "groupIncludeFiles 4" expectedGroup4 group4
 
     let group5 = groupIncludeFiles (Map.keys group4) :: Map.Map FilePath [FilePath]
-    let expectedGroup5 = [("./import/jane-include.journal",
-                           ["./import/jane/bogartbank-include.journal",
-                            "./import/jane/otherbank-include.journal"]),
-                          ("./import/john-include.journal",
-                           ["./import/john/bogartbank-include.journal",
-                            "./import/john/otherbank-include.journal"])]
+    let expectedGroup5 = [("./makeitso.journal",
+                           ["./import/2017-include.journal",
+                            "./import/2018-include.journal",
+                            "./import/2019-include.journal"])]
+    assertEqual "groupIncludeFiles 5 - diff 1" [] (expectedGroup5 Map.\\ group5)
+    assertEqual "groupIncludeFiles 5 - diff 2" [] (group5 Map.\\ expectedGroup5)
     assertEqual "groupIncludeFiles 5" expectedGroup5 group5
-
-    let group6 = groupIncludeFiles (Map.keys group5) :: Map.Map FilePath [FilePath]
-    let expectedGroup6 = [("./import-include.journal",
-                           ["./import/jane-include.journal",
-                            "./import/john-include.journal"])]
-    assertEqual "groupIncludeFiles 6" expectedGroup6 group6
   )
-
-testGroupPairs = TestCase (do
-                              let actual = groupPairs . pairBy includeFilePath $ journalFiles
-                              assertEqual "Group files, paired by the directories they live in" groupedIncludeFiles actual)
 
 testRelativeToBase = TestCase (
   do
@@ -191,25 +253,25 @@ testToIncludeLine = TestCase (
 testToIncludeFiles = TestCase (
   do
     let expected = [
-          ("./import/john/bogartbank/checking/3-journal/2018-include.journal",
-            "### Generated by hledger-makeitso - DO NOT EDIT ###\n\n" <>
-            "!include import/john/bogartbank/checking/3-journal/2018/2018-10-30.journal\n" <>
-            "!include import/john/bogartbank/checking/3-journal/2018/2018-11-30.journal\n" <>
-            "!include import/john/bogartbank/checking/3-journal/2018/2018-12-30.journal\n"),
-          ("./import/john/bogartbank/checking/3-journal/2019-include.journal",
-            "### Generated by hledger-makeitso - DO NOT EDIT ###\n\n" <>
-            "!include import/john/bogartbank/checking/3-journal/2019/2019-01-30.journal\n" <>
-            "!include import/john/bogartbank/checking/3-journal/2019/2019-02-30.journal\n"),
-          ("./import/john/bogartbank/savings/3-journal/2017-include.journal",
-            "### Generated by hledger-makeitso - DO NOT EDIT ###\n\n" <>
-            "!include import/john/bogartbank/savings/3-journal/2017/2017-11-30.journal\n" <>
-            "!include import/john/bogartbank/savings/3-journal/2017/2017-12-30.journal\n"),
-          ("./import/john/bogartbank/savings/3-journal/2018-include.journal",
-            "### Generated by hledger-makeitso - DO NOT EDIT ###\n\n" <>
-            "!include import/john/bogartbank/savings/3-journal/2018/2018-01-30.journal\n" <>
-            "!include import/john/bogartbank/savings/3-journal/2018/2018-02-30.journal\n")]
+          ("./import/john/bogartbank/checking/2018-include.journal",
+           "### Generated by hledger-makeitso - DO NOT EDIT ###\n\n" <>
+           "!include import/john/bogartbank/checking/3-journal/2018/2018-10-30.journal\n" <>
+           "!include import/john/bogartbank/checking/3-journal/2018/2018-11-30.journal\n" <>
+           "!include import/john/bogartbank/checking/3-journal/2018/2018-12-30.journal\n"),
+          ("./import/john/bogartbank/checking/2019-include.journal",
+           "### Generated by hledger-makeitso - DO NOT EDIT ###\n\n" <>
+           "!include import/john/bogartbank/checking/3-journal/2019/2019-01-30.journal\n" <>
+           "!include import/john/bogartbank/checking/3-journal/2019/2019-02-30.journal\n"),
+          ("./import/john/bogartbank/savings/2017-include.journal",
+           "### Generated by hledger-makeitso - DO NOT EDIT ###\n\n" <>
+           "!include import/john/bogartbank/savings/3-journal/2017/2017-11-30.journal\n" <>
+           "!include import/john/bogartbank/savings/3-journal/2017/2017-12-30.journal\n"),
+          ("./import/john/bogartbank/savings/2018-include.journal",
+           "### Generated by hledger-makeitso - DO NOT EDIT ###\n\n" <>
+           "!include import/john/bogartbank/savings/3-journal/2018/2018-01-30.journal\n" <>
+           "!include import/john/bogartbank/savings/3-journal/2018/2018-02-30.journal\n")]
 
     txt <- single $ toIncludeFiles (defaultOpts ".") groupedJohnBogart
     assertEqual "Convert a grouped map of paths, to a map with text contents for each file" expected txt)
 
-tests = TestList [testGroupIncludeFiles, testGroupPairs, testRelativeToBase, testToIncludeLine, testToIncludeFiles]
+tests = TestList [testGroupIncludeFilesTinySet, testGroupIncludeFilesSmallSet, testGroupIncludeFiles, testRelativeToBase, testToIncludeLine, testToIncludeFiles]

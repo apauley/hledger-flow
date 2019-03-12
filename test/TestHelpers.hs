@@ -46,7 +46,7 @@ inputJaneOther = [
 inputFiles = inputJohnBogart <> inputJohnOther <> inputJaneBogart <> inputJaneOther
 
 journalFiles = toJournals inputFiles :: [FilePath]
-extraFiles = ["import/john/bogartbank/savings/3-journal/2017-opening.journal"] :: [FilePath]
+extraFiles = ["import/john/bogartbank/savings/2017-opening.journal"] :: [FilePath]
 hiddenFiles = [".hiddenfile", "checking/.DS_Store", "import/john/bogartbank/savings/1-in/.anotherhiddenfile", "import/john/bogartbank/checking/1-in/2018/.hidden"] :: [FilePath]
 
 defaultOpts :: FilePath -> HMISOptions

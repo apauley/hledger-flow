@@ -21,13 +21,11 @@ module Hledger.MakeItSo.Common
     , extraIncludesForFile
     , groupPairs
     , pairBy
-    , includeFilePath
     , includePreamble
     , toIncludeFiles
     , toIncludeLine
     , groupAndWriteIncludeFiles
     , writeIncludesUpTo
-    , writeMakeItSoJournal
     , dirOrPwd
     , extractImportDirs
     ) where
@@ -91,8 +89,19 @@ pairBy keyFun = map (\v -> (keyFun v, v))
 groupValuesBy :: (Ord k, Ord v) => (v -> k) -> [v] -> Map.Map k [v]
 groupValuesBy keyFun = groupPairs . pairBy keyFun
 
+initialIncludeFilePath :: FilePath -> FilePath
+initialIncludeFilePath p = (parent . parent . parent) p </> includeFileName p
+
+parentIncludeFilePath :: FilePath -> FilePath
+parentIncludeFilePath p = (parent . parent) p </> (filename p)
+
 groupIncludeFiles :: [FilePath] -> Map.Map FilePath [FilePath]
-groupIncludeFiles = groupValuesBy includeFilePath
+groupIncludeFiles [] = Map.empty
+groupIncludeFiles ps@(p:_) = if (dirname p == "import")
+  then Map.singleton (((parent . parent) p) </> "makeitso.journal") ps
+  else case extractImportDirs p of
+    Right _ -> (groupValuesBy initialIncludeFilePath) ps
+    Left  _ -> (groupValuesBy parentIncludeFilePath) ps
 
 docURL :: Line -> Text
 docURL = format ("https://github.com/apauley/hledger-makeitso#"%l)
@@ -159,15 +168,12 @@ shellToList :: Shell a -> Shell [a]
 shellToList files = fold files Fold.list
 
 includeFileName :: FilePath -> FilePath
-includeFileName = (<.> "journal"). fromText . (format (fp%"-include")) . dirname
-
-includeFilePath :: FilePath -> FilePath
-includeFilePath p = (parent . parent) p </> includeFileName p
+includeFileName = (<.> "journal") . fromText . (format (fp%"-include")) . dirname
 
 toIncludeFiles :: HMISOptions -> Map.Map FilePath [FilePath] -> Shell (Map.Map FilePath Text)
 toIncludeFiles opts m = do
-  preMap  <- extraIncludes opts (Map.keys m) ["opening.journal",  "pre-import.journal"] ["_manual_/pre-import.journal"]
-  postMap <- extraIncludes opts (Map.keys m) ["post-import.journal", "closing.journal"] ["_manual_/post-import.journal"]
+  preMap  <- extraIncludes opts (Map.keys m) ["opening.journal"] ["pre-import.journal"]
+  postMap <- extraIncludes opts (Map.keys m) ["closing.journal"] ["post-import.journal"]
   return $ (addPreamble . toIncludeFiles' preMap postMap) m
 
 extraIncludes :: HMISOptions -> [FilePath] -> [Text] -> [FilePath] -> Shell (Map.Map FilePath [FilePath])
@@ -175,16 +181,16 @@ extraIncludes opts = extraIncludes' opts Map.empty
 
 extraIncludes' :: HMISOptions -> Map.Map FilePath [FilePath] -> [FilePath] -> [Text] -> [FilePath] -> Shell (Map.Map FilePath [FilePath])
 extraIncludes' _ acc [] _ _ = return acc
-extraIncludes' opts acc (file:files) extraSuffixes filesToTest = do
-  extra <- extraIncludesForFile opts file extraSuffixes filesToTest
-  extraIncludes' opts (Map.unionWith (++) acc extra) files extraSuffixes filesToTest
+extraIncludes' opts acc (file:files) extraSuffixes manualFiles = do
+  extra <- extraIncludesForFile opts file extraSuffixes manualFiles
+  extraIncludes' opts (Map.unionWith (++) acc extra) files extraSuffixes manualFiles
 
 extraIncludesForFile :: HMISOptions -> FilePath -> [Text] -> [FilePath] -> Shell (Map.Map FilePath [FilePath])
-extraIncludesForFile opts file extraSuffixes filesToTest = do
+extraIncludesForFile opts file extraSuffixes manualFiles = do
   let dirprefix = fromText $ fst $ T.breakOn "-" $ format fp $ basename file
   let fileNames = map (\suff -> fromText $ format (fp%"-"%s) dirprefix suff) extraSuffixes
   let suffixFiles = map (directory file </>) fileNames
-  let suffixDirFiles = map (directory file </> dirprefix </>) filesToTest
+  let suffixDirFiles = map (directory file </> "_manual_" </> dirprefix </>) manualFiles
   let extraFiles = suffixFiles ++ suffixDirFiles
   filtered <- filterPaths testfile extraFiles
   let logMsg = format ("Looking for possible extra include files for '"%fp%"' among these "%d%" options: "%s%". Found "%d%": "%s)
@@ -244,11 +250,6 @@ writeIncludesUpTo opts stopAt paths = do
     do
       newPaths <- groupAndWriteIncludeFiles opts paths
       writeIncludesUpTo opts stopAt newPaths
-
-writeMakeItSoJournal :: HMISOptions -> FilePath -> [FilePath] -> Shell [FilePath]
-writeMakeItSoJournal opts bd importedJournals = do
-  let makeitsoJournal = bd </> "makeitso.journal"
-  writeFileMap opts $ Map.singleton makeitsoJournal importedJournals
 
 changeExtension :: Text -> FilePath -> FilePath
 changeExtension ext path = (dropExtension path) <.> ext
