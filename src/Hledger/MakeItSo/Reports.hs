@@ -6,7 +6,7 @@ module Hledger.MakeItSo.Reports
 
 import Prelude hiding (FilePath, putStrLn)
 import Data.Text.IO (putStrLn)
-import Hledger.MakeItSo.Data.Types
+import Hledger.MakeItSo.Report.Types
 
-generateReports :: HMISOptions -> IO ()
+generateReports :: ReportOptions -> IO ()
 generateReports _ = putStrLn "Generate reports: not yet implemented"

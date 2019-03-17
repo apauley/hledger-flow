@@ -8,13 +8,13 @@ import Turtle
 import Prelude hiding (FilePath, putStrLn, take)
 import qualified Data.Text as T
 import qualified Data.List.NonEmpty as NonEmpty
-import Hledger.MakeItSo.Data.Types
+import Hledger.MakeItSo.Import.Types
 import Hledger.MakeItSo.Common
 
-importCSVs :: HMISOptions -> IO ()
+importCSVs :: ImportOptions -> IO ()
 importCSVs = sh . importCSVs'
 
-importCSVs' :: HMISOptions -> Shell [FilePath]
+importCSVs' :: ImportOptions -> Shell [FilePath]
 importCSVs' opts = do
   logVerbose opts "Collecting input files..."
   inputFiles <- shellToList . onlyFiles $ find (has (suffix "1-in/")) $ baseDir opts
@@ -33,7 +33,7 @@ importCSVs' opts = do
       importIncludes <- writeIncludesUpTo opts "import" importedJournals
       return importIncludes
 
-extractAndImport :: HMISOptions -> Shell FilePath -> Shell FilePath
+extractAndImport :: ImportOptions -> Shell FilePath -> Shell FilePath
 extractAndImport opts inputFiles = do
   inputFile <- inputFiles
   case extractImportDirs inputFile of
@@ -42,7 +42,7 @@ extractAndImport opts inputFiles = do
       stderr $ select $ textToLines errorMessage
       exit $ ExitFailure 1
 
-importCSV :: HMISOptions -> ImportDirs -> FilePath -> Shell FilePath
+importCSV :: ImportOptions -> ImportDirs -> FilePath -> Shell FilePath
 importCSV opts importDirs srcFile = do
   let preprocessScript = accountDir importDirs </> "preprocess"
   let constructScript = accountDir importDirs </> "construct"
@@ -58,14 +58,14 @@ importCSV opts importDirs srcFile = do
   mktree $ directory journalOut
   importFun csvFile journalOut
 
-preprocessIfNeeded :: HMISOptions -> FilePath -> Line -> Line -> Line -> FilePath -> Shell FilePath
+preprocessIfNeeded :: ImportOptions -> FilePath -> Line -> Line -> Line -> FilePath -> Shell FilePath
 preprocessIfNeeded opts script bank account owner src = do
   shouldPreprocess <- verboseTestFile opts script
   if shouldPreprocess
     then preprocess opts script bank account owner src
     else return src
 
-preprocess :: HMISOptions -> FilePath -> Line -> Line -> Line -> FilePath -> Shell FilePath
+preprocess :: ImportOptions -> FilePath -> Line -> Line -> Line -> FilePath -> Shell FilePath
 preprocess opts script bank account owner src = do
   let csvOut = changePathAndExtension "2-preprocessed" "csv" src
   mktree $ directory csvOut
@@ -77,7 +77,7 @@ preprocess opts script bank account owner src = do
   _ <- liftIO $ logVerboseTime opts msg action
   return csvOut
 
-hledgerImport :: HMISOptions -> FilePath  -> FilePath -> Shell FilePath
+hledgerImport :: ImportOptions -> FilePath  -> FilePath -> Shell FilePath
 hledgerImport opts csvSrc journalOut = do
   case extractImportDirs csvSrc of
     Right importDirs -> hledgerImport' opts importDirs csvSrc journalOut
@@ -85,7 +85,7 @@ hledgerImport opts csvSrc journalOut = do
       stderr $ select $ textToLines errorMessage
       exit $ ExitFailure 1
 
-hledgerImport' :: HMISOptions -> ImportDirs -> FilePath -> FilePath -> Shell FilePath
+hledgerImport' :: ImportOptions -> ImportDirs -> FilePath -> FilePath -> Shell FilePath
 hledgerImport' opts importDirs csvSrc journalOut = do
   let candidates = rulesFileCandidates csvSrc importDirs
   maybeRulesFile <- firstExistingFile candidates
@@ -137,7 +137,7 @@ statementSpecificRulesFiles csvSrc importDirs = do
       map (</> srcSpecificFilename) [accountDir importDirs, bankDir importDirs, importDir importDirs]
     else []
 
-customConstruct :: HMISOptions -> FilePath -> Line -> Line -> Line -> FilePath -> FilePath -> Shell FilePath
+customConstruct :: ImportOptions -> FilePath -> Line -> Line -> Line -> FilePath -> FilePath -> Shell FilePath
 customConstruct opts constructScript bank account owner csvSrc journalOut = do
   let script = format fp constructScript :: Text
   let importOut = inproc script [format fp csvSrc, "-", lineToText bank, lineToText account, lineToText owner] empty

@@ -5,7 +5,8 @@ module Main where
 import Turtle
 import Prelude hiding (FilePath, putStrLn)
 import Data.Maybe (fromMaybe)
-import Hledger.MakeItSo.Data.Types
+import qualified Hledger.MakeItSo.Import.Types as IT
+import qualified Hledger.MakeItSo.Report.Types as RT
 import Hledger.MakeItSo.Common
 import Hledger.MakeItSo.Reports
 import Hledger.MakeItSo.CSVImport
@@ -17,13 +18,18 @@ main :: IO ()
 main = do
   cmd <- options "Manage your hledger CSV imports and classification:\nhttps://github.com/apauley/hledger-makeitso#readme" parser
   case cmd of
-    Import subParams -> toHMISOptions subParams >>= importCSVs
-    Report subParams -> toHMISOptions subParams >>= generateReports
+    Import subParams -> toImportOptions subParams >>= importCSVs
+    Report subParams -> toReportOptions subParams >>= generateReports
 
-toHMISOptions :: SubcommandParams -> IO HMISOptions
-toHMISOptions (maybeBaseDir, maybeVerbose) = do
+toImportOptions :: SubcommandParams -> IO IT.ImportOptions
+toImportOptions (maybeBaseDir, maybeVerbose) = do
   bd <- dirOrPwd maybeBaseDir
-  return HMISOptions {baseDir = bd, verbose = fromMaybe False maybeVerbose}
+  return IT.ImportOptions {IT.baseDir = bd, IT.verbose = fromMaybe False maybeVerbose}
+
+toReportOptions :: SubcommandParams -> IO RT.ReportOptions
+toReportOptions (maybeBaseDir, maybeVerbose) = do
+  bd <- dirOrPwd maybeBaseDir
+  return RT.ReportOptions {RT.baseDir = bd, RT.verbose = fromMaybe False maybeVerbose}
 
 parser :: Parser Command
 parser = fmap Import (subcommand "import" "Converts CSV transactions into categorised journal files" subcommandParser)

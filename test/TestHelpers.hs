@@ -11,7 +11,7 @@ import qualified Control.Foldl as Fold
 import qualified Data.Text as T
 import qualified Data.List as List (sort)
 
-import Hledger.MakeItSo.Data.Types
+import Hledger.MakeItSo.Import.Types
 import Hledger.MakeItSo.Common
 
 inputJohnBogart = [
@@ -49,8 +49,8 @@ journalFiles = toJournals inputFiles :: [FilePath]
 extraFiles = ["import/john/bogartbank/savings/2017-opening.journal"] :: [FilePath]
 hiddenFiles = [".hiddenfile", "checking/.DS_Store", "import/john/bogartbank/savings/1-in/.anotherhiddenfile", "import/john/bogartbank/checking/1-in/2018/.hidden"] :: [FilePath]
 
-defaultOpts :: FilePath -> HMISOptions
-defaultOpts bd = HMISOptions bd False
+defaultOpts :: FilePath -> ImportOptions
+defaultOpts bd = ImportOptions bd False
 
 toJournals :: [FilePath] -> [FilePath]
 toJournals = map (changePathAndExtension "3-journal" "journal")
