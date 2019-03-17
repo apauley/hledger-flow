@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE OverloadedLists #-}
 
-module Unit where
+module CSVImport.Unit where
 
 import Test.HUnit
 import Turtle
@@ -9,7 +9,7 @@ import Prelude hiding (FilePath)
 import qualified Data.Map.Strict as Map
 import qualified Control.Foldl as Fold
 import qualified Data.Text as T
-import qualified Integration
+import qualified CSVImport.Integration
 
 import TestHelpers
 import Hledger.MakeItSo.Common

@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE OverloadedLists #-}
 
-module Integration (tests) where
+module CSVImport.Integration (tests) where
 
 import Test.HUnit
 import Turtle

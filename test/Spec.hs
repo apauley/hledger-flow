@@ -7,10 +7,10 @@ import Test.HUnit
 import Turtle
 import Prelude hiding (FilePath)
 
-import qualified Unit
-import qualified Integration
+import qualified CSVImport.Unit
+import qualified CSVImport.Integration
 
-tests = TestList [Unit.tests, Integration.tests]
+tests = TestList [CSVImport.Unit.tests, CSVImport.Integration.tests]
 
 main :: IO Counts
 main = do
