@@ -2,6 +2,7 @@
 
 module Hledger.MakeItSo.Common
     ( docURL
+    , showCmdArgs
     , logVerbose
     , logVerboseTime
     , verboseTestFile
@@ -42,6 +43,12 @@ import Data.Function (on)
 import qualified Data.List as List (nub, sort, sortBy, groupBy)
 import Data.Ord (comparing)
 import Hledger.MakeItSo.Data.Types
+
+showCmdArgs :: [Text] -> Text
+showCmdArgs args = T.intercalate " " (map escapeArg args)
+
+escapeArg :: Text -> Text
+escapeArg a = if (T.count " " a > 0) then "'" <> a <> "'" else a
 
 logLines :: (Shell Line -> IO ()) -> Text -> Shell ()
 logLines logfun msg = do
