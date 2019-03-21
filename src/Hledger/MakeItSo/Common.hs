@@ -19,6 +19,7 @@ module Hledger.MakeItSo.Common
     , firstExistingFile
     , groupValuesBy
     , groupIncludeFiles
+    , allYearIncludeFiles
     , yearsIncludeMap
     , extraIncludesForFile
     , groupPairs
@@ -119,7 +120,7 @@ groupIncludeFilesPerYear ps@(p:_) = if (dirname p == "import")
     Left  _ -> (groupValuesBy parentIncludeFilePath)  ps
 
 allYearIncludeFiles :: Map.Map FilePath [FilePath] -> (Map.Map FilePath [FilePath], Map.Map FilePath [FilePath])
-allYearIncludeFiles m = (m, Map.empty)
+allYearIncludeFiles m = (m, yearsIncludeMap $ Map.keys m)
 
 yearsIncludeMap :: [FilePath] -> Map.Map FilePath [FilePath]
 yearsIncludeMap = groupValuesBy allYearsPath
