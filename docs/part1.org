@@ -393,7 +393,7 @@ my-finances
 │               │       └── 123456789_2016-03-30.journal
 │               ├── bogart-cheque.rules
 │               └── preprocess -> ../../../../fnb-csv-demoronizer/fnb-csv-demoronizer
-└── makeitso.journal
+└── all-years.journal
 
 11 directories, 12 files
 

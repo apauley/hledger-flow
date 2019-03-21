@@ -59,7 +59,7 @@
 
    Add all your files to your favourite version control system.
 
-   The generated journal that you most likely want to use as your =LEDGER_FILE= is called =makeitso.journal=.
+   The generated journal that you most likely want to use as your =LEDGER_FILE= is called =all-years.journal=.
    This has include directives to all the automatically imported journals, as well as includes for your
    own manually managed journal entries.
 
