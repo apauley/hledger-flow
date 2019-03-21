@@ -108,15 +108,21 @@ allYearsPath :: FilePath -> FilePath
 allYearsPath p = directory p </> "all-years.journal"
 
 groupIncludeFiles :: [FilePath] -> (Map.Map FilePath [FilePath], Map.Map FilePath [FilePath])
-groupIncludeFiles [] = (Map.empty, Map.empty)
-groupIncludeFiles ps@(p:_) = if (dirname p == "import")
-  then (Map.singleton (((parent . parent) p) </> "makeitso.journal") ps, Map.empty)
-  else case extractImportDirs p of
-    Right _ -> ((groupValuesBy initialIncludeFilePath) ps, Map.empty)
-    Left  _ -> ((groupValuesBy parentIncludeFilePath) ps, Map.empty)
+groupIncludeFiles = allYearIncludeFiles . groupIncludeFilesPerYear
 
-yearsIncludeMap :: Map.Map FilePath [FilePath] -> Map.Map FilePath [FilePath]
-yearsIncludeMap m = groupValuesBy allYearsPath $ Map.keys m
+groupIncludeFilesPerYear :: [FilePath] -> Map.Map FilePath [FilePath]
+groupIncludeFilesPerYear [] = Map.empty
+groupIncludeFilesPerYear ps@(p:_) = if (dirname p == "import")
+  then Map.singleton (((parent . parent) p) </> "makeitso.journal") ps
+  else case extractImportDirs p of
+    Right _ -> (groupValuesBy initialIncludeFilePath) ps
+    Left  _ -> (groupValuesBy parentIncludeFilePath)  ps
+
+allYearIncludeFiles :: Map.Map FilePath [FilePath] -> (Map.Map FilePath [FilePath], Map.Map FilePath [FilePath])
+allYearIncludeFiles m = (m, Map.empty)
+
+yearsIncludeMap :: [FilePath] -> Map.Map FilePath [FilePath]
+yearsIncludeMap = groupValuesBy allYearsPath
 
 docURL :: Line -> Text
 docURL = format ("https://github.com/apauley/hledger-makeitso#"%l)

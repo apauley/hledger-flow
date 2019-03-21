@@ -69,7 +69,7 @@ groupedIncludeFiles = groupedJaneBogart <> groupedJaneOther <>
 
 testYearsIncludeMap = TestCase (
   do
-    let yearsMap = yearsIncludeMap groupedJohnOther
+    let yearsMap = yearsIncludeMap (Map.keys groupedJohnOther)
     let expected = [("./import/john/otherbank/creditcard/all-years.journal",
                      ["./import/john/otherbank/creditcard/2017-include.journal",
                       "./import/john/otherbank/creditcard/2018-include.journal"]),
