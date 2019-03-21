@@ -261,7 +261,9 @@ writeTextMap :: Map.Map FilePath Text -> IO ()
 writeTextMap = Map.foldlWithKey (\a k v -> a <> writeTextFile k v) (return ())
 
 writeFileMap :: (HasBaseDir o, HasVerbosity o) => o -> (Map.Map FilePath [FilePath], Map.Map FilePath [FilePath]) -> Shell [FilePath]
-writeFileMap opts (m, _allYears) = writeFiles . (toIncludeFiles opts) $ m
+writeFileMap opts (m, allYears) = do
+  _ <- writeFiles' $ (addPreamble . toIncludeFiles' Map.empty Map.empty) allYears
+  writeFiles . (toIncludeFiles opts) $ m
 
 writeIncludesUpTo :: (HasBaseDir o, HasVerbosity o) => o -> FilePath -> [FilePath] -> Shell [FilePath]
 writeIncludesUpTo _ _ [] = return []

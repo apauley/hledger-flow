@@ -175,7 +175,15 @@ testWriteIncludeFiles = TestCase (
         reportedAsWritten <- single $ groupAndWriteIncludeFiles (defaultOpts tmpdir) importedJournals
         liftIO $ assertEqual "groupAndWriteIncludeFiles should return which files it wrote" expectedIncludes reportedAsWritten
 
-        let expectedOnDisk = List.sort $ reportedAsWritten ++ extras ++ importedJournals
+        let allYears = [tmpdir </> "import/jane/bogartbank/checking/all-years.journal",
+                        tmpdir </> "import/jane/bogartbank/savings/all-years.journal",
+                        tmpdir </> "import/jane/otherbank/creditcard/all-years.journal",
+                        tmpdir </> "import/jane/otherbank/investments/all-years.journal",
+                        tmpdir </> "import/john/bogartbank/checking/all-years.journal",
+                        tmpdir </> "import/john/bogartbank/savings/all-years.journal",
+                        tmpdir </> "import/john/otherbank/creditcard/all-years.journal",
+                        tmpdir </> "import/john/otherbank/investments/all-years.journal"]
+        let expectedOnDisk = List.sort $ reportedAsWritten ++ extras ++ importedJournals ++ allYears
         allFilesOnDisk <- single $ sort $ onlyFiles $ lstree tmpdir
         liftIO $ assertEqual "The actual files on disk should match what groupAndWriteIncludeFiles reported" expectedOnDisk allFilesOnDisk
 
