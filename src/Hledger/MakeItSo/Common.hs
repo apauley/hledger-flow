@@ -113,9 +113,7 @@ groupIncludeFiles = allYearIncludeFiles . groupIncludeFilesPerYear
 
 groupIncludeFilesPerYear :: [FilePath] -> Map.Map FilePath [FilePath]
 groupIncludeFilesPerYear [] = Map.empty
-groupIncludeFilesPerYear ps@(p:_) = if (dirname p == "import")
-  then Map.singleton (((parent . parent) p) </> "makeitso.journal") ps
-  else case extractImportDirs p of
+groupIncludeFilesPerYear ps@(p:_) = case extractImportDirs p of
     Right _ -> (groupValuesBy initialIncludeFilePath) ps
     Left  _ -> (groupValuesBy parentIncludeFilePath)  ps
 
@@ -307,6 +305,6 @@ extractImportDirs inputFile = do
     [bd,owner,bank,account,filestate,year] -> Right $ IT.ImportDirs bd owner bank account filestate year
     _ -> do
       Left $ format ("I couldn't find the right number of directories between \"import\" and the input file:\n"%fp
-                      %"\n\nhledger-makitso expects to find input files in this structure:\n"%
+                      %"\n\nhledger-makeitso expects to find input files in this structure:\n"%
                       "import/owner/bank/account/filestate/year/trxfile\n\n"%
                       "Have a look at the documentation for a detailed explanation:\n"%s) inputFile (docURL "input-files")

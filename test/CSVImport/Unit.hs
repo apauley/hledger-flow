@@ -180,13 +180,15 @@ testGroupIncludeFilesSmallSet = TestCase (
     assertEqual "groupIncludeFiles Jane 4" expectedGroup4 group4
 
     let (group5, allYears5) = groupIncludeFiles (Map.keys group4)
-    let expectedAllYears5 = [("./all-years.journal", ["./makeitso.journal"])]
+    let expectedAllYears5 = [("./all-years.journal", ["./2017-include.journal", "./2018-include.journal", "./2019-include.journal"])]
     assertEqual "groupIncludeFiles Jane AllYears 5" expectedAllYears5 allYears5
     let expectedGroup5 = [
-          ("./makeitso.journal",
-           ["./import/2017-include.journal",
-            "./import/2018-include.journal",
-            "./import/2019-include.journal"])]
+          ("./2017-include.journal",
+           ["./import/2017-include.journal"]),
+          ("./2018-include.journal",
+           ["./import/2018-include.journal"]),
+          ("./2019-include.journal",
+           ["./import/2019-include.journal"])]
     assertEqual "groupIncludeFiles Jane 5" expectedGroup5 group5
  )
 
@@ -331,12 +333,15 @@ testGroupIncludeFiles = TestCase (
     assertEqual "groupIncludeFiles 4" expectedGroup4 group4
 
     let (group5, allYears5) = groupIncludeFiles (Map.keys group4)
-    let expectedAllYears5 = [("./all-years.journal", ["./makeitso.journal"])]
+    let expectedAllYears5 = [("./all-years.journal", ["./2017-include.journal", "./2018-include.journal", "./2019-include.journal"])]
     assertEqual "groupIncludeFiles Jane AllYears 5" expectedAllYears5 allYears5
-    let expectedGroup5 = [("./makeitso.journal",
-                           ["./import/2017-include.journal",
-                            "./import/2018-include.journal",
-                            "./import/2019-include.journal"])]
+    let expectedGroup5 = [
+          ("./2017-include.journal",
+           ["./import/2017-include.journal"]),
+          ("./2018-include.journal",
+           ["./import/2018-include.journal"]),
+          ("./2019-include.journal",
+           ["./import/2019-include.journal"])]
     assertEqual "groupIncludeFiles 5 - diff 1" [] (expectedGroup5 Map.\\ group5)
     assertEqual "groupIncludeFiles 5 - diff 2" [] (group5 Map.\\ expectedGroup5)
     assertEqual "groupIncludeFiles 5" expectedGroup5 group5
