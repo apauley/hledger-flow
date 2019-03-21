@@ -19,6 +19,8 @@ module Hledger.MakeItSo.Common
     , firstExistingFile
     , groupValuesBy
     , groupIncludeFiles
+    , allYearIncludeFiles
+    , yearsIncludeMap
     , extraIncludesForFile
     , groupPairs
     , pairBy
@@ -103,13 +105,23 @@ initialIncludeFilePath p = (parent . parent . parent) p </> includeFileName p
 parentIncludeFilePath :: FilePath -> FilePath
 parentIncludeFilePath p = (parent . parent) p </> (filename p)
 
-groupIncludeFiles :: [FilePath] -> Map.Map FilePath [FilePath]
-groupIncludeFiles [] = Map.empty
-groupIncludeFiles ps@(p:_) = if (dirname p == "import")
-  then Map.singleton (((parent . parent) p) </> "makeitso.journal") ps
-  else case extractImportDirs p of
+allYearsPath :: FilePath -> FilePath
+allYearsPath p = directory p </> "all-years.journal"
+
+groupIncludeFiles :: [FilePath] -> (Map.Map FilePath [FilePath], Map.Map FilePath [FilePath])
+groupIncludeFiles = allYearIncludeFiles . groupIncludeFilesPerYear
+
+groupIncludeFilesPerYear :: [FilePath] -> Map.Map FilePath [FilePath]
+groupIncludeFilesPerYear [] = Map.empty
+groupIncludeFilesPerYear ps@(p:_) = case extractImportDirs p of
     Right _ -> (groupValuesBy initialIncludeFilePath) ps
-    Left  _ -> (groupValuesBy parentIncludeFilePath) ps
+    Left  _ -> (groupValuesBy parentIncludeFilePath)  ps
+
+allYearIncludeFiles :: Map.Map FilePath [FilePath] -> (Map.Map FilePath [FilePath], Map.Map FilePath [FilePath])
+allYearIncludeFiles m = (m, yearsIncludeMap $ Map.keys m)
+
+yearsIncludeMap :: [FilePath] -> Map.Map FilePath [FilePath]
+yearsIncludeMap = groupValuesBy allYearsPath
 
 docURL :: Line -> Text
 docURL = format ("https://github.com/apauley/hledger-makeitso#"%l)
@@ -246,8 +258,10 @@ writeFiles' fileMap = do
 writeTextMap :: Map.Map FilePath Text -> IO ()
 writeTextMap = Map.foldlWithKey (\a k v -> a <> writeTextFile k v) (return ())
 
-writeFileMap :: (HasBaseDir o, HasVerbosity o) => o -> Map.Map FilePath [FilePath] -> Shell [FilePath]
-writeFileMap opts = writeFiles . (toIncludeFiles opts)
+writeFileMap :: (HasBaseDir o, HasVerbosity o) => o -> (Map.Map FilePath [FilePath], Map.Map FilePath [FilePath]) -> Shell [FilePath]
+writeFileMap opts (m, allYears) = do
+  _ <- writeFiles' $ (addPreamble . toIncludeFiles' Map.empty Map.empty) allYears
+  writeFiles . (toIncludeFiles opts) $ m
 
 writeIncludesUpTo :: (HasBaseDir o, HasVerbosity o) => o -> FilePath -> [FilePath] -> Shell [FilePath]
 writeIncludesUpTo _ _ [] = return []
@@ -291,6 +305,6 @@ extractImportDirs inputFile = do
     [bd,owner,bank,account,filestate,year] -> Right $ IT.ImportDirs bd owner bank account filestate year
     _ -> do
       Left $ format ("I couldn't find the right number of directories between \"import\" and the input file:\n"%fp
-                      %"\n\nhledger-makitso expects to find input files in this structure:\n"%
+                      %"\n\nhledger-makeitso expects to find input files in this structure:\n"%
                       "import/owner/bank/account/filestate/year/trxfile\n\n"%
                       "Have a look at the documentation for a detailed explanation:\n"%s) inputFile (docURL "input-files")

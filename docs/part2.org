@@ -26,7 +26,7 @@ Now that we have [[file:part1.org][our first successful import]], can hledger sh
 
 #+NAME: hledger-err-balance
 #+BEGIN_SRC sh :results none :exports code
-hledger -f my-finances/makeitso.journal incomestatement
+hledger -f my-finances/all-years.journal incomestatement
 #+END_SRC
 
 #+REVEAL: split
@@ -128,7 +128,7 @@ Now we can try the income statement again.
 
 #+NAME: hledger-incomestatement
 #+BEGIN_SRC sh :results org :exports both
-hledger -f my-finances/makeitso.journal incomestatement \
+hledger -f my-finances/all-years.journal incomestatement \
   --pretty-tables
 #+END_SRC
 
