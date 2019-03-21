@@ -67,6 +67,18 @@ groupedIncludeFiles :: Map.Map FilePath [FilePath]
 groupedIncludeFiles = groupedJaneBogart <> groupedJaneOther <>
                       groupedJohnBogart <> groupedJohnOther
 
+testYearsIncludeMap = TestCase (
+  do
+    let yearsMap = yearsIncludeMap groupedJohnOther
+    let expected = [("./import/john/otherbank/creditcard/all-years.journal",
+                     ["./import/john/otherbank/creditcard/2017-include.journal",
+                      "./import/john/otherbank/creditcard/2018-include.journal"]),
+                    ("./import/john/otherbank/investments/all-years.journal",
+                     ["./import/john/otherbank/investments/2018-include.journal",
+                      "./import/john/otherbank/investments/2019-include.journal"])]
+    assertEqual "A basic map with grouped years per level" expected yearsMap
+  )
+
 testGroupIncludeFilesTinySet = TestCase (
   do
     let journals1 = [   "import/jane/bogartbank/savings/3-journals/2017/2017-12-30.journal"]
@@ -290,4 +302,4 @@ testToIncludeFiles = TestCase (
     txt <- single $ toIncludeFiles (defaultOpts ".") groupedJohnBogart
     assertEqual "Convert a grouped map of paths, to a map with text contents for each file" expected txt)
 
-tests = TestList [testGroupIncludeFilesTinySet, testGroupIncludeFilesSmallSet, testGroupIncludeFiles, testRelativeToBase, testToIncludeLine, testToIncludeFiles]
+tests = TestList [testYearsIncludeMap, testGroupIncludeFilesTinySet, testGroupIncludeFilesSmallSet, testGroupIncludeFiles, testRelativeToBase, testToIncludeLine, testToIncludeFiles]

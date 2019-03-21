@@ -19,6 +19,7 @@ module Hledger.MakeItSo.Common
     , firstExistingFile
     , groupValuesBy
     , groupIncludeFiles
+    , yearsIncludeMap
     , extraIncludesForFile
     , groupPairs
     , pairBy
@@ -103,6 +104,9 @@ initialIncludeFilePath p = (parent . parent . parent) p </> includeFileName p
 parentIncludeFilePath :: FilePath -> FilePath
 parentIncludeFilePath p = (parent . parent) p </> (filename p)
 
+allYearsPath :: FilePath -> FilePath
+allYearsPath p = directory p </> "all-years.journal"
+
 groupIncludeFiles :: [FilePath] -> (Map.Map FilePath [FilePath], Map.Map FilePath [FilePath])
 groupIncludeFiles [] = (Map.empty, Map.empty)
 groupIncludeFiles ps@(p:_) = if (dirname p == "import")
@@ -110,6 +114,9 @@ groupIncludeFiles ps@(p:_) = if (dirname p == "import")
   else case extractImportDirs p of
     Right _ -> ((groupValuesBy initialIncludeFilePath) ps, Map.empty)
     Left  _ -> ((groupValuesBy parentIncludeFilePath) ps, Map.empty)
+
+yearsIncludeMap :: Map.Map FilePath [FilePath] -> Map.Map FilePath [FilePath]
+yearsIncludeMap m = groupValuesBy allYearsPath $ Map.keys m
 
 docURL :: Line -> Text
 docURL = format ("https://github.com/apauley/hledger-makeitso#"%l)
