@@ -103,13 +103,13 @@ initialIncludeFilePath p = (parent . parent . parent) p </> includeFileName p
 parentIncludeFilePath :: FilePath -> FilePath
 parentIncludeFilePath p = (parent . parent) p </> (filename p)
 
-groupIncludeFiles :: [FilePath] -> Map.Map FilePath [FilePath]
-groupIncludeFiles [] = Map.empty
+groupIncludeFiles :: [FilePath] -> (Map.Map FilePath [FilePath], Map.Map FilePath [FilePath])
+groupIncludeFiles [] = (Map.empty, Map.empty)
 groupIncludeFiles ps@(p:_) = if (dirname p == "import")
-  then Map.singleton (((parent . parent) p) </> "makeitso.journal") ps
+  then (Map.singleton (((parent . parent) p) </> "makeitso.journal") ps, Map.empty)
   else case extractImportDirs p of
-    Right _ -> (groupValuesBy initialIncludeFilePath) ps
-    Left  _ -> (groupValuesBy parentIncludeFilePath) ps
+    Right _ -> ((groupValuesBy initialIncludeFilePath) ps, Map.empty)
+    Left  _ -> ((groupValuesBy parentIncludeFilePath) ps, Map.empty)
 
 docURL :: Line -> Text
 docURL = format ("https://github.com/apauley/hledger-makeitso#"%l)
@@ -246,8 +246,8 @@ writeFiles' fileMap = do
 writeTextMap :: Map.Map FilePath Text -> IO ()
 writeTextMap = Map.foldlWithKey (\a k v -> a <> writeTextFile k v) (return ())
 
-writeFileMap :: (HasBaseDir o, HasVerbosity o) => o -> Map.Map FilePath [FilePath] -> Shell [FilePath]
-writeFileMap opts = writeFiles . (toIncludeFiles opts)
+writeFileMap :: (HasBaseDir o, HasVerbosity o) => o -> (Map.Map FilePath [FilePath], Map.Map FilePath [FilePath]) -> Shell [FilePath]
+writeFileMap opts (m, _allYears) = writeFiles . (toIncludeFiles opts) $ m
 
 writeIncludesUpTo :: (HasBaseDir o, HasVerbosity o) => o -> FilePath -> [FilePath] -> Shell [FilePath]
 writeIncludesUpTo _ _ [] = return []

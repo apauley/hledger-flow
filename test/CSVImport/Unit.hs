@@ -71,23 +71,31 @@ testGroupIncludeFilesTinySet = TestCase (
   do
     let journals1 = [   "import/jane/bogartbank/savings/3-journals/2017/2017-12-30.journal"]
     let expected1 = [("./import/jane/bogartbank/savings/2017-include.journal", journals1)] :: Map.Map FilePath [FilePath]
-    assertEqual "groupIncludeFiles small set 1" expected1 (groupIncludeFiles journals1)
+    let (group1, allYears1) = groupIncludeFiles journals1
+    assertEqual "groupIncludeFiles small allYears 1" Map.empty allYears1
+    assertEqual "groupIncludeFiles small set 1" expected1 group1
 
     let journals2 = [(fst . head . Map.toList) expected1] :: [FilePath]
     let expected2 = [("./import/jane/bogartbank/2017-include.journal", journals2)] :: Map.Map FilePath [FilePath]
-    assertEqual "groupIncludeFiles small set 2" expected2 (groupIncludeFiles journals2)
+    let (group2, allYears2) = groupIncludeFiles journals2
+    assertEqual "groupIncludeFiles small allYears 2" Map.empty allYears2
+    assertEqual "groupIncludeFiles small set 2" expected2 group2
 
     let journals3 = [(fst . head . Map.toList) expected2] :: [FilePath]
     let expected3 = [("./import/jane/2017-include.journal", journals3)] :: Map.Map FilePath [FilePath]
-    assertEqual "groupIncludeFiles small set 3" expected3 (groupIncludeFiles journals3)
+    let (group3, allYears3) = groupIncludeFiles journals3
+    assertEqual "groupIncludeFiles small allYears 3" Map.empty allYears3
+    assertEqual "groupIncludeFiles small set 3" expected3 group3
   )
 
 testGroupIncludeFilesSmallSet = TestCase (
   do
-    let group1 = groupIncludeFiles (toJournals inputJaneBogart) :: Map.Map FilePath [FilePath]
+    let (group1, allYears1) = groupIncludeFiles (toJournals inputJaneBogart)
+    assertEqual "groupIncludeFiles Jane AllYears 1" Map.empty allYears1
     assertEqual "groupIncludeFiles Jane 1" groupedJaneBogart group1
 
-    let group2 = groupIncludeFiles (Map.keys group1) :: Map.Map FilePath [FilePath]
+    let (group2, allYears2) = groupIncludeFiles (Map.keys group1)
+    assertEqual "groupIncludeFiles Jane AllYears 2" Map.empty allYears2
     let expectedGroup2 = [
           ("./import/jane/bogartbank/2017-include.journal",
            ["./import/jane/bogartbank/savings/2017-include.journal"]),
@@ -98,7 +106,8 @@ testGroupIncludeFilesSmallSet = TestCase (
            ["./import/jane/bogartbank/checking/2019-include.journal"])]
     assertEqual "groupIncludeFiles Jane 2" expectedGroup2 group2
 
-    let group3 = groupIncludeFiles (Map.keys group2) :: Map.Map FilePath [FilePath]
+    let (group3, allYears3) = groupIncludeFiles (Map.keys group2)
+    assertEqual "groupIncludeFiles Jane AllYears 3" Map.empty allYears3
     let expectedGroup3 = [
           ("./import/jane/2017-include.journal",
            ["./import/jane/bogartbank/2017-include.journal"]),
@@ -108,7 +117,8 @@ testGroupIncludeFilesSmallSet = TestCase (
            ["./import/jane/bogartbank/2019-include.journal"])]
     assertEqual "groupIncludeFiles Jane 3" expectedGroup3 group3
 
-    let group4 = groupIncludeFiles (Map.keys group3) :: Map.Map FilePath [FilePath]
+    let (group4, allYears4) = groupIncludeFiles (Map.keys group3)
+    assertEqual "groupIncludeFiles Jane AllYears 4" Map.empty allYears4
     let expectedGroup4 = [
           ("./import/2017-include.journal",
            ["./import/jane/2017-include.journal"]),
@@ -118,7 +128,8 @@ testGroupIncludeFilesSmallSet = TestCase (
            ["./import/jane/2019-include.journal"])]
     assertEqual "groupIncludeFiles Jane 4" expectedGroup4 group4
 
-    let group5 = groupIncludeFiles (Map.keys group4) :: Map.Map FilePath [FilePath]
+    let (group5, allYears5) = groupIncludeFiles (Map.keys group4)
+    assertEqual "groupIncludeFiles Jane AllYears 5" Map.empty allYears5
     let expectedGroup5 = [
           ("./makeitso.journal",
            ["./import/2017-include.journal",
@@ -129,10 +140,12 @@ testGroupIncludeFilesSmallSet = TestCase (
 
 testGroupIncludeFiles = TestCase (
   do
-    let group1 = groupIncludeFiles journalFiles :: Map.Map FilePath [FilePath]
+    let (group1, allYears1) = groupIncludeFiles journalFiles
+    assertEqual "groupIncludeFiles Jane AllYears 1" Map.empty allYears1
     assertEqual "groupIncludeFiles 1" groupedIncludeFiles group1
 
-    let group2 = groupIncludeFiles (Map.keys group1) :: Map.Map FilePath [FilePath]
+    let (group2, allYears2) = groupIncludeFiles (Map.keys group1)
+    assertEqual "groupIncludeFiles Jane AllYears 2" Map.empty allYears2
     let expectedGroup2 = [("./import/jane/bogartbank/2017-include.journal",
                            ["./import/jane/bogartbank/savings/2017-include.journal"]),
                           ("./import/jane/bogartbank/2018-include.journal",
@@ -168,7 +181,8 @@ testGroupIncludeFiles = TestCase (
     assertEqual "groupIncludeFiles 2 - diff 2" [] (group2 Map.\\ expectedGroup2)
     assertEqual "groupIncludeFiles 2" expectedGroup2 group2
 
-    let group3 = groupIncludeFiles (Map.keys group2) :: Map.Map FilePath [FilePath]
+    let (group3, allYears3) = groupIncludeFiles (Map.keys group2)
+    assertEqual "groupIncludeFiles Jane AllYears 3" Map.empty allYears3
     let expectedGroup3 = [("./import/jane/2017-include.journal",
                            ["./import/jane/bogartbank/2017-include.journal",
                             "./import/jane/otherbank/2017-include.journal"]),
@@ -191,7 +205,8 @@ testGroupIncludeFiles = TestCase (
     assertEqual "groupIncludeFiles 3 - diff 2" [] (group3 Map.\\ expectedGroup3)
     assertEqual "groupIncludeFiles 3" expectedGroup3 group3
 
-    let group4 = groupIncludeFiles (Map.keys group3) :: Map.Map FilePath [FilePath]
+    let (group4, allYears4) = groupIncludeFiles (Map.keys group3)
+    assertEqual "groupIncludeFiles Jane AllYears 4" Map.empty allYears4
     let expectedGroup4 = [("./import/2017-include.journal",
                            ["./import/jane/2017-include.journal",
                             "./import/john/2017-include.journal"]),
@@ -205,7 +220,8 @@ testGroupIncludeFiles = TestCase (
     assertEqual "groupIncludeFiles 4 - diff 2" [] (group4 Map.\\ expectedGroup4)
     assertEqual "groupIncludeFiles 4" expectedGroup4 group4
 
-    let group5 = groupIncludeFiles (Map.keys group4) :: Map.Map FilePath [FilePath]
+    let (group5, allYears5) = groupIncludeFiles (Map.keys group4)
+    assertEqual "groupIncludeFiles Jane AllYears 5" Map.empty allYears5
     let expectedGroup5 = [("./makeitso.journal",
                            ["./import/2017-include.journal",
                             "./import/2018-include.journal",
