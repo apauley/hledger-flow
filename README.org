@@ -7,6 +7,22 @@
 
   I've given [[https://pauley.org.za/functional-finance-hledger/][a talk]] at [[https://www.meetup.com/lambda-luminaries/events/qklkvpyxmbnb/][Lambda Luminaries Johannesburg]] featuring hledger and hledger-makeitso.
 
+* Who should use this?
+
+  =hledger-makeitso= is intended for you if:
+
+  - You are interested in getting started with [[http://hledger.org/][hledger]] and you wouldn't mind pointers to the right docs along the way.
+  - You want a way to organise your finances into a structure that will be maintainable over the long term.
+  - You want to be able to automate as much as possible when dealing with your financial life.
+  - You don't mind writing some scripts when needed, as long as it saves you time over the long term.
+  - You want the ability to model your entire financial life in one tool, as opposed to just the parts that some online tool currently supports.
+  - You appreciate the fact that all your financial information stays within your control.
+
+  At the moment this software is in a fairly stable beta.
+  It is still possible that I'll make a breaking change to enable some feature, but I hope not.
+
+  Let me know if you are actively using this - I'm more likely to proceed with caution if I know I'm not the only active user.
+
 * After Cloning This Repository
 
   This repository has some submodules included, mostly related to the examples in the documentation.
@@ -16,14 +32,6 @@
   git submodule init
   git submodule update
   #+END_SRC
-
-* Who should use this project?
-
-  At the moment this software is in an alpha stage.
-  I'm still making and changing decisions as I go along.
-
-  If you're familiar with [[http://hledger.org/][hledger]] and are willing to tolerate some annoying breaking changes from time to time,
-  then please try it out and let me know what you think.
 
 * Build Instructions
 
