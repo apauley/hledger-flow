@@ -3,6 +3,8 @@
 module Hledger.MakeItSo.Common
     ( docURL
     , showCmdArgs
+    , consoleChannelLoop
+    , terminateChannelLoop
     , logVerbose
     , logVerboseTime
     , verboseTestFile
@@ -36,6 +38,9 @@ module Hledger.MakeItSo.Common
 import Turtle
 import Prelude hiding (FilePath, putStrLn)
 import qualified Data.Text as T
+import qualified Data.Text.IO as T
+import qualified GHC.IO.Handle.FD as H
+
 import Data.Maybe
 import qualified Control.Foldl as Fold
 import qualified Data.Map.Strict as Map
@@ -54,16 +59,29 @@ showCmdArgs args = T.intercalate " " (map escapeArg args)
 escapeArg :: Text -> Text
 escapeArg a = if (T.count " " a > 0) then "'" <> a <> "'" else a
 
-logLines :: (Shell Line -> IO ()) -> TChan LogMessage -> Text -> IO ()
-logLines logfun _ch msg = do
+logToChannel :: TChan LogMessage -> Text -> IO ()
+logToChannel ch msg = do
   t <- getZonedTime
-  logfun $ select $ textToLines $ format (s%"\thledger-makeitso "%s) (repr t) msg
+  let timestampMsg = format (s%"\thledger-makeitso "%s) (repr t) msg
+  atomically $ writeTChan ch $ StdErr timestampMsg
 
-logErr :: TChan LogMessage -> Text -> IO ()
-logErr = logLines stderr
+consoleChannelLoop :: TChan LogMessage -> IO ()
+consoleChannelLoop ch = do
+  logMsg <- atomically $ readTChan ch
+  case logMsg of
+    StdOut msg -> do
+      T.putStrLn msg
+      consoleChannelLoop ch
+    StdErr msg -> do
+      T.hPutStrLn H.stderr msg
+      consoleChannelLoop ch
+    Terminate  -> return ()
+
+terminateChannelLoop :: TChan LogMessage -> IO ()
+terminateChannelLoop ch = atomically $ writeTChan ch Terminate
 
 logVerbose :: HasVerbosity o => o -> TChan LogMessage -> Text -> IO ()
-logVerbose opts ch msg = if (verbose opts) then logErr ch msg else return ()
+logVerbose opts ch msg = if (verbose opts) then logToChannel ch msg else return ()
 
 logVerboseTime :: HasVerbosity o => o -> TChan LogMessage -> Text -> IO a -> IO (a, NominalDiffTime)
 logVerboseTime opts ch msg action = do

@@ -14,8 +14,17 @@ import Hledger.MakeItSo.Common
 import Control.Concurrent.STM
 
 importCSVs :: ImportOptions -> IO ()
-importCSVs opts = do
-  ch <- newTChanIO
+importCSVs opts = sh (
+  do
+    ch <- liftIO newTChanIO
+    logHandle <- fork $ consoleChannelLoop ch
+    liftIO $ importCSVs' opts ch
+    liftIO $ terminateChannelLoop ch
+    wait logHandle
+  )
+
+importCSVs' :: ImportOptions -> TChan LogMessage -> IO ()
+importCSVs' opts ch = do
   logVerbose opts ch "Collecting input files..."
   inputFiles <- single . shellToList . onlyFiles $ find (has (suffix "1-in/")) $ baseDir opts
   let fileCount = length inputFiles
