@@ -33,6 +33,7 @@ library:
   - foldl
   - containers
   - time
+  - stm
 
 executables:
   hledger-makeitso:
@@ -64,3 +65,4 @@ tests:
     - containers
     - foldl
     - text
+    - stm

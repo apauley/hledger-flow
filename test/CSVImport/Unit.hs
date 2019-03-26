@@ -10,6 +10,7 @@ import qualified Data.Map.Strict as Map
 import qualified Control.Foldl as Fold
 import qualified Data.Text as T
 import qualified CSVImport.Integration
+import Control.Concurrent.STM
 
 import TestHelpers
 import Hledger.MakeItSo.Common
@@ -403,7 +404,8 @@ testToIncludeFiles = TestCase (
            "!include import/john/bogartbank/savings/3-journal/2018/2018-01-30.journal\n" <>
            "!include import/john/bogartbank/savings/3-journal/2018/2018-02-30.journal\n")]
 
-    txt <- single $ toIncludeFiles (defaultOpts ".") groupedJohnBogart
+    ch <- liftIO newTChanIO
+    txt <- single $ toIncludeFiles (defaultOpts ".") ch groupedJohnBogart
     assertEqual "Convert a grouped map of paths, to a map with text contents for each file" expected txt)
 
 tests = TestList [testYearsIncludeMap, testYearsIncludeGrouping, testGroupIncludeFilesTinySet, testGroupIncludeFilesSmallSet, testGroupIncludeFiles, testRelativeToBase, testToIncludeLine, testToIncludeFiles]
