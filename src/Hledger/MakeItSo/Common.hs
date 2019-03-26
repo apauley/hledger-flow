@@ -53,25 +53,25 @@ showCmdArgs args = T.intercalate " " (map escapeArg args)
 escapeArg :: Text -> Text
 escapeArg a = if (T.count " " a > 0) then "'" <> a <> "'" else a
 
-logLines :: (Shell Line -> IO ()) -> Text -> Shell ()
+logLines :: (Shell Line -> IO ()) -> Text -> IO ()
 logLines logfun msg = do
-  t <- liftIO $ getZonedTime
-  liftIO $ logfun $ select $ textToLines $ format (s%"\thledger-makeitso "%s) (repr t) msg
+  t <- getZonedTime
+  logfun $ select $ textToLines $ format (s%"\thledger-makeitso "%s) (repr t) msg
 
-logErr :: Text -> Shell ()
+logErr :: Text -> IO ()
 logErr = logLines stderr
 
-logVerbose :: HasVerbosity o => o -> Text -> Shell ()
+logVerbose :: HasVerbosity o => o -> Text -> IO ()
 logVerbose opts msg = if (verbose opts) then logErr msg else return ()
 
 logVerboseTime :: HasVerbosity o => o -> Text -> IO a -> IO (a, NominalDiffTime)
 logVerboseTime opts msg action = do
-  sh $ logVerbose opts $ format ("Begin: "%s) msg
+  logVerbose opts $ format ("Begin: "%s) msg
   (result, diff) <- time action
-  sh $ logVerbose opts $ format ("End:   "%s%" ("%s%")") msg $ repr diff
+  logVerbose opts $ format ("End:   "%s%" ("%s%")") msg $ repr diff
   return (result, diff)
 
-verboseTestFile :: (HasVerbosity o, HasBaseDir o) => o -> FilePath -> Shell Bool
+verboseTestFile :: (HasVerbosity o, HasBaseDir o) => o -> FilePath -> IO Bool
 verboseTestFile opts p = do
   fileExists <- testfile p
   let rel = relativeToBase opts p
@@ -168,7 +168,7 @@ excludeHiddenFiles paths = do
 excludeWeirdPaths :: Shell FilePath -> Shell FilePath
 excludeWeirdPaths = findtree (suffix $ noneOf "_")
 
-firstExistingFile :: [FilePath] -> Shell (Maybe FilePath)
+firstExistingFile :: [FilePath] -> IO (Maybe FilePath)
 firstExistingFile files = do
   case files of
     []   -> return Nothing
@@ -216,7 +216,7 @@ extraIncludesForFile opts file extraSuffixes manualFiles = do
   let logMsg = format ("Looking for possible extra include files for '"%fp%"' among these "%d%" options: "%s%". Found "%d%": "%s)
                (relativeToBase opts file) (length extraFiles) (repr $ relativeFilesAsText opts extraFiles)
                (length filtered) (repr $ relativeFilesAsText opts filtered)
-  logVerbose opts logMsg
+  liftIO $ logVerbose opts logMsg
   return $ Map.fromList [(file, filtered)]
 
 relativeFilesAsText :: HasBaseDir o => o -> [FilePath] -> [Text]

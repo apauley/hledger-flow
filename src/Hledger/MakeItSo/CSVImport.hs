@@ -16,10 +16,10 @@ importCSVs = sh . importCSVs'
 
 importCSVs' :: ImportOptions -> Shell [FilePath]
 importCSVs' opts = do
-  logVerbose opts "Collecting input files..."
+  liftIO $ logVerbose opts "Collecting input files..."
   inputFiles <- shellToList . onlyFiles $ find (has (suffix "1-in/")) $ baseDir opts
   let fileCount = length inputFiles
-  logVerbose opts $ format ("Found "%d%" input files") $ fileCount
+  liftIO $ logVerbose opts $ format ("Found "%d%" input files") $ fileCount
   if (fileCount == 0) then
     do
       let msg = format ("I couldn't find any input files underneath "%fp
@@ -37,12 +37,12 @@ extractAndImport :: ImportOptions -> Shell FilePath -> Shell FilePath
 extractAndImport opts inputFiles = do
   inputFile <- inputFiles
   case extractImportDirs inputFile of
-    Right importDirs -> importCSV opts importDirs inputFile
+    Right importDirs -> liftIO $ importCSV opts importDirs inputFile
     Left errorMessage -> do
       stderr $ select $ textToLines errorMessage
       exit $ ExitFailure 1
 
-importCSV :: ImportOptions -> ImportDirs -> FilePath -> Shell FilePath
+importCSV :: ImportOptions -> ImportDirs -> FilePath -> IO FilePath
 importCSV opts importDirs srcFile = do
   let preprocessScript = accountDir importDirs </> "preprocess"
   let constructScript = accountDir importDirs </> "construct"
@@ -58,14 +58,14 @@ importCSV opts importDirs srcFile = do
   mktree $ directory journalOut
   importFun csvFile journalOut
 
-preprocessIfNeeded :: ImportOptions -> FilePath -> Line -> Line -> Line -> FilePath -> Shell FilePath
+preprocessIfNeeded :: ImportOptions -> FilePath -> Line -> Line -> Line -> FilePath -> IO FilePath
 preprocessIfNeeded opts script bank account owner src = do
   shouldPreprocess <- verboseTestFile opts script
   if shouldPreprocess
     then preprocess opts script bank account owner src
     else return src
 
-preprocess :: ImportOptions -> FilePath -> Line -> Line -> Line -> FilePath -> Shell FilePath
+preprocess :: ImportOptions -> FilePath -> Line -> Line -> Line -> FilePath -> IO FilePath
 preprocess opts script bank account owner src = do
   let csvOut = changePathAndExtension "2-preprocessed" "csv" src
   mktree $ directory csvOut
@@ -77,7 +77,7 @@ preprocess opts script bank account owner src = do
   _ <- liftIO $ logVerboseTime opts msg action
   return csvOut
 
-hledgerImport :: ImportOptions -> FilePath  -> FilePath -> Shell FilePath
+hledgerImport :: ImportOptions -> FilePath  -> FilePath -> IO FilePath
 hledgerImport opts csvSrc journalOut = do
   case extractImportDirs csvSrc of
     Right importDirs -> hledgerImport' opts importDirs csvSrc journalOut
@@ -85,7 +85,7 @@ hledgerImport opts csvSrc journalOut = do
       stderr $ select $ textToLines errorMessage
       exit $ ExitFailure 1
 
-hledgerImport' :: ImportOptions -> ImportDirs -> FilePath -> FilePath -> Shell FilePath
+hledgerImport' :: ImportOptions -> ImportDirs -> FilePath -> FilePath -> IO FilePath
 hledgerImport' opts importDirs csvSrc journalOut = do
   let candidates = rulesFileCandidates csvSrc importDirs
   maybeRulesFile <- firstExistingFile candidates
@@ -95,7 +95,7 @@ hledgerImport' opts importDirs csvSrc journalOut = do
       let relRules = relativeToBase opts rf
       let action = procs "hledger" ["print", "--rules-file", format fp rf, "--file", format fp csvSrc, "--output-file", format fp journalOut] empty
       let msg = format ("importing '"%fp%"' using rules file '"%fp%"'") relCSV relRules
-      _ <- liftIO $ logVerboseTime opts msg action
+      _ <- logVerboseTime opts msg action
       return journalOut
     Nothing ->
       do
@@ -137,7 +137,7 @@ statementSpecificRulesFiles csvSrc importDirs = do
       map (</> srcSpecificFilename) [accountDir importDirs, bankDir importDirs, importDir importDirs]
     else []
 
-customConstruct :: ImportOptions -> FilePath -> Line -> Line -> Line -> FilePath -> FilePath -> Shell FilePath
+customConstruct :: ImportOptions -> FilePath -> Line -> Line -> Line -> FilePath -> FilePath -> IO FilePath
 customConstruct opts constructScript bank account owner csvSrc journalOut = do
   let script = format fp constructScript :: Text
   let importOut = inproc script [format fp csvSrc, "-", lineToText bank, lineToText account, lineToText owner] empty
@@ -145,6 +145,6 @@ customConstruct opts constructScript bank account owner csvSrc journalOut = do
   let relScript = relativeToBase opts constructScript
   let relSrc = relativeToBase opts csvSrc
   let msg = format ("executing '"%fp%"' on '"%fp%"'") relScript relSrc
-  _ <- liftIO $ logVerboseTime opts msg action
+  _ <- logVerboseTime opts msg action
 
   return journalOut
