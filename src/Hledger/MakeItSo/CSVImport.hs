@@ -29,13 +29,13 @@ importCSVs' opts = do
       exit $ ExitFailure 1
     else
     do
-      importedJournals <- shellToList . (extractAndImport opts) . select $ inputFiles
+      let actions = map (extractAndImport opts) inputFiles :: [IO FilePath]
+      importedJournals <- shellToList $ parallel actions
       importIncludes <- writeIncludesUpTo opts "import" importedJournals
       return importIncludes
 
-extractAndImport :: ImportOptions -> Shell FilePath -> Shell FilePath
-extractAndImport opts inputFiles = do
-  inputFile <- inputFiles
+extractAndImport :: ImportOptions -> FilePath -> IO FilePath
+extractAndImport opts inputFile = do
   case extractImportDirs inputFile of
     Right importDirs -> liftIO $ importCSV opts importDirs inputFile
     Left errorMessage -> do
