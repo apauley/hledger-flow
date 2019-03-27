@@ -41,6 +41,7 @@ importCSVs' opts ch = do
       let actions = map (extractAndImport opts ch) inputFiles :: [IO FilePath]
       importedJournals <- single . shellToList $ parallel actions
       sh $ writeIncludesUpTo opts ch "import" importedJournals
+      channelOut ch $ format ("Imported "%d%" journals") $ length importedJournals
 
 extractAndImport :: ImportOptions -> TChan LogMessage -> FilePath -> IO FilePath
 extractAndImport opts ch inputFile = do

@@ -5,6 +5,8 @@ module Hledger.MakeItSo.Common
     , showCmdArgs
     , consoleChannelLoop
     , terminateChannelLoop
+    , channelOut
+    , channelErr
     , logVerbose
     , logVerboseTime
     , verboseTestFile
@@ -59,11 +61,21 @@ showCmdArgs args = T.intercalate " " (map escapeArg args)
 escapeArg :: Text -> Text
 escapeArg a = if (T.count " " a > 0) then "'" <> a <> "'" else a
 
+channelOut :: TChan LogMessage -> Text -> IO ()
+channelOut ch txt = atomically $ writeTChan ch $ StdOut txt
+
+channelErr :: TChan LogMessage -> Text -> IO ()
+channelErr ch txt = atomically $ writeTChan ch $ StdErr txt
+
+timestampPrefix :: Text -> IO Text
+timestampPrefix txt = do
+  t <- getZonedTime
+  return $ format (s%"\thledger-makeitso "%s) (repr t) txt
+
 logToChannel :: TChan LogMessage -> Text -> IO ()
 logToChannel ch msg = do
-  t <- getZonedTime
-  let timestampMsg = format (s%"\thledger-makeitso "%s) (repr t) msg
-  atomically $ writeTChan ch $ StdErr timestampMsg
+  ts <- timestampPrefix msg
+  channelErr ch ts
 
 consoleChannelLoop :: TChan LogMessage -> IO ()
 consoleChannelLoop ch = do
