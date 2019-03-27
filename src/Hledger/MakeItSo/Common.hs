@@ -3,6 +3,10 @@
 module Hledger.MakeItSo.Common
     ( docURL
     , showCmdArgs
+    , consoleChannelLoop
+    , terminateChannelLoop
+    , channelOut
+    , channelErr
     , logVerbose
     , logVerboseTime
     , verboseTestFile
@@ -36,6 +40,9 @@ module Hledger.MakeItSo.Common
 import Turtle
 import Prelude hiding (FilePath, putStrLn)
 import qualified Data.Text as T
+import qualified Data.Text.IO as T
+import qualified GHC.IO.Handle.FD as H
+
 import Data.Maybe
 import qualified Control.Foldl as Fold
 import qualified Data.Map.Strict as Map
@@ -46,6 +53,7 @@ import qualified Data.List as List (nub, sort, sortBy, groupBy)
 import Data.Ord (comparing)
 import Hledger.MakeItSo.Types
 import qualified Hledger.MakeItSo.Import.Types as IT
+import Control.Concurrent.STM
 
 showCmdArgs :: [Text] -> Text
 showCmdArgs args = T.intercalate " " (map escapeArg args)
@@ -53,31 +61,54 @@ showCmdArgs args = T.intercalate " " (map escapeArg args)
 escapeArg :: Text -> Text
 escapeArg a = if (T.count " " a > 0) then "'" <> a <> "'" else a
 
-logLines :: (Shell Line -> IO ()) -> Text -> IO ()
-logLines logfun msg = do
+channelOut :: TChan LogMessage -> Text -> IO ()
+channelOut ch txt = atomically $ writeTChan ch $ StdOut txt
+
+channelErr :: TChan LogMessage -> Text -> IO ()
+channelErr ch txt = atomically $ writeTChan ch $ StdErr txt
+
+timestampPrefix :: Text -> IO Text
+timestampPrefix txt = do
   t <- getZonedTime
-  logfun $ select $ textToLines $ format (s%"\thledger-makeitso "%s) (repr t) msg
+  return $ format (s%"\thledger-makeitso "%s) (repr t) txt
 
-logErr :: Text -> IO ()
-logErr = logLines stderr
+logToChannel :: TChan LogMessage -> Text -> IO ()
+logToChannel ch msg = do
+  ts <- timestampPrefix msg
+  channelErr ch ts
 
-logVerbose :: HasVerbosity o => o -> Text -> IO ()
-logVerbose opts msg = if (verbose opts) then logErr msg else return ()
+consoleChannelLoop :: TChan LogMessage -> IO ()
+consoleChannelLoop ch = do
+  logMsg <- atomically $ readTChan ch
+  case logMsg of
+    StdOut msg -> do
+      T.hPutStrLn H.stdout msg
+      consoleChannelLoop ch
+    StdErr msg -> do
+      T.hPutStrLn H.stderr msg
+      consoleChannelLoop ch
+    Terminate  -> return ()
 
-logVerboseTime :: HasVerbosity o => o -> Text -> IO a -> IO (a, NominalDiffTime)
-logVerboseTime opts msg action = do
-  logVerbose opts $ format ("Begin: "%s) msg
+terminateChannelLoop :: TChan LogMessage -> IO ()
+terminateChannelLoop ch = atomically $ writeTChan ch Terminate
+
+logVerbose :: HasVerbosity o => o -> TChan LogMessage -> Text -> IO ()
+logVerbose opts ch msg = if (verbose opts) then logToChannel ch msg else return ()
+
+logVerboseTime :: HasVerbosity o => o -> TChan LogMessage -> Text -> IO a -> IO (a, NominalDiffTime)
+logVerboseTime opts ch msg action = do
+  logVerbose opts ch $ format ("Begin: "%s) msg
   (result, diff) <- time action
-  logVerbose opts $ format ("End:   "%s%" ("%s%")") msg $ repr diff
+  logVerbose opts ch $ format ("End:   "%s%" ("%s%")") msg $ repr diff
   return (result, diff)
 
-verboseTestFile :: (HasVerbosity o, HasBaseDir o) => o -> FilePath -> IO Bool
-verboseTestFile opts p = do
+verboseTestFile :: (HasVerbosity o, HasBaseDir o) => o -> TChan LogMessage -> FilePath -> IO Bool
+verboseTestFile opts ch p = do
   fileExists <- testfile p
   let rel = relativeToBase opts p
   if fileExists
-    then logVerbose opts $ format ("Found a "       %fp%" file at '"%fp%"'") (basename rel) rel
-    else logVerbose opts $ format ("Did not find a "%fp%" file at '"%fp%"'") (basename rel) rel
+    then logVerbose opts ch $ format ("Found a "       %fp%" file at '"%fp%"'") (basename rel) rel
+    else logVerbose opts ch $ format ("Did not find a "%fp%" file at '"%fp%"'") (basename rel) rel
   return fileExists
 
 relativeToBase :: HasBaseDir o => o -> FilePath -> FilePath
@@ -190,23 +221,23 @@ shellToList files = fold files Fold.list
 includeFileName :: FilePath -> FilePath
 includeFileName = (<.> "journal") . fromText . (format (fp%"-include")) . dirname
 
-toIncludeFiles :: (HasBaseDir o, HasVerbosity o) => o -> Map.Map FilePath [FilePath] -> Shell (Map.Map FilePath Text)
-toIncludeFiles opts m = do
-  preMap  <- extraIncludes opts (Map.keys m) ["opening.journal"] ["pre-import.journal"]
-  postMap <- extraIncludes opts (Map.keys m) ["closing.journal"] ["post-import.journal"]
+toIncludeFiles :: (HasBaseDir o, HasVerbosity o) => o -> TChan LogMessage -> Map.Map FilePath [FilePath] -> Shell (Map.Map FilePath Text)
+toIncludeFiles opts ch m = do
+  preMap  <- extraIncludes opts ch (Map.keys m) ["opening.journal"] ["pre-import.journal"]
+  postMap <- extraIncludes opts ch (Map.keys m) ["closing.journal"] ["post-import.journal"]
   return $ (addPreamble . toIncludeFiles' preMap postMap) m
 
-extraIncludes :: (HasBaseDir o, HasVerbosity o) => o -> [FilePath] -> [Text] -> [FilePath] -> Shell (Map.Map FilePath [FilePath])
-extraIncludes opts = extraIncludes' opts Map.empty
+extraIncludes :: (HasBaseDir o, HasVerbosity o) => o -> TChan LogMessage -> [FilePath] -> [Text] -> [FilePath] -> Shell (Map.Map FilePath [FilePath])
+extraIncludes opts ch = extraIncludes' opts ch Map.empty
 
-extraIncludes' :: (HasBaseDir o, HasVerbosity o) => o -> Map.Map FilePath [FilePath] -> [FilePath] -> [Text] -> [FilePath] -> Shell (Map.Map FilePath [FilePath])
-extraIncludes' _ acc [] _ _ = return acc
-extraIncludes' opts acc (file:files) extraSuffixes manualFiles = do
-  extra <- extraIncludesForFile opts file extraSuffixes manualFiles
-  extraIncludes' opts (Map.unionWith (++) acc extra) files extraSuffixes manualFiles
+extraIncludes' :: (HasBaseDir o, HasVerbosity o) => o -> TChan LogMessage -> Map.Map FilePath [FilePath] -> [FilePath] -> [Text] -> [FilePath] -> Shell (Map.Map FilePath [FilePath])
+extraIncludes' _ _ acc [] _ _ = return acc
+extraIncludes' opts ch acc (file:files) extraSuffixes manualFiles = do
+  extra <- extraIncludesForFile opts ch file extraSuffixes manualFiles
+  extraIncludes' opts ch (Map.unionWith (++) acc extra) files extraSuffixes manualFiles
 
-extraIncludesForFile :: (HasVerbosity o, HasBaseDir o) => o -> FilePath -> [Text] -> [FilePath] -> Shell (Map.Map FilePath [FilePath])
-extraIncludesForFile opts file extraSuffixes manualFiles = do
+extraIncludesForFile :: (HasVerbosity o, HasBaseDir o) => o -> TChan LogMessage -> FilePath -> [Text] -> [FilePath] -> Shell (Map.Map FilePath [FilePath])
+extraIncludesForFile opts ch file extraSuffixes manualFiles = do
   let dirprefix = fromText $ fst $ T.breakOn "-" $ format fp $ basename file
   let fileNames = map (\suff -> fromText $ format (fp%"-"%s) dirprefix suff) extraSuffixes
   let suffixFiles = map (directory file </>) fileNames
@@ -216,7 +247,7 @@ extraIncludesForFile opts file extraSuffixes manualFiles = do
   let logMsg = format ("Looking for possible extra include files for '"%fp%"' among these "%d%" options: "%s%". Found "%d%": "%s)
                (relativeToBase opts file) (length extraFiles) (repr $ relativeFilesAsText opts extraFiles)
                (length filtered) (repr $ relativeFilesAsText opts filtered)
-  liftIO $ logVerbose opts logMsg
+  liftIO $ logVerbose opts ch logMsg
   return $ Map.fromList [(file, filtered)]
 
 relativeFilesAsText :: HasBaseDir o => o -> [FilePath] -> [Text]
@@ -242,8 +273,8 @@ generatedIncludeText preMap postMap outputFile fs = do
 includePreamble :: Text
 includePreamble = "### Generated by hledger-makeitso - DO NOT EDIT ###\n"
 
-groupAndWriteIncludeFiles :: (HasBaseDir o, HasVerbosity o) => o -> [FilePath] -> Shell [FilePath]
-groupAndWriteIncludeFiles opts = writeFileMap opts . groupIncludeFiles
+groupAndWriteIncludeFiles :: (HasBaseDir o, HasVerbosity o) => o -> TChan LogMessage -> [FilePath] -> Shell [FilePath]
+groupAndWriteIncludeFiles opts ch = writeFileMap opts ch . groupIncludeFiles
 
 writeFiles :: Shell (Map.Map FilePath Text) -> Shell [FilePath]
 writeFiles fileMap = do
@@ -258,20 +289,20 @@ writeFiles' fileMap = do
 writeTextMap :: Map.Map FilePath Text -> IO ()
 writeTextMap = Map.foldlWithKey (\a k v -> a <> writeTextFile k v) (return ())
 
-writeFileMap :: (HasBaseDir o, HasVerbosity o) => o -> (Map.Map FilePath [FilePath], Map.Map FilePath [FilePath]) -> Shell [FilePath]
-writeFileMap opts (m, allYears) = do
+writeFileMap :: (HasBaseDir o, HasVerbosity o) => o -> TChan LogMessage -> (Map.Map FilePath [FilePath], Map.Map FilePath [FilePath]) -> Shell [FilePath]
+writeFileMap opts ch (m, allYears) = do
   _ <- writeFiles' $ (addPreamble . toIncludeFiles' Map.empty Map.empty) allYears
-  writeFiles . (toIncludeFiles opts) $ m
+  writeFiles . (toIncludeFiles opts ch) $ m
 
-writeIncludesUpTo :: (HasBaseDir o, HasVerbosity o) => o -> FilePath -> [FilePath] -> Shell [FilePath]
-writeIncludesUpTo _ _ [] = return []
-writeIncludesUpTo opts stopAt paths = do
+writeIncludesUpTo :: (HasBaseDir o, HasVerbosity o) => o -> TChan LogMessage -> FilePath -> [FilePath] -> Shell [FilePath]
+writeIncludesUpTo _ _ _ [] = return []
+writeIncludesUpTo opts ch stopAt paths = do
   let shouldStop = any (\dir -> dir == stopAt) $ map dirname paths
   if shouldStop
-    then groupAndWriteIncludeFiles opts paths else
+    then groupAndWriteIncludeFiles opts ch paths else
     do
-      newPaths <- groupAndWriteIncludeFiles opts paths
-      writeIncludesUpTo opts stopAt newPaths
+      newPaths <- groupAndWriteIncludeFiles opts ch paths
+      writeIncludesUpTo opts ch stopAt newPaths
 
 changeExtension :: Text -> FilePath -> FilePath
 changeExtension ext path = (dropExtension path) <.> ext
