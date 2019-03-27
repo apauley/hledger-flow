@@ -18,17 +18,18 @@ importCSVs opts = sh (
   do
     ch <- liftIO newTChanIO
     logHandle <- fork $ consoleChannelLoop ch
-    liftIO $ importCSVs' opts ch
+    liftIO $ logVerbose opts ch "Starting import"
+    (journals, diff) <- time $ liftIO $ importCSVs' opts ch
+    liftIO $ channelOut ch $ format ("Imported "%d%" journals in "%s) (length journals) $ repr diff
     liftIO $ terminateChannelLoop ch
     wait logHandle
   )
 
-importCSVs' :: ImportOptions -> TChan LogMessage -> IO ()
+importCSVs' :: ImportOptions -> TChan LogMessage -> IO [FilePath]
 importCSVs' opts ch = do
-  logVerbose opts ch "Collecting input files..."
-  inputFiles <- single . shellToList . onlyFiles $ find (has (suffix "1-in/")) $ baseDir opts
+  channelOut ch "Collecting input files..."
+  (inputFiles, diff) <- time $ single . shellToList . onlyFiles $ find (has (suffix "1-in/")) $ baseDir opts
   let fileCount = length inputFiles
-  logVerbose opts ch $ format ("Found "%d%" input files") $ fileCount
   if (fileCount == 0) then
     do
       let msg = format ("I couldn't find any input files underneath "%fp
@@ -38,10 +39,11 @@ importCSVs' opts ch = do
       exit $ ExitFailure 1
     else
     do
+      logVerbose opts ch $ format ("Found "%d%" input files in "%s%". Proceeding with import...") fileCount (repr diff)
       let actions = map (extractAndImport opts ch) inputFiles :: [IO FilePath]
       importedJournals <- single . shellToList $ parallel actions
       sh $ writeIncludesUpTo opts ch "import" importedJournals
-      channelOut ch $ format ("Imported "%d%" journals") $ length importedJournals
+      return importedJournals
 
 extractAndImport :: ImportOptions -> TChan LogMessage -> FilePath -> IO FilePath
 extractAndImport opts ch inputFile = do

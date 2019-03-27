@@ -82,7 +82,7 @@ consoleChannelLoop ch = do
   logMsg <- atomically $ readTChan ch
   case logMsg of
     StdOut msg -> do
-      T.putStrLn msg
+      T.hPutStrLn H.stdout msg
       consoleChannelLoop ch
     StdErr msg -> do
       T.hPutStrLn H.stderr msg
