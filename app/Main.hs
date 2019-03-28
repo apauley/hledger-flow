@@ -4,14 +4,13 @@ module Main where
 
 import Turtle
 import Prelude hiding (FilePath, putStrLn)
-import Data.Maybe (fromMaybe)
 import qualified Hledger.MakeItSo.Import.Types as IT
 import qualified Hledger.MakeItSo.Report.Types as RT
 import Hledger.MakeItSo.Common
 import Hledger.MakeItSo.Reports
 import Hledger.MakeItSo.CSVImport
 
-type SubcommandParams = (Maybe FilePath, Maybe Bool)
+type SubcommandParams = (Maybe FilePath, Bool)
 data Command = Import SubcommandParams | Report SubcommandParams deriving (Show)
 
 main :: IO ()
@@ -22,14 +21,14 @@ main = do
     Report subParams -> toReportOptions subParams >>= generateReports
 
 toImportOptions :: SubcommandParams -> IO IT.ImportOptions
-toImportOptions (maybeBaseDir, maybeVerbose) = do
+toImportOptions (maybeBaseDir, verbose) = do
   bd <- dirOrPwd maybeBaseDir
-  return IT.ImportOptions {IT.baseDir = bd, IT.verbose = fromMaybe False maybeVerbose}
+  return IT.ImportOptions {IT.baseDir = bd, IT.verbose = verbose}
 
 toReportOptions :: SubcommandParams -> IO RT.ReportOptions
-toReportOptions (maybeBaseDir, maybeVerbose) = do
+toReportOptions (maybeBaseDir, verbose) = do
   bd <- dirOrPwd maybeBaseDir
-  return RT.ReportOptions {RT.baseDir = bd, RT.verbose = fromMaybe False maybeVerbose}
+  return RT.ReportOptions {RT.baseDir = bd, RT.verbose = verbose}
 
 parser :: Parser Command
 parser = fmap Import (subcommand "import" "Converts CSV transactions into categorised journal files" subcommandParser)
@@ -37,4 +36,4 @@ parser = fmap Import (subcommand "import" "Converts CSV transactions into catego
 
 subcommandParser :: Parser SubcommandParams
 subcommandParser = (,) <$> optional (argPath "basedir" "The hledger-makeitso base directory")
-                       <*> optional (switch  "verbose" 'v' "Print more verbose output")
+                       <*> switch  "verbose" 'v' "Print more verbose output"
