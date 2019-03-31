@@ -1,5 +1,5 @@
 name:                hledger-makeitso
-version:             0.1.0.0
+version:             0.9.0.0
 github:              "apauley/hledger-makeitso"
 license:             GPL-3
 author:              "Andreas Pauley"
