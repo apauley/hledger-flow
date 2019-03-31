@@ -15,7 +15,7 @@ data Command = Import SubcommandParams | Report SubcommandParams deriving (Show)
 
 main :: IO ()
 main = do
-  cmd <- options "Manage your hledger CSV imports and classification:\nhttps://github.com/apauley/hledger-makeitso#readme" parser
+  cmd <- options "An hledger workflow focusing on automated statement import and classification:\nhttps://github.com/apauley/hledger-makeitso#readme" parser
   case cmd of
     Import subParams -> toImportOptions subParams >>= importCSVs
     Report subParams -> toReportOptions subParams >>= generateReports
