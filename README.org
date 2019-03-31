@@ -5,16 +5,17 @@
 
 * What is it?
 
-=hledger-makeitso= is a guided workflow focusing on automated processing of electronic statements as much as possible,
+=hledger-makeitso= is a command-line executable program that gives you a guided hledger workflow.
+It focuses on automated processing of electronic statements as much as possible,
 as opposed to manually adding your own hledger journal entries.
 
-Manual entries are still possible, but we would much rather create a repeatable way to deal with statements whenever a statement
-is available.
+Manual entries are still possible, we just think it saves time in the long run to automatically process
+a statement whenever one is available.
 
 It started when I realized that the scripts I wrote while playing around with the ideas in [[https://github.com/adept/full-fledged-hledger/wiki][adept's Full-fledged Hledger]] isn't really specific
 to my own finances, and can be shared.
 
-** Overview of the Basic Workflow
+* Overview of the Basic Workflow
 
    1. Save an input CSV file to a [[https://github.com/apauley/hledger-makeitso#input-files][specific directory]].
    2. Add an hledger [[https://github.com/apauley/hledger-makeitso#rules-files][rules file]]. Include some classification rules if you want.
@@ -36,15 +37,21 @@ to my own finances, and can be shared.
 
   - You are interested in getting started with [[http://hledger.org/][hledger]] and you wouldn't mind pointers to the right docs along the way.
   - You want a way to organise your finances into a structure that will be maintainable over the long term.
-  - You want to be able to automate as much as possible when dealing with your financial life.
+  - You want to automate as much as possible when dealing with your financial life.
   - You don't mind writing some scripts when needed, as long as it saves you time over the long term.
   - You want the ability to model your entire financial life in one tool, as opposed to just the parts that some online tool currently supports.
   - You appreciate the fact that all your financial information stays within your control.
 
-  At the moment this software is in a fairly stable beta.
-  It is still possible that I'll make a breaking change to enable some feature, but I hope not.
+* How Stable is it?
 
-  Let me know if you are actively using this - I'm more likely to proceed with caution if I know I'm not the only active user.
+  We're not close to a 1.0 release yet, which means that we can still make changes if needed.
+
+  That being said, some parts have been used and tested extensively and are likely to remain stable.
+  Have a look at the "Stability of this Feature" sections in the feature reference below.
+
+  I add future work, ideas and thoughts as [[https://github.com/apauley/hledger-makeitso/issues][Github issues]] and in [[file:TODO.org][TODO.org]], so have a look there for more clues as to what may likely change.
+
+  Let me know if you can think of some improvements.
 
 * Detailed Step-By-Step Guide
 
@@ -132,6 +139,12 @@ to my own finances, and can be shared.
     Under =1-in= you'll create a directory for the year, e.g. =2018=, and within that you can copy the statements for that year:
     =import/john/mybank/savings/1-in/2018/123456789_2018-06-30.csv=
 
+*** Stability of this Feature
+
+    The basic owner/bank/account/year structure has been used and tested fairly extensively, I don't expect a need for it to change.
+
+    I'm open to suggestions for improvement though.
+
 ** Rules Files
 
    If your input file is in CSV format, or converted to CSV by your =preprocess= script,
@@ -206,6 +219,13 @@ to my own finances, and can be shared.
     fields date, description, amount, balance, account1, account2
     #+END_SRC
 
+*** Stability of this Feature
+
+    Rules files are a stable feature within [[http://hledger.org/][hledger]], and we're just using the normal hledger rules files.
+    The account, bank and statement-specific rules files have been used and tested fairly extensively, I don't expect this to change.
+
+    Let me know if you think it should change.
+
 ** Opening and Closing Balances
 
 *** Opening Balances
@@ -265,6 +285,11 @@ to my own finances, and can be shared.
    !include 2019-closing.journal
    #+END_SRC
 
+*** Stability of this Feature
+
+    The opening balances file works well in my opinion, I don't expect it to change.
+    I'm only using closing balances in one or two places, so maybe that could do with some suggestions from people who use this more than myself.
+
 ** The =preprocess= Script
 
     Sometimes the statements you get from your bank is [[https://github.com/apauley/fnb-csv-demoronizer][less than suitable]] for automatic processing.
@@ -285,6 +310,10 @@ to my own finances, and can be shared.
      - write a new output file at the supplied path that works with your rules file
      - be idempotent. Running =preprocess= multiple times on the same files will produce the same result.
 
+*** Stability of this Feature
+
+    Stable and tested.
+
 ** The =construct= Script
 
     If you need even more power and flexibility than what you can get from the =preprocess= script and =hledger='s CSV import functionality,
@@ -297,9 +326,9 @@ to my own finances, and can be shared.
 
     #+BEGIN_SRC hledger
     2019-02-01 Mortgage Payment
-    Liabilities:Mortgage                                1,000.00
-    Expenses:Interest:Real Estate                         833.33
-    Assets:Cash                                         -1833.33
+    Liabilities:Mortgage                                $1000.00
+    Expenses:Interest:Real Estate                         $833.33
+    Assets:Cash                                         -$1833.33
     #+END_SRC
 
     The =construct= script can be used in addition to the =preprocess= script, or on it's own.
@@ -320,6 +349,10 @@ to my own finances, and can be shared.
      - generate your own =hledger= journal transactions
      - be idempotent. Running =construct= multiple times on the same files should produce the same result.
      - send all output to =stdout=. =hledger-makeitso= will pipe your output into =hledger= which will format it and save it to an output file.
+
+*** Stability of this Feature
+
+    Stable and tested.
 
 
 ** Manually Managed Journals
@@ -358,6 +391,10 @@ to my own finances, and can be shared.
    !include _manual_/2019/post-import.journal
    #+END_SRC
 
+*** Stability of this Feature
+
+    It works, but the naming of =_manual_= looks a bit weird. Should it be changed?
+
 * Compatibility with Ledger
 
   When writing out the journal include files, =hledger-makeitso= sorts the include statements by filename.
@@ -386,9 +423,3 @@ to my own finances, and can be shared.
      with as little effort as possible and without fear of irrevocably breaking things.
 
   I've given [[https://pauley.org.za/functional-finance-hledger/][a talk]] at [[https://www.meetup.com/lambda-luminaries/events/qklkvpyxmbnb/][Lambda Luminaries Johannesburg]] featuring hledger and hledger-makeitso.
-
-* Still To Be Done
-
-  I add future work, ideas and thoughts as [[https://github.com/apauley/hledger-makeitso/issues][Github issues]] and in [[file:TODO.org][TODO.org]]
-
-  Let me know if you can think of some improvements.
