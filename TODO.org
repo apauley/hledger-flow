@@ -1,19 +1,15 @@
 #+STARTUP: content
 
 * The TODO List
-** Include Files
-   - Generate include files by year, combine years at every level to get all transactions at that level
-** Script Hooks
-   - Stop executing if any script hook exits with a non-zero exit status
 ** Generate reports
    - Monthly reports for the past 6 months
    - Quarterly reports for the past year
    - Yearly reports for the past 5 years
    - How much money went towards expenses, assets and liabilities, expressed as a percentage of income
+   - My personal inflation: percentage increase in expenses per year
    - Overall reports, and reports per owner
    - More useful reports?
 ** Performance
-   - Process statements in parallel
    - Generate reports in parallel
    - Don't re-process statements that have already been processed
 ** Documentation
