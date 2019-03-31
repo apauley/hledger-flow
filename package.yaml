@@ -1,10 +1,13 @@
 name:                hledger-makeitso
-version:             0.9.0.0
-github:              "apauley/hledger-makeitso"
+version:             0.9.0.1
+synopsis:            An hledger workflow focusing on automated statement import and classification.
+category:            Finance, Console
 license:             GPL-3
-author:              "Andreas Pauley"
-maintainer:          "andreas@pauley.org.za"
+author:              "Andreas Pauley <andreas@pauley.org.za>"
+maintainer:          "Andreas Pauley <andreas@pauley.org.za>"
 copyright:           "2018 Andreas Pauley"
+github:              "apauley/hledger-makeitso"
+bug-reports:         https://github.com/apauley/hledger-makeitso/issues
 
 extra-source-files:
 - README.org
@@ -26,7 +29,6 @@ library:
   source-dirs: src
   ghc-options:
   - -Wall
-  - -Werror
   dependencies:
   - turtle
   - text
@@ -44,7 +46,6 @@ executables:
     - -rtsopts
     - -with-rtsopts=-N
     - -Wall
-    - -Werror
     dependencies:
     - hledger-makeitso
     - turtle
