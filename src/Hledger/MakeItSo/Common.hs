@@ -137,7 +137,10 @@ parentIncludeFilePath :: FilePath -> FilePath
 parentIncludeFilePath p = (parent . parent) p </> (filename p)
 
 allYearsPath :: FilePath -> FilePath
-allYearsPath p = directory p </> "all-years.journal"
+allYearsPath = allYearsPath' directory
+
+allYearsPath' :: (FilePath -> FilePath) -> FilePath -> FilePath
+allYearsPath' dir p = dir p </> "all-years.journal"
 
 groupIncludeFiles :: [FilePath] -> (Map.Map FilePath [FilePath], Map.Map FilePath [FilePath])
 groupIncludeFiles = allYearIncludeFiles . groupIncludeFilesPerYear
@@ -299,8 +302,10 @@ writeIncludesUpTo _ _ _ [] = return []
 writeIncludesUpTo opts ch stopAt paths = do
   let shouldStop = any (\dir -> dir == stopAt) $ map dirname paths
   if shouldStop
-    then groupAndWriteIncludeFiles opts ch paths else
-    do
+    then do
+      let allTop = groupValuesBy (allYearsPath' (parent . parent)) paths
+      writeFileMap opts ch (Map.empty, allTop)
+    else do
       newPaths <- groupAndWriteIncludeFiles opts ch paths
       writeIncludesUpTo opts ch stopAt newPaths
 
