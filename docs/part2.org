@@ -98,6 +98,8 @@ cd ..
 
 #+RESULTS: part2-import1
 #+BEGIN_SRC org
+Collecting input files...
+Imported 1 journals in 0.350694009s
 diff --git a/import/gawie/bogart/cheque/2016-include.journal b/import/gawie/bogart/cheque/2016-include.journal
 index 84db361..6d1cc75 100644
 --- a/import/gawie/bogart/cheque/2016-include.journal

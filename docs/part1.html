@@ -25,25 +25,25 @@
 <body>
 <div class="reveal">
 <div class="slides">
-<section id="sec-title-slide"><h1 class="title">hledger-makeitso Step-By-Step</h1><p class="date">Created: 2019-03-12 Tue 23:05</p>
+<section id="sec-title-slide"><h1 class="title">hledger-makeitso Step-By-Step</h1><p class="date">Created: 2019-04-05 Fri 23:20</p>
 </section>
 <section id="table-of-contents">
 <div id="table-of-contents">
 <h2>Table of Contents</h2>
 <div id="text-table-of-contents">
 <ul>
-<li><a href="#/slide-orgc962b07">Part 1</a></li>
-<li><a href="#/slide-orgd459939">About This Document</a></li>
-<li><a href="#/slide-org48df273">The Story of an African Chef</a></li>
-<li><a href="#/slide-org09b0c11">The First CSV Statement</a></li>
+<li><a href="#/slide-orgaabba8e">Part 1</a></li>
+<li><a href="#/slide-org8a929c3">About This Document</a></li>
+<li><a href="#/slide-orgb3b8909">The Story of an African Chef</a></li>
+<li><a href="#/slide-org7dbe353">The First CSV Statement</a></li>
 </ul>
 </div>
 </div>
 </section>
 
 <section>
-<section id="slide-orgc962b07">
-<h2 id="orgc962b07">Part 1</h2>
+<section id="slide-orgaabba8e">
+<h2 id="orgaabba8e">Part 1</h2>
 <p>
 This is the first part in a a series of step-by-step instructions.
 </p>
@@ -55,8 +55,8 @@ They are intended to be read in sequence. Head over to the <a href="README.html"
 </section>
 </section>
 <section>
-<section id="slide-orgd459939">
-<h2 id="orgd459939">About This Document</h2>
+<section id="slide-org8a929c3">
+<h2 id="org8a929c3">About This Document</h2>
 <p>
 This document is a <a href="https://www.offerzen.com/blog/literate-programming-empower-your-writing-with-emacs-org-mode">literate</a> <a href="https://orgmode.org/worg/org-contrib/babel/intro.html">program</a>.
 You can read it like a normal article, either <a href="https://github.com/apauley/hledger-makeitso/blob/master/docs/part1.org">on the web</a> or <a href="https://pauley.org.za/hledger-makeitso/">as a slide show</a>.
@@ -70,8 +70,8 @@ Then you can execute each code snippet by pressing <code>C-c C-c</code> with you
 </section>
 </section>
 <section>
-<section id="slide-org48df273">
-<h2 id="org48df273">The Story of an African Chef</h2>
+<section id="slide-orgb3b8909">
+<h2 id="orgb3b8909">The Story of an African Chef</h2>
 <p>
 Meet Gawie de Groot. Gawie is a successful <a href="https://en.wikipedia.org/wiki/Gonimbrasia_belina#As_food">mopane worm</a> chef, based in the northernmost section of the <a href="https://en.wikipedia.org/wiki/Kruger_National_Park">Kruger National Park</a>.
 </p>
@@ -114,8 +114,8 @@ It is time for Gawie to take charge of his finances.
 </section>
 </section>
 <section>
-<section id="slide-org09b0c11">
-<h2 id="org09b0c11">The First CSV Statement</h2>
+<section id="slide-org7dbe353">
+<h2 id="org7dbe353">The First CSV Statement</h2>
 <p>
 Gawie followed the <a href="https://github.com/apauley/hledger-makeitso#build-instructions">build instructions</a> and ended up with his very own <code>hledger-makeitso</code> executable.
 </p>
@@ -134,7 +134,7 @@ Let's just run this <code>hledger-makeitso</code> command and see what happens&#
 </div>
 
 <pre class="example">
-Manage your hledger CSV imports and classification:
+An hledger workflow focusing on automated statement import and classification:
 https://github.com/apauley/hledger-makeitso#readme
 
 Usage: hledger-makeitso (import | report)
@@ -401,8 +401,7 @@ ln -s ../../../../fnb-csv-demoronizer/fnb-csv-demoronizer preprocess
 </div>
 
 <p>
-Now when we try the import again, it still displays an error due to our missing rules file.
-Let's run it verbosely for a change:
+Now when we try the import again, it still displays an error due to our missing rules file:
 </p>
 
 </section>
@@ -410,19 +409,13 @@ Let's run it verbosely for a change:
 
 <div class="org-src-container">
 
-<pre  class="src src-sh" id="import3">hledger-makeitso import --verbose ./my-finances
+<pre  class="src src-sh" id="import3">hledger-makeitso import ./my-finances
 </pre>
 </div>
 
 <div class="org-src-container">
 
-<pre  class="src src-org">2019-03-12 22:45:33.523959252 SAST  hledger-makeitso Collecting input files...
-2019-03-12 22:45:33.633389137 SAST  hledger-makeitso Found 1 input files
-2019-03-12 22:45:33.633559857 SAST  hledger-makeitso Found a preprocess file at 'import/gawie/bogart/cheque/preprocess'
-2019-03-12 22:45:33.633866067 SAST  hledger-makeitso Begin: executing 'import/gawie/bogart/cheque/preprocess' on 'import/gawie/bogart/cheque/1-in/2016/123456789_2016-03-30.csv'
-2019-03-12 22:45:33.656106911 SAST  hledger-makeitso End:   executing 'import/gawie/bogart/cheque/preprocess' on 'import/gawie/bogart/cheque/1-in/2016/123456789_2016-03-30.csv' (0.021940573s)
-2019-03-12 22:45:33.656460821 SAST  hledger-makeitso Did not find a construct file at 'import/gawie/bogart/cheque/construct'
-I couldn't find an hledger rules file while trying to import
+<pre  class="src src-org">I couldn't find an hledger rules file while trying to import
 import/gawie/bogart/cheque/2-preprocessed/2016/123456789_2016-03-30.csv
 
 I will happily use the first rules file I can find from any one of these 2 files:
@@ -528,31 +521,35 @@ tree my-finances
 <div class="org-src-container">
 
 <pre  class="src src-org">my-finances
+&#9500;&#9472;&#9472; all-years.journal
 &#9500;&#9472;&#9472; fnb-csv-demoronizer
 &#9474;&#160;&#160; &#9500;&#9472;&#9472; fnb-csv-demoronizer
 &#9474;&#160;&#160; &#9492;&#9472;&#9472; README.org
-&#9500;&#9472;&#9472; import
-&#9474;&#160;&#160; &#9500;&#9472;&#9472; 2016-include.journal
-&#9474;&#160;&#160; &#9492;&#9472;&#9472; gawie
-&#9474;&#160;&#160;     &#9500;&#9472;&#9472; 2016-include.journal
-&#9474;&#160;&#160;     &#9492;&#9472;&#9472; bogart
-&#9474;&#160;&#160;         &#9500;&#9472;&#9472; 2016-include.journal
-&#9474;&#160;&#160;         &#9492;&#9472;&#9472; cheque
-&#9474;&#160;&#160;             &#9500;&#9472;&#9472; 1-in
-&#9474;&#160;&#160;             &#9474;&#160;&#160; &#9492;&#9472;&#9472; 2016
-&#9474;&#160;&#160;             &#9474;&#160;&#160;     &#9492;&#9472;&#9472; 123456789_2016-03-30.csv
-&#9474;&#160;&#160;             &#9500;&#9472;&#9472; 2016-include.journal
-&#9474;&#160;&#160;             &#9500;&#9472;&#9472; 2-preprocessed
-&#9474;&#160;&#160;             &#9474;&#160;&#160; &#9492;&#9472;&#9472; 2016
-&#9474;&#160;&#160;             &#9474;&#160;&#160;     &#9492;&#9472;&#9472; 123456789_2016-03-30.csv
-&#9474;&#160;&#160;             &#9500;&#9472;&#9472; 3-journal
-&#9474;&#160;&#160;             &#9474;&#160;&#160; &#9492;&#9472;&#9472; 2016
-&#9474;&#160;&#160;             &#9474;&#160;&#160;     &#9492;&#9472;&#9472; 123456789_2016-03-30.journal
-&#9474;&#160;&#160;             &#9500;&#9472;&#9472; bogart-cheque.rules
-&#9474;&#160;&#160;             &#9492;&#9472;&#9472; preprocess -&gt; ../../../../fnb-csv-demoronizer/fnb-csv-demoronizer
-&#9492;&#9472;&#9472; all-years.journal
+&#9492;&#9472;&#9472; import
+    &#9500;&#9472;&#9472; 2016-include.journal
+    &#9500;&#9472;&#9472; all-years.journal
+    &#9492;&#9472;&#9472; gawie
+        &#9500;&#9472;&#9472; 2016-include.journal
+        &#9500;&#9472;&#9472; all-years.journal
+        &#9492;&#9472;&#9472; bogart
+            &#9500;&#9472;&#9472; 2016-include.journal
+            &#9500;&#9472;&#9472; all-years.journal
+            &#9492;&#9472;&#9472; cheque
+                &#9500;&#9472;&#9472; 1-in
+                &#9474;&#160;&#160; &#9492;&#9472;&#9472; 2016
+                &#9474;&#160;&#160;     &#9492;&#9472;&#9472; 123456789_2016-03-30.csv
+                &#9500;&#9472;&#9472; 2016-include.journal
+                &#9500;&#9472;&#9472; 2-preprocessed
+                &#9474;&#160;&#160; &#9492;&#9472;&#9472; 2016
+                &#9474;&#160;&#160;     &#9492;&#9472;&#9472; 123456789_2016-03-30.csv
+                &#9500;&#9472;&#9472; 3-journal
+                &#9474;&#160;&#160; &#9492;&#9472;&#9472; 2016
+                &#9474;&#160;&#160;     &#9492;&#9472;&#9472; 123456789_2016-03-30.journal
+                &#9500;&#9472;&#9472; all-years.journal
+                &#9500;&#9472;&#9472; bogart-cheque.rules
+                &#9492;&#9472;&#9472; preprocess -&gt; ../../../../fnb-csv-demoronizer/fnb-csv-demoronizer
 
-11 directories, 12 files
+11 directories, 16 files
 
 </pre>
 </div>

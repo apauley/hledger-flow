@@ -25,24 +25,24 @@
 <body>
 <div class="reveal">
 <div class="slides">
-<section id="sec-title-slide"><h1 class="title">hledger-makeitso Step-By-Step</h1><p class="date">Created: 2019-03-12 Tue 23:05</p>
+<section id="sec-title-slide"><h1 class="title">hledger-makeitso Step-By-Step</h1><p class="date">Created: 2019-04-05 Fri 23:20</p>
 </section>
 <section id="table-of-contents">
 <div id="table-of-contents">
 <h2>Table of Contents</h2>
 <div id="text-table-of-contents">
 <ul>
-<li><a href="#/slide-org0308d9c">Part 2</a></li>
-<li><a href="#/slide-orge16e371">About This Document</a></li>
-<li><a href="#/slide-org574ea43">An hledger report</a></li>
+<li><a href="#/slide-org39b9a7f">Part 2</a></li>
+<li><a href="#/slide-orgc7707e7">About This Document</a></li>
+<li><a href="#/slide-orgafb89b2">An hledger report</a></li>
 </ul>
 </div>
 </div>
 </section>
 
 <section>
-<section id="slide-org0308d9c">
-<h2 id="org0308d9c">Part 2</h2>
+<section id="slide-org39b9a7f">
+<h2 id="org39b9a7f">Part 2</h2>
 <p>
 This is the second part in a a series of step-by-step instructions.
 </p>
@@ -54,8 +54,8 @@ They are intended to be read in sequence. Head over to the <a href="README.html"
 </section>
 </section>
 <section>
-<section id="slide-orge16e371">
-<h2 id="orge16e371">About This Document</h2>
+<section id="slide-orgc7707e7">
+<h2 id="orgc7707e7">About This Document</h2>
 <p>
 This document is a <a href="https://www.offerzen.com/blog/literate-programming-empower-your-writing-with-emacs-org-mode">literate</a> <a href="https://orgmode.org/worg/org-contrib/babel/intro.html">program</a>.
 You can read it like a normal article, either <a href="https://github.com/apauley/hledger-makeitso/blob/master/docs/part2.org">on the web</a> or <a href="https://pauley.org.za/hledger-makeitso/part2.html">as a slide show</a>.
@@ -69,8 +69,8 @@ Then you can execute each code snippet by pressing <code>C-c C-c</code> with you
 </section>
 </section>
 <section>
-<section id="slide-org574ea43">
-<h2 id="org574ea43">An hledger report</h2>
+<section id="slide-orgafb89b2">
+<h2 id="orgafb89b2">An hledger report</h2>
 <p>
 Now that we have <a href="part1.html">our first successful import</a>, can hledger show us some useful information?
 </p>
@@ -165,7 +165,9 @@ git diff
 
 <div class="org-src-container">
 
-<pre  class="src src-org">diff --git a/import/gawie/bogart/cheque/2016-include.journal b/import/gawie/bogart/cheque/2016-include.journal
+<pre  class="src src-org">Collecting input files...
+Imported 1 journals in 0.350694009s
+diff --git a/import/gawie/bogart/cheque/2016-include.journal b/import/gawie/bogart/cheque/2016-include.journal
 index 84db361..6d1cc75 100644
 --- a/import/gawie/bogart/cheque/2016-include.journal
 <span style="text-decoration: line-through;">+++</span> b/import/gawie/bogart/cheque/2016-include.journal

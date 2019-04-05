@@ -38,6 +38,8 @@ hledger -f my-finances/all-years.journal incomestatement \
 
 #+RESULTS: more-input-files
 #+BEGIN_SRC org
+Collecting input files...
+Imported 3 journals in 0.373432701s
 Income Statement 2016/03/01-2016/05/25
 
                   ║       Mar        Apr        May    Average
