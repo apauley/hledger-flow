@@ -1,10 +1,10 @@
 name:                hledger-makeitso
-version:             0.9.0.1
+version:             0.10.0.0
 synopsis:            An hledger workflow focusing on automated statement import and classification.
 category:            Finance, Console
 license:             GPL-3
-author:              "Andreas Pauley <andreas@pauley.org.za>"
-maintainer:          "Andreas Pauley <andreas@pauley.org.za>"
+author:              "Andreas Pauley <hledger-makeitso@pauley.org.za>"
+maintainer:          "Andreas Pauley <hledger-makeitso@pauley.org.za>"
 copyright:           "2018 Andreas Pauley"
 github:              "apauley/hledger-makeitso"
 bug-reports:         https://github.com/apauley/hledger-makeitso/issues
