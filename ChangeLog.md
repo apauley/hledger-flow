@@ -1,5 +1,20 @@
 # Changelog for [hledger-makeitso](https://github.com/apauley/hledger-makeitso)
 
+## 0.10
+
+- Add a `version` subcommand.
+  Create [issue #15](https://github.com/apauley/hledger-makeitso/issues/15)
+  to change it into a `--version` flag later.
+- Fix a minor issue where yearly include files were generated at the top-level
+  of the directtory structure, even though the same content was available in the
+  `import` directory.
+  The top-level `all-years.journal` now just includes the years within the
+  `import` directory.
+- Upgrade to LTS 13.15 for GHC 8.6.4
+- Add CircleCI and TravisCI build instructions. Switch the README.org to a
+  README.md in order to better support CI status badges.
+
+
 ## 0.9.0.1
 
 First hackage release. Minor changes to fix `stack sdist` warnings and errors, in preperation of
