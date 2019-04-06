@@ -99,6 +99,8 @@ git submodule update
 
 # Build Instructions
 
+[![CircleCI](https://circleci.com/gh/apauley/hledger-makeitso.svg?style=svg)](https://circleci.com/gh/apauley/hledger-makeitso) [![Build Status](https://travis-ci.com/apauley/hledger-makeitso.svg?branch=master)](https://travis-ci.com/apauley/hledger-makeitso)
+
 You need a recent version of
 [stack](https://docs.haskellstack.org/en/stable/README/) installed.
 
