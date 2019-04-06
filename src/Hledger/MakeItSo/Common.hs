@@ -2,6 +2,7 @@
 
 module Hledger.MakeItSo.Common
     ( docURL
+    , versionInfo
     , showCmdArgs
     , consoleChannelLoop
     , terminateChannelLoop
@@ -54,6 +55,13 @@ import Data.Ord (comparing)
 import Hledger.MakeItSo.Types
 import qualified Hledger.MakeItSo.Import.Types as IT
 import Control.Concurrent.STM
+
+import qualified Data.List.NonEmpty as NE
+import Paths_hledger_makeitso (version)
+import qualified Data.Version as Version (showVersion)
+
+versionInfo :: NE.NonEmpty Line
+versionInfo = textToLines $ T.pack ("hledger-makeitso " ++ Version.showVersion version)
 
 showCmdArgs :: [Text] -> Text
 showCmdArgs args = T.intercalate " " (map escapeArg args)

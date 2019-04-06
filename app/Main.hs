@@ -11,12 +11,13 @@ import Hledger.MakeItSo.Reports
 import Hledger.MakeItSo.CSVImport
 
 type SubcommandParams = (Maybe FilePath, Bool)
-data Command = Import SubcommandParams | Report SubcommandParams deriving (Show)
+data Command = Version (Maybe Text) | Import SubcommandParams | Report SubcommandParams deriving (Show)
 
 main :: IO ()
 main = do
   cmd <- options "An hledger workflow focusing on automated statement import and classification:\nhttps://github.com/apauley/hledger-makeitso#readme" parser
   case cmd of
+    Version _        -> stdout $ select versionInfo
     Import subParams -> toImportOptions subParams >>= importCSVs
     Report subParams -> toReportOptions subParams >>= generateReports
 
@@ -32,7 +33,8 @@ toReportOptions (maybeBaseDir, verbose) = do
 
 parser :: Parser Command
 parser = fmap Import (subcommand "import" "Converts CSV transactions into categorised journal files" subcommandParser)
-     <|> fmap Report (subcommand "report" "Generate Reports" subcommandParser)
+  <|> fmap Report (subcommand "report" "Generate Reports" subcommandParser)
+  <|> fmap Version (subcommand "version" "Display version information" (optional (argText "" "")))
 
 subcommandParser :: Parser SubcommandParams
 subcommandParser = (,) <$> optional (argPath "basedir" "The hledger-makeitso base directory")
