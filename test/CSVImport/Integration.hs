@@ -12,14 +12,14 @@ import qualified Data.Text as T
 import qualified Data.List as List (sort)
 
 import TestHelpers
-import Hledger.MakeItSo.Import.Types
-import Hledger.MakeItSo.Common
+import Hledger.Flow.Import.Types
+import Hledger.Flow.Common
 import Control.Concurrent.STM
 
 testHiddenFiles = TestCase (
   sh (
       do
-        tmpdir <- using (mktempdir "." "makeitso")
+        tmpdir <- using (mktempdir "." "hlflow")
         let tmpJournals = map (tmpdir </>) journalFiles :: [FilePath]
         let tmpExtras = map (tmpdir </>) extraFiles :: [FilePath]
         let tmpHidden = map (tmpdir </>) hiddenFiles :: [FilePath]
@@ -35,7 +35,7 @@ testDirOrPwd = TestCase (
   sh (
       do
         currentDir <- fmap (\p -> directory (p </> "t")) pwd
-        tmpdir <- using (mktempdir "." "makeitso")
+        tmpdir <- using (mktempdir "." "hlflow")
         let fooDir = collapse $ currentDir </> tmpdir </> "foo/"
         let barDir = collapse $ currentDir </> tmpdir </> "bar/"
         mkdir fooDir
@@ -55,7 +55,7 @@ testDirOrPwd = TestCase (
 testFilterPaths = TestCase (
   sh (
       do
-        tmpdir <- using (mktempdir "." "makeitso")
+        tmpdir <- using (mktempdir "." "hlflow")
         let tmpJournals = map (tmpdir </>) journalFiles :: [FilePath]
         let tmpExtras = map (tmpdir </>) extraFiles :: [FilePath]
         let tmpHidden = map (tmpdir </>) hiddenFiles :: [FilePath]
@@ -73,7 +73,7 @@ testFilterPaths = TestCase (
 testExtraIncludesForFile = TestCase (
   sh (
       do
-        tmpdir <- using (mktempdir "." "makeitso")
+        tmpdir <- using (mktempdir "." "hlflow")
         let importedJournals = map (tmpdir </>) journalFiles :: [FilePath]
         let accountDir = "import/john/bogartbank/savings"
         let opening = tmpdir </> accountDir </> "2017-opening.journal"
@@ -104,7 +104,7 @@ testExtraIncludesForFile = TestCase (
 testIncludesPrePost = TestCase (
   sh (
       do
-        tmpdir <- using (mktempdir "." "makeitso")
+        tmpdir <- using (mktempdir "." "hlflow")
         let ownerDir = tmpdir </> "import/john"
         let includeFile = ownerDir </> "2019-include.journal"
         let pre  = ownerDir </> "_manual_" </> "2019" </> "pre-import.journal"
@@ -128,7 +128,7 @@ testIncludesPrePost = TestCase (
 testIncludesOpeningClosing = TestCase (
   sh (
       do
-        tmpdir <- using (mktempdir "." "makeitso")
+        tmpdir <- using (mktempdir "." "hlflow")
         let ownerDir = tmpdir </> "import/john"
         let accountDir = ownerDir </> "bank1" </> "savings"
         let includeFile = accountDir </> "2019-include.journal"
@@ -151,7 +151,7 @@ testIncludesOpeningClosing = TestCase (
 testWriteIncludeFiles = TestCase (
   sh (
       do
-        tmpdir <- using (mktempdir "." "makeitso")
+        tmpdir <- using (mktempdir "." "hlflow")
         let importedJournals = map (tmpdir </>) journalFiles :: [FilePath]
         let extras = map (tmpdir </>) extraFiles :: [FilePath]
         let hidden = map (tmpdir </>) hiddenFiles :: [FilePath]

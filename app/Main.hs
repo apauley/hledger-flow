@@ -4,18 +4,18 @@ module Main where
 
 import Turtle
 import Prelude hiding (FilePath, putStrLn)
-import qualified Hledger.MakeItSo.Import.Types as IT
-import qualified Hledger.MakeItSo.Report.Types as RT
-import Hledger.MakeItSo.Common
-import Hledger.MakeItSo.Reports
-import Hledger.MakeItSo.CSVImport
+import qualified Hledger.Flow.Import.Types as IT
+import qualified Hledger.Flow.Report.Types as RT
+import Hledger.Flow.Common
+import Hledger.Flow.Reports
+import Hledger.Flow.CSVImport
 
 type SubcommandParams = (Maybe FilePath, Bool)
 data Command = Version (Maybe Text) | Import SubcommandParams | Report SubcommandParams deriving (Show)
 
 main :: IO ()
 main = do
-  cmd <- options "An hledger workflow focusing on automated statement import and classification:\nhttps://github.com/apauley/hledger-makeitso#readme" parser
+  cmd <- options "An hledger workflow focusing on automated statement import and classification:\nhttps://github.com/apauley/hledger-flow#readme" parser
   case cmd of
     Version _        -> stdout $ select versionInfo
     Import subParams -> toImportOptions subParams >>= importCSVs
@@ -37,5 +37,5 @@ parser = fmap Import (subcommand "import" "Converts CSV transactions into catego
   <|> fmap Version (subcommand "version" "Display version information" (optional (argText "" "")))
 
 subcommandParser :: Parser SubcommandParams
-subcommandParser = (,) <$> optional (argPath "basedir" "The hledger-makeitso base directory")
+subcommandParser = (,) <$> optional (argPath "basedir" "The hledger-flow base directory")
                        <*> switch  "verbose" 'v' "Print more verbose output"

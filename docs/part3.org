@@ -1,5 +1,5 @@
 #+STARTUP: showall
-#+TITLE: hledger-makeitso Step-By-Step
+#+TITLE: Hledger Flow: Step-By-Step
 #+AUTHOR:
 #+REVEAL_TRANS: default
 #+REVEAL_THEME: beige
@@ -15,9 +15,9 @@
 * About This Document
 
 This document is a [[https://www.offerzen.com/blog/literate-programming-empower-your-writing-with-emacs-org-mode][literate]] [[https://orgmode.org/worg/org-contrib/babel/intro.html][program]].
-You can read it like a normal article, either [[https://github.com/apauley/hledger-makeitso/blob/master/docs/part3.org][on the web]] or [[https://pauley.org.za/hledger-makeitso/part3.html][as a slide show]].
+You can read it like a normal article, either [[https://github.com/apauley/hledger-flow/blob/master/docs/part3.org][on the web]] or [[https://pauley.org.za/hledger-flow/part3.html][as a slide show]].
 
-But you can also [[https://github.com/apauley/hledger-makeitso][clone the repository]] and open [[https://raw.githubusercontent.com/apauley/hledger-makeitso/master/docs/part3.org][this org-mode file]] in emacs.
+But you can also [[https://github.com/apauley/hledger-flow][clone the repository]] and open [[https://raw.githubusercontent.com/apauley/hledger-flow/master/docs/part3.org][this org-mode file]] in emacs.
 Then you can execute each code snippet by pressing =C-c C-c= with your cursor on the relevant code block.
 
 * Adding More Statements
@@ -29,7 +29,7 @@ adding some more should be easy:
 #+BEGIN_SRC sh :results org :exports both
 cp --force Downloads/Bogart/123456789_2016*.csv \
   my-finances/import/gawie/bogart/cheque/1-in/2016/
-hledger-makeitso import ./my-finances
+hledger-flow import ./my-finances
 hledger -f my-finances/all-years.journal incomestatement \
   --pretty-tables --monthly --average --begin 2016-03-01
 #+END_SRC
@@ -81,10 +81,10 @@ cd ..
 
 #+REVEAL: split
 
-#+NAME: git-push-hledger-makeitso-example-finances
+#+NAME: git-push-hledger-flow-example-finances
 #+BEGIN_SRC sh :results none :exports results
 cd my-finances/
-git remote add origin git@github.com:apauley/hledger-makeitso-example-finances.git
+git remote add origin git@github.com:apauley/hledger-flow-example-finances.git
 git push --force -u origin master
 cd ..
 #+END_SRC

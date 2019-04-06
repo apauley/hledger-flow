@@ -9,7 +9,7 @@ jobs:
           # Read about caching dependencies: https://circleci.com/docs/2.0/caching/
           name: Restore Cached Dependencies
           keys:
-            - hledger-makeitso-v1-{{ checksum "package.yaml" }}-{{ checksum "stack.yaml" }}
+            - hledger-flow-v1-{{ checksum "package.yaml" }}-{{ checksum "stack.yaml" }}
       - run:
           name: Resolve/Update Dependencies
           command: stack setup
@@ -21,11 +21,11 @@ jobs:
           command: stack install
       - save_cache:
           name: Cache Dependencies
-          key: hledger-makeitso-v1-{{ checksum "package.yaml" }}-{{ checksum "stack.yaml" }}
+          key: hledger-flow-v1-{{ checksum "package.yaml" }}-{{ checksum "stack.yaml" }}
           paths:
             - "/root/.stack"
             - ".stack-work"
       - store_artifacts:
           # Upload test summary for display in Artifacts: https://circleci.com/docs/2.0/artifacts/
-          path: ~/.local/bin/hledger-makeitso
-          destination: hledger-makeitso
+          path: ~/.local/bin/hledger-flow
+          destination: hledger-flow

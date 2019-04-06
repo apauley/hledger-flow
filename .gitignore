@@ -1,5 +1,5 @@
 .stack-work/
-hledger-makeitso.cabal
+hledger-flow.cabal
 *~
 scratch
 docs/my-finances

@@ -1,14 +1,14 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Hledger.MakeItSo.Reports
+module Hledger.Flow.Reports
     ( generateReports
     ) where
 
 import Turtle
 import Prelude hiding (FilePath, putStrLn)
-import Hledger.MakeItSo.Types
-import Hledger.MakeItSo.Report.Types
-import Hledger.MakeItSo.Common
+import Hledger.Flow.Types
+import Hledger.Flow.Report.Types
+import Hledger.Flow.Common
 import Control.Concurrent.STM
 
 generateReports :: ReportOptions -> IO ()
@@ -25,5 +25,5 @@ generateReports opts = sh (
 generateReports' :: ReportOptions -> TChan LogMessage -> IO [FilePath]
 generateReports' opts ch = do
   logVerbose opts ch "Something will be here Real Soon Now (tm)"
-  channelOut ch "Report generation has not been implemented. Yet. https://github.com/apauley/hledger-makeitso/pull/4"
+  channelOut ch "Report generation has not been implemented. Yet. https://github.com/apauley/hledger-flow/pull/4"
   return []

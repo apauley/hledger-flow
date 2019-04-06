@@ -1,4 +1,4 @@
-module Hledger.MakeItSo.Types
+module Hledger.Flow.Types
 where
 
 import Turtle

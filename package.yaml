@@ -1,13 +1,13 @@
-name:                hledger-makeitso
+name:                hledger-flow
 version:             0.10.0.0
 synopsis:            An hledger workflow focusing on automated statement import and classification.
 category:            Finance, Console
 license:             GPL-3
-author:              "Andreas Pauley <hledger-makeitso@pauley.org.za>"
-maintainer:          "Andreas Pauley <hledger-makeitso@pauley.org.za>"
+author:              "Andreas Pauley <hledger-flow@pauley.org.za>"
+maintainer:          "Andreas Pauley <hledger-flow@pauley.org.za>"
 copyright:           "2018 Andreas Pauley"
-github:              "apauley/hledger-makeitso"
-bug-reports:         https://github.com/apauley/hledger-makeitso/issues
+github:              "apauley/hledger-flow"
+bug-reports:         https://github.com/apauley/hledger-flow/issues
 
 extra-source-files:
 - README.md
@@ -20,7 +20,7 @@ extra-source-files:
 # To avoid duplicated efforts in documentation and dealing with the
 # complications of embedding Haddock markup inside cabal files, it is
 # common to point users to the README file.
-description:         Please see the README on GitHub at <https://github.com/apauley/hledger-makeitso#readme>
+description:         Please see the README on GitHub at <https://github.com/apauley/hledger-flow#readme>
 
 dependencies:
 - base >= 4.7 && < 5
@@ -38,7 +38,7 @@ library:
   - stm
 
 executables:
-  hledger-makeitso:
+  hledger-flow:
     main:                Main.hs
     source-dirs:         app
     ghc-options:
@@ -47,12 +47,12 @@ executables:
     - -with-rtsopts=-N
     - -Wall
     dependencies:
-    - hledger-makeitso
+    - hledger-flow
     - turtle
     - text
 
 tests:
-  hledger-makeitso-test:
+  hledger-flow-test:
     main:                Spec.hs
     source-dirs:         test
     ghc-options:
@@ -60,7 +60,7 @@ tests:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
-    - hledger-makeitso
+    - hledger-flow
     - turtle
     - HUnit
     - containers
