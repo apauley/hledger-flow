@@ -1,9 +1,13 @@
-# Changelog for [hledger-makeitso](https://github.com/apauley/hledger-makeitso)
+# Changelog for [hledger-flow](https://github.com/apauley/hledger-flow)
+
+## 0.11
+
+- Change the name from `hledger-makeitso` to `hledger-flow`.
 
 ## 0.10
 
 - Add a `version` subcommand.
-  Create [issue #15](https://github.com/apauley/hledger-makeitso/issues/15)
+  Create [issue #15](https://github.com/apauley/hledger-flow/issues/15)
   to change it into a `--version` flag later.
 - Fix a minor issue where yearly include files were generated at the top-level
   of the directtory structure, even though the same content was available in the

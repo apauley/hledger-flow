@@ -1,9 +1,9 @@
-module Hledger.MakeItSo.Report.Types
+module Hledger.Flow.Report.Types
 where
 
 import Turtle
 import Prelude hiding (FilePath, putStrLn)
-import Hledger.MakeItSo.Types
+import Hledger.Flow.Types
 
 data ReportOptions = ReportOptions { baseDir :: FilePath, verbose :: Bool }
   deriving (Show)

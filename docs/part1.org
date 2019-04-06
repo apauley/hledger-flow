@@ -1,5 +1,5 @@
 #+STARTUP: showall
-#+TITLE: hledger-makeitso Step-By-Step
+#+TITLE: Hledger Flow: Step-By-Step
 #+AUTHOR:
 #+REVEAL_TRANS: default
 #+REVEAL_THEME: beige
@@ -15,9 +15,9 @@
 * About This Document
 
 This document is a [[https://www.offerzen.com/blog/literate-programming-empower-your-writing-with-emacs-org-mode][literate]] [[https://orgmode.org/worg/org-contrib/babel/intro.html][program]].
-You can read it like a normal article, either [[https://github.com/apauley/hledger-makeitso/blob/master/docs/part1.org][on the web]] or [[https://pauley.org.za/hledger-makeitso/][as a slide show]].
+You can read it like a normal article, either [[https://github.com/apauley/hledger-flow/blob/master/docs/part1.org][on the web]] or [[https://pauley.org.za/hledger-flow/][as a slide show]].
 
-But you can also [[https://github.com/apauley/hledger-makeitso][clone the repository]] and open [[https://raw.githubusercontent.com/apauley/hledger-makeitso/master/docs/part1.org][this org-mode file]] in emacs.
+But you can also [[https://github.com/apauley/hledger-flow][clone the repository]] and open [[https://raw.githubusercontent.com/apauley/hledger-flow/master/docs/part1.org][this org-mode file]] in emacs.
 Then you can execute each code snippet by pressing =C-c C-c= with your cursor on the relevant code block.
 
 * The Story of an African Chef
@@ -50,23 +50,23 @@ It is time for Gawie to take charge of his finances.
 
 * The First CSV Statement
 
-Gawie followed the [[https://github.com/apauley/hledger-makeitso#build-instructions][build instructions]] and ended up with his very own =hledger-makeitso= executable.
+Gawie followed the [[https://github.com/apauley/hledger-flow#build-instructions][build instructions]] and ended up with his very own =hledger-flow= executable.
 
 #+REVEAL: split
 
-Let's just run this =hledger-makeitso= command and see what happens...
+Let's just run this =hledger-flow= command and see what happens...
 
 #+NAME: hm-noargs
 #+BEGIN_SRC sh :results output :exports both
-hledger-makeitso
+hledger-flow
 #+END_SRC
 
 #+RESULTS: hm-noargs
 #+begin_example
 An hledger workflow focusing on automated statement import and classification:
-https://github.com/apauley/hledger-makeitso#readme
+https://github.com/apauley/hledger-flow#readme
 
-Usage: hledger-makeitso (import | report)
+Usage: hledger-flow (import | report)
 
 Available options:
   -h,--help                Show this help text
@@ -87,16 +87,16 @@ Luckily the =import= subcommand has a bit of help text as well:
 
 #+NAME: hm-import-help
 #+BEGIN_SRC sh :results org :exports both
-hledger-makeitso import --help
+hledger-flow import --help
 #+END_SRC
 
 #+RESULTS: hm-import-help
 #+BEGIN_SRC org
-Usage: hledger-makeitso import [BASEDIR] [-v|--verbose]
+Usage: hledger-flow import [BASEDIR] [-v|--verbose]
   Converts CSV transactions into categorised journal files
 
 Available options:
-  BASEDIR                  The hledger-makeitso base directory
+  BASEDIR                  The hledger-flow base directory
   -v,--verbose             Print more verbose output
   -h,--help                Show this help text
 
@@ -119,7 +119,7 @@ mkdir my-finances
 Now he can point the import to his new finances directory:
 #+NAME: import1
 #+BEGIN_SRC sh :results org :exports both
-hledger-makeitso import ./my-finances
+hledger-flow import ./my-finances
 #+END_SRC
 
 #+REVEAL: split
@@ -133,17 +133,17 @@ hledger-makitso expects to find its input files in specifically
 named directories.
 
 Have a look at the documentation for a detailed explanation:
-https://github.com/apauley/hledger-makeitso#input-files
+https://github.com/apauley/hledger-flow#input-files
 
 #+END_SRC
 
 Gawie carefully interprets the error message using the skills he obtained during his years as an IT professional.
 
-He concludes that =hledger-makeitso= expects to find its input files in specifically named directories.
+He concludes that =hledger-flow= expects to find its input files in specifically named directories.
 
 #+REVEAL: split
 
-Looking at the [[https://github.com/apauley/hledger-makeitso#input-files][documentation]] he sees there should be several account and bank-specific directories
+Looking at the [[https://github.com/apauley/hledger-flow#input-files][documentation]] he sees there should be several account and bank-specific directories
 under the =import= directory.
 
 #+REVEAL: split
@@ -198,7 +198,7 @@ cd ..
 Let's try the import again:
 #+NAME: import2
 #+BEGIN_SRC sh :results org :exports both
-hledger-makeitso import ./my-finances
+hledger-flow import ./my-finances
 #+END_SRC
 
 #+RESULTS: import2
@@ -211,7 +211,7 @@ import/gawie/bogart/cheque/bogart-cheque.rules
 import/bogart.rules
 
 Here is a bit of documentation about rules files that you may find helpful:
-https://github.com/apauley/hledger-makeitso#rules-files
+https://github.com/apauley/hledger-flow#rules-files
 
 #+END_SRC
 
@@ -219,7 +219,7 @@ https://github.com/apauley/hledger-makeitso#rules-files
 
 Another cryptic error.
 
-This one is caused by a missing [[https://github.com/apauley/hledger-makeitso#the-rules-file][rules file]].
+This one is caused by a missing [[https://github.com/apauley/hledger-flow#the-rules-file][rules file]].
 
 #+REVEAL: split
 
@@ -231,7 +231,7 @@ fix stupid dates like those used by Bogart Bank.
 
 #+REVEAL: split
 
-This looks like a job for a [[https://github.com/apauley/hledger-makeitso#the-preprocess-script][preprocess script]].
+This looks like a job for a [[https://github.com/apauley/hledger-flow#the-preprocess-script][preprocess script]].
 
 #+REVEAL: split
 
@@ -247,14 +247,14 @@ cd ..
 
 #+REVEAL: split
 
-=hledger-makeitso= looks for a file named [[https://github.com/apauley/hledger-makeitso#the-preprocess-script][preprocess]] in the account directory.
+=hledger-flow= looks for a file named [[https://github.com/apauley/hledger-flow#the-preprocess-script][preprocess]] in the account directory.
 
 #+REVEAL: split
 
 Gawie just creates a symbolic link named =preprocess=.
 This works because the downloaded script takes an input file and an output file as the first two positional arguments,
 very much as the =preprocess= script would expect.
-And luckily it ignores the other parameters that =hledger-makeitso= sends through.
+And luckily it ignores the other parameters that =hledger-flow= sends through.
 
 #+REVEAL: split
 
@@ -270,7 +270,7 @@ Now when we try the import again, it still displays an error due to our missing 
 
 #+NAME: import3
 #+BEGIN_SRC sh :results org :exports both
-hledger-makeitso import ./my-finances
+hledger-flow import ./my-finances
 #+END_SRC
 
 #+RESULTS: import3
@@ -283,7 +283,7 @@ import/gawie/bogart/cheque/bogart-cheque.rules
 import/bogart.rules
 
 Here is a bit of documentation about rules files that you may find helpful:
-https://github.com/apauley/hledger-makeitso#rules-files
+https://github.com/apauley/hledger-flow#rules-files
 
 #+END_SRC
 
@@ -355,7 +355,7 @@ cd ..
 This time the import is successful, and we see a number of newly generated files:
 #+NAME: import4
 #+BEGIN_SRC sh :results org :exports both
-hledger-makeitso import ./my-finances
+hledger-flow import ./my-finances
 tree my-finances
 #+END_SRC
 

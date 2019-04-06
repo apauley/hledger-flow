@@ -1,9 +1,9 @@
-module Hledger.MakeItSo.Import.Types
+module Hledger.Flow.Import.Types
 where
 
 import Turtle
 import Prelude hiding (FilePath, putStrLn)
-import Hledger.MakeItSo.Types
+import Hledger.Flow.Types
 
 data ImportOptions = ImportOptions { baseDir :: FilePath, verbose :: Bool }
   deriving (Show)

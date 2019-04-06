@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Hledger.MakeItSo.CSVImport
+module Hledger.Flow.CSVImport
     ( importCSVs
     ) where
 
@@ -8,9 +8,9 @@ import Turtle
 import Prelude hiding (FilePath, putStrLn, take)
 import qualified Data.Text as T
 import qualified Data.List.NonEmpty as NonEmpty
-import Hledger.MakeItSo.Types (LogMessage)
-import Hledger.MakeItSo.Import.Types
-import Hledger.MakeItSo.Common
+import Hledger.Flow.Types (LogMessage)
+import Hledger.Flow.Import.Types
+import Hledger.Flow.Common
 import Control.Concurrent.STM
 
 importCSVs :: ImportOptions -> IO ()

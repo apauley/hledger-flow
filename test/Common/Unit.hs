@@ -8,7 +8,7 @@ import Turtle
 import Prelude hiding (FilePath)
 
 import TestHelpers
-import Hledger.MakeItSo.Common
+import Hledger.Flow.Common
 
 testShowCmdArgs = TestCase (
   do
