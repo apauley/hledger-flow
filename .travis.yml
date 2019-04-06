@@ -24,7 +24,7 @@ install:
   - stack build --system-ghc --test --bench --no-run-tests --no-run-benchmarks
 
 script:
-  - stack test --system-ghc
+  - stack test --interleaved-output --system-ghc
 
 notifications:
   email: false

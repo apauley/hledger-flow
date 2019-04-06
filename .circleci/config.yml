@@ -15,7 +15,7 @@ jobs:
           command: stack setup
       - run:
           name: Run tests
-          command: stack test
+          command: stack --interleaved-output test
       - run:
           name: Install executable
           command: stack install
