@@ -1,5 +1,9 @@
 # Changelog for [hledger-flow](https://github.com/apauley/hledger-flow)
 
+## 0.11
+
+- Change the name from `hledger-makeitso` to `hledger-flow`.
+
 ## 0.10
 
 - Add a `version` subcommand.
