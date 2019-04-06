@@ -100,6 +100,17 @@ to my own finances, and can be shared.
   PATH="${HOME}/.local/bin:${PATH}"
   #+END_SRC
 
+** Building with older Haskell Versions
+
+   To build using an older version of GHC and related dependencies,
+   point stack to one of the other yaml files:
+
+  #+NAME: stack-build-versions
+  #+BEGIN_SRC sh :results none :exports both
+  stack test --stack-yaml stack-8.4.4.yaml
+  stack test --stack-yaml stack-8.2.2.yaml
+  #+END_SRC
+
 * Feature Reference
 
 ** Input Files
