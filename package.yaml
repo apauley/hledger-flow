@@ -10,7 +10,7 @@ github:              "apauley/hledger-makeitso"
 bug-reports:         https://github.com/apauley/hledger-makeitso/issues
 
 extra-source-files:
-- README.org
+- README.md
 - ChangeLog.md
 
 # Metadata used when publishing your package
