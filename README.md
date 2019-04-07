@@ -1,5 +1,10 @@
 # Hledger Flow
 
+| TravisCI                                                                                                                    | CircleCI                                                                                                                |
+| :-:                                                                                                                         | :-:                                                                                                                     |
+| [![TravisCI Build Status](https://travis-ci.com/apauley/hledger-flow.svg?branch=master)](https://travis-ci.com/apauley/hledger-flow)  | [![CircleCI Build Status](https://circleci.com/gh/apauley/hledger-flow.svg?style=svg)](https://circleci.com/gh/apauley/hledger-flow) |
+
+
 # What is it?
 
 `hledger-flow` is a command-line executable program that gives you a
@@ -11,8 +16,8 @@ Manual entries are still possible, we just think it saves time in the
 long run to automatically process a statement whenever one is available.
 
 It started when I realized that the scripts I wrote while playing around
-with the ideas in [adept's Full-fledged Hledger](https://github.com/adept/full-fledged-hledger/wiki) isn't
-really specific to my own finances, and can be shared.
+with the ideas in [adept's Full-fledged Hledger](https://github.com/adept/full-fledged-hledger/wiki)
+isn't really specific to my own finances, and can be shared.
 
 # Overview of the Basic Workflow
 
@@ -98,8 +103,6 @@ git submodule update
 ```
 
 # Build Instructions
-
-[![CircleCI](https://circleci.com/gh/apauley/hledger-flow.svg?style=svg)](https://circleci.com/gh/apauley/hledger-flow) [![Build Status](https://travis-ci.com/apauley/hledger-flow.svg?branch=master)](https://travis-ci.com/apauley/hledger-flow)
 
 You need a recent version of
 [stack](https://docs.haskellstack.org/en/stable/README/) installed.
