@@ -10,7 +10,7 @@ github:              "apauley/hledger-flow"
 bug-reports:         https://github.com/apauley/hledger-flow/issues
 
 extra-source-files:
-- README.md
+- README.org
 - ChangeLog.md
 
 # Metadata used when publishing your package
