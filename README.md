@@ -7,13 +7,23 @@
 
 # What is it?
 
-`hledger-flow` is a command-line executable program that gives you a
-guided hledger workflow. It focuses on automated processing of
-electronic statements as much as possible, as opposed to manually adding
-your own hledger journal entries.
+`hledger-flow` is a command-line program that gives you a guided
+[Hledger](https://hledger.org/) workflow. It focuses on automated processing of
+electronic statements as much as possible, as opposed to manually adding your
+own hledger journal entries.
 
 Manual entries are still possible, we just think it saves time in the
 long run to automatically process a statement whenever one is available.
+
+Within `hledger-flow` you will keep your original bank statements around
+permanently as input, and generate classified Hledger journals each time you run
+the program. The classification is done with rules files, or your own script hooks.
+
+Keeping the original statements means that you never have to worry too much
+about "am I doing this accounting thing right?" or "what happens if I make a
+mistake?". If you want to change your mind about some classification, or if you
+made a mistake, you just change your classification rules, and run the program
+again.
 
 It started when I realized that the scripts I wrote while playing around
 with the ideas in [adept's Full-fledged Hledger](https://github.com/adept/full-fledged-hledger/wiki)
@@ -21,7 +31,7 @@ isn't really specific to my own finances, and can be shared.
 
 # Overview of the Basic Workflow
 
-1.  Save an input CSV file to a [specific directory](https://github.com/apauley/hledger-flow#input-files).
+1.  Save an input transaction file (typically CSV) to a [specific directory](https://github.com/apauley/hledger-flow#input-files).
 2.  Add an hledger [rules file](https://github.com/apauley/hledger-flow#rules-files).
     Include some classification rules if you want.
 3.  Run `hledger-flow import`
