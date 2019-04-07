@@ -43,8 +43,8 @@ my own finances, and can be shared.
   :CUSTOM_ID: overview-of-the-basic-workflow
   :END:
 
-1. Save an input transaction file (typically CSV) to a [[https://github.com/apauley/hledger-flow#input-files][specific directory]].
-2. Add an hledger [[https://github.com/apauley/hledger-flow#rules-files][rules file]].
+1. Save an input transaction file (typically CSV) to a [[#input-files][specific directory]].
+2. Add an hledger [[#rules-files][rules file]].
    Include some classification rules if you want.
 3. Run =hledger-flow import=
 
