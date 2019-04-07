@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+
+set -e
+
+USAGE="USAGE: ${0} FILE"
+
+if [ $# != 1 ]
+then
+    >&2 echo $USAGE
+    exit 1
+fi
+
+FILE=${1}
+if [ ! -f ${FILE} ]
+then
+    >&2 echo "File does not exist: ${FILE}"
+    exit 1
+fi
+
+BASEDIR="$(pwd)"
+TARGETBASE=${BASEDIR}/releases
+mkdir -p ${TARGETBASE}
+
+ABBRHASH="$(git log -1 --format=tformat:%h)"
+VERSION="v$(grep '^version:' ${BASEDIR}/package.yaml|awk '{print $2}')"
+CLI_NAME="$(basename ${FILE})"
+PLATFORM=`uname -s`
+ARCH=`uname -m`
+VNAME="${CLI_NAME}-${PLATFORM}-${ARCH}-${VERSION}-${ABBRHASH}"
+TARNAME="${VNAME}.tar.gz"
+
+TARGET=${TARGETBASE}/${VNAME}
+rm -rf ${TARGET}
+mkdir ${TARGET}
+
+cp ${FILE} ${TARGET}
+cd ${TARGET}
+shasum --algorithm 256 * > ${VNAME}-sha256.txt
+cd ${TARGETBASE}
+tar zcf ${TARNAME} ${VNAME}
+
+echo ${TARNAME}

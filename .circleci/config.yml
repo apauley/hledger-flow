@@ -19,6 +19,9 @@ jobs:
       - run:
           name: Install executable
           command: stack install
+      - run:
+          name: Build Release Tarball
+          command: ./bin/release-tarball ~/.local/bin/hledger-flow
       - save_cache:
           name: Cache Dependencies
           key: hledger-flow-v1-{{ checksum "package.yaml" }}-{{ checksum "stack.yaml" }}
@@ -27,5 +30,4 @@ jobs:
             - ".stack-work"
       - store_artifacts:
           # Upload test summary for display in Artifacts: https://circleci.com/docs/2.0/artifacts/
-          path: ~/.local/bin/hledger-flow
-          destination: hledger-flow
+          path: ./releases
