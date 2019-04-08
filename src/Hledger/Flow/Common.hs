@@ -60,6 +60,8 @@ import qualified Data.List.NonEmpty as NE
 import Paths_hledger_flow (version)
 import qualified Data.Version as Version (showVersion)
 
+type InputFileBundle = Map.Map FilePath [FilePath]
+
 versionInfo :: NE.NonEmpty Line
 versionInfo = textToLines $ T.pack ("hledger-flow " ++ Version.showVersion version)
 
@@ -150,19 +152,19 @@ allYearsPath = allYearsPath' directory
 allYearsPath' :: (FilePath -> FilePath) -> FilePath -> FilePath
 allYearsPath' dir p = dir p </> "all-years.journal"
 
-groupIncludeFiles :: [FilePath] -> (Map.Map FilePath [FilePath], Map.Map FilePath [FilePath])
+groupIncludeFiles :: [FilePath] -> (InputFileBundle, InputFileBundle)
 groupIncludeFiles = allYearIncludeFiles . groupIncludeFilesPerYear
 
-groupIncludeFilesPerYear :: [FilePath] -> Map.Map FilePath [FilePath]
+groupIncludeFilesPerYear :: [FilePath] -> InputFileBundle
 groupIncludeFilesPerYear [] = Map.empty
 groupIncludeFilesPerYear ps@(p:_) = case extractImportDirs p of
     Right _ -> (groupValuesBy initialIncludeFilePath) ps
     Left  _ -> (groupValuesBy parentIncludeFilePath)  ps
 
-allYearIncludeFiles :: Map.Map FilePath [FilePath] -> (Map.Map FilePath [FilePath], Map.Map FilePath [FilePath])
+allYearIncludeFiles :: InputFileBundle -> (InputFileBundle, InputFileBundle)
 allYearIncludeFiles m = (m, yearsIncludeMap $ Map.keys m)
 
-yearsIncludeMap :: [FilePath] -> Map.Map FilePath [FilePath]
+yearsIncludeMap :: [FilePath] -> InputFileBundle
 yearsIncludeMap = groupValuesBy allYearsPath
 
 docURL :: Line -> Text
@@ -232,22 +234,22 @@ shellToList files = fold files Fold.list
 includeFileName :: FilePath -> FilePath
 includeFileName = (<.> "journal") . fromText . (format (fp%"-include")) . dirname
 
-toIncludeFiles :: (HasBaseDir o, HasVerbosity o) => o -> TChan LogMessage -> Map.Map FilePath [FilePath] -> Shell (Map.Map FilePath Text)
+toIncludeFiles :: (HasBaseDir o, HasVerbosity o) => o -> TChan LogMessage -> InputFileBundle -> Shell (Map.Map FilePath Text)
 toIncludeFiles opts ch m = do
   preMap  <- extraIncludes opts ch (Map.keys m) ["opening.journal"] ["pre-import.journal"]
   postMap <- extraIncludes opts ch (Map.keys m) ["closing.journal"] ["post-import.journal"]
   return $ (addPreamble . toIncludeFiles' preMap postMap) m
 
-extraIncludes :: (HasBaseDir o, HasVerbosity o) => o -> TChan LogMessage -> [FilePath] -> [Text] -> [FilePath] -> Shell (Map.Map FilePath [FilePath])
+extraIncludes :: (HasBaseDir o, HasVerbosity o) => o -> TChan LogMessage -> [FilePath] -> [Text] -> [FilePath] -> Shell (InputFileBundle)
 extraIncludes opts ch = extraIncludes' opts ch Map.empty
 
-extraIncludes' :: (HasBaseDir o, HasVerbosity o) => o -> TChan LogMessage -> Map.Map FilePath [FilePath] -> [FilePath] -> [Text] -> [FilePath] -> Shell (Map.Map FilePath [FilePath])
+extraIncludes' :: (HasBaseDir o, HasVerbosity o) => o -> TChan LogMessage -> InputFileBundle -> [FilePath] -> [Text] -> [FilePath] -> Shell (InputFileBundle)
 extraIncludes' _ _ acc [] _ _ = return acc
 extraIncludes' opts ch acc (file:files) extraSuffixes manualFiles = do
   extra <- extraIncludesForFile opts ch file extraSuffixes manualFiles
   extraIncludes' opts ch (Map.unionWith (++) acc extra) files extraSuffixes manualFiles
 
-extraIncludesForFile :: (HasVerbosity o, HasBaseDir o) => o -> TChan LogMessage -> FilePath -> [Text] -> [FilePath] -> Shell (Map.Map FilePath [FilePath])
+extraIncludesForFile :: (HasVerbosity o, HasBaseDir o) => o -> TChan LogMessage -> FilePath -> [Text] -> [FilePath] -> Shell (InputFileBundle)
 extraIncludesForFile opts ch file extraSuffixes manualFiles = do
   let dirprefix = fromText $ fst $ T.breakOn "-" $ format fp $ basename file
   let fileNames = map (\suff -> fromText $ format (fp%"-"%s) dirprefix suff) extraSuffixes
@@ -264,7 +266,7 @@ extraIncludesForFile opts ch file extraSuffixes manualFiles = do
 relativeFilesAsText :: HasBaseDir o => o -> [FilePath] -> [Text]
 relativeFilesAsText opts ps = map ((format fp) . (relativeToBase opts)) ps
 
-toIncludeFiles' :: Map.Map FilePath [FilePath] -> Map.Map FilePath [FilePath] -> Map.Map FilePath [FilePath] -> Map.Map FilePath Text
+toIncludeFiles' :: InputFileBundle -> InputFileBundle -> InputFileBundle -> Map.Map FilePath Text
 toIncludeFiles' preMap postMap = Map.mapWithKey $ generatedIncludeText preMap postMap
 
 addPreamble :: Map.Map FilePath Text -> Map.Map FilePath Text
@@ -273,7 +275,7 @@ addPreamble = Map.map (\txt -> includePreamble <> "\n" <> txt)
 toIncludeLine :: FilePath -> FilePath -> Text
 toIncludeLine base file = format ("!include "%fp) $ relativeToBase' base file
 
-generatedIncludeText :: Map.Map FilePath [FilePath] -> Map.Map FilePath [FilePath] -> FilePath -> [FilePath] -> Text
+generatedIncludeText :: InputFileBundle -> InputFileBundle -> FilePath -> [FilePath] -> Text
 generatedIncludeText preMap postMap outputFile fs = do
   let preFiles = fromMaybe [] $ Map.lookup outputFile preMap
   let files = List.nub . List.sort $ fs
@@ -300,7 +302,7 @@ writeFiles' fileMap = do
 writeTextMap :: Map.Map FilePath Text -> IO ()
 writeTextMap = Map.foldlWithKey (\a k v -> a <> writeTextFile k v) (return ())
 
-writeFileMap :: (HasBaseDir o, HasVerbosity o) => o -> TChan LogMessage -> (Map.Map FilePath [FilePath], Map.Map FilePath [FilePath]) -> Shell [FilePath]
+writeFileMap :: (HasBaseDir o, HasVerbosity o) => o -> TChan LogMessage -> (InputFileBundle, InputFileBundle) -> Shell [FilePath]
 writeFileMap opts ch (m, allYears) = do
   _ <- writeFiles' $ (addPreamble . toIncludeFiles' Map.empty Map.empty) allYears
   writeFiles . (toIncludeFiles opts ch) $ m
