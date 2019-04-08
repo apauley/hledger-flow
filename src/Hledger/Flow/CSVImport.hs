@@ -81,7 +81,7 @@ preprocess opts ch script bank account owner src = do
   let csvOut = changePathAndExtension "2-preprocessed" "csv" src
   mktree $ directory csvOut
   let script' = format fp script :: Text
-  let action = procs script' [format fp src, format fp csvOut, lineToText bank, lineToText account, lineToText owner] empty
+  let action = proc script' [format fp src, format fp csvOut, lineToText bank, lineToText account, lineToText owner] empty
   let relScript = relativeToBase opts script
   let relSrc = relativeToBase opts src
   let msg = format ("executing '"%fp%"' on '"%fp%"'") relScript relSrc

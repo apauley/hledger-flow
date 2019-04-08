@@ -103,11 +103,11 @@ terminateChannelLoop ch = atomically $ writeTChan ch Terminate
 logVerbose :: HasVerbosity o => o -> TChan LogMessage -> Text -> IO ()
 logVerbose opts ch msg = if (verbose opts) then logToChannel ch msg else return ()
 
-logVerboseTime :: HasVerbosity o => o -> TChan LogMessage -> Text -> IO a -> IO (a, NominalDiffTime)
+logVerboseTime :: (HasVerbosity o, Show a) => o -> TChan LogMessage -> Text -> IO a -> IO (a, NominalDiffTime)
 logVerboseTime opts ch msg action = do
   logVerbose opts ch $ format ("Begin: "%s) msg
   (result, diff) <- time action
-  logVerbose opts ch $ format ("End:   "%s%" ("%s%")") msg $ repr diff
+  logVerbose opts ch $ format ("End:   "%s%" "%s%" ("%s%")") msg (repr result) (repr diff)
   return (result, diff)
 
 verboseTestFile :: (HasVerbosity o, HasBaseDir o) => o -> TChan LogMessage -> FilePath -> IO Bool
