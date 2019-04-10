@@ -40,14 +40,14 @@ install:
   - which stack
   - type -a stack
   - stack --version
-  - stack build --test --bench --no-run-tests --no-run-benchmarks
+  - stack --stack-yaml=$STACK_YAML build --interleaved-output --test --bench --no-run-tests --no-run-benchmarks
 
   # GHC
-  - stack setup
-  - stack exec -- ghc --version
+  - stack --stack-yaml=$STACK_YAML setup --interleaved-output
+  - stack --stack-yaml=$STACK_YAML exec -- ghc --version
 
 script:
-  - stack test --interleaved-output --ghc-options=-Werror
+  - stack --stack-yaml=$STACK_YAML test --interleaved-output --ghc-options=-Werror
 
 notifications:
   email: false
