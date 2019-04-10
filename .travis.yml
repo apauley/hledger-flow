@@ -8,6 +8,8 @@ cache:
   directories:
   - "$HOME/.stack"
   - "$TRAVIS_BUILD_DIR/.stack-work"
+  - "$HOME/.local/bin/"
+  - "/usr/local/Cellar"
 
 os:
   - linux
@@ -22,13 +24,25 @@ matrix:
   - ghc: 8.6.4
     env: STACK_YAML="$TRAVIS_BUILD_DIR/stack.yaml"
 
+before_install:
+  - mkdir -p ~/.local/bin
+  - export PATH=$HOME/.local/bin:$PATH
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then if [[ ! -x ~/.local/bin/stack ]]; then travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'; chmod a+x ~/.local/bin/stack; fi ; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update          ; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install haskell-stack; fi
+
 install:
-  - curl -sSL https://get.haskellstack.org/ | sh
+  - which stack
+  - type -a stack
   - stack --version
-  - stack build --system-ghc --test --bench --no-run-tests --no-run-benchmarks
+  - stack build --test --bench --no-run-tests --no-run-benchmarks
+
+  # GHC
+  - stack setup
+  - stack exec -- ghc --version
 
 script:
-  - stack test --interleaved-output --system-ghc
+  - stack test --interleaved-output --ghc-options=-Werror
 
 notifications:
   email: false
