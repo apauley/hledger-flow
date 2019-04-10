@@ -9,8 +9,12 @@ cache:
   - "$HOME/.stack"
   - "$TRAVIS_BUILD_DIR/.stack-work"
 
+os:
+  - linux
+  - osx
+
 matrix:
-  Include:
+  include:
   - ghc: 8.2.2
     env: STACK_YAML="$TRAVIS_BUILD_DIR/stack-8.2.2.yaml"
   - ghc: 8.4.4
