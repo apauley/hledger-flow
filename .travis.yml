@@ -42,11 +42,12 @@ install:
   - which stack
   - type -a stack
   - stack --version
-  - stack --stack-yaml=$STACK_YAML build --interleaved-output --test --bench --no-run-tests --no-run-benchmarks
 
   # GHC
   - stack --stack-yaml=$STACK_YAML setup --interleaved-output
   - stack --stack-yaml=$STACK_YAML exec -- ghc --version
+
+  - stack --stack-yaml=$STACK_YAML build --interleaved-output --test --bench --no-run-tests --no-run-benchmarks --ghc-options=-Werror
 
 script:
   - stack --stack-yaml=$STACK_YAML test --interleaved-output --ghc-options=-Werror
