@@ -16,9 +16,11 @@ os:
   - linux
   - osx
 
+env:
+  - STACK_YAML="$TRAVIS_BUILD_DIR/stack.yaml"
+
 matrix:
   include:
-  - env: STACK_YAML="$TRAVIS_BUILD_DIR/stack.yaml"
   - env: STACK_YAML="$TRAVIS_BUILD_DIR/stack-8.4.4.yaml"
   - env: STACK_YAML="$TRAVIS_BUILD_DIR/stack-8.2.2.yaml"
 
