@@ -1,5 +1,5 @@
 sudo: true
-language: haskell
+language: generic
 
 git:
   depth: 5
@@ -8,23 +8,49 @@ cache:
   directories:
   - "$HOME/.stack"
   - "$TRAVIS_BUILD_DIR/.stack-work"
+  - "$HOME/.local/bin/"
+  - "$HOME/Library/Caches/Homebrew"
+  - "/usr/local/Homebrew"
+
+os:
+  - linux
+  - osx
+
+env:
+  - STACK_YAML="$TRAVIS_BUILD_DIR/stack.yaml"
 
 matrix:
-  Include:
-  - ghc: 8.2.2
-    env: STACK_YAML="$TRAVIS_BUILD_DIR/stack-8.2.2.yaml"
-  - ghc: 8.4.4
-    env: STACK_YAML="$TRAVIS_BUILD_DIR/stack-8.4.4.yaml"
-  - ghc: 8.6.4
-    env: STACK_YAML="$TRAVIS_BUILD_DIR/stack.yaml"
+  include:
+  - env: STACK_YAML="$TRAVIS_BUILD_DIR/stack-8.4.4.yaml"
+  - env: STACK_YAML="$TRAVIS_BUILD_DIR/stack-8.2.2.yaml"
+
+before_cache:
+ - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew cleanup; fi
+
+before_install:
+  - mkdir -p ~/.local/bin
+  - export PATH=$HOME/.local/bin:$PATH
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then if [[ ! -x ~/.local/bin/stack ]]; then travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'; chmod a+x ~/.local/bin/stack; fi ; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update --verbose               ; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install --verbose haskell-stack; fi
 
 install:
-  - curl -sSL https://get.haskellstack.org/ | sh
+
+  # if any command fails, end the travis script
+  - set -e
+
+  - which stack
+  - type -a stack
   - stack --version
-  - stack build --system-ghc --test --bench --no-run-tests --no-run-benchmarks
+
+  # GHC
+  - stack --stack-yaml=$STACK_YAML setup --interleaved-output
+  - stack --stack-yaml=$STACK_YAML exec -- ghc --version
+
+  - stack --stack-yaml=$STACK_YAML build --interleaved-output --test --bench --no-run-tests --no-run-benchmarks --ghc-options=-Werror
 
 script:
-  - stack test --interleaved-output --system-ghc
+  - stack --stack-yaml=$STACK_YAML test --interleaved-output --ghc-options=-Werror
 
 notifications:
   email: false
