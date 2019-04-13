@@ -47,12 +47,8 @@ executables:
     - -with-rtsopts=-N
     - -Wall
     - -fPIC
-    # - -static
-    # - -optc-static
-    # - -optl-static
-    # - -optl-pthread
     ld-options:
-    - -static
+    - -dynamic # change to -static for a statically linked executable. Does not work on osx
 
     dependencies:
     - hledger-flow
