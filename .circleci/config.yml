@@ -12,16 +12,34 @@ jobs:
             - hledger-flow-v1-{{ checksum "package.yaml" }}-{{ checksum "stack.yaml" }}
       - run:
           name: Resolve/Update Dependencies
-          command: stack setup
+          command: stack setup --interleaved-output
+      - run:
+          name: Stack Build
+          command: stack build --interleaved-output --test --bench --no-run-tests --no-run-benchmarks --ghc-options=-Werror
       - run:
           name: Run tests
-          command: stack --interleaved-output test
+          command: stack test --interleaved-output
       - run:
           name: Install executable
           command: stack install
       - run:
+          name: hledger-flow version
+          command: ~/.local/bin/hledger-flow version
+      - run:
           name: Build Release Tarball
           command: ./bin/release-tarball ~/.local/bin/hledger-flow
+      - run:
+          name: Clone hledger-flow-example
+          command: git clone https://github.com/apauley/hledger-flow-example.git $HOME/hledger-flow-example
+      - run:
+          name: hledger-flow-example submodules
+          command: cd $HOME/hledger-flow-example && git submodule init && git submodule update && cd ..
+      - run:
+          name: hledger-flow import
+          command: ~/.local/bin/hledger-flow import --verbose $HOME/hledger-flow-example
+      - run:
+          name: hledger-flow report
+          command: ~/.local/bin/hledger-flow report --verbose $HOME/hledger-flow-example
       - save_cache:
           name: Cache Dependencies
           key: hledger-flow-v1-{{ checksum "package.yaml" }}-{{ checksum "stack.yaml" }}
