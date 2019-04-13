@@ -20,7 +20,7 @@ jobs:
           name: Run tests
           command: stack test --interleaved-output
       - run:
-          name: Install executable
+          name: Install hledger-flow executable
           command: stack install
       - run:
           name: hledger-flow version
@@ -28,6 +28,12 @@ jobs:
       - run:
           name: Build Release Tarball
           command: ./bin/release-tarball ~/.local/bin/hledger-flow
+      - run:
+          name: Install hledger
+          command: stack install hledger
+      - run:
+          name: Show hledger version
+          command: hledger --version
       - run:
           name: Clone hledger-flow-example
           command: git clone https://github.com/apauley/hledger-flow-example.git $HOME/hledger-flow-example

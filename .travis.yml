@@ -31,11 +31,12 @@ before_install:
   - mkdir -p ~/.local/bin
   - export PATH=$HOME/.local/bin:$PATH
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then if [[ ! -x ~/.local/bin/stack ]]; then travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'; chmod a+x ~/.local/bin/stack; fi ; fi
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update --verbose               ; fi
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install --verbose haskell-stack; fi
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then cat /proc/cpuinfo; fi
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then cat /proc/meminfo; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get update && sudo apt install hledger; fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then sysctl -n machdep.cpu.brand_string; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update --verbose; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install --verbose haskell-stack hledger; fi
 
 install:
 
@@ -54,6 +55,8 @@ install:
   - stack --stack-yaml=$STACK_YAML install
   - which hledger-flow
   - hledger-flow version
+  - which hledger
+  - hledger --version
   - git clone https://github.com/apauley/hledger-flow-example.git $HOME/hledger-flow-example
   - cd $HOME/hledger-flow-example && git submodule init && git submodule update && cd ..
   - hledger-flow import --verbose $HOME/hledger-flow-example
