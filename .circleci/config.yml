@@ -52,6 +52,9 @@ jobs:
       - run:
           name: hledger-flow report
           command: ~/.local/bin/hledger-flow report --verbose $HOME/hledger-flow-example
+      - run:
+          name: Undo package.yaml change before cache_save
+          command: git checkout HEAD package.yaml
       - save_cache:
           name: Cache Dependencies
           key: hledger-flow-v1-{{ checksum "package.yaml" }}-{{ checksum "stack.yaml" }}
