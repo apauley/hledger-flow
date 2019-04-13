@@ -52,10 +52,12 @@ install:
   - which hledger-flow
   - hledger-flow version
   - git clone https://github.com/apauley/hledger-flow-example.git
+  - cd hledger-flow-example && git submodule init && git submodule update && cd ..
+  - hledger-flow import --verbose $TRAVIS_BUILD_DIR/hledger-flow-example
+  - hledger-flow report --verbose $TRAVIS_BUILD_DIR/hledger-flow-example
 
 script:
   - stack --stack-yaml=$STACK_YAML test --interleaved-output --ghc-options=-Werror
-  - cd hledger-flow-example && git submodule init && git submodule update && hledger-flow import --verbose && hledger-flow report --verbose
 
 notifications:
   email: false
