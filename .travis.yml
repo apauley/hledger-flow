@@ -31,6 +31,7 @@ before_install:
   - mkdir -p ~/.local/bin
   - export PATH=$HOME/.local/bin:$PATH
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then if [[ ! -x ~/.local/bin/stack ]]; then travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'; chmod a+x ~/.local/bin/stack; fi ; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sed -i 's/- -dynamic #/- -static  #/g' $TRAVIS_BUILD_DIR/package.yaml; fi
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then cat /proc/cpuinfo; fi
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then cat /proc/meminfo; fi
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get update && sudo apt install hledger; fi
@@ -55,6 +56,7 @@ install:
   - stack --stack-yaml=$STACK_YAML install
   - which hledger-flow
   - hledger-flow version
+  - ldd $(which hledger-flow) || true
   - which hledger
   - hledger --version
   - git clone https://github.com/apauley/hledger-flow-example.git $HOME/hledger-flow-example
