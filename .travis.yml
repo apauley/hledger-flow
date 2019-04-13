@@ -48,9 +48,14 @@ install:
   - stack --stack-yaml=$STACK_YAML exec -- ghc --version
 
   - stack --stack-yaml=$STACK_YAML build --interleaved-output --test --bench --no-run-tests --no-run-benchmarks --ghc-options=-Werror
+  - stack --stack-yaml=$STACK_YAML install
+  - which hledger-flow
+  - hledger-flow version
+  - git clone https://github.com/apauley/hledger-flow-example.git
 
 script:
   - stack --stack-yaml=$STACK_YAML test --interleaved-output --ghc-options=-Werror
+  - cd hledger-flow-example && git submodule init && git submodule update && hledger-flow import --verbose && hledger-flow report --verbose
 
 notifications:
   email: false
