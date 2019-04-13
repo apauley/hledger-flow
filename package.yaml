@@ -46,6 +46,14 @@ executables:
     - -rtsopts
     - -with-rtsopts=-N
     - -Wall
+    - -fPIC
+    # - -static
+    # - -optc-static
+    # - -optl-static
+    # - -optl-pthread
+    ld-options:
+    - -static
+
     dependencies:
     - hledger-flow
     - turtle
