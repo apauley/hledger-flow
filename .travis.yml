@@ -1,5 +1,6 @@
 sudo: true
 language: generic
+dist: xenial
 
 git:
   depth: 5
