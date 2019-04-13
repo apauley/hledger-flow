@@ -34,6 +34,7 @@ before_install:
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update --verbose               ; fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install --verbose haskell-stack; fi
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then cat /proc/cpuinfo; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then cat /proc/meminfo; fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then sysctl -n machdep.cpu.brand_string; fi
 
 install:
