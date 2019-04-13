@@ -12,7 +12,7 @@ jobs:
             - hledger-flow-v1-{{ checksum "package.yaml" }}-{{ checksum "stack.yaml" }}
       - run:
           name: Link statically on Linux
-          command: sed -i 's/- -dynamic #/- -static  #/g' package.yaml
+          command: sed -i 's/- -dynamic /- -static  /g' package.yaml
       - run:
           name: Resolve/Update Dependencies
           command: stack setup --interleaved-output
