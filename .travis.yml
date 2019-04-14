@@ -58,14 +58,27 @@ install:
   - which hledger-flow
   - hledger-flow version
   - ldd $(which hledger-flow) || true
+  - ./bin/release-tarball ~/.local/bin/hledger-flow
   - which hledger
   - hledger --version
   - git clone --recurse-submodules https://github.com/apauley/hledger-flow-example.git $HOME/hledger-flow-example
 
 script:
   - stack test --interleaved-output --ghc-options=-Werror
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then git checkout HEAD package.yaml; fi
   - hledger-flow import --verbose $HOME/hledger-flow-example
   - hledger-flow report --verbose $HOME/hledger-flow-example
+
+deploy:
+  provider: releases
+  api_key:
+    secure: uxpsTBdBiYQXbl+fzTnjO90oj3WINPxu929MCZfQrVTWdvaIUdnrTNItonTTwSAwTzwMKXhVLkWSQ9AJFkPwHNxbA/h7XPtcEBTm3Hr56h9IoGPqQjG8N7Ws0JpqfnqLr36cr4Fl+Z8ZyfuwN+ODq+T56CBn/bi4OSi0+xFF+xi1C5YwUkcev1zd5ClNQl3x35W/zQLkWHm/dnUmmP2AP56aqzDTuqzgwiaTtLyxb/9AyFahIn+QHp1JqOiN+CIM96+f+zEHBWjkIyWLbQp3iM8+Cy0VHJMjoqq2CUKGRYRS/l02i7QwuHiMxCMlray2lcPLBGtaQIw1USXyIw4m6MUR8m0CeT6tWIWBYCQJoZrOe4D/cv7VkRii/w8kvWemmqEC2Fcyk+5H8L18TP2x8vj1P93oIWtTpi5iYTwc0KH1T+CAhno4mWX/73KX0FwA9/0tcYmVFyAOnXiqoufG3ca41hje+VhMq+3AVLO5p7yWDUrBtN76QFQdJX8zXK8TgrhLtAzqaERnuNxqawOjyHUoUbERYQow//Y+1jjJX7nHLV6rNQWMEPcTNTbWPeJfJy/rPUadiQWo8QShSYVy9iWhoQxMJn5VqXk1URTYrQ/UBAcYK7Zrw1GVLJhZeWrKEAiywtrwdgT6YgO4UsU/9jM+8oHWP6N06OUD1qoC37k=
+  file_glob: true
+  file:
+    - releases/*.tar.gz
+  skip_cleanup: true
+  on:
+    tags: true
 
 notifications:
   email: false

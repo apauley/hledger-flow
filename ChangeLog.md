@@ -4,6 +4,7 @@
 
 - Create statically linked executables on Linux - https://github.com/apauley/hledger-flow/releases
 - Log the exit status of shell commands.
+- Upgrade to LTS 13.16 for GHC 8.6.4.
 
 
 ## 0.11
