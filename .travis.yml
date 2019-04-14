@@ -20,11 +20,6 @@ os:
 env:
   - STACK_YAML="$TRAVIS_BUILD_DIR/stack.yaml"
 
-matrix:
-  include:
-  - env: STACK_YAML="$TRAVIS_BUILD_DIR/stack-8.4.4.yaml"
-  - env: STACK_YAML="$TRAVIS_BUILD_DIR/stack-8.2.2.yaml"
-
 before_cache:
  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew cleanup; fi
 
