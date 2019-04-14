@@ -75,5 +75,13 @@ deploy:
   on:
     tags: true
 
+  provider: hackage
+  username: apauley
+  password:
+    secure: iV3CJbLMjMCVZ9gksr23Vvlj26f6XfEIgY1BjYfIjKqEsACr62B0LgprB44ov/v98tU9QM+g9qRc2g8Q3kahSbCA7TRXo9cVO3j+lGBoA6LCJwkOG8eXyVenAg1WbTbX0sC5YRBdqRFDzFQTr8ZeNW+1Hr5Vy+Hk6CiBTaZz9kz2C5YHVKaQWiuPZcHkbGe6/EdnvT07EBIJmVxnAn9rdbgGY7utU4kFjL30DxjD03MvVSWR5M/tflt78iH4FPr5zG1KeQLdAfrlwGC2kH8Lpa3MI4YCjMjNXUoX+tNhf0TDWLxeelUv+pAZJRdsITge/zg/eeCWJqVL/uuTXNYDc39qEDUFReMtJbgtrlrFAm/NWtTTm1t6S0lNFzPjteO+0s2b3f1e8slRmR3OrvySITFnQHqgLA0zoccr7UhG0p2UH8nOOfa0D96BVnzX34jAFQSezm3lQ9LTldBZpI5XleqI/4vTTecaaHQXKGvg0+4wseVkrsYeNO23nRRT5r9Mb1Wlf88JWxI/n+Q2602z34w4qqVY9kU92P8Lphsw7HmlHmKYxa1cqrV9UGmJpKsY3yDTdv9pCkXG3X+n+GJHEYiGgrifmwtNo8PI+lDQ8GY389ReV7766TrAs9W3w76SEpHTwMRc9dJIsA4hbQk+VNri5GgYNzRvjJ3bvQbdjEk=
+  on:
+    condition:
+      - $TRAVIS_OS_NAME = linux
+
 notifications:
   email: false
