@@ -50,11 +50,11 @@ install:
   - stack --version
 
   # GHC
-  - stack --stack-yaml=$STACK_YAML setup --interleaved-output
-  - stack --stack-yaml=$STACK_YAML exec -- ghc --version
+  - stack setup --interleaved-output
+  - stack exec -- ghc --version
 
-  - stack --stack-yaml=$STACK_YAML build --interleaved-output --test --bench --no-run-tests --no-run-benchmarks --ghc-options=-Werror
-  - stack --stack-yaml=$STACK_YAML install
+  - stack build --interleaved-output --test --bench --no-run-tests --no-run-benchmarks --ghc-options=-Werror
+  - stack install
   - which hledger-flow
   - hledger-flow version
   - ldd $(which hledger-flow) || true
@@ -65,7 +65,7 @@ install:
   - cd $HOME/hledger-flow-example && hledger-flow report --verbose
 
 script:
-  - stack --stack-yaml=$STACK_YAML test --interleaved-output --ghc-options=-Werror
+  - stack test --interleaved-output --ghc-options=-Werror
 
 notifications:
   email: false
