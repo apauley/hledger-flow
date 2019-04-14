@@ -65,7 +65,7 @@ install:
 script:
   - stack test --interleaved-output --ghc-options=-Werror
   - hledger-flow import --verbose $HOME/hledger-flow-example
-  - cd $HOME/hledger-flow-example && hledger-flow report --verbose
+  - hledger-flow report --verbose $HOME/hledger-flow-example
 
 notifications:
   email: false
