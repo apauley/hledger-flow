@@ -46,6 +46,10 @@ executables:
     - -rtsopts
     - -with-rtsopts=-N
     - -Wall
+    - -fPIC
+    ld-options:
+    - -dynamic # change to -static for a statically linked executable. Does not work on osx
+
     dependencies:
     - hledger-flow
     - turtle

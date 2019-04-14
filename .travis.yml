@@ -1,5 +1,6 @@
 sudo: true
 language: generic
+dist: xenial
 
 git:
   depth: 5
@@ -31,8 +32,13 @@ before_install:
   - mkdir -p ~/.local/bin
   - export PATH=$HOME/.local/bin:$PATH
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then if [[ ! -x ~/.local/bin/stack ]]; then travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'; chmod a+x ~/.local/bin/stack; fi ; fi
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update --verbose               ; fi
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install --verbose haskell-stack; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sed -i 's/- -dynamic /- -static  /g' $TRAVIS_BUILD_DIR/package.yaml; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then cat /proc/cpuinfo; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then cat /proc/meminfo; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get update && sudo apt install hledger; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then sysctl -n machdep.cpu.brand_string; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update --verbose; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install --verbose haskell-stack hledger; fi
 
 install:
 
@@ -44,13 +50,22 @@ install:
   - stack --version
 
   # GHC
-  - stack --stack-yaml=$STACK_YAML setup --interleaved-output
-  - stack --stack-yaml=$STACK_YAML exec -- ghc --version
+  - stack setup --interleaved-output
+  - stack exec -- ghc --version
 
-  - stack --stack-yaml=$STACK_YAML build --interleaved-output --test --bench --no-run-tests --no-run-benchmarks --ghc-options=-Werror
+  - stack build --interleaved-output --test --bench --no-run-tests --no-run-benchmarks --ghc-options=-Werror
+  - stack install
+  - which hledger-flow
+  - hledger-flow version
+  - ldd $(which hledger-flow) || true
+  - which hledger
+  - hledger --version
+  - git clone --recurse-submodules https://github.com/apauley/hledger-flow-example.git $HOME/hledger-flow-example
 
 script:
-  - stack --stack-yaml=$STACK_YAML test --interleaved-output --ghc-options=-Werror
+  - stack test --interleaved-output --ghc-options=-Werror
+  - hledger-flow import --verbose $HOME/hledger-flow-example
+  - hledger-flow report --verbose $HOME/hledger-flow-example
 
 notifications:
   email: false

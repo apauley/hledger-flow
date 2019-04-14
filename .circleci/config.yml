@@ -11,17 +11,47 @@ jobs:
           keys:
             - hledger-flow-v1-{{ checksum "package.yaml" }}-{{ checksum "stack.yaml" }}
       - run:
+          name: Link statically on Linux
+          command: sed -i 's/- -dynamic /- -static  /g' package.yaml
+      - run:
           name: Resolve/Update Dependencies
-          command: stack setup
+          command: stack setup --interleaved-output
+      - run:
+          name: Stack Build
+          command: stack build --interleaved-output --test --bench --no-run-tests --no-run-benchmarks --ghc-options=-Werror
       - run:
           name: Run tests
-          command: stack --interleaved-output test
+          command: stack test --interleaved-output
       - run:
-          name: Install executable
+          name: Install hledger-flow executable
           command: stack install
+      - run:
+          name: hledger-flow version
+          command: ~/.local/bin/hledger-flow version
+      - run:
+          name: List hledger-flow shared object dependencies - should not be dynamic
+          command: ldd ~/.local/bin/hledger-flow || true
       - run:
           name: Build Release Tarball
           command: ./bin/release-tarball ~/.local/bin/hledger-flow
+      - run:
+          name: Install hledger
+          command: stack install hledger
+      - run:
+          name: Show hledger version
+          command: hledger --version
+      - run:
+          name: Clone hledger-flow-example
+          command: git clone --recurse-submodules https://github.com/apauley/hledger-flow-example.git $HOME/hledger-flow-example
+      - run:
+          name: hledger-flow import
+          command: ~/.local/bin/hledger-flow import --verbose $HOME/hledger-flow-example
+      - run:
+          name: hledger-flow report
+          command: ~/.local/bin/hledger-flow report --verbose $HOME/hledger-flow-example
+      - run:
+          name: Undo package.yaml change before cache_save
+          command: git checkout HEAD package.yaml
       - save_cache:
           name: Cache Dependencies
           key: hledger-flow-v1-{{ checksum "package.yaml" }}-{{ checksum "stack.yaml" }}

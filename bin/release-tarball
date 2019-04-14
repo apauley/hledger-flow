@@ -22,7 +22,8 @@ TARGETBASE=${BASEDIR}/releases
 mkdir -p ${TARGETBASE}
 
 ABBRHASH="$(git log -1 --format=tformat:%h)"
-VERSION="v$(grep '^version:' ${BASEDIR}/package.yaml|awk '{print $2}')"
+PACKAGE_VERSION="$(grep '^version:' ${BASEDIR}/package.yaml|awk '{print $2}')"
+VERSION="v${PACKAGE_VERSION}"
 CLI_NAME="$(basename ${FILE})"
 PLATFORM=`uname -s`
 ARCH=`uname -m`
@@ -32,10 +33,20 @@ TARNAME="${VNAME}.tar.gz"
 TARGET=${TARGETBASE}/${VNAME}
 rm -rf ${TARGET}
 mkdir ${TARGET}
+BUILDINFO=${TARGET}/buildinfo.txt
+date > ${BUILDINFO}
+
+echo >> ${BUILDINFO}
+uname -a >> ${BUILDINFO}
+echo -e "\nhledger-flow version: $(${FILE} version)" >> ${BUILDINFO}
+echo -e "hledger-flow package.yaml version: ${PACKAGE_VERSION}\n" >> ${BUILDINFO}
+shasum --algorithm 256 ${FILE} >> ${BUILDINFO}
+echo >> ${BUILDINFO}
+git log -1 >> ${BUILDINFO}
 
 cp ${FILE} ${TARGET}
 cd ${TARGET}
-shasum --algorithm 256 * > ${VNAME}-sha256.txt
+shasum --algorithm 256 * > sha256-${VNAME}.txt
 cd ${TARGETBASE}
 tar zcf ${TARNAME} ${VNAME}
 

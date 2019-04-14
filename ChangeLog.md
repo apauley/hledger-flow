@@ -1,5 +1,11 @@
 # Changelog for [hledger-flow](https://github.com/apauley/hledger-flow)
 
+## 0.11.1
+
+- Create statically linked executables on Linux - https://github.com/apauley/hledger-flow/releases
+- Log the exit status of shell commands.
+
+
 ## 0.11
 
 - Change the name from `hledger-makeitso` to `hledger-flow`.

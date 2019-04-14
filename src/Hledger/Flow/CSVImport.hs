@@ -104,7 +104,7 @@ hledgerImport' opts ch importDirs csvSrc journalOut = do
   case maybeRulesFile of
     Just rf -> do
       let relRules = relativeToBase opts rf
-      let action = procs "hledger" ["print", "--rules-file", format fp rf, "--file", format fp csvSrc, "--output-file", format fp journalOut] empty
+      let action = proc "hledger" ["print", "--rules-file", format fp rf, "--file", format fp csvSrc, "--output-file", format fp journalOut] empty
       let msg = format ("importing '"%fp%"' using rules file '"%fp%"'") relCSV relRules
       _ <- logVerboseTime opts ch msg action
       return journalOut
@@ -152,7 +152,7 @@ customConstruct :: ImportOptions -> TChan LogMessage -> FilePath -> Line -> Line
 customConstruct opts ch constructScript bank account owner csvSrc journalOut = do
   let script = format fp constructScript :: Text
   let importOut = inproc script [format fp csvSrc, "-", lineToText bank, lineToText account, lineToText owner] empty
-  let action = procs "hledger" ["print", "--ignore-assertions", "--file", "-", "--output-file", format fp journalOut] importOut
+  let action = proc "hledger" ["print", "--ignore-assertions", "--file", "-", "--output-file", format fp journalOut] importOut
   let relScript = relativeToBase opts constructScript
   let relSrc = relativeToBase opts csvSrc
   let msg = format ("executing '"%fp%"' on '"%fp%"'") relScript relSrc
