@@ -39,9 +39,9 @@ importCSVs' opts ch = do
       exit $ ExitFailure 1
     else
     do
-      logVerbose opts ch $ format ("Found "%d%" input files in "%s%". Proceeding with import...") fileCount (repr diff)
+      channelOut ch $ format ("Found "%d%" input files in "%s%". Proceeding with import...") fileCount (repr diff)
       let actions = map (extractAndImport opts ch) inputFiles :: [IO FilePath]
-      importedJournals <- single . shellToList $ parallel actions
+      importedJournals <- if (sequential opts) then sequence actions else single . shellToList $ parallel actions
       sh $ writeIncludesUpTo opts ch "import" importedJournals
       return importedJournals
 
