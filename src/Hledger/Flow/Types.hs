@@ -11,3 +11,9 @@ class HasVerbosity a where
 
 class HasBaseDir a where
   baseDir :: a -> FilePath
+
+class HasExitCode a where
+  exitCode :: a -> ExitCode
+
+instance HasExitCode ExitCode where
+  exitCode c = c
