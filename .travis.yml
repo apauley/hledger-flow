@@ -58,6 +58,7 @@ install:
   - which hledger-flow
   - hledger-flow version
   - ldd $(which hledger-flow) || true
+  - ./bin/release-tarball ~/.local/bin/hledger-flow
   - which hledger
   - hledger --version
   - git clone --recurse-submodules https://github.com/apauley/hledger-flow-example.git $HOME/hledger-flow-example
