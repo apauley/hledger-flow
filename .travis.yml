@@ -43,6 +43,8 @@ install:
   - type -a stack
   - stack --version
 
+  - stack install cabal-install
+
   # GHC
   - stack setup --interleaved-output
   - stack exec -- ghc --version
