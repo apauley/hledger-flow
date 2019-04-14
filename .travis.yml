@@ -61,11 +61,11 @@ install:
   - which hledger
   - hledger --version
   - git clone --recurse-submodules https://github.com/apauley/hledger-flow-example.git $HOME/hledger-flow-example
-  - hledger-flow import --verbose $HOME/hledger-flow-example
-  - cd $HOME/hledger-flow-example && hledger-flow report --verbose
 
 script:
   - stack test --interleaved-output --ghc-options=-Werror
+  - hledger-flow import --verbose $HOME/hledger-flow-example
+  - cd $HOME/hledger-flow-example && hledger-flow report --verbose
 
 notifications:
   email: false
