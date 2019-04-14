@@ -36,9 +36,9 @@ mkdir -p ${TARGETBASE}
 
 ABBRHASH="$(git log -1 --format=tformat:%h)"
 PACKAGE_VERSION="$(grep '^version:' ${BASEDIR}/package.yaml|awk '{print $2}')"
+VERSION="v${PACKAGE_VERSION}"
 STACK_RESOLVER="$(grep '^resolver: lts-' ${STACK_YAML}|cut -d' ' -f2)"
 GHC_VERSION="$(stack exec -- ghc --version)"
-VERSION="v${PACKAGE_VERSION}"
 CLI_NAME="$(basename ${FILE})"
 PLATFORM=`uname -s`
 ARCH=`uname -m`

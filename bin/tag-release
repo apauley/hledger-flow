@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+
+set -e
+
+BASEDIR="$(pwd)"
+
+GITHASH="$(git log -1 --format=tformat:%H)"
+PACKAGE_VERSION="$(grep '^version:' ${BASEDIR}/package.yaml|awk '{print $2}')"
+VERSION="v${PACKAGE_VERSION}-beta"
+
+git tag --sign --message="Release version ${PACKAGE_VERSION}" ${VERSION} ${GITHASH}
