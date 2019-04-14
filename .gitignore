@@ -4,3 +4,4 @@ hledger-flow.cabal
 scratch
 docs/my-finances
 releases/
+*.c.*
