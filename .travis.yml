@@ -75,6 +75,7 @@ deploy:
   file_glob: true
   file:
     - releases/*.tar.gz
+  skip_cleanup: true
   on:
     tags: true
 
