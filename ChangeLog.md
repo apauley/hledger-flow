@@ -3,6 +3,7 @@
 ## 0.11.1
 
 - Create statically linked executables on Linux - https://github.com/apauley/hledger-flow/releases
+- Add an option to disable parallel processing
 - Log the exit status of shell commands.
 - Upgrade to LTS 13.16 for GHC 8.6.4.
 
