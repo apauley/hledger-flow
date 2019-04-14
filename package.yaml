@@ -54,6 +54,7 @@ executables:
     - hledger-flow
     - turtle
     - text
+    - optparse-applicative
 
 tests:
   hledger-flow-test:

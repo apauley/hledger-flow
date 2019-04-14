@@ -50,7 +50,7 @@ extraFiles = ["import/john/bogartbank/savings/2017-opening.journal"] :: [FilePat
 hiddenFiles = [".hiddenfile", "checking/.DS_Store", "import/john/bogartbank/savings/1-in/.anotherhiddenfile", "import/john/bogartbank/checking/1-in/2018/.hidden"] :: [FilePath]
 
 defaultOpts :: FilePath -> ImportOptions
-defaultOpts bd = ImportOptions bd False
+defaultOpts bd = ImportOptions bd False False
 
 toJournals :: [FilePath] -> [FilePath]
 toJournals = map (changePathAndExtension "3-journal" "journal")
