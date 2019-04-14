@@ -18,11 +18,26 @@ then
 fi
 
 BASEDIR="$(pwd)"
+
+if [ -z ${STACK_YAML} ]
+then
+    STACK_YAML="${BASEDIR}/stack.yaml"
+fi
+
+if [ ! -f ${STACK_YAML} ]
+then
+    >&2 echo "stack yaml file does not exist: ${STACK_YAML}"
+    exit 1
+fi
+export STACK_YAML
+
 TARGETBASE=${BASEDIR}/releases
 mkdir -p ${TARGETBASE}
 
 ABBRHASH="$(git log -1 --format=tformat:%h)"
 PACKAGE_VERSION="$(grep '^version:' ${BASEDIR}/package.yaml|awk '{print $2}')"
+STACK_RESOLVER="$(grep '^resolver: lts-' ${STACK_YAML}|cut -d' ' -f2)"
+GHC_VERSION="$(stack exec -- ghc --version)"
 VERSION="v${PACKAGE_VERSION}"
 CLI_NAME="$(basename ${FILE})"
 PLATFORM=`uname -s`
@@ -40,6 +55,9 @@ echo >> ${BUILDINFO}
 uname -a >> ${BUILDINFO}
 echo -e "\nhledger-flow version: $(${FILE} version)" >> ${BUILDINFO}
 echo -e "hledger-flow package.yaml version: ${PACKAGE_VERSION}\n" >> ${BUILDINFO}
+echo -e "${STACK_YAML} resolver: ${STACK_RESOLVER}" >> ${BUILDINFO}
+echo -e "GHC Version: ${GHC_VERSION}\n" >> ${BUILDINFO}
+
 shasum --algorithm 256 ${FILE} >> ${BUILDINFO}
 echo >> ${BUILDINFO}
 git log -1 >> ${BUILDINFO}
