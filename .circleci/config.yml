@@ -29,7 +29,7 @@ jobs:
           name: hledger-flow version
           command: ~/.local/bin/hledger-flow version
       - run:
-          name: List hledger-flow shared object dependencies - should be empty
+          name: List hledger-flow shared object dependencies - should not be dynamic
           command: ldd ~/.local/bin/hledger-flow || true
       - run:
           name: Build Release Tarball
@@ -42,10 +42,7 @@ jobs:
           command: hledger --version
       - run:
           name: Clone hledger-flow-example
-          command: git clone https://github.com/apauley/hledger-flow-example.git $HOME/hledger-flow-example
-      - run:
-          name: hledger-flow-example submodules
-          command: cd $HOME/hledger-flow-example && git submodule init && git submodule update && cd ..
+          command: git clone --recurse-submodules https://github.com/apauley/hledger-flow-example.git $HOME/hledger-flow-example
       - run:
           name: hledger-flow import
           command: ~/.local/bin/hledger-flow import --verbose $HOME/hledger-flow-example

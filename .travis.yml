@@ -60,8 +60,7 @@ install:
   - ldd $(which hledger-flow) || true
   - which hledger
   - hledger --version
-  - git clone https://github.com/apauley/hledger-flow-example.git $HOME/hledger-flow-example
-  - cd $HOME/hledger-flow-example && git submodule init && git submodule update && cd ..
+  - git clone --recurse-submodules https://github.com/apauley/hledger-flow-example.git $HOME/hledger-flow-example
   - hledger-flow import --verbose $HOME/hledger-flow-example
   - cd $HOME/hledger-flow-example && hledger-flow report --verbose
 
