@@ -33,8 +33,8 @@ ownerReports :: ReportOptions -> TChan LogMessage -> Text -> IO [FilePath]
 ownerReports opts ch owner = do
   let journal = (baseDir opts) </> "all-years" <.> "journal"
   let reportsDir = (baseDir opts) </> "reports" </> fromText owner
-  let reports = map (\r -> r opts ch journal reportsDir) [accountList, incomeStatement]
-  results <- single $ shellToList $ parallel reports
+  let actions = map (\r -> r opts ch journal reportsDir) [accountList, incomeStatement]
+  results <- if (sequential opts) then sequence actions else single $ shellToList $ parallel actions
   return $ map fst results
 
 incomeStatement :: ReportOptions -> TChan LogMessage -> FilePath -> FilePath -> IO (FilePath, FullTimedOutput)
