@@ -17,6 +17,7 @@ generateReports opts = sh (
   do
     ch <- liftIO newTChanIO
     logHandle <- fork $ consoleChannelLoop ch
+    liftIO $ if (showOptions opts) then channelOut ch (repr opts) else return ()
     (reports, diff) <- time $ liftIO $ generateReports' opts ch
     liftIO $ channelOut ch $ format ("Generated "%d%" reports in "%s) (length reports) $ repr diff
     liftIO $ terminateChannelLoop ch

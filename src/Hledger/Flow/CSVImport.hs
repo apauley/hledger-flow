@@ -18,6 +18,7 @@ importCSVs opts = sh (
   do
     ch <- liftIO newTChanIO
     logHandle <- fork $ consoleChannelLoop ch
+    liftIO $ if (showOptions opts) then channelOut ch (repr opts) else return ()
     liftIO $ logVerbose opts ch "Starting import"
     (journals, diff) <- time $ liftIO $ importCSVs' opts ch
     liftIO $ channelOut ch $ format ("Imported "%d%" journals in "%s) (length journals) $ repr diff
