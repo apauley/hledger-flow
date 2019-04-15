@@ -14,7 +14,7 @@ import Hledger.Flow.Common
 import Hledger.Flow.Reports
 import Hledger.Flow.CSVImport
 
-type SubcommandParams = (Maybe FilePath, Bool, Bool)
+type SubcommandParams = (Maybe FilePath, Bool, Bool, Bool)
 data Command = Version (Maybe Text) | Import SubcommandParams | Report SubcommandParams deriving (Show)
 
 main :: IO ()
@@ -26,14 +26,20 @@ main = do
     Report subParams -> toReportOptions subParams >>= generateReports
 
 toImportOptions :: SubcommandParams -> IO IT.ImportOptions
-toImportOptions (maybeBaseDir, verbose, sequential) = do
+toImportOptions (maybeBaseDir, verbose, showOpts, sequential) = do
   bd <- dirOrPwd maybeBaseDir
-  return IT.ImportOptions {IT.baseDir = bd, IT.verbose = verbose, IT.sequential = sequential}
+  return IT.ImportOptions { IT.baseDir = bd
+                          , IT.verbose = verbose
+                          , IT.showOptions = showOpts
+                          , IT.sequential = sequential }
 
 toReportOptions :: SubcommandParams -> IO RT.ReportOptions
-toReportOptions (maybeBaseDir, verbose, sequential) = do
+toReportOptions (maybeBaseDir, verbose, showOpts, sequential) = do
   bd <- dirOrPwd maybeBaseDir
-  return RT.ReportOptions {RT.baseDir = bd, RT.verbose = verbose, RT.sequential = sequential}
+  return RT.ReportOptions { RT.baseDir = bd
+                          , RT.verbose = verbose
+                          , RT.showOptions = showOpts
+                          , RT.sequential = sequential }
 
 parser :: Parser Command
 parser = fmap Import (subcommand "import" "Converts CSV transactions into categorised journal files" subcommandParser)
@@ -41,9 +47,10 @@ parser = fmap Import (subcommand "import" "Converts CSV transactions into catego
   <|> fmap Version (subcommand "version" "Display version information" noArgs)
 
 subcommandParser :: Parser SubcommandParams
-subcommandParser = (,,)
+subcommandParser = (,,,)
   <$> optional (argPath "basedir" "The hledger-flow base directory")
   <*> switch (long "verbose" <> short 'v' <> help "Print more verbose output")
+  <*> switch (long "show-options" <> help "Print the options this program will run with")
   <*> switch (long "sequential" <> help "Disable parallel processing")
 
 noArgs :: Parser (Maybe Text)

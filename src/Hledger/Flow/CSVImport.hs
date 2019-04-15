@@ -18,6 +18,7 @@ importCSVs opts = sh (
   do
     ch <- liftIO newTChanIO
     logHandle <- fork $ consoleChannelLoop ch
+    liftIO $ if (showOptions opts) then channelOut ch (repr opts) else return ()
     liftIO $ logVerbose opts ch "Starting import"
     (journals, diff) <- time $ liftIO $ importCSVs' opts ch
     liftIO $ channelOut ch $ format ("Imported "%d%" journals in "%s) (length journals) $ repr diff
@@ -25,18 +26,23 @@ importCSVs opts = sh (
     wait logHandle
   )
 
+pathSeparators :: [Char]
+pathSeparators = ['/', '\\', ':']
+
+inputFilePattern :: Pattern Text
+inputFilePattern = contains (once (oneOf pathSeparators) <> asciiCI "1-in" <> once (oneOf pathSeparators) <> plus digit <> once (oneOf pathSeparators))
+
 importCSVs' :: ImportOptions -> TChan LogMessage -> IO [FilePath]
 importCSVs' opts ch = do
   channelOut ch "Collecting input files..."
-  (inputFiles, diff) <- time $ single . shellToList . onlyFiles $ find (has (suffix "1-in")) $ baseDir opts
+  (inputFiles, diff) <- time $ single . shellToList . onlyFiles $ find inputFilePattern $ baseDir opts
   let fileCount = length inputFiles
   if (fileCount == 0) then
     do
       let msg = format ("I couldn't find any input files underneath "%fp
                         %"\n\nhledger-makitso expects to find its input files in specifically\nnamed directories.\n\n"%
                         "Have a look at the documentation for a detailed explanation:\n"%s) (dirname (baseDir opts) </> "import/") (docURL "input-files")
-      stderr $ select $ textToLines msg
-      exit $ ExitFailure 1
+      errExit 1 ch msg []
     else
     do
       channelOut ch $ format ("Found "%d%" input files in "%s%". Proceeding with import...") fileCount (repr diff)
@@ -50,8 +56,7 @@ extractAndImport opts ch inputFile = do
   case extractImportDirs inputFile of
     Right importDirs -> importCSV opts ch importDirs inputFile
     Left errorMessage -> do
-      stderr $ select $ textToLines errorMessage
-      exit $ ExitFailure 1
+      errExit 1 ch errorMessage inputFile
 
 importCSV :: ImportOptions -> TChan LogMessage -> ImportDirs -> FilePath -> IO FilePath
 importCSV opts ch importDirs srcFile = do
@@ -93,8 +98,7 @@ hledgerImport opts ch csvSrc journalOut = do
   case extractImportDirs csvSrc of
     Right importDirs -> hledgerImport' opts ch importDirs csvSrc journalOut
     Left errorMessage -> do
-      stderr $ select $ textToLines errorMessage
-      exit $ ExitFailure 1
+      errExit 1 ch errorMessage csvSrc
 
 hledgerImport' :: ImportOptions -> TChan LogMessage -> ImportDirs -> FilePath -> FilePath -> IO FilePath
 hledgerImport' opts ch importDirs csvSrc journalOut = do
@@ -116,8 +120,7 @@ hledgerImport' opts ch importDirs csvSrc journalOut = do
                           %"\n\nI will happily use the first rules file I can find from any one of these "%d%" files:\n"%s
                           %"\n\nHere is a bit of documentation about rules files that you may find helpful:\n"%s)
                   relCSV (length candidates) candidatesTxt (docURL "rules-files")
-        stderr $ select $ textToLines msg
-        exit $ ExitFailure 1
+        errExit 1 ch msg csvSrc
 
 rulesFileCandidates :: FilePath -> ImportDirs -> [FilePath]
 rulesFileCandidates csvSrc importDirs = statementSpecificRulesFiles csvSrc importDirs ++ generalRulesFiles importDirs

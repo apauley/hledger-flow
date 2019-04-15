@@ -1,12 +1,18 @@
 # Changelog for [hledger-flow](https://github.com/apauley/hledger-flow)
 
+## 0.11.1.1
+
+- Support input files from the year 2011 - https://github.com/apauley/hledger-flow/issues/27
+  Use a more specific input-file pattern, so as not to match 2011-include.journal
+- Print command-line options if requested - https://github.com/apauley/hledger-flow/issues/11
+- Use the channel output functions consistently to avoid concurrency issues.
+
 ## 0.11.1
 
 - Create statically linked executables on Linux - https://github.com/apauley/hledger-flow/releases
 - Add an option to disable parallel processing
 - Log the exit status of shell commands.
 - Upgrade to LTS 13.16 for GHC 8.6.4.
-
 
 ## 0.11
 

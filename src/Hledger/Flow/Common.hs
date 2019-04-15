@@ -8,6 +8,7 @@ module Hledger.Flow.Common
     , terminateChannelLoop
     , channelOut
     , channelErr
+    , errExit
     , logVerbose
     , logVerboseTime
     , verboseTestFile
@@ -76,6 +77,13 @@ channelOut ch txt = atomically $ writeTChan ch $ StdOut txt
 
 channelErr :: TChan LogMessage -> Text -> IO ()
 channelErr ch txt = atomically $ writeTChan ch $ StdErr txt
+
+errExit :: Int -> TChan LogMessage -> Text -> a -> IO a
+errExit exitStatus ch errorMessage dummyReturnValue = do
+  channelErr ch errorMessage
+  sleep 0.1
+  _ <- exit $ ExitFailure exitStatus
+  return dummyReturnValue
 
 timestampPrefix :: Text -> IO Text
 timestampPrefix txt = do
