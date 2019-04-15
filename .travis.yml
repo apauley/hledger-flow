@@ -87,5 +87,8 @@ deploy:
       condition:
         - $TRAVIS_OS_NAME = linux
 
+after_deploy:
+  - cabal upload --publish || true
+
 notifications:
   email: false
