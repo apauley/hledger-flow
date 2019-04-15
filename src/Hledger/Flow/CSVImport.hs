@@ -26,10 +26,16 @@ importCSVs opts = sh (
     wait logHandle
   )
 
+pathSeparators :: [Char]
+pathSeparators = ['/', '\\', ':']
+
+inputFilePattern :: Pattern Text
+inputFilePattern = contains (once (oneOf pathSeparators) <> asciiCI "1-in" <> once (oneOf pathSeparators) <> plus digit <> once (oneOf pathSeparators))
+
 importCSVs' :: ImportOptions -> TChan LogMessage -> IO [FilePath]
 importCSVs' opts ch = do
   channelOut ch "Collecting input files..."
-  (inputFiles, diff) <- time $ single . shellToList . onlyFiles $ find (has (suffix "1-in")) $ baseDir opts
+  (inputFiles, diff) <- time $ single . shellToList . onlyFiles $ find inputFilePattern $ baseDir opts
   let fileCount = length inputFiles
   if (fileCount == 0) then
     do
