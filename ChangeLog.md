@@ -1,5 +1,9 @@
 # Changelog for [hledger-flow](https://github.com/apauley/hledger-flow)
 
+## 0.11.1.2
+
+- Exit when any external script fails - https://github.com/apauley/hledger-flow/issues/28
+
 ## 0.11.1.1
 
 - Support input files from the year 2011 - https://github.com/apauley/hledger-flow/issues/27

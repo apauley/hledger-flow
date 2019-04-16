@@ -113,12 +113,20 @@ terminateChannelLoop ch = atomically $ writeTChan ch Terminate
 logVerbose :: HasVerbosity o => o -> TChan LogMessage -> Text -> IO ()
 logVerbose opts ch msg = if (verbose opts) then logToChannel ch msg else return ()
 
-timeAndExitOnErr :: (HasVerbosity o, HasExitCode a) => o -> TChan LogMessage -> Text -> IO a -> IO (a, NominalDiffTime)
-timeAndExitOnErr opts ch msg action = do
+logTimedAction :: (HasVerbosity o, HasExitCode a) => o -> TChan LogMessage -> Text -> IO a -> IO (a, NominalDiffTime)
+logTimedAction opts ch msg action = do
   logVerbose opts ch $ format ("Begin: "%s) msg
   (result, diff) <- time action
   logVerbose opts ch $ format ("End:   "%s%" "%s%" ("%s%")") msg (repr $ exitCode result) (repr diff)
   return (result, diff)
+
+timeAndExitOnErr :: (HasVerbosity o, HasExitCode a) => o -> TChan LogMessage -> Text -> IO a -> IO (a, NominalDiffTime)
+timeAndExitOnErr opts ch msg action = do
+  timed@(result, _) <- logTimedAction opts ch msg action
+  let ec = exitCode result
+  case ec of
+    ExitFailure i -> errExit i ch (format ("hledger-flow: an external process exited with exit code "%d%". See verbose output for details.") i) timed
+    ExitSuccess   -> return timed
 
 verboseTestFile :: (HasVerbosity o, HasBaseDir o) => o -> TChan LogMessage -> FilePath -> IO Bool
 verboseTestFile opts ch p = do
