@@ -10,7 +10,7 @@ module Hledger.Flow.Common
     , channelErr
     , errExit
     , logVerbose
-    , logVerboseTime
+    , timeAndExitOnErr
     , verboseTestFile
     , relativeToBase
     , relativeToBase'
@@ -113,8 +113,8 @@ terminateChannelLoop ch = atomically $ writeTChan ch Terminate
 logVerbose :: HasVerbosity o => o -> TChan LogMessage -> Text -> IO ()
 logVerbose opts ch msg = if (verbose opts) then logToChannel ch msg else return ()
 
-logVerboseTime :: (HasVerbosity o, HasExitCode a) => o -> TChan LogMessage -> Text -> IO a -> IO (a, NominalDiffTime)
-logVerboseTime opts ch msg action = do
+timeAndExitOnErr :: (HasVerbosity o, HasExitCode a) => o -> TChan LogMessage -> Text -> IO a -> IO (a, NominalDiffTime)
+timeAndExitOnErr opts ch msg action = do
   logVerbose opts ch $ format ("Begin: "%s) msg
   (result, diff) <- time action
   logVerbose opts ch $ format ("End:   "%s%" "%s%" ("%s%")") msg (repr $ exitCode result) (repr diff)

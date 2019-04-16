@@ -61,7 +61,7 @@ generateReport' opts ch journal outputFile args = do
   let reportDisplayArgs = ["--file", format fp relativeJournal] ++ args
   let action = procStrictWithErr "hledger" reportArgs empty
   let cmd = format ("hledger "%s) $ showCmdArgs reportDisplayArgs
-  result@((exitCode, stdOut, stdErr), _) <- logVerboseTime opts ch cmd action
+  result@((exitCode, stdOut, stdErr), _) <- timeAndExitOnErr opts ch cmd action
   if not (T.null stdOut) then do
     writeTextFile outputFile (cmd <> "\n\n"<> stdOut)
     channelOut ch $ format ("Wrote "%fp) $ relativeToBase opts outputFile

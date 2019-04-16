@@ -90,7 +90,7 @@ preprocess opts ch script bank account owner src = do
   let relScript = relativeToBase opts script
   let relSrc = relativeToBase opts src
   let msg = format ("executing '"%fp%"' on '"%fp%"'") relScript relSrc
-  _ <- logVerboseTime opts ch msg action
+  _ <- timeAndExitOnErr opts ch msg action
   return csvOut
 
 hledgerImport :: ImportOptions -> TChan LogMessage -> FilePath -> FilePath -> IO FilePath
@@ -110,7 +110,7 @@ hledgerImport' opts ch importDirs csvSrc journalOut = do
       let relRules = relativeToBase opts rf
       let action = proc "hledger" ["print", "--rules-file", format fp rf, "--file", format fp csvSrc, "--output-file", format fp journalOut] empty
       let msg = format ("importing '"%fp%"' using rules file '"%fp%"'") relCSV relRules
-      _ <- logVerboseTime opts ch msg action
+      _ <- timeAndExitOnErr opts ch msg action
       return journalOut
     Nothing ->
       do
@@ -159,6 +159,6 @@ customConstruct opts ch constructScript bank account owner csvSrc journalOut = d
   let relScript = relativeToBase opts constructScript
   let relSrc = relativeToBase opts csvSrc
   let msg = format ("executing '"%fp%"' on '"%fp%"'") relScript relSrc
-  _ <- logVerboseTime opts ch msg action
+  _ <- timeAndExitOnErr opts ch msg action
 
   return journalOut
