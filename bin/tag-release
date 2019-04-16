@@ -8,4 +8,4 @@ GITHASH="$(git log -1 --format=tformat:%H)"
 PACKAGE_VERSION="$(grep '^version:' ${BASEDIR}/package.yaml|awk '{print $2}')"
 VERSION="v${PACKAGE_VERSION}-beta"
 
-git tag --sign --message="Release version ${PACKAGE_VERSION}" ${VERSION} ${GITHASH}
+git tag --sign --message="Release version ${PACKAGE_VERSION}. See ChangeLog for details - https://github.com/apauley/hledger-flow/blob/master/ChangeLog.md" ${VERSION} ${GITHASH}
