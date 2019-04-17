@@ -11,6 +11,11 @@ data LogMessage = StdOut Text | StdErr Text | Terminate deriving (Show)
 type FullOutput = (ExitCode, Text, Text)
 type FullTimedOutput = (FullOutput, NominalDiffTime)
 
+data HledgerInfo = HledgerInfo { hlPath :: FilePath
+                               , hlVersion :: Text
+                               }
+                 deriving (Show)
+
 class HasVerbosity a where
   verbose :: a -> Bool
 

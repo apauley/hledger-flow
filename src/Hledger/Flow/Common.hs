@@ -3,6 +3,9 @@
 module Hledger.Flow.Common
     ( docURL
     , versionInfo
+    , hledgerPathFromOption
+    , hledgerVersionFromPath
+    , hledgerInfoFromPath
     , showCmdArgs
     , consoleChannelLoop
     , terminateChannelLoop
@@ -67,6 +70,23 @@ type InputFileBundle = Map.Map FilePath [FilePath]
 versionInfo :: NE.NonEmpty Line
 versionInfo = textToLines $ T.pack ("hledger-flow " ++ Version.showVersion version)
 
+hledgerPathFromOption :: Maybe FilePath -> IO FilePath
+hledgerPathFromOption pathOption = do
+  case pathOption of
+    Just h -> return h
+    Nothing -> do
+      maybeH <- which "hledger"
+      return $ fromMaybe "hledger" maybeH
+
+hledgerVersionFromPath :: FilePath -> IO Text
+hledgerVersionFromPath hlp = fmap (T.strip . linesToText) (single $ shellToList $ inproc (format fp hlp) ["--version"] empty)
+
+hledgerInfoFromPath :: Maybe FilePath -> IO HledgerInfo
+hledgerInfoFromPath pathOption = do
+  hlp <- hledgerPathFromOption pathOption
+  hlv <- hledgerVersionFromPath hlp
+  return $ HledgerInfo hlp hlv
+
 showCmdArgs :: [Text] -> Text
 showCmdArgs args = T.intercalate " " (map escapeArg args)
 
@@ -86,8 +106,15 @@ channelErrLn :: TChan LogMessage -> Text -> IO ()
 channelErrLn ch txt = channelErr ch (txt <> "\n")
 
 errExit :: Int -> TChan LogMessage -> Text -> a -> IO a
-errExit exitStatus ch errorMessage dummyReturnValue = do
-  channelErrLn ch errorMessage
+errExit exitStatus ch = errExit' exitStatus (channelErrLn ch)
+  -- channelErrLn ch errorMessage
+  -- sleep 0.1
+  -- _ <- exit $ ExitFailure exitStatus
+  -- return dummyReturnValue
+
+errExit' :: Int -> (Text -> IO ()) -> Text -> a -> IO a
+errExit' exitStatus logFun errorMessage dummyReturnValue = do
+  logFun errorMessage
   sleep 0.1
   _ <- exit $ ExitFailure exitStatus
   return dummyReturnValue
