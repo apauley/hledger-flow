@@ -45,10 +45,10 @@ jobs:
           command: git clone --recurse-submodules https://github.com/apauley/hledger-flow-example.git $HOME/hledger-flow-example
       - run:
           name: hledger-flow import
-          command: ~/.local/bin/hledger-flow import --verbose $HOME/hledger-flow-example
+          command: ~/.local/bin/hledger-flow import --show-options --verbose $HOME/hledger-flow-example
       - run:
           name: hledger-flow report
-          command: ~/.local/bin/hledger-flow report --verbose $HOME/hledger-flow-example
+          command: ~/.local/bin/hledger-flow report --show-options --verbose $HOME/hledger-flow-example
       - run:
           name: Undo package.yaml change before cache_save
           command: git checkout HEAD package.yaml

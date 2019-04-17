@@ -61,8 +61,8 @@ install:
 script:
   - stack test --interleaved-output --ghc-options=-Werror
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then git checkout HEAD package.yaml; fi
-  - hledger-flow import --verbose $HOME/hledger-flow-example
-  - hledger-flow report --verbose $HOME/hledger-flow-example
+  - hledger-flow import --show-options --verbose $HOME/hledger-flow-example
+  - hledger-flow report --show-options --verbose $HOME/hledger-flow-example
 
 deploy:
   provider: releases
