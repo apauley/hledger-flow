@@ -14,5 +14,8 @@ data ReportOptions = ReportOptions { baseDir :: FilePath
 instance HasVerbosity ReportOptions where
   verbose (ReportOptions _ v _ _) = v
 
+instance HasSequential ReportOptions where
+  sequential (ReportOptions _ _ _ s) = s
+
 instance HasBaseDir ReportOptions where
   baseDir (ReportOptions bd _ _ _) = bd

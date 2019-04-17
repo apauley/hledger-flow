@@ -6,11 +6,12 @@ module Hledger.Flow.Common
     , showCmdArgs
     , consoleChannelLoop
     , terminateChannelLoop
-    , channelOut
-    , channelErr
+    , channelOut, channelOutLn
+    , channelErr, channelErrLn
     , errExit
     , logVerbose
     , timeAndExitOnErr
+    , parAwareProc
     , verboseTestFile
     , relativeToBase
     , relativeToBase'
@@ -75,12 +76,18 @@ escapeArg a = if (T.count " " a > 0) then "'" <> a <> "'" else a
 channelOut :: TChan LogMessage -> Text -> IO ()
 channelOut ch txt = atomically $ writeTChan ch $ StdOut txt
 
+channelOutLn :: TChan LogMessage -> Text -> IO ()
+channelOutLn ch txt = channelOut ch (txt <> "\n")
+
 channelErr :: TChan LogMessage -> Text -> IO ()
 channelErr ch txt = atomically $ writeTChan ch $ StdErr txt
 
+channelErrLn :: TChan LogMessage -> Text -> IO ()
+channelErrLn ch txt = channelErr ch (txt <> "\n")
+
 errExit :: Int -> TChan LogMessage -> Text -> a -> IO a
 errExit exitStatus ch errorMessage dummyReturnValue = do
-  channelErr ch errorMessage
+  channelErrLn ch errorMessage
   sleep 0.1
   _ <- exit $ ExitFailure exitStatus
   return dummyReturnValue
@@ -93,17 +100,17 @@ timestampPrefix txt = do
 logToChannel :: TChan LogMessage -> Text -> IO ()
 logToChannel ch msg = do
   ts <- timestampPrefix msg
-  channelErr ch ts
+  channelErrLn ch ts
 
 consoleChannelLoop :: TChan LogMessage -> IO ()
 consoleChannelLoop ch = do
   logMsg <- atomically $ readTChan ch
   case logMsg of
     StdOut msg -> do
-      T.hPutStrLn H.stdout msg
+      T.hPutStr H.stdout msg
       consoleChannelLoop ch
     StdErr msg -> do
-      T.hPutStrLn H.stderr msg
+      T.hPutStr H.stderr msg
       consoleChannelLoop ch
     Terminate  -> return ()
 
@@ -113,20 +120,30 @@ terminateChannelLoop ch = atomically $ writeTChan ch Terminate
 logVerbose :: HasVerbosity o => o -> TChan LogMessage -> Text -> IO ()
 logVerbose opts ch msg = if (verbose opts) then logToChannel ch msg else return ()
 
-logTimedAction :: (HasVerbosity o, HasExitCode a) => o -> TChan LogMessage -> Text -> IO a -> IO (a, NominalDiffTime)
+logTimedAction :: HasVerbosity o => o -> TChan LogMessage -> Text -> IO FullOutput -> IO FullTimedOutput
 logTimedAction opts ch msg action = do
   logVerbose opts ch $ format ("Begin: "%s) msg
-  (result, diff) <- time action
-  logVerbose opts ch $ format ("End:   "%s%" "%s%" ("%s%")") msg (repr $ exitCode result) (repr diff)
-  return (result, diff)
+  timed@((ec, _, _), diff) <- time action
+  logVerbose opts ch $ format ("End:   "%s%" "%s%" ("%s%")") msg (repr ec) (repr diff)
+  return timed
 
-timeAndExitOnErr :: (HasVerbosity o, HasExitCode a) => o -> TChan LogMessage -> Text -> IO a -> IO (a, NominalDiffTime)
+timeAndExitOnErr :: HasVerbosity o => o -> TChan LogMessage -> Text -> IO FullOutput -> IO FullTimedOutput
 timeAndExitOnErr opts ch msg action = do
-  timed@(result, _) <- logTimedAction opts ch msg action
-  let ec = exitCode result
+  timed@((ec, _, stdErr), _) <- logTimedAction opts ch msg action
+  if not (T.null stdErr)
+    then channelErr ch $ stdErr
+    else return ()
   case ec of
-    ExitFailure i -> errExit i ch (format ("hledger-flow: an external process exited with exit code "%d%". See verbose output for details.") i) timed
+    ExitFailure i -> errExit i ch (format ("\nhledger-flow: an external process exited with exit code "%d%". See verbose output for details.") i) timed
     ExitSuccess   -> return timed
+
+procWithEmptyOutput :: MonadIO io => Text -> [Text] -> Shell Line -> io FullOutput
+procWithEmptyOutput cmd args stdinput = do
+  ec <- proc cmd args stdinput
+  return (ec, T.empty, T.empty)
+
+parAwareProc :: (HasSequential o, MonadIO io) => o -> Text -> [Text] -> Shell Line -> io FullOutput
+parAwareProc opts = if (sequential opts) then procWithEmptyOutput else procStrictWithErr
 
 verboseTestFile :: (HasVerbosity o, HasBaseDir o) => o -> TChan LogMessage -> FilePath -> IO Bool
 verboseTestFile opts ch p = do

@@ -14,6 +14,9 @@ data ImportOptions = ImportOptions { baseDir :: FilePath
 instance HasVerbosity ImportOptions where
   verbose (ImportOptions _ v _ _) = v
 
+instance HasSequential ImportOptions where
+  sequential (ImportOptions _ _ _ s) = s
+
 instance HasBaseDir ImportOptions where
   baseDir (ImportOptions bd _ _ _) = bd
 

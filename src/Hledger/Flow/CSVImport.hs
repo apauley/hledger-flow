@@ -4,7 +4,7 @@ module Hledger.Flow.CSVImport
     ( importCSVs
     ) where
 
-import Turtle
+import Turtle hiding (stdout, stderr, proc, procStrictWithErr)
 import Prelude hiding (FilePath, putStrLn, take)
 import qualified Data.Text as T
 import qualified Data.List.NonEmpty as NonEmpty
@@ -18,10 +18,10 @@ importCSVs opts = sh (
   do
     ch <- liftIO newTChanIO
     logHandle <- fork $ consoleChannelLoop ch
-    liftIO $ if (showOptions opts) then channelOut ch (repr opts) else return ()
+    liftIO $ if (showOptions opts) then channelOutLn ch (repr opts) else return ()
     liftIO $ logVerbose opts ch "Starting import"
     (journals, diff) <- time $ liftIO $ importCSVs' opts ch
-    liftIO $ channelOut ch $ format ("Imported "%d%" journals in "%s) (length journals) $ repr diff
+    liftIO $ channelOutLn ch $ format ("Imported "%d%" journals in "%s) (length journals) $ repr diff
     liftIO $ terminateChannelLoop ch
     wait logHandle
   )
@@ -34,7 +34,7 @@ inputFilePattern = contains (once (oneOf pathSeparators) <> asciiCI "1-in" <> on
 
 importCSVs' :: ImportOptions -> TChan LogMessage -> IO [FilePath]
 importCSVs' opts ch = do
-  channelOut ch "Collecting input files..."
+  channelOutLn ch "Collecting input files..."
   (inputFiles, diff) <- time $ single . shellToList . onlyFiles $ find inputFilePattern $ baseDir opts
   let fileCount = length inputFiles
   if (fileCount == 0) then
@@ -45,7 +45,7 @@ importCSVs' opts ch = do
       errExit 1 ch msg []
     else
     do
-      channelOut ch $ format ("Found "%d%" input files in "%s%". Proceeding with import...") fileCount (repr diff)
+      channelOutLn ch $ format ("Found "%d%" input files in "%s%". Proceeding with import...") fileCount (repr diff)
       let actions = map (extractAndImport opts ch) inputFiles :: [IO FilePath]
       importedJournals <- if (sequential opts) then sequence actions else single . shellToList $ parallel actions
       sh $ writeIncludesUpTo opts ch "import" importedJournals
@@ -86,7 +86,7 @@ preprocess opts ch script bank account owner src = do
   let csvOut = changePathAndExtension "2-preprocessed" "csv" src
   mktree $ directory csvOut
   let script' = format fp script :: Text
-  let action = proc script' [format fp src, format fp csvOut, lineToText bank, lineToText account, lineToText owner] empty
+  let action = (parAwareProc opts) script' [format fp src, format fp csvOut, lineToText bank, lineToText account, lineToText owner] empty
   let relScript = relativeToBase opts script
   let relSrc = relativeToBase opts src
   let msg = format ("executing '"%fp%"' on '"%fp%"'") relScript relSrc
@@ -108,7 +108,7 @@ hledgerImport' opts ch importDirs csvSrc journalOut = do
   case maybeRulesFile of
     Just rf -> do
       let relRules = relativeToBase opts rf
-      let action = proc "hledger" ["print", "--rules-file", format fp rf, "--file", format fp csvSrc, "--output-file", format fp journalOut] empty
+      let action = (parAwareProc opts) "hledger" ["print", "--rules-file", format fp rf, "--file", format fp csvSrc, "--output-file", format fp journalOut] empty
       let msg = format ("importing '"%fp%"' using rules file '"%fp%"'") relCSV relRules
       _ <- timeAndExitOnErr opts ch msg action
       return journalOut
@@ -155,7 +155,7 @@ customConstruct :: ImportOptions -> TChan LogMessage -> FilePath -> Line -> Line
 customConstruct opts ch constructScript bank account owner csvSrc journalOut = do
   let script = format fp constructScript :: Text
   let importOut = inproc script [format fp csvSrc, "-", lineToText bank, lineToText account, lineToText owner] empty
-  let action = proc "hledger" ["print", "--ignore-assertions", "--file", "-", "--output-file", format fp journalOut] importOut
+  let action = (parAwareProc opts) "hledger" ["print", "--ignore-assertions", "--file", "-", "--output-file", format fp journalOut] importOut
   let relScript = relativeToBase opts constructScript
   let relSrc = relativeToBase opts csvSrc
   let msg = format ("executing '"%fp%"' on '"%fp%"'") relScript relSrc
