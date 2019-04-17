@@ -7,5 +7,6 @@ BASEDIR="$(pwd)"
 GITHASH="$(git log -1 --format=tformat:%H)"
 PACKAGE_VERSION="$(grep '^version:' ${BASEDIR}/package.yaml|awk '{print $2}')"
 VERSION="v${PACKAGE_VERSION}-beta"
+MSG=$(echo -e "Release version ${PACKAGE_VERSION}\n\nSee ChangeLog for details - https://github.com/apauley/hledger-flow/blob/master/ChangeLog.md")
 
-git tag --sign --message="Release version ${PACKAGE_VERSION}" ${VERSION} ${GITHASH}
+git tag --sign --message="${MSG}" ${VERSION} ${GITHASH}

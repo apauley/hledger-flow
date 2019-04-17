@@ -3,14 +3,10 @@
 
 module TestHelpers where
 
-import Test.HUnit
 import Turtle
 import Prelude hiding (FilePath)
-import qualified Data.Map.Strict as Map
-import qualified Control.Foldl as Fold
-import qualified Data.Text as T
-import qualified Data.List as List (sort)
 
+import qualified Hledger.Flow.Types as FlowTypes
 import Hledger.Flow.Import.Types
 import Hledger.Flow.Common
 
@@ -49,8 +45,11 @@ journalFiles = toJournals inputFiles :: [FilePath]
 extraFiles = ["import/john/bogartbank/savings/2017-opening.journal"] :: [FilePath]
 hiddenFiles = [".hiddenfile", "checking/.DS_Store", "import/john/bogartbank/savings/1-in/.anotherhiddenfile", "import/john/bogartbank/checking/1-in/2018/.hidden"] :: [FilePath]
 
+defaultHlInfo :: FlowTypes.HledgerInfo
+defaultHlInfo = FlowTypes.HledgerInfo "/path/to/hledger" "1.2.3"
+
 defaultOpts :: FilePath -> ImportOptions
-defaultOpts bd = ImportOptions bd False False False
+defaultOpts bd = ImportOptions bd defaultHlInfo False False False
 
 toJournals :: [FilePath] -> [FilePath]
 toJournals = map (changePathAndExtension "3-journal" "journal")

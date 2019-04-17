@@ -3,14 +3,18 @@
 module Hledger.Flow.Common
     ( docURL
     , versionInfo
+    , hledgerPathFromOption
+    , hledgerVersionFromPath
+    , hledgerInfoFromPath
     , showCmdArgs
     , consoleChannelLoop
     , terminateChannelLoop
-    , channelOut
-    , channelErr
+    , channelOut, channelOutLn
+    , channelErr, channelErrLn
     , errExit
     , logVerbose
-    , logVerboseTime
+    , timeAndExitOnErr
+    , parAwareProc
     , verboseTestFile
     , relativeToBase
     , relativeToBase'
@@ -66,6 +70,33 @@ type InputFileBundle = Map.Map FilePath [FilePath]
 versionInfo :: NE.NonEmpty Line
 versionInfo = textToLines $ T.pack ("hledger-flow " ++ Version.showVersion version)
 
+hledgerPathFromOption :: Maybe FilePath -> IO FilePath
+hledgerPathFromOption pathOption = do
+  case pathOption of
+    Just h  -> do
+      isOnDisk <- testfile h
+      if isOnDisk then return h else do
+        let msg = format ("Unable to find hledger at "%fp) h
+        errExit' 1 (T.hPutStrLn H.stderr) msg h
+    Nothing -> do
+      maybeH <- which "hledger"
+      case maybeH of
+        Just h  -> return h
+        Nothing -> do
+          let msg = "Unable to find hledger in your path.\n"
+                <> "You need to either install hledger, or add it to your PATH, or provide the path to an hledger executable.\n\n"
+                <> "There are a number of installation options on the hledger website: https://hledger.org/download.html"
+          errExit' 1 (T.hPutStrLn H.stderr) msg "/"
+
+hledgerVersionFromPath :: FilePath -> IO Text
+hledgerVersionFromPath hlp = fmap (T.strip . linesToText) (single $ shellToList $ inproc (format fp hlp) ["--version"] empty)
+
+hledgerInfoFromPath :: Maybe FilePath -> IO HledgerInfo
+hledgerInfoFromPath pathOption = do
+  hlp <- hledgerPathFromOption pathOption
+  hlv <- hledgerVersionFromPath hlp
+  return $ HledgerInfo hlp hlv
+
 showCmdArgs :: [Text] -> Text
 showCmdArgs args = T.intercalate " " (map escapeArg args)
 
@@ -75,12 +106,21 @@ escapeArg a = if (T.count " " a > 0) then "'" <> a <> "'" else a
 channelOut :: TChan LogMessage -> Text -> IO ()
 channelOut ch txt = atomically $ writeTChan ch $ StdOut txt
 
+channelOutLn :: TChan LogMessage -> Text -> IO ()
+channelOutLn ch txt = channelOut ch (txt <> "\n")
+
 channelErr :: TChan LogMessage -> Text -> IO ()
 channelErr ch txt = atomically $ writeTChan ch $ StdErr txt
 
+channelErrLn :: TChan LogMessage -> Text -> IO ()
+channelErrLn ch txt = channelErr ch (txt <> "\n")
+
 errExit :: Int -> TChan LogMessage -> Text -> a -> IO a
-errExit exitStatus ch errorMessage dummyReturnValue = do
-  channelErr ch errorMessage
+errExit exitStatus ch = errExit' exitStatus (channelErrLn ch)
+
+errExit' :: Int -> (Text -> IO ()) -> Text -> a -> IO a
+errExit' exitStatus logFun errorMessage dummyReturnValue = do
+  logFun errorMessage
   sleep 0.1
   _ <- exit $ ExitFailure exitStatus
   return dummyReturnValue
@@ -93,17 +133,17 @@ timestampPrefix txt = do
 logToChannel :: TChan LogMessage -> Text -> IO ()
 logToChannel ch msg = do
   ts <- timestampPrefix msg
-  channelErr ch ts
+  channelErrLn ch ts
 
 consoleChannelLoop :: TChan LogMessage -> IO ()
 consoleChannelLoop ch = do
   logMsg <- atomically $ readTChan ch
   case logMsg of
     StdOut msg -> do
-      T.hPutStrLn H.stdout msg
+      T.hPutStr H.stdout msg
       consoleChannelLoop ch
     StdErr msg -> do
-      T.hPutStrLn H.stderr msg
+      T.hPutStr H.stderr msg
       consoleChannelLoop ch
     Terminate  -> return ()
 
@@ -113,12 +153,41 @@ terminateChannelLoop ch = atomically $ writeTChan ch Terminate
 logVerbose :: HasVerbosity o => o -> TChan LogMessage -> Text -> IO ()
 logVerbose opts ch msg = if (verbose opts) then logToChannel ch msg else return ()
 
-logVerboseTime :: (HasVerbosity o, HasExitCode a) => o -> TChan LogMessage -> Text -> IO a -> IO (a, NominalDiffTime)
-logVerboseTime opts ch msg action = do
+logTimedAction :: HasVerbosity o => o -> TChan LogMessage -> Text -> IO FullOutput -> IO FullTimedOutput
+logTimedAction opts ch msg action = do
   logVerbose opts ch $ format ("Begin: "%s) msg
-  (result, diff) <- time action
-  logVerbose opts ch $ format ("End:   "%s%" "%s%" ("%s%")") msg (repr $ exitCode result) (repr diff)
-  return (result, diff)
+  timed@((ec, _, _), diff) <- time action
+  logVerbose opts ch $ format ("End:   "%s%" "%s%" ("%s%")") msg (repr ec) (repr diff)
+  return timed
+
+timeAndExitOnErr :: HasVerbosity o => o -> TChan LogMessage -> Text -> IO FullOutput -> IO FullTimedOutput
+timeAndExitOnErr opts ch msg action = do
+  timed@((ec, stdOut, stdErr), _) <- logTimedAction opts ch msg action
+  if not (T.null stdErr)
+    then channelErr ch stdErr
+    else return ()
+  case ec of
+    ExitFailure i -> do
+      let msgOut = if not (T.null stdOut)
+            then format ("Standard output:\n"%s%"\n") stdOut
+            else ""
+
+      let msgErr = if not (T.null stdErr)
+            then format ("Error output:\n"%s%"\n") stdErr
+            else ""
+
+      let exitMsg = format ("\nhledger-flow: an external process exited with exit code "%d%". \n"
+                            %s%s%"\nSee verbose output for more details.") i msgOut msgErr
+      errExit i ch exitMsg timed
+    ExitSuccess -> return timed
+
+procWithEmptyOutput :: MonadIO io => Text -> [Text] -> Shell Line -> io FullOutput
+procWithEmptyOutput cmd args stdinput = do
+  ec <- proc cmd args stdinput
+  return (ec, T.empty, T.empty)
+
+parAwareProc :: (HasSequential o, MonadIO io) => o -> Text -> [Text] -> Shell Line -> io FullOutput
+parAwareProc opts = if (sequential opts) then procWithEmptyOutput else procStrictWithErr
 
 verboseTestFile :: (HasVerbosity o, HasBaseDir o) => o -> TChan LogMessage -> FilePath -> IO Bool
 verboseTestFile opts ch p = do

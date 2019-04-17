@@ -1,5 +1,12 @@
 # Changelog for [hledger-flow](https://github.com/apauley/hledger-flow)
 
+## 0.11.1.2
+
+- Exit with an error code when any external script fails - https://github.com/apauley/hledger-flow/issues/28
+- Capture external process output when doing parallel processing, in order to better prevent mangled concurrent output.
+- Allow users to specify a path to an hledger executable
+- Display a user-friendly error message if hledger cannot be found - https://github.com/apauley/hledger-flow/issues/22
+
 ## 0.11.1.1
 
 - Support input files from the year 2011 - https://github.com/apauley/hledger-flow/issues/27

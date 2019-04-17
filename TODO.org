@@ -10,9 +10,6 @@
    - Overall reports, and reports per owner
    - More useful reports?
 ** Performance
-   - Generate reports in parallel
    - Don't re-process statements that have already been processed
 ** Documentation
    - Expand the step-by-step instructions with more scenarios
-** Random Thoughts
-   - First build a list of actions, then perform the actions
