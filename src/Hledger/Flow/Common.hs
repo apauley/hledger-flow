@@ -73,10 +73,20 @@ versionInfo = textToLines $ T.pack ("hledger-flow " ++ Version.showVersion versi
 hledgerPathFromOption :: Maybe FilePath -> IO FilePath
 hledgerPathFromOption pathOption = do
   case pathOption of
-    Just h -> return h
+    Just h  -> do
+      isOnDisk <- testfile h
+      if isOnDisk then return h else do
+        let msg = format ("Unable to find hledger at "%fp) h
+        errExit' 1 (T.hPutStrLn H.stderr) msg h
     Nothing -> do
       maybeH <- which "hledger"
-      return $ fromMaybe "hledger" maybeH
+      case maybeH of
+        Just h  -> return h
+        Nothing -> do
+          let msg = "Unable to find hledger in your path.\n"
+                <> "You need to either install hledger, or add it to your PATH, or provide the path to an hledger executable.\n\n"
+                <> "There are a number of installation options on the hledger website: https://hledger.org/download.html"
+          errExit' 1 (T.hPutStrLn H.stderr) msg "/"
 
 hledgerVersionFromPath :: FilePath -> IO Text
 hledgerVersionFromPath hlp = fmap (T.strip . linesToText) (single $ shellToList $ inproc (format fp hlp) ["--version"] empty)
@@ -107,10 +117,6 @@ channelErrLn ch txt = channelErr ch (txt <> "\n")
 
 errExit :: Int -> TChan LogMessage -> Text -> a -> IO a
 errExit exitStatus ch = errExit' exitStatus (channelErrLn ch)
-  -- channelErrLn ch errorMessage
-  -- sleep 0.1
-  -- _ <- exit $ ExitFailure exitStatus
-  -- return dummyReturnValue
 
 errExit' :: Int -> (Text -> IO ()) -> Text -> a -> IO a
 errExit' exitStatus logFun errorMessage dummyReturnValue = do
@@ -156,13 +162,24 @@ logTimedAction opts ch msg action = do
 
 timeAndExitOnErr :: HasVerbosity o => o -> TChan LogMessage -> Text -> IO FullOutput -> IO FullTimedOutput
 timeAndExitOnErr opts ch msg action = do
-  timed@((ec, _, stdErr), _) <- logTimedAction opts ch msg action
+  timed@((ec, stdOut, stdErr), _) <- logTimedAction opts ch msg action
   if not (T.null stdErr)
-    then channelErr ch $ stdErr
+    then channelErr ch stdErr
     else return ()
   case ec of
-    ExitFailure i -> errExit i ch (format ("\nhledger-flow: an external process exited with exit code "%d%". See verbose output for details.") i) timed
-    ExitSuccess   -> return timed
+    ExitFailure i -> do
+      let msgOut = if not (T.null stdOut)
+            then format ("Standard output:\n"%s%"\n") stdOut
+            else ""
+
+      let msgErr = if not (T.null stdErr)
+            then format ("Error output:\n"%s%"\n") stdErr
+            else ""
+
+      let exitMsg = format ("\nhledger-flow: an external process exited with exit code "%d%". \n"
+                            %s%s%"\nSee verbose output for more details.") i msgOut msgErr
+      errExit i ch exitMsg timed
+    ExitSuccess -> return timed
 
 procWithEmptyOutput :: MonadIO io => Text -> [Text] -> Shell Line -> io FullOutput
 procWithEmptyOutput cmd args stdinput = do
