@@ -28,8 +28,6 @@ before_install:
   - export PATH=$HOME/.local/bin:$PATH
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then if [[ ! -x ~/.local/bin/stack ]]; then travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'; chmod a+x ~/.local/bin/stack; fi ; fi
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sed -i 's/- -dynamic /- -static  /g' $TRAVIS_BUILD_DIR/package.yaml; fi
-  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then cat /proc/cpuinfo; fi
-  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then cat /proc/meminfo; fi
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get install cabal-install; fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then sysctl -n machdep.cpu.brand_string; fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update --verbose; fi
@@ -84,7 +82,8 @@ deploy:
     skip_cleanup: true
     on:
       repo: apauley/hledger-flow
-      branch: ci-improvements
+      branch: master
+      tags: true
       condition:
         - $TRAVIS_OS_NAME = linux
 
