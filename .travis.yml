@@ -30,6 +30,7 @@ before_install:
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sed -i 's/- -dynamic /- -static  /g' $TRAVIS_BUILD_DIR/package.yaml; fi
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then cat /proc/cpuinfo; fi
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then cat /proc/meminfo; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get install cabal-install; fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then sysctl -n machdep.cpu.brand_string; fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update --verbose; fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install --verbose haskell-stack hledger; fi
@@ -42,8 +43,6 @@ install:
   - which stack
   - type -a stack
   - stack --version
-
-  - stack install cabal-install
 
   # GHC
   - stack setup --interleaved-output
@@ -86,9 +85,6 @@ deploy:
       branch: ci-improvements
       condition:
         - $TRAVIS_OS_NAME = linux
-
-after_deploy:
-  - cabal upload --publish || true
 
 notifications:
   email: false
