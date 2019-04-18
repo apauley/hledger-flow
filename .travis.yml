@@ -28,8 +28,7 @@ before_install:
   - export PATH=$HOME/.local/bin:$PATH
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then if [[ ! -x ~/.local/bin/stack ]]; then travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'; chmod a+x ~/.local/bin/stack; fi ; fi
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sed -i 's/- -dynamic /- -static  /g' $TRAVIS_BUILD_DIR/package.yaml; fi
-  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then cat /proc/cpuinfo; fi
-  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then cat /proc/meminfo; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get install cabal-install; fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then sysctl -n machdep.cpu.brand_string; fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update --verbose; fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install --verbose haskell-stack hledger; fi
@@ -65,15 +64,28 @@ script:
   - hledger-flow report --show-options --verbose $HOME/hledger-flow-example
 
 deploy:
-  provider: releases
-  api_key:
-    secure: uxpsTBdBiYQXbl+fzTnjO90oj3WINPxu929MCZfQrVTWdvaIUdnrTNItonTTwSAwTzwMKXhVLkWSQ9AJFkPwHNxbA/h7XPtcEBTm3Hr56h9IoGPqQjG8N7Ws0JpqfnqLr36cr4Fl+Z8ZyfuwN+ODq+T56CBn/bi4OSi0+xFF+xi1C5YwUkcev1zd5ClNQl3x35W/zQLkWHm/dnUmmP2AP56aqzDTuqzgwiaTtLyxb/9AyFahIn+QHp1JqOiN+CIM96+f+zEHBWjkIyWLbQp3iM8+Cy0VHJMjoqq2CUKGRYRS/l02i7QwuHiMxCMlray2lcPLBGtaQIw1USXyIw4m6MUR8m0CeT6tWIWBYCQJoZrOe4D/cv7VkRii/w8kvWemmqEC2Fcyk+5H8L18TP2x8vj1P93oIWtTpi5iYTwc0KH1T+CAhno4mWX/73KX0FwA9/0tcYmVFyAOnXiqoufG3ca41hje+VhMq+3AVLO5p7yWDUrBtN76QFQdJX8zXK8TgrhLtAzqaERnuNxqawOjyHUoUbERYQow//Y+1jjJX7nHLV6rNQWMEPcTNTbWPeJfJy/rPUadiQWo8QShSYVy9iWhoQxMJn5VqXk1URTYrQ/UBAcYK7Zrw1GVLJhZeWrKEAiywtrwdgT6YgO4UsU/9jM+8oHWP6N06OUD1qoC37k=
-  file_glob: true
-  file:
-    - releases/*.tar.gz
-  skip_cleanup: true
-  on:
-    tags: true
+  - provider: releases
+    api_key:
+      secure: uxpsTBdBiYQXbl+fzTnjO90oj3WINPxu929MCZfQrVTWdvaIUdnrTNItonTTwSAwTzwMKXhVLkWSQ9AJFkPwHNxbA/h7XPtcEBTm3Hr56h9IoGPqQjG8N7Ws0JpqfnqLr36cr4Fl+Z8ZyfuwN+ODq+T56CBn/bi4OSi0+xFF+xi1C5YwUkcev1zd5ClNQl3x35W/zQLkWHm/dnUmmP2AP56aqzDTuqzgwiaTtLyxb/9AyFahIn+QHp1JqOiN+CIM96+f+zEHBWjkIyWLbQp3iM8+Cy0VHJMjoqq2CUKGRYRS/l02i7QwuHiMxCMlray2lcPLBGtaQIw1USXyIw4m6MUR8m0CeT6tWIWBYCQJoZrOe4D/cv7VkRii/w8kvWemmqEC2Fcyk+5H8L18TP2x8vj1P93oIWtTpi5iYTwc0KH1T+CAhno4mWX/73KX0FwA9/0tcYmVFyAOnXiqoufG3ca41hje+VhMq+3AVLO5p7yWDUrBtN76QFQdJX8zXK8TgrhLtAzqaERnuNxqawOjyHUoUbERYQow//Y+1jjJX7nHLV6rNQWMEPcTNTbWPeJfJy/rPUadiQWo8QShSYVy9iWhoQxMJn5VqXk1URTYrQ/UBAcYK7Zrw1GVLJhZeWrKEAiywtrwdgT6YgO4UsU/9jM+8oHWP6N06OUD1qoC37k=
+    file_glob: true
+    file:
+      - releases/*.tar.gz
+    skip_cleanup: true
+    on:
+      repo: apauley/hledger-flow
+      tags: true
+
+  - provider: hackage
+    username: apauley
+    password:
+      secure: iV3CJbLMjMCVZ9gksr23Vvlj26f6XfEIgY1BjYfIjKqEsACr62B0LgprB44ov/v98tU9QM+g9qRc2g8Q3kahSbCA7TRXo9cVO3j+lGBoA6LCJwkOG8eXyVenAg1WbTbX0sC5YRBdqRFDzFQTr8ZeNW+1Hr5Vy+Hk6CiBTaZz9kz2C5YHVKaQWiuPZcHkbGe6/EdnvT07EBIJmVxnAn9rdbgGY7utU4kFjL30DxjD03MvVSWR5M/tflt78iH4FPr5zG1KeQLdAfrlwGC2kH8Lpa3MI4YCjMjNXUoX+tNhf0TDWLxeelUv+pAZJRdsITge/zg/eeCWJqVL/uuTXNYDc39qEDUFReMtJbgtrlrFAm/NWtTTm1t6S0lNFzPjteO+0s2b3f1e8slRmR3OrvySITFnQHqgLA0zoccr7UhG0p2UH8nOOfa0D96BVnzX34jAFQSezm3lQ9LTldBZpI5XleqI/4vTTecaaHQXKGvg0+4wseVkrsYeNO23nRRT5r9Mb1Wlf88JWxI/n+Q2602z34w4qqVY9kU92P8Lphsw7HmlHmKYxa1cqrV9UGmJpKsY3yDTdv9pCkXG3X+n+GJHEYiGgrifmwtNo8PI+lDQ8GY389ReV7766TrAs9W3w76SEpHTwMRc9dJIsA4hbQk+VNri5GgYNzRvjJ3bvQbdjEk=
+    skip_cleanup: true
+    on:
+      repo: apauley/hledger-flow
+      branch: master
+      tags: true
+      condition:
+        - $TRAVIS_OS_NAME = linux
 
 notifications:
   email: false
