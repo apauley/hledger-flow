@@ -11,7 +11,6 @@ cache:
   - "$TRAVIS_BUILD_DIR/.stack-work"
   - "$HOME/.local/bin/"
   - "$HOME/Library/Caches/Homebrew"
-  - "/usr/local/Homebrew"
 
 os:
   - linux
