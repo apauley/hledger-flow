@@ -10,7 +10,6 @@ cache:
   - "$HOME/.stack"
   - "$TRAVIS_BUILD_DIR/.stack-work"
   - "$HOME/.local/bin/"
-  - "$HOME/Library/Caches/Homebrew"
 
 os:
   - linux
@@ -18,9 +17,6 @@ os:
 
 env:
   - STACK_YAML="$TRAVIS_BUILD_DIR/stack.yaml"
-
-before_cache:
- - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew cleanup; fi
 
 before_install:
   - mkdir -p ~/.local/bin
