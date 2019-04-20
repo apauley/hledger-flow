@@ -6,7 +6,7 @@ git:
   depth: 5
 
 cache:
-  timeout: 1000
+  timeout: 600
   directories:
   - "$HOME/.stack"
   - "$TRAVIS_BUILD_DIR/.stack-work"
@@ -21,9 +21,10 @@ env:
 
 before_install:
   - mkdir -p ~/.local/bin
+  - ls -l ~/.local/bin
   - export PATH=$HOME/.local/bin:$PATH
-  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then if [[ ! -x ~/.local/bin/stack ]]; then travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'; chmod a+x ~/.local/bin/stack; fi; fi
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then if [[ ! -x ~/.local/bin/stack ]]; then travis_retry curl -L https://get.haskellstack.org/stable/osx-x86_64.tar.gz | tar -xz; mv stack-*-osx-x86_64/stack ~/.local/bin/; fi; fi
+  - export STACK_URL="https://www.stackage.org/stack/${TRAVIS_OS_NAME}-x86_64"
+  - if [[ ! -x ~/.local/bin/stack ]]; then travis_retry curl -L ${STACK_URL} | tar -xz; mv stack-*-x86_64/stack ~/.local/bin/; fi
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sed -i 's/- -dynamic /- -static  /g' $TRAVIS_BUILD_DIR/package.yaml; fi
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get install cabal-install; fi
 
