@@ -6,6 +6,7 @@ git:
   depth: 5
 
 cache:
+  timeout: 1000
   directories:
   - "$HOME/.stack"
   - "$TRAVIS_BUILD_DIR/.stack-work"
