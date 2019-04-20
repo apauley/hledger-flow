@@ -43,19 +43,19 @@ install:
   - stack setup --interleaved-output
   - stack exec -- ghc --version
 
-  - stack build --interleaved-output --test --bench --no-run-tests --no-run-benchmarks --ghc-options=-Werror
+  - stack build --interleaved-output --test --bench --no-run-tests --no-run-benchmarks --pedantic
   - stack install
   - which hledger-flow
   - hledger-flow version
   - ldd $(which hledger-flow) || true
   - ./bin/release-tarball ~/.local/bin/hledger-flow
-  - if [[ ! -x ~/.local/bin/hledger ]]; then stack install hledger; fi
+  - if [[ ! -x ~/.local/bin/hledger ]]; then stack install --interleaved-output hledger; fi
   - which hledger
   - hledger --version
   - git clone --recurse-submodules https://github.com/apauley/hledger-flow-example.git $HOME/hledger-flow-example
 
 script:
-  - stack test --interleaved-output --ghc-options=-Werror
+  - stack test --interleaved-output --pedantic
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then git checkout HEAD package.yaml; fi
   - hledger-flow import --show-options --verbose $HOME/hledger-flow-example
   - hledger-flow report --show-options --verbose $HOME/hledger-flow-example
