@@ -46,6 +46,8 @@ install:
   - hledger-flow version
   - ldd $(which hledger-flow) || true
   - ./bin/release-tarball ~/.local/bin/hledger-flow
+  - which hledger || true
+  - ls -l ~/.local/bin
   - if [[ ! -x ~/.local/bin/hledger ]]; then stack install --interleaved-output hledger; fi
   - which hledger
   - hledger --version
