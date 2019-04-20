@@ -6,11 +6,11 @@ git:
   depth: 5
 
 cache:
+  timeout: 1000
   directories:
   - "$HOME/.stack"
   - "$TRAVIS_BUILD_DIR/.stack-work"
   - "$HOME/.local/bin/"
-  - "$HOME/Library/Caches/Homebrew"
 
 os:
   - linux
@@ -19,18 +19,13 @@ os:
 env:
   - STACK_YAML="$TRAVIS_BUILD_DIR/stack.yaml"
 
-before_cache:
- - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew cleanup; fi
-
 before_install:
   - mkdir -p ~/.local/bin
   - export PATH=$HOME/.local/bin:$PATH
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then if [[ ! -x ~/.local/bin/stack ]]; then travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'; chmod a+x ~/.local/bin/stack; fi; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then if [[ ! -x ~/.local/bin/stack ]]; then travis_retry curl -L https://get.haskellstack.org/stable/osx-x86_64.tar.gz | tar -xz; mv stack-*-osx-x86_64/stack ~/.local/bin/; fi; fi
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sed -i 's/- -dynamic /- -static  /g' $TRAVIS_BUILD_DIR/package.yaml; fi
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get install cabal-install; fi
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then sysctl -n machdep.cpu.brand_string; fi
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update --verbose; fi
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install --verbose haskell-stack hledger; fi
 
 install:
 
@@ -45,19 +40,19 @@ install:
   - stack setup --interleaved-output
   - stack exec -- ghc --version
 
-  - stack build --interleaved-output --test --bench --no-run-tests --no-run-benchmarks --ghc-options=-Werror
+  - stack build --interleaved-output --test --bench --no-run-tests --no-run-benchmarks --pedantic
   - stack install
   - which hledger-flow
   - hledger-flow version
   - ldd $(which hledger-flow) || true
   - ./bin/release-tarball ~/.local/bin/hledger-flow
-  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then if [[ ! -x ~/.local/bin/hledger ]]; then stack install hledger; fi; fi
+  - if [[ ! -x ~/.local/bin/hledger ]]; then stack install --interleaved-output hledger; fi
   - which hledger
   - hledger --version
   - git clone --recurse-submodules https://github.com/apauley/hledger-flow-example.git $HOME/hledger-flow-example
 
 script:
-  - stack test --interleaved-output --ghc-options=-Werror
+  - stack test --interleaved-output --pedantic
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then git checkout HEAD package.yaml; fi
   - hledger-flow import --show-options --verbose $HOME/hledger-flow-example
   - hledger-flow report --show-options --verbose $HOME/hledger-flow-example
