@@ -14,7 +14,7 @@ module Hledger.Flow.Common
     , channelErr, channelErrLn
     , errExit
     , logVerbose
-    , timeAndExitOnErr
+    , timeAndExitOnErr, timeAndExitOnErr'
     , parAwareProc
     , inprocWithErrFun
     , verboseTestFile
@@ -57,7 +57,7 @@ import qualified Data.Map.Strict as Map
 import Data.Time.LocalTime
 
 import Data.Function (on)
-import qualified Data.List as List (nub, sort, sortBy, groupBy)
+import qualified Data.List as List (nub, null, sort, sortBy, groupBy)
 import Data.Ord (comparing)
 import Hledger.Flow.Types
 import qualified Hledger.Flow.Import.Types as IT
@@ -164,25 +164,32 @@ descriptiveOutput outputLabel outTxt = do
     then format (s%":\n"%s%"\n") outputLabel outTxt
     else ""
 
-logTimedAction :: HasVerbosity o => o -> TChan LogMessage -> Text
+logTimedAction :: HasVerbosity o => o -> TChan LogMessage -> Text -> [Text]
   -> (TChan LogMessage -> Text -> IO ()) -> (TChan LogMessage -> Text -> IO ())
   -> IO FullOutput
   -> IO FullTimedOutput
-logTimedAction opts ch msg stdoutLogger stderrLogger action = do
-  logVerbose opts ch $ format ("Begin: "%s) msg
+logTimedAction opts ch cmdLabel extraCmdLabels stdoutLogger stderrLogger action = do
+  logVerbose opts ch $ format ("Begin: "%s) cmdLabel
+  if (List.null extraCmdLabels) then return () else logVerbose opts ch $ T.intercalate "\n" extraCmdLabels
   timed@((ec, stdOut, stdErr), diff) <- time action
   stdoutLogger ch stdOut
   stderrLogger ch stdErr
-  logVerbose opts ch $ format ("End:   "%s%" "%s%" ("%s%")") msg (repr ec) (repr diff)
+  logVerbose opts ch $ format ("End:   "%s%" "%s%" ("%s%")") cmdLabel (repr ec) (repr diff)
   return timed
 
 timeAndExitOnErr :: (HasSequential o, HasVerbosity o) => o -> TChan LogMessage -> Text
   -> (TChan LogMessage -> Text -> IO ()) -> (TChan LogMessage -> Text -> IO ())
   -> ProcFun -> ProcInput
   -> IO FullTimedOutput
-timeAndExitOnErr opts ch cmdLabel stdoutLogger stderrLogger procFun (cmd, args, stdInput) = do
+timeAndExitOnErr opts ch cmdLabel = timeAndExitOnErr' opts ch cmdLabel []
+
+timeAndExitOnErr' :: (HasSequential o, HasVerbosity o) => o -> TChan LogMessage -> Text -> [Text]
+  -> (TChan LogMessage -> Text -> IO ()) -> (TChan LogMessage -> Text -> IO ())
+  -> ProcFun -> ProcInput
+  -> IO FullTimedOutput
+timeAndExitOnErr' opts ch cmdLabel extraCmdLabels stdoutLogger stderrLogger procFun (cmd, args, stdInput) = do
   let action = procFun cmd args stdInput
-  timed@((ec, stdOut, stdErr), _) <- logTimedAction opts ch cmdLabel stdoutLogger stderrLogger action
+  timed@((ec, stdOut, stdErr), _) <- logTimedAction opts ch cmdLabel extraCmdLabels stdoutLogger stderrLogger action
   case ec of
     ExitFailure i -> do
       let cmdText = format (s%" "%s) cmd $ showCmdArgs args

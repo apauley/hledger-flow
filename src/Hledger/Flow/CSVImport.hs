@@ -154,11 +154,13 @@ statementSpecificRulesFiles csvSrc importDirs = do
 customConstruct :: ImportOptions -> TChan FlowTypes.LogMessage -> FilePath -> Line -> Line -> Line -> FilePath -> FilePath -> IO FilePath
 customConstruct opts ch constructScript bank account owner csvSrc journalOut = do
   let script = format fp constructScript :: Text
-  let stdLines = inprocWithErrFun (channelErrLn ch) (script, [format fp csvSrc, "-", lineToText bank, lineToText account, lineToText owner], empty)
+  let relScript = relativeToBase opts constructScript
+  let constructArgs = [format fp csvSrc, "-", lineToText bank, lineToText account, lineToText owner]
+  let constructCmdText = format ("Running: "%fp%" "%s) relScript (showCmdArgs constructArgs)
+  let stdLines = inprocWithErrFun (channelErrLn ch) (script, constructArgs, empty)
   let hledger = format fp $ FlowTypes.hlPath . hledgerInfo $ opts :: Text
   let args = ["print", "--ignore-assertions", "--file", "-", "--output-file", format fp journalOut]
-  let relScript = relativeToBase opts constructScript
   let relSrc = relativeToBase opts csvSrc
   let cmdLabel = format ("executing '"%fp%"' on '"%fp%"'") relScript relSrc
-  _ <- timeAndExitOnErr opts ch cmdLabel channelOut channelErr (parAwareProc opts) (hledger, args, stdLines)
+  _ <- timeAndExitOnErr' opts ch cmdLabel [constructCmdText] channelOut channelErr (parAwareProc opts) (hledger, args, stdLines)
   return journalOut
