@@ -524,7 +524,7 @@ script to do anything that the =preprocess= script would have done.
 Save your =construct= script in the account directory, e.g.
 =import/john/mybank/savings/construct=.
 
-=hledger-flow= will call your =construct= script with 4 positional
+=hledger-flow= will call your =construct= script with 5 positional
 parameters:
 
 1. The path to the input statement, e.g.
@@ -540,8 +540,10 @@ Your =construct= script is expected to:
 - generate your own =hledger= journal transactions
 - be idempotent. Running =construct= multiple times on the same files
   should produce the same result.
-- send all output to =stdout=. =hledger-flow= will pipe your output into
+- send all journals to =stdout=. =hledger-flow= will pipe your standard output into
   =hledger= which will format it and save it to an output file.
+
+You can still use =stderr= in your construct script for any other output that you may want to see.
 
 *** Stability of this Feature
     :PROPERTIES:

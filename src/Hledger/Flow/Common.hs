@@ -16,6 +16,7 @@ module Hledger.Flow.Common
     , logVerbose
     , timeAndExitOnErr
     , parAwareProc
+    , inprocWithErrFun
     , verboseTestFile
     , relativeToBase
     , relativeToBase'
@@ -200,6 +201,15 @@ procWithEmptyOutput cmd args stdinput = do
 
 parAwareProc :: HasSequential o => o -> ProcFun
 parAwareProc opts = if (sequential opts) then procWithEmptyOutput else procStrictWithErr
+
+inprocWithErrFun :: (Text -> IO ()) -> ProcInput -> Shell Line
+inprocWithErrFun errFun (cmd, args, standardInput) = do
+  result <- inprocWithErr cmd args standardInput
+  case result of
+    Right ln -> return ln
+    Left  ln -> do
+      (liftIO . errFun . lineToText) ln
+      empty
 
 verboseTestFile :: (HasVerbosity o, HasBaseDir o) => o -> TChan LogMessage -> FilePath -> IO Bool
 verboseTestFile opts ch p = do
