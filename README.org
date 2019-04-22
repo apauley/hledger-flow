@@ -38,6 +38,17 @@ It started when I realized that the scripts I wrote while playing around
 with the ideas in [[https://github.com/adept/full-fledged-hledger/wiki][adept's Full-fledged Hledger]] aren't really specific to
 my own finances, and can be shared.
 
+* How do I install it?
+  :PROPERTIES:
+  :CUSTOM_ID: how-do-i-install-it
+  :END:
+
+The easiest way to get it running is to download [[https://github.com/apauley/hledger-flow/releases][the latest release]]
+for your OS, and copy the =hledger-flow= executable to a directory in your PATH.
+Then just run it and see what it tells you to do.
+
+You can also compile it yourself by following the [[#build-instructions][build instructions]].
+
 * Overview of the Basic Workflow
   :PROPERTIES:
   :CUSTOM_ID: overview-of-the-basic-workflow
