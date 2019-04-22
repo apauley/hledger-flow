@@ -188,8 +188,8 @@ timeAndExitOnErr opts ch cmdLabel stdoutLogger stderrLogger procFun (cmd, args, 
       let msgOut = descriptiveOutput "Standard output" stdOut
       let msgErr = descriptiveOutput "Error output" stdErr
 
-      let exitMsg = format ("\nError in external command:\n"%s%"\nExit code "%d%"\n"
-                            %s%s%"\n") cmdText i msgOut msgErr
+      let exitMsg = format ("\n=== Begin Error: "%s%" ===\nExternal command:\n"%s%"\nExit code "%d%"\n"
+                            %s%s%"=== End Error: "%s%" ===\n") cmdLabel cmdText i msgOut msgErr cmdLabel
       errExit i ch exitMsg timed
     ExitSuccess -> return timed
 
