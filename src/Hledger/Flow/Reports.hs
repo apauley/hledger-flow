@@ -60,11 +60,10 @@ generateReport' opts ch journal outputFile args = do
   let reportArgs = ["--file", format fp journal] ++ args
   let reportDisplayArgs = ["--file", format fp relativeJournal] ++ args
   let hledger = format fp $ FlowTypes.hlPath . hledgerInfo $ opts :: Text
-  let action = procStrictWithErr hledger reportArgs empty
-  let cmd = format ("hledger "%s) $ showCmdArgs reportDisplayArgs
-  result@((exitCode, stdOut, _), _) <- timeAndExitOnErr opts ch cmd action
+  let cmdLabel = format ("hledger "%s) $ showCmdArgs reportDisplayArgs
+  result@((exitCode, stdOut, _), _) <- timeAndExitOnErr opts ch cmdLabel procStrictWithErr (hledger, reportArgs, empty)
   if not (T.null stdOut) then do
-    writeTextFile outputFile (cmd <> "\n\n"<> stdOut)
+    writeTextFile outputFile (cmdLabel <> "\n\n"<> stdOut)
     channelOutLn ch $ format ("Wrote "%fp) $ relativeToBase opts outputFile
-    else channelErrLn ch $ format ("No report output for '"%s%"' "%s) cmd (repr exitCode)
+    else channelErrLn ch $ format ("No report output for '"%s%"' "%s) cmdLabel (repr exitCode)
   return (outputFile, result)

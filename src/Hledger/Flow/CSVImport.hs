@@ -85,12 +85,11 @@ preprocess :: ImportOptions -> TChan FlowTypes.LogMessage -> FilePath -> Line ->
 preprocess opts ch script bank account owner src = do
   let csvOut = changePathAndExtension "2-preprocessed" "csv" src
   mktree $ directory csvOut
-  let script' = format fp script :: Text
-  let action = (parAwareProc opts) script' [format fp src, format fp csvOut, lineToText bank, lineToText account, lineToText owner] empty
+  let args = [format fp src, format fp csvOut, lineToText bank, lineToText account, lineToText owner]
   let relScript = relativeToBase opts script
   let relSrc = relativeToBase opts src
-  let msg = format ("executing '"%fp%"' on '"%fp%"'") relScript relSrc
-  ((_, stdOut, _), _) <- timeAndExitOnErr opts ch msg action
+  let cmdLabel = format ("executing '"%fp%"' on '"%fp%"'") relScript relSrc
+  ((_, stdOut, _), _) <- timeAndExitOnErr opts ch cmdLabel (parAwareProc opts) (format fp script, args, empty)
   channelOut ch stdOut
   return csvOut
 
@@ -110,9 +109,9 @@ hledgerImport' opts ch importDirs csvSrc journalOut = do
     Just rf -> do
       let relRules = relativeToBase opts rf
       let hledger = format fp $ FlowTypes.hlPath . hledgerInfo $ opts :: Text
-      let action = (parAwareProc opts) hledger ["print", "--rules-file", format fp rf, "--file", format fp csvSrc, "--output-file", format fp journalOut] empty
-      let msg = format ("importing '"%fp%"' using rules file '"%fp%"'") relCSV relRules
-      ((_, stdOut, _), _) <- timeAndExitOnErr opts ch msg action
+      let args = ["print", "--rules-file", format fp rf, "--file", format fp csvSrc, "--output-file", format fp journalOut]
+      let cmdLabel = format ("importing '"%fp%"' using rules file '"%fp%"'") relCSV relRules
+      ((_, stdOut, _), _) <- timeAndExitOnErr opts ch cmdLabel (parAwareProc opts) (hledger, args, empty)
       channelOut ch stdOut
       return journalOut
     Nothing ->
@@ -159,10 +158,10 @@ customConstruct opts ch constructScript bank account owner csvSrc journalOut = d
   let script = format fp constructScript :: Text
   let importOut = inproc script [format fp csvSrc, "-", lineToText bank, lineToText account, lineToText owner] empty
   let hledger = format fp $ FlowTypes.hlPath . hledgerInfo $ opts :: Text
-  let action = (parAwareProc opts) hledger ["print", "--ignore-assertions", "--file", "-", "--output-file", format fp journalOut] importOut
+  let args = ["print", "--ignore-assertions", "--file", "-", "--output-file", format fp journalOut]
   let relScript = relativeToBase opts constructScript
   let relSrc = relativeToBase opts csvSrc
-  let msg = format ("executing '"%fp%"' on '"%fp%"'") relScript relSrc
-  ((_, stdOut, _), _) <- timeAndExitOnErr opts ch msg action
+  let cmdLabel = format ("executing '"%fp%"' on '"%fp%"'") relScript relSrc
+  ((_, stdOut, _), _) <- timeAndExitOnErr opts ch cmdLabel (parAwareProc opts) (hledger, args, importOut)
   channelOut ch stdOut
   return journalOut

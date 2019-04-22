@@ -166,8 +166,9 @@ logTimedAction opts ch msg action = do
   logVerbose opts ch $ format ("End:   "%s%" "%s%" ("%s%")") msg (repr ec) (repr diff)
   return timed
 
-timeAndExitOnErr :: HasVerbosity o => o -> TChan LogMessage -> Text -> IO FullOutput -> IO FullTimedOutput
-timeAndExitOnErr opts ch msg action = do
+timeAndExitOnErr :: (HasSequential o, HasVerbosity o) => o -> TChan LogMessage -> Text -> ProcFun -> ProcInput -> IO FullTimedOutput
+timeAndExitOnErr opts ch msg procFun (cmd, args, stdInput) = do
+  let action = procFun cmd args stdInput
   timed@((ec, stdOut, stdErr), _) <- logTimedAction opts ch msg action
   case ec of
     ExitFailure i -> do
@@ -179,12 +180,12 @@ timeAndExitOnErr opts ch msg action = do
       errExit i ch exitMsg timed
     ExitSuccess -> return timed
 
-procWithEmptyOutput :: MonadIO io => Text -> [Text] -> Shell Line -> io FullOutput
+procWithEmptyOutput :: ProcFun
 procWithEmptyOutput cmd args stdinput = do
   ec <- proc cmd args stdinput
   return (ec, T.empty, T.empty)
 
-parAwareProc :: (HasSequential o, MonadIO io) => o -> Text -> [Text] -> Shell Line -> io FullOutput
+parAwareProc :: HasSequential o => o -> ProcFun
 parAwareProc opts = if (sequential opts) then procWithEmptyOutput else procStrictWithErr
 
 verboseTestFile :: (HasVerbosity o, HasBaseDir o) => o -> TChan LogMessage -> FilePath -> IO Bool
