@@ -1,5 +1,9 @@
 # Changelog for [hledger-flow](https://github.com/apauley/hledger-flow)
 
+## 0.11.2
+
+- Improved display of external process output
+
 ## 0.11.1.2
 
 - Exit with an error code when any external script fails - https://github.com/apauley/hledger-flow/issues/28
