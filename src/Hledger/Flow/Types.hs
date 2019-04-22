@@ -11,6 +11,9 @@ data LogMessage = StdOut Text | StdErr Text | Terminate deriving (Show)
 type FullOutput = (ExitCode, Text, Text)
 type FullTimedOutput = (FullOutput, NominalDiffTime)
 
+type ProcFun = Text -> [Text] -> Shell Line -> IO FullOutput
+type ProcInput = (Text, [Text], Shell Line)
+
 data HledgerInfo = HledgerInfo { hlPath :: FilePath
                                , hlVersion :: Text
                                }
