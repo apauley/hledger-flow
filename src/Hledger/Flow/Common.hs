@@ -153,6 +153,12 @@ terminateChannelLoop ch = atomically $ writeTChan ch Terminate
 logVerbose :: HasVerbosity o => o -> TChan LogMessage -> Text -> IO ()
 logVerbose opts ch msg = if (verbose opts) then logToChannel ch msg else return ()
 
+descriptiveOutput :: Text -> Text -> Text -> Text
+descriptiveOutput outputLabel cmdLabel outTxt = do
+  if not (T.null outTxt)
+    then format (s%" for '"%s%"':\n"%s%"\n") outputLabel cmdLabel outTxt
+    else ""
+
 logTimedAction :: HasVerbosity o => o -> TChan LogMessage -> Text -> IO FullOutput -> IO FullTimedOutput
 logTimedAction opts ch msg action = do
   logVerbose opts ch $ format ("Begin: "%s) msg
@@ -163,21 +169,13 @@ logTimedAction opts ch msg action = do
 timeAndExitOnErr :: HasVerbosity o => o -> TChan LogMessage -> Text -> IO FullOutput -> IO FullTimedOutput
 timeAndExitOnErr opts ch msg action = do
   timed@((ec, stdOut, stdErr), _) <- logTimedAction opts ch msg action
-  if not (T.null stdErr)
-    then channelErr ch stdErr
-    else return ()
   case ec of
     ExitFailure i -> do
-      let msgOut = if not (T.null stdOut)
-            then format ("Standard output:\n"%s%"\n") stdOut
-            else ""
+      let msgOut = descriptiveOutput "Standard output" msg stdOut
+      let msgErr = descriptiveOutput "Error output" msg stdErr
 
-      let msgErr = if not (T.null stdErr)
-            then format ("Error output:\n"%s%"\n") stdErr
-            else ""
-
-      let exitMsg = format ("\nhledger-flow: an external process exited with exit code "%d%". \n"
-                            %s%s%"\nSee verbose output for more details.") i msgOut msgErr
+      let exitMsg = format ("\nError in external process:\n"%s%"\nExit code "%d%"\n"
+                            %s%s%"\n") msg i msgOut msgErr
       errExit i ch exitMsg timed
     ExitSuccess -> return timed
 
