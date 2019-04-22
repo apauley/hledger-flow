@@ -9,6 +9,7 @@ module Hledger.Flow.Common
     , showCmdArgs
     , consoleChannelLoop
     , terminateChannelLoop
+    , dummyLogger
     , channelOut, channelOutLn
     , channelErr, channelErrLn
     , errExit
@@ -103,6 +104,9 @@ showCmdArgs args = T.intercalate " " (map escapeArg args)
 escapeArg :: Text -> Text
 escapeArg a = if (T.count " " a > 0) then "'" <> a <> "'" else a
 
+dummyLogger :: TChan LogMessage -> Text -> IO ()
+dummyLogger _ _ = return ()
+
 channelOut :: TChan LogMessage -> Text -> IO ()
 channelOut ch txt = atomically $ writeTChan ch $ StdOut txt
 
@@ -159,17 +163,25 @@ descriptiveOutput outputLabel outTxt = do
     then format (s%":\n"%s%"\n") outputLabel outTxt
     else ""
 
-logTimedAction :: HasVerbosity o => o -> TChan LogMessage -> Text -> IO FullOutput -> IO FullTimedOutput
-logTimedAction opts ch msg action = do
+logTimedAction :: HasVerbosity o => o -> TChan LogMessage -> Text
+  -> (TChan LogMessage -> Text -> IO ()) -> (TChan LogMessage -> Text -> IO ())
+  -> IO FullOutput
+  -> IO FullTimedOutput
+logTimedAction opts ch msg stdoutLogger stderrLogger action = do
   logVerbose opts ch $ format ("Begin: "%s) msg
-  timed@((ec, _, _), diff) <- time action
+  timed@((ec, stdOut, stdErr), diff) <- time action
+  stdoutLogger ch stdOut
+  stderrLogger ch stdErr
   logVerbose opts ch $ format ("End:   "%s%" "%s%" ("%s%")") msg (repr ec) (repr diff)
   return timed
 
-timeAndExitOnErr :: (HasSequential o, HasVerbosity o) => o -> TChan LogMessage -> Text -> ProcFun -> ProcInput -> IO FullTimedOutput
-timeAndExitOnErr opts ch cmdLabel procFun (cmd, args, stdInput) = do
+timeAndExitOnErr :: (HasSequential o, HasVerbosity o) => o -> TChan LogMessage -> Text
+  -> (TChan LogMessage -> Text -> IO ()) -> (TChan LogMessage -> Text -> IO ())
+  -> ProcFun -> ProcInput
+  -> IO FullTimedOutput
+timeAndExitOnErr opts ch cmdLabel stdoutLogger stderrLogger procFun (cmd, args, stdInput) = do
   let action = procFun cmd args stdInput
-  timed@((ec, stdOut, stdErr), _) <- logTimedAction opts ch cmdLabel action
+  timed@((ec, stdOut, stdErr), _) <- logTimedAction opts ch cmdLabel stdoutLogger stderrLogger action
   case ec of
     ExitFailure i -> do
       let cmdText = format (s%" "%s) cmd $ showCmdArgs args

@@ -89,8 +89,7 @@ preprocess opts ch script bank account owner src = do
   let relScript = relativeToBase opts script
   let relSrc = relativeToBase opts src
   let cmdLabel = format ("executing '"%fp%"' on '"%fp%"'") relScript relSrc
-  ((_, stdOut, _), _) <- timeAndExitOnErr opts ch cmdLabel (parAwareProc opts) (format fp script, args, empty)
-  channelOut ch stdOut
+  _ <- timeAndExitOnErr opts ch cmdLabel channelOut channelErr (parAwareProc opts) (format fp script, args, empty)
   return csvOut
 
 hledgerImport :: ImportOptions -> TChan FlowTypes.LogMessage -> FilePath -> FilePath -> IO FilePath
@@ -111,8 +110,7 @@ hledgerImport' opts ch importDirs csvSrc journalOut = do
       let hledger = format fp $ FlowTypes.hlPath . hledgerInfo $ opts :: Text
       let args = ["print", "--rules-file", format fp rf, "--file", format fp csvSrc, "--output-file", format fp journalOut]
       let cmdLabel = format ("importing '"%fp%"' using rules file '"%fp%"'") relCSV relRules
-      ((_, stdOut, _), _) <- timeAndExitOnErr opts ch cmdLabel (parAwareProc opts) (hledger, args, empty)
-      channelOut ch stdOut
+      _ <- timeAndExitOnErr opts ch cmdLabel channelOut channelErr (parAwareProc opts) (hledger, args, empty)
       return journalOut
     Nothing ->
       do
@@ -162,6 +160,5 @@ customConstruct opts ch constructScript bank account owner csvSrc journalOut = d
   let relScript = relativeToBase opts constructScript
   let relSrc = relativeToBase opts csvSrc
   let cmdLabel = format ("executing '"%fp%"' on '"%fp%"'") relScript relSrc
-  ((_, stdOut, _), _) <- timeAndExitOnErr opts ch cmdLabel (parAwareProc opts) (hledger, args, importOut)
-  channelOut ch stdOut
+  _ <- timeAndExitOnErr opts ch cmdLabel channelOut channelErr (parAwareProc opts) (hledger, args, importOut)
   return journalOut
