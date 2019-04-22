@@ -153,10 +153,10 @@ terminateChannelLoop ch = atomically $ writeTChan ch Terminate
 logVerbose :: HasVerbosity o => o -> TChan LogMessage -> Text -> IO ()
 logVerbose opts ch msg = if (verbose opts) then logToChannel ch msg else return ()
 
-descriptiveOutput :: Text -> Text -> Text -> Text
-descriptiveOutput outputLabel cmdLabel outTxt = do
+descriptiveOutput :: Text -> Text -> Text
+descriptiveOutput outputLabel outTxt = do
   if not (T.null outTxt)
-    then format (s%" for '"%s%"':\n"%s%"\n") outputLabel cmdLabel outTxt
+    then format (s%":\n"%s%"\n") outputLabel outTxt
     else ""
 
 logTimedAction :: HasVerbosity o => o -> TChan LogMessage -> Text -> IO FullOutput -> IO FullTimedOutput
@@ -167,16 +167,16 @@ logTimedAction opts ch msg action = do
   return timed
 
 timeAndExitOnErr :: (HasSequential o, HasVerbosity o) => o -> TChan LogMessage -> Text -> ProcFun -> ProcInput -> IO FullTimedOutput
-timeAndExitOnErr opts ch msg procFun (cmd, args, stdInput) = do
+timeAndExitOnErr opts ch cmdLabel procFun (cmd, args, stdInput) = do
   let action = procFun cmd args stdInput
-  timed@((ec, stdOut, stdErr), _) <- logTimedAction opts ch msg action
+  timed@((ec, stdOut, stdErr), _) <- logTimedAction opts ch cmdLabel action
   case ec of
     ExitFailure i -> do
-      let msgOut = descriptiveOutput "Standard output" msg stdOut
-      let msgErr = descriptiveOutput "Error output" msg stdErr
+      let msgOut = descriptiveOutput "Standard output" stdOut
+      let msgErr = descriptiveOutput "Error output" stdErr
 
       let exitMsg = format ("\nError in external process:\n"%s%"\nExit code "%d%"\n"
-                            %s%s%"\n") msg i msgOut msgErr
+                            %s%s%"\n") cmdLabel i msgOut msgErr
       errExit i ch exitMsg timed
     ExitSuccess -> return timed
 
