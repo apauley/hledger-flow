@@ -37,9 +37,10 @@ hledger -f my-finances/all-years.journal incomestatement \
 #+REVEAL: split
 
 #+RESULTS: more-input-files
-#+BEGIN_SRC org
+#+begin_src org
 Collecting input files...
-Imported 3 journals in 0.373432701s
+Found 3 input files in 0.013913927s. Proceeding with import...
+Imported 3 journals in 0.257992465s
 Income Statement 2016/03/01-2016/05/25
 
                   ║       Mar        Apr        May    Average
@@ -58,7 +59,7 @@ Income Statement 2016/03/01-2016/05/25
 ══════════════════╬════════════════════════════════════════════
  Net:             ║   R-28.38  R-3077.21     R21.85  R-1027.91
 
-#+END_SRC
+#+end_src
 
 #+REVEAL: split
 
@@ -81,10 +82,10 @@ cd ..
 
 #+REVEAL: split
 
-#+NAME: git-push-hledger-flow-example-finances
+#+NAME: git-push-hledger-flow-example
 #+BEGIN_SRC sh :results none :exports results
 cd my-finances/
-git remote add origin git@github.com:apauley/hledger-flow-example-finances.git
+git remote add origin git@github.com:apauley/hledger-flow-example.git
 git push --force -u origin master
 cd ..
 #+END_SRC

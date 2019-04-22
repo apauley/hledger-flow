@@ -66,7 +66,7 @@ hledger-flow
 An hledger workflow focusing on automated statement import and classification:
 https://github.com/apauley/hledger-flow#readme
 
-Usage: hledger-flow (import | report)
+Usage: hledger-flow (import | report | version)
 
 Available options:
   -h,--help                Show this help text
@@ -74,6 +74,7 @@ Available options:
 Available commands:
   import                   Converts CSV transactions into categorised journal files
   report                   Generate Reports
+  version                  Display version information
 
 #+end_example
 
@@ -91,16 +92,21 @@ hledger-flow import --help
 #+END_SRC
 
 #+RESULTS: hm-import-help
-#+BEGIN_SRC org
-Usage: hledger-flow import [BASEDIR] [-v|--verbose]
+#+begin_src org
+Usage: hledger-flow import [BASEDIR] [-H|--hledger-path HLEDGER-PATH]
+                           [-v|--verbose] [--show-options] [--sequential]
   Converts CSV transactions into categorised journal files
 
 Available options:
   BASEDIR                  The hledger-flow base directory
+  -H,--hledger-path HLEDGER-PATH
+                           The full path to an hledger executable
   -v,--verbose             Print more verbose output
+  --show-options           Print the options this program will run with
+  --sequential             Disable parallel processing
   -h,--help                Show this help text
 
-#+END_SRC
+#+end_src
 
 #+REVEAL: split
 
@@ -126,7 +132,7 @@ hledger-flow import ./my-finances
 
 Hmmm, an error:
 #+RESULTS: import1
-#+BEGIN_SRC org
+#+begin_src org
 I couldn't find any input files underneath my-finances/import/
 
 hledger-makitso expects to find its input files in specifically
@@ -135,7 +141,7 @@ named directories.
 Have a look at the documentation for a detailed explanation:
 https://github.com/apauley/hledger-flow#input-files
 
-#+END_SRC
+#+end_src
 
 Gawie carefully interprets the error message using the skills he obtained during his years as an IT professional.
 
@@ -166,7 +172,7 @@ tree my-finances/
 #+END_SRC
 
 #+RESULTS: tree-after-1st-file
-#+BEGIN_SRC org
+#+begin_src org
 my-finances/
 └── import
     └── gawie
@@ -178,7 +184,7 @@ my-finances/
 
 6 directories, 1 file
 
-#+END_SRC
+#+end_src
 
 #+REVEAL: split
 
@@ -202,7 +208,7 @@ hledger-flow import ./my-finances
 #+END_SRC
 
 #+RESULTS: import2
-#+BEGIN_SRC org
+#+begin_src org
 I couldn't find an hledger rules file while trying to import
 import/gawie/bogart/cheque/1-in/2016/123456789_2016-03-30.csv
 
@@ -213,7 +219,7 @@ import/bogart.rules
 Here is a bit of documentation about rules files that you may find helpful:
 https://github.com/apauley/hledger-flow#rules-files
 
-#+END_SRC
+#+end_src
 
 #+REVEAL: split
 
@@ -274,7 +280,7 @@ hledger-flow import ./my-finances
 #+END_SRC
 
 #+RESULTS: import3
-#+BEGIN_SRC org
+#+begin_src org
 I couldn't find an hledger rules file while trying to import
 import/gawie/bogart/cheque/2-preprocessed/2016/123456789_2016-03-30.csv
 
@@ -285,7 +291,7 @@ import/bogart.rules
 Here is a bit of documentation about rules files that you may find helpful:
 https://github.com/apauley/hledger-flow#rules-files
 
-#+END_SRC
+#+end_src
 
 This time we can see that our statement was preprocessed despite the rules file error:
 
@@ -295,11 +301,11 @@ head -n 2 my-finances/import/gawie/bogart/cheque/2-preprocessed/2016/123456789_2
 #+END_SRC
 
 #+RESULTS: head-preprocess
-#+BEGIN_SRC org
+#+begin_src org
 "5","'Nommer'","'Datum'","'Beskrywing1'","'Beskrywing2'","'Beskrywing3'","'Bedrag'","'Saldo'","'Opgeloopte Koste'"
 "5","1","2016-03-01","#Monthly Bank Fee","","","-500.00","40000.00",""
 
-#+END_SRC
+#+end_src
 
 #+REVEAL: split
 
@@ -362,7 +368,10 @@ tree my-finances
 #+REVEAL: split
 
 #+RESULTS: import4
-#+BEGIN_SRC org
+#+begin_src org
+Collecting input files...
+Found 1 input files in 0.011479186s. Proceeding with import...
+Imported 1 journals in 0.208365781s
 my-finances
 ├── all-years.journal
 ├── fnb-csv-demoronizer
@@ -394,7 +403,7 @@ my-finances
 
 11 directories, 16 files
 
-#+END_SRC
+#+end_src
 
 #+REVEAL: split
 
@@ -407,12 +416,12 @@ head -n 3 my-finances/import/gawie/bogart/cheque/3-journal/2016/123456789_2016-0
 #+END_SRC
 
 #+RESULTS: head-1st-journal
-#+BEGIN_SRC org
+#+begin_src org
 2016/03/01 * #Monthly Bank Fee//
     Assets:Current:Gawie:Bogart:Cheque        R-500.00 = R40000.00
     expenses:unknown                           R500.00
 
-#+END_SRC
+#+end_src
 
 #+REVEAL: split
 

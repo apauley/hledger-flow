@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <title>Hledger Flow: Step-By-Step</title>
+<meta name="author" content=""/>
 <style type="text/css">
 .underline { text-decoration: underline; }
 </style>
@@ -25,24 +26,25 @@
 <body>
 <div class="reveal">
 <div class="slides">
-<section id="sec-title-slide"><h1 class="title">Hledger Flow: Step-By-Step</h1><p class="date">Created: 2019-04-06 Sat 17:06</p>
+<section id="sec-title-slide">
+<h1 class="title">Hledger Flow: Step-By-Step</h1><p class="date">Created: 2019-04-22 Mon 22:01</p>
 </section>
-<section id="table-of-contents">
+<section id="table-of-contents-section">
 <div id="table-of-contents">
 <h2>Table of Contents</h2>
 <div id="text-table-of-contents">
 <ul>
-<li><a href="#/slide-org87945e9">Part 3</a></li>
-<li><a href="#/slide-org35a04df">About This Document</a></li>
-<li><a href="#/slide-org0f0ef76">Adding More Statements</a></li>
+<li><a href="#/slide-org3c4597d">Part 3</a></li>
+<li><a href="#/slide-orgc940528">About This Document</a></li>
+<li><a href="#/slide-orgd3be0ee">Adding More Statements</a></li>
 </ul>
 </div>
 </div>
 </section>
 
 <section>
-<section id="slide-org87945e9">
-<h2 id="org87945e9">Part 3</h2>
+<section id="slide-org3c4597d">
+<h2 id="org3c4597d">Part 3</h2>
 <p>
 This is the third part in a a series of step-by-step instructions.
 </p>
@@ -54,8 +56,8 @@ They are intended to be read in sequence. Head over to the <a href="README.html"
 </section>
 </section>
 <section>
-<section id="slide-org35a04df">
-<h2 id="org35a04df">About This Document</h2>
+<section id="slide-orgc940528">
+<h2 id="orgc940528">About This Document</h2>
 <p>
 This document is a <a href="https://www.offerzen.com/blog/literate-programming-empower-your-writing-with-emacs-org-mode">literate</a> <a href="https://orgmode.org/worg/org-contrib/babel/intro.html">program</a>.
 You can read it like a normal article, either <a href="https://github.com/apauley/hledger-flow/blob/master/docs/part3.org">on the web</a> or <a href="https://pauley.org.za/hledger-flow/part3.html">as a slide show</a>.
@@ -69,8 +71,8 @@ Then you can execute each code snippet by pressing <code>C-c C-c</code> with you
 </section>
 </section>
 <section>
-<section id="slide-org0f0ef76">
-<h2 id="org0f0ef76">Adding More Statements</h2>
+<section id="slide-orgd3be0ee">
+<h2 id="orgd3be0ee">Adding More Statements</h2>
 <p>
 Now that the all the boilerplate for the first statement has been done,
 adding some more should be easy:
@@ -92,7 +94,8 @@ hledger -f my-finances/all-years.journal incomestatement <span style="color: #2d
 <div class="org-src-container">
 
 <pre  class="src src-org">Collecting input files...
-Imported 3 journals in 0.373432701s
+Found 3 input files in 0.013913927s. Proceeding with import...
+Imported 3 journals in 0.257992465s
 Income Statement 2016/03/01-2016/05/25
 
                   &#9553;       Mar        Apr        May    Average
@@ -150,7 +153,6 @@ git commit -m <span style="color: #2d9574;">'Added a few more statements'</span>
 </div>
 <script src="./reveal.js/lib/js/head.min.js"></script>
 <script src="./reveal.js/js/reveal.js"></script>
-
 <script>
 // Full list of configuration options available here:
 // https://github.com/hakimel/reveal.js#configuration
@@ -163,6 +165,10 @@ center: true,
 slideNumber: 'c',
 rollingLinks: false,
 keyboard: true,
+mouseWheel: false,
+fragmentInURL: false,
+pdfSeparateFragments: true,
+
 overview: true,
 
 theme: Reveal.getQueryHash().theme, // available themes are in /css/theme

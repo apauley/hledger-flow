@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <title>Hledger Flow: Step-By-Step</title>
+<meta name="author" content=""/>
 <style type="text/css">
 .underline { text-decoration: underline; }
 </style>
@@ -25,25 +26,26 @@
 <body>
 <div class="reveal">
 <div class="slides">
-<section id="sec-title-slide"><h1 class="title">Hledger Flow: Step-By-Step</h1><p class="date">Created: 2019-04-06 Sat 17:06</p>
+<section id="sec-title-slide">
+<h1 class="title">Hledger Flow: Step-By-Step</h1><p class="date">Created: 2019-04-22 Mon 22:00</p>
 </section>
-<section id="table-of-contents">
+<section id="table-of-contents-section">
 <div id="table-of-contents">
 <h2>Table of Contents</h2>
 <div id="text-table-of-contents">
 <ul>
-<li><a href="#/slide-org1ec241a">Part 1</a></li>
-<li><a href="#/slide-orgb6ecfcd">About This Document</a></li>
-<li><a href="#/slide-org4e7f1e3">The Story of an African Chef</a></li>
-<li><a href="#/slide-orgd6acf2b">The First CSV Statement</a></li>
+<li><a href="#/slide-org5706002">Part 1</a></li>
+<li><a href="#/slide-org9a0db51">About This Document</a></li>
+<li><a href="#/slide-orgd330f7f">The Story of an African Chef</a></li>
+<li><a href="#/slide-org7758943">The First CSV Statement</a></li>
 </ul>
 </div>
 </div>
 </section>
 
 <section>
-<section id="slide-org1ec241a">
-<h2 id="org1ec241a">Part 1</h2>
+<section id="slide-org5706002">
+<h2 id="org5706002">Part 1</h2>
 <p>
 This is the first part in a a series of step-by-step instructions.
 </p>
@@ -55,8 +57,8 @@ They are intended to be read in sequence. Head over to the <a href="README.html"
 </section>
 </section>
 <section>
-<section id="slide-orgb6ecfcd">
-<h2 id="orgb6ecfcd">About This Document</h2>
+<section id="slide-org9a0db51">
+<h2 id="org9a0db51">About This Document</h2>
 <p>
 This document is a <a href="https://www.offerzen.com/blog/literate-programming-empower-your-writing-with-emacs-org-mode">literate</a> <a href="https://orgmode.org/worg/org-contrib/babel/intro.html">program</a>.
 You can read it like a normal article, either <a href="https://github.com/apauley/hledger-flow/blob/master/docs/part1.org">on the web</a> or <a href="https://pauley.org.za/hledger-flow/">as a slide show</a>.
@@ -70,8 +72,8 @@ Then you can execute each code snippet by pressing <code>C-c C-c</code> with you
 </section>
 </section>
 <section>
-<section id="slide-org4e7f1e3">
-<h2 id="org4e7f1e3">The Story of an African Chef</h2>
+<section id="slide-orgd330f7f">
+<h2 id="orgd330f7f">The Story of an African Chef</h2>
 <p>
 Meet Gawie de Groot. Gawie is a successful <a href="https://en.wikipedia.org/wiki/Gonimbrasia_belina#As_food">mopane worm</a> chef, based in the northernmost section of the <a href="https://en.wikipedia.org/wiki/Kruger_National_Park">Kruger National Park</a>.
 </p>
@@ -114,8 +116,8 @@ It is time for Gawie to take charge of his finances.
 </section>
 </section>
 <section>
-<section id="slide-orgd6acf2b">
-<h2 id="orgd6acf2b">The First CSV Statement</h2>
+<section id="slide-org7758943">
+<h2 id="org7758943">The First CSV Statement</h2>
 <p>
 Gawie followed the <a href="https://github.com/apauley/hledger-flow#build-instructions">build instructions</a> and ended up with his very own <code>hledger-flow</code> executable.
 </p>
@@ -137,7 +139,7 @@ Let's just run this <code>hledger-flow</code> command and see what happens&#x202
 An hledger workflow focusing on automated statement import and classification:
 https://github.com/apauley/hledger-flow#readme
 
-Usage: hledger-flow (import | report)
+Usage: hledger-flow (import | report | version)
 
 Available options:
   -h,--help                Show this help text
@@ -145,6 +147,7 @@ Available options:
 Available commands:
   import                   Converts CSV transactions into categorised journal files
   report                   Generate Reports
+  version                  Display version information
 
 </pre>
 
@@ -171,12 +174,17 @@ Luckily the <code>import</code> subcommand has a bit of help text as well:
 
 <div class="org-src-container">
 
-<pre  class="src src-org">Usage: hledger-flow import [BASEDIR] [-v|--verbose]
+<pre  class="src src-org">Usage: hledger-flow import [BASEDIR] [-H|--hledger-path HLEDGER-PATH]
+                           [-v|--verbose] [--show-options] [--sequential]
   Converts CSV transactions into categorised journal files
 
 Available options:
   BASEDIR                  The hledger-flow base directory
+  -H,--hledger-path HLEDGER-PATH
+                           The full path to an hledger executable
   -v,--verbose             Print more verbose output
+  --show-options           Print the options this program will run with
+  --sequential             Disable parallel processing
   -h,--help                Show this help text
 
 </pre>
@@ -520,7 +528,10 @@ tree my-finances
 
 <div class="org-src-container">
 
-<pre  class="src src-org">my-finances
+<pre  class="src src-org">Collecting input files...
+Found 1 input files in 0.011479186s. Proceeding with import...
+Imported 1 journals in 0.208365781s
+my-finances
 &#9500;&#9472;&#9472; all-years.journal
 &#9500;&#9472;&#9472; fnb-csv-demoronizer
 &#9474;&#160;&#160; &#9500;&#9472;&#9472; fnb-csv-demoronizer
@@ -607,7 +618,6 @@ The story continues with <a href="part2.html">part 2</a>.
 </div>
 <script src="./reveal.js/lib/js/head.min.js"></script>
 <script src="./reveal.js/js/reveal.js"></script>
-
 <script>
 // Full list of configuration options available here:
 // https://github.com/hakimel/reveal.js#configuration
@@ -620,6 +630,10 @@ center: true,
 slideNumber: 'c',
 rollingLinks: false,
 keyboard: true,
+mouseWheel: false,
+fragmentInURL: false,
+pdfSeparateFragments: true,
+
 overview: true,
 
 theme: Reveal.getQueryHash().theme, // available themes are in /css/theme
