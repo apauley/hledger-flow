@@ -172,11 +172,12 @@ timeAndExitOnErr opts ch cmdLabel procFun (cmd, args, stdInput) = do
   timed@((ec, stdOut, stdErr), _) <- logTimedAction opts ch cmdLabel action
   case ec of
     ExitFailure i -> do
+      let cmdText = format (s%" "%s) cmd $ showCmdArgs args
       let msgOut = descriptiveOutput "Standard output" stdOut
       let msgErr = descriptiveOutput "Error output" stdErr
 
-      let exitMsg = format ("\nError in external process:\n"%s%"\nExit code "%d%"\n"
-                            %s%s%"\n") cmdLabel i msgOut msgErr
+      let exitMsg = format ("\nError in external command:\n"%s%"\nExit code "%d%"\n"
+                            %s%s%"\n") cmdText i msgOut msgErr
       errExit i ch exitMsg timed
     ExitSuccess -> return timed
 
