@@ -21,13 +21,13 @@ data SubcommandParams = SubcommandParams { maybeBaseDir :: Maybe FilePath
                                          , sequential :: Bool
                                          }
                       deriving (Show)
-data Command = Version (Maybe Text) | Import SubcommandParams | Report SubcommandParams deriving (Show)
+data Command = Version | Import SubcommandParams | Report SubcommandParams deriving (Show)
 
 main :: IO ()
 main = do
   cmd <- options "An hledger workflow focusing on automated statement import and classification:\nhttps://github.com/apauley/hledger-flow#readme" parser
   case cmd of
-    Version _        -> stdout $ select versionInfo
+    Version          -> stdout $ select versionInfo
     Import subParams -> toImportOptions subParams >>= importCSVs
     Report subParams -> toReportOptions subParams >>= generateReports
 
@@ -54,7 +54,7 @@ toReportOptions params = do
 parser :: Parser Command
 parser = fmap Import (subcommand "import" "Converts CSV transactions into categorised journal files" subcommandParser)
   <|> fmap Report (subcommand "report" "Generate Reports" subcommandParser)
-  <|> fmap Version (subcommand "version" "Display version information" noArgs)
+  <|> flag' Version (long "version" <> short 'V' <> help "Display version information")
 
 subcommandParser :: Parser SubcommandParams
 subcommandParser = SubcommandParams
@@ -63,6 +63,3 @@ subcommandParser = SubcommandParams
   <*> switch (long "verbose" <> short 'v' <> help "Print more verbose output")
   <*> switch (long "show-options" <> help "Print the options this program will run with")
   <*> switch (long "sequential" <> help "Disable parallel processing")
-
-noArgs :: Parser (Maybe Text)
-noArgs = optional (argText "" "")
