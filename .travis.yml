@@ -45,7 +45,7 @@ install:
   - stack build --interleaved-output --test --bench --no-run-tests --no-run-benchmarks
   - stack install
   - which hledger-flow
-  - hledger-flow version
+  - hledger-flow --version
   - ldd $(which hledger-flow) || true
   - ./bin/release-tarball ~/.local/bin/hledger-flow
   - if [[ ! -x ~/.local/bin/hledger ]]; then stack install --interleaved-output hledger; fi
