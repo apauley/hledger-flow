@@ -26,8 +26,8 @@ jobs:
           name: Install hledger-flow executable
           command: stack install
       - run:
-          name: hledger-flow version
-          command: ~/.local/bin/hledger-flow version
+          name: hledger-flow --version
+          command: ~/.local/bin/hledger-flow --version
       - run:
           name: List hledger-flow shared object dependencies - should not be dynamic
           command: ldd ~/.local/bin/hledger-flow || true
