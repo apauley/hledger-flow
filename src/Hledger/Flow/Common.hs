@@ -1,49 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Hledger.Flow.Common
-    ( docURL
-    , versionInfo
-    , hledgerPathFromOption
-    , hledgerVersionFromPath
-    , hledgerInfoFromPath
-    , showCmdArgs
-    , consoleChannelLoop
-    , terminateChannelLoop
-    , dummyLogger
-    , channelOut, channelOutLn
-    , channelErr, channelErrLn
-    , errExit
-    , logVerbose
-    , timeAndExitOnErr, timeAndExitOnErr'
-    , parAwareProc
-    , inprocWithErrFun
-    , verboseTestFile
-    , relativeToBase
-    , relativeToBase'
-    , lsDirs
-    , onlyFiles
-    , onlyDirs
-    , filterPaths
-    , changePathAndExtension
-    , basenameLine
-    , buildFilename
-    , shellToList
-    , firstExistingFile
-    , groupValuesBy
-    , groupIncludeFiles
-    , allYearIncludeFiles
-    , yearsIncludeMap
-    , extraIncludesForFile
-    , groupPairs
-    , pairBy
-    , includePreamble
-    , toIncludeFiles
-    , toIncludeLine
-    , groupAndWriteIncludeFiles
-    , writeIncludesUpTo
-    , dirOrPwd
-    , extractImportDirs
-    ) where
+module Hledger.Flow.Common where
 
 import Turtle
 import Prelude hiding (FilePath, putStrLn)
@@ -434,6 +391,35 @@ changePathAndExtension newOutputLocation newExt = (changeOutputPath newOutputLoc
 changeOutputPath :: FilePath -> FilePath -> FilePath
 changeOutputPath newOutputLocation srcFile = mconcat $ map changeSrcDir $ splitDirectories srcFile
   where changeSrcDir file = if (file == "1-in/" || file == "2-preprocessed/") then newOutputLocation else file
+
+errorMessageBaseDir :: FilePath -> Text
+errorMessageBaseDir startDir = format ("Unable to find an hledger-flow import directory at '"%fp
+                                       %"' (or in any of its parent directories).\n\n"
+                                       %"Have a look at the documentation for more information:\n"%s)
+                               startDir (docURL "input-files")
+
+determineBaseDir :: Maybe FilePath -> IO FilePath
+determineBaseDir (Just suppliedDir) = determineBaseDir' suppliedDir
+determineBaseDir Nothing = pwd >>= determineBaseDir'
+
+determineBaseDir' :: FilePath -> IO FilePath
+determineBaseDir' startDir = do
+  ee <- determineBaseDir'' startDir startDir
+  case ee of
+    Right bd -> return bd
+    Left  t  -> die t
+
+determineBaseDir'' :: FilePath -> FilePath -> IO (Either Text FilePath)
+determineBaseDir'' startDir currentDir = do
+  foundBaseDir <- testdir $ currentDir </> "import"
+  if foundBaseDir
+    then return $ Right $ forceTrailingSlash currentDir
+    else
+    do
+      let doneSearching = (currentDir `elem` ["/", "./"])
+      if doneSearching
+        then return $ Left $ errorMessageBaseDir startDir
+        else determineBaseDir'' startDir $ parent currentDir
 
 dirOrPwd :: Maybe FilePath -> IO FilePath
 dirOrPwd maybeBaseDir = fmap forceTrailingSlash (fromMaybe pwd $ fmap realpath maybeBaseDir)

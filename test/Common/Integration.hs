@@ -52,6 +52,67 @@ testDirOrPwd = TestCase (
      )
   )
 
+testDetermineBaseDir = TestCase (
+  sh (
+      do
+        error1 <- liftIO $ determineBaseDir'' "/path/to/dir" "/path/to/dir"
+        liftIO $ assertEqual "determineBaseDir produces an error message when given a non-existant dir" (Left $ errorMessageBaseDir "/path/to/dir") error1
+        tmpdir <- using (mktempdir "." "hlflow")
+
+        let unrelatedDir = collapse $ tmpdir </> "unrelated"
+        mkdir unrelatedDir
+
+        bdUnrelated <- liftIO $ determineBaseDir'' unrelatedDir unrelatedDir
+        liftIO $ assertEqual "determineBaseDir produces an error message when it cannot find a baseDir" (Left $ errorMessageBaseDir unrelatedDir) bdUnrelated
+
+        currentDir <- pwd
+        let baseDir = forceTrailingSlash $ collapse $ currentDir </> tmpdir </> "bd1"
+
+        let importDir = baseDir </> "import"
+        let ownerDir = importDir </> "john"
+        let bankDir = ownerDir </> "mybank"
+        let accDir = bankDir </> "myacc"
+        let inDir = accDir </> "1-in"
+        let yearDir = inDir </> "2019"
+        mktree yearDir
+
+        let reportDir = baseDir </> "report"
+        mkdir reportDir
+
+        cd baseDir
+        bd <- liftIO $ determineBaseDir Nothing
+        liftIO $ assertEqual "determineBaseDir searches from pwd upwards until it finds a dir containing 'import' - in the base dir" baseDir bd
+
+        cd reportDir
+        bdReport <- liftIO $ determineBaseDir Nothing
+        liftIO $ assertEqual "determineBaseDir searches from pwd upwards until it finds a dir containing 'import' - report dir" baseDir bdReport
+
+        cd yearDir
+        bdYear <- liftIO $ determineBaseDir Nothing
+        liftIO $ assertEqual "determineBaseDir searches from pwd upwards until it finds a dir containing 'import' - year dir" baseDir bdYear
+
+        cd inDir
+        bdIn <- liftIO $ determineBaseDir Nothing
+        liftIO $ assertEqual "determineBaseDir searches from pwd upwards until it finds a dir containing 'import' - input dir" baseDir bdIn
+
+        cd accDir
+        bdAcc <- liftIO $ determineBaseDir Nothing
+        liftIO $ assertEqual "determineBaseDir searches from pwd upwards until it finds a dir containing 'import' - account dir" baseDir bdAcc
+
+        cd bankDir
+        bdBank <- liftIO $ determineBaseDir Nothing
+        liftIO $ assertEqual "determineBaseDir searches from pwd upwards until it finds a dir containing 'import' - bank dir" baseDir bdBank
+
+        cd ownerDir
+        bdOwner <- liftIO $ determineBaseDir Nothing
+        liftIO $ assertEqual "determineBaseDir searches from pwd upwards until it finds a dir containing 'import' - owner dir" baseDir bdOwner
+
+        cd importDir
+        bdImport <- liftIO $ determineBaseDir Nothing
+        liftIO $ assertEqual "determineBaseDir searches from pwd upwards until it finds a dir containing 'import' - import dir" baseDir bdImport
+     )
+  )
+
 testFilterPaths = TestCase (
   sh (
       do
@@ -71,4 +132,4 @@ testFilterPaths = TestCase (
   )
 
 
-tests = TestList [testDirOrPwd, testHiddenFiles, testFilterPaths]
+tests = TestList [testDirOrPwd, testDetermineBaseDir, testHiddenFiles, testFilterPaths]
