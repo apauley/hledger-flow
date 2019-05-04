@@ -33,7 +33,7 @@ main = do
 
 toImportOptions :: SubcommandParams -> IO IT.ImportOptions
 toImportOptions params = do
-  bd <- dirOrPwd $ maybeBaseDir params
+  bd <- determineBaseDir $ maybeBaseDir params
   hli <- hledgerInfoFromPath $ hledgerPathOpt params
   return IT.ImportOptions { IT.baseDir = bd
                           , IT.hledgerInfo = hli
@@ -43,7 +43,7 @@ toImportOptions params = do
 
 toReportOptions :: SubcommandParams -> IO RT.ReportOptions
 toReportOptions params = do
-  bd <- dirOrPwd $ maybeBaseDir params
+  bd <- determineBaseDir $ maybeBaseDir params
   hli <- hledgerInfoFromPath $ hledgerPathOpt params
   return RT.ReportOptions { RT.baseDir = bd
                           , RT.hledgerInfo = hli

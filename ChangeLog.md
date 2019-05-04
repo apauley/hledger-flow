@@ -1,5 +1,10 @@
 # Changelog for [hledger-flow](https://github.com/apauley/hledger-flow)
 
+## 0.11.3
+
+- Detect the hledger-flow base directory correctly, even when in a subdirectory. Similar to how git behaves.
+- Change the version subcommand into a flag - thanks to [jecaro](https://github.com/apauley/hledger-flow/pull/38) for the contribution.
+
 ## 0.11.2
 
 - Improved display of external process output
