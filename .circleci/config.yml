@@ -26,6 +26,9 @@ jobs:
           name: Install hledger-flow executable
           command: stack install
       - run:
+          name: hledger-flow --help
+          command: ~/.local/bin/hledger-flow --help
+      - run:
           name: hledger-flow --version
           command: ~/.local/bin/hledger-flow --version
       - run:
