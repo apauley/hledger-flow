@@ -196,7 +196,7 @@ If you don't get a merge in a day after your review is successful, then
 please gently remind folks that your code is ready to be merged.
 
 
-* Hledger Flow Contributor License Agreement
+* Hledger Flow Contributor Agreement
   :PROPERTIES:
   :CUSTOM_ID: hledger-flow-contributor-agreement
   :END:
