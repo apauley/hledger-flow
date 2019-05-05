@@ -57,7 +57,7 @@ baseCommandParser = (Command <$> verboseParser <*> commandParser)
   <|> flag' Version (long "version" <> short 'V' <> help "Display version information")
 
 commandParser :: Parser Command
-commandParser = fmap Import (subcommand "import" "Converts CSV transactions into categorised journal files" subcommandParser)
+commandParser = fmap Import (subcommand "import" "Converts electronic transactions into categorised journal files" subcommandParser)
   <|> fmap Report (subcommand "report" "Generate Reports" subcommandParser)
 
 verboseParser :: Parser MainParams
