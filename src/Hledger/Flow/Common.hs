@@ -393,9 +393,9 @@ changeOutputPath newOutputLocation srcFile = mconcat $ map changeSrcDir $ splitD
   where changeSrcDir file = if (file == "1-in/" || file == "2-preprocessed/") then newOutputLocation else file
 
 errorMessageBaseDir :: FilePath -> Text
-errorMessageBaseDir startDir = format ("Unable to find an hledger-flow import directory at '"%fp
+errorMessageBaseDir startDir = format ("\nUnable to find an hledger-flow import directory at '"%fp
                                        %"' (or in any of its parent directories).\n\n"
-                                       %"Have a look at the documentation for more information:\n"%s)
+                                       %"Have a look at the documentation for more information:\n"%s%"\n")
                                startDir (docURL "input-files")
 
 determineBaseDir :: Maybe FilePath -> IO FilePath
