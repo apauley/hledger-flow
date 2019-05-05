@@ -599,10 +599,13 @@ also resonated with me:
   the way I am doing things, with as little effort as possible and
   without fear of irrevocably breaking things.
 
-I've given [[https://pauley.org.za/functional-finance-hledger/][a talk]]
-at
-[[https://www.meetup.com/lambda-luminaries/events/qklkvpyxmbnb/][Lambda
-Luminaries Johannesburg]] featuring hledger and hledger-flow.
+I've given [[https://pauley.org.za/functional-finance-hledger/][a talk]] at
+[[https://www.meetup.com/lambda-luminaries/events/qklkvpyxmbnb/][Lambda Luminaries Johannesburg]]
+featuring hledger and hledger-flow.
+
+* Contributing to Hledger Flow
+
+Have a look at the [[file:CONTRIBUTING.org][contribution guidelines]].
 
 * FAQ
   :PROPERTIES:
