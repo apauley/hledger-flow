@@ -1,0 +1,205 @@
+#+STARTUP: showall
+
+* Hledger Flow Contributor Guidelines
+  :PROPERTIES:
+  :CUSTOM_ID: hledger-flow-contributor-guidelines
+  :END:
+
+Please read the [[#hledger-flow-contributor-agreement][Contributor Agreement]] before continuing below.
+By submitting a contribution it means that you agree to the terms in the
+contributor's agreement.
+
+* List of Contributors
+  :PROPERTIES:
+  :CUSTOM_ID: list-of-contributors
+  :END:
+
+The complete list of contributors can be seen in the git logs or
+[[https://github.com/apauley/hledger-flow/graphs/contributors][on GitHub]].
+
+If you have made a contribution, please consider adding your name (or github
+username) to the list below, and include it in a new or existing pull request.
+
+Hledger Flow is brought to you by:
+- [[https://github.com/apauley][Andreas Pauley]]
+
+* Contributing
+  :PROPERTIES:
+  :CUSTOM_ID: contributing
+  :END:
+
+To begin contributing, please follow these steps:
+
+1. [[#get-the-project][Get the Project]]
+2. [[#build-the-project][Build the Project]]
+3. [[#find-an-issue][Find an Issue]]
+4. [[#create-a-pull-request][Create a Pull Request]]
+5. [[#get-your-pull-request-merged][Get Your Pull Request Merged]]
+
+** Getting Started
+   :PROPERTIES:
+   :CUSTOM_ID: getting-started
+   :END:
+
+*** Get The Project
+    :PROPERTIES:
+    :CUSTOM_ID: get-the-project
+    :END:
+
+If you don't already have one, sign up for a free
+[[https://github.com/join][Github Account]].
+
+After you [[https://github.com/login][log into]] Github using your
+account, go to the [[https://github.com/apauley/hledger-flow][Hledger Flow Project Page]], and click on [[https://github.com/apauley/hledger-flow/fork][Fork]] to fork the
+Hledger Flow repository into your own account.
+
+Once you have forked the repository, you can now clone your forked
+repository to your own machine, so you have a complete copy of the
+project and can begin safely making your modifications.
+
+To clone your forked repository, first make sure you have installed
+[[https://git-scm.com/downloads][Git]], the version control system used
+by Github. Then open a Terminal and type the following commands:
+
+#+BEGIN_SRC sh
+    mkdir hledger-flow
+    cd hledger-flow
+    git clone git@github.com:apauley/hledger-flow.git .
+#+END_SRC
+
+*** Build the Project
+    :PROPERTIES:
+    :CUSTOM_ID: build-the-project
+    :END:
+
+You need a recent version of [[https://docs.haskellstack.org/en/stable/README/][stack]] installed.
+
+Then run:
+
+#+NAME: stack-build
+#+BEGIN_SRC sh
+    stack build --pedantic
+    stack test
+    stack install
+#+END_SRC
+
+Which should end with this:
+
+#+BEGIN_SRC org
+    Copied executables to ~/.local/bin:
+    - hledger-flow
+#+END_SRC
+
+Ensure that =${HOME}/.local/bin= is in your =PATH=.
+
+Usually this means adding this to your =~/.bashrc=:
+
+#+BEGIN_SRC sh
+    PATH="${HOME}/.local/bin:${PATH}"
+#+END_SRC
+
+*** Find an Issue
+    :PROPERTIES:
+    :CUSTOM_ID: find-an-issue
+    :END:
+
+You may have your own idea about what contributions to make to Hledger
+Flow, which is great! If you want to make sure the Hledger Flow
+contributors are open to your idea, you can
+[[https://github.com/apauley/hledger-flow/issues/new][open an issue]]
+first on the Hledger Flow project site.
+
+Otherwise, if you have no ideas about what to contribute, you can find a
+list of issues on the project's [[https://github.com/apauley/hledger-flow/issues][issue tracker]].
+
+Issues are tagged with various labels, such as =good first issue= or
+=help wanted=, which can help you find issues that are a fit for you.
+
+If some issue is confusing or you think you might need help, then just
+post a comment on the issue asking for help.
+
+Once you've decided on an issue and understand what is necessary to
+complete the issue, then it's a good idea to post a comment on the issue
+saying that you intend to work on it. Otherwise, someone else might work
+on it too!
+
+*** Create a Pull Request
+    :PROPERTIES:
+    :CUSTOM_ID: create-a-pull-request
+    :END:
+
+To create a pull request, first push all your changes to your fork of
+the project repository:
+
+#+BEGIN_SRC sh
+    git push
+#+END_SRC
+
+Next, [[https://github.com/apauley/hledger-flow/compare][open a new pull request]] on Github, and select /Compare Across Forks/.
+On the right hand side, choose your own fork of the Hledger Flow repository,
+in which you've been making your contribution.
+
+Provide a description for the pull request, which details the issue it
+is fixing, and has other information that may be helpful to developers
+reviewing the pull request.
+
+Finally, click /Create Pull Request/!
+
+*** Get Your Pull Request Merged
+    :PROPERTIES:
+    :CUSTOM_ID: get-your-pull-request-merged
+    :END:
+
+Once you have a pull request open, it's still your job to get it merged!
+To get it merged, a core contributor has to approve the code.
+
+Code reviews can sometimes take a few days, because open source projects
+are largely done outside of work, in people's leisure time. Be patient,
+but don't wait forever. If you haven't gotten a review within a few
+days, then consider gently reminding people that you need a review.
+
+Once you receive a review, you will probably have to go back and make
+minor changes that improve your contribution and make it follow existing
+conventions in the code base. This is normal, even for experienced
+contributors, and the rigorous reviews help ensure that the quality of
+the code stays high.
+
+After you make changes, you may need to remind reviewers to check out
+the code again. If they give a final approval, it means your code is
+ready for merge!
+
+If you don't get a merge in a day after your review is successful, then
+please gently remind folks that your code is ready to be merged.
+
+
+* Hledger Flow Contributor License Agreement
+  :PROPERTIES:
+  :CUSTOM_ID: hledger-flow-contributor-agreement
+  :END:
+
+Thank you for your interest in contributing to the Hledger Flow open
+source project.
+
+This is the official contributor agreement for the Hledger Flow project.
+
+The purpose of this agreement is to ensure:
+1. that there is a clear legal status and audit trail for the project
+2. that you get proper credit for your work
+3. that we are able to remain license-compatible with related software by
+   updating to newer versions of our license when appropriate (eg maintaining
+   compatibility with [[https://hledger.org/][hledger]])
+
+By submitting a contribution you declare that all of your contributions to
+hledger-flow:
+- are free of patent violations or copyright violations, to the best of your knowledge
+- are released under the hledger-flow project's license
+- are granted legal ownership to both yourself and the project leaders of hledger-flow
+- may be relicensed in future at the discretion of the project leader
+
+This contributor agreement describes the terms and conditions under which you
+may submit a contribution to us. By submitting a contribution to us, you accept
+the terms and conditions in the agreement. If you do not accept the terms and
+conditions in the agreement, you must not submit any contribution to us.
+
+Although it is not required, we encourage you to add your name to the
+[[#list-of-contributors][list of contributors]] if you have made a contribution to the project.
