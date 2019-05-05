@@ -404,8 +404,8 @@ determineBaseDir Nothing = pwd >>= determineBaseDir'
 
 determineBaseDir' :: FilePath -> IO FilePath
 determineBaseDir' startDir = do
-  ee <- determineBaseDir'' startDir startDir
-  case ee of
+  ebd <- determineBaseDir'' startDir startDir
+  case ebd of
     Right bd -> return bd
     Left  t  -> die t
 
