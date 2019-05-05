@@ -396,7 +396,7 @@ errorMessageBaseDir :: FilePath -> Text
 errorMessageBaseDir startDir = format ("\nUnable to find an hledger-flow import directory at '"%fp
                                        %"' (or in any of its parent directories).\n\n"
                                        %"Have a look at the documentation for more information:\n"%s%"\n")
-                               startDir (docURL "input-files")
+                               startDir (docURL "getting-started")
 
 determineBaseDir :: Maybe FilePath -> IO FilePath
 determineBaseDir (Just suppliedDir) = determineBaseDir' suppliedDir

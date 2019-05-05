@@ -113,9 +113,9 @@ likely change.
 
 Let me know if you can think of some improvements.
 
-* Detailed Step-By-Step Guide
+* Getting Started
   :PROPERTIES:
-  :CUSTOM_ID: detailed-step-by-step-guide
+  :CUSTOM_ID: getting-started
   :END:
 
 Have a look at the [[file:docs/README.org][detailed step-by-step
