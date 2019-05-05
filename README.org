@@ -47,7 +47,7 @@ The easiest way to get it running is to download [[https://github.com/apauley/hl
 for your OS, and copy the =hledger-flow= executable to a directory in your PATH.
 Then just run it and see what it tells you to do.
 
-You can also compile it yourself by following the [[https://github.com/apauley/hledger-flow/blob/contributing/CONTRIBUTING.org#build-the-project][build instructions]].
+You can also compile it yourself by following the [[https://github.com/apauley/hledger-flow/blob/master/CONTRIBUTING.org#build-the-project][build instructions]].
 
 * Overview of the Basic Workflow
   :PROPERTIES:
