@@ -67,6 +67,16 @@ by Github. Then open a Terminal and type the following commands:
     git clone git@github.com:apauley/hledger-flow.git .
 #+END_SRC
 
+This repository has some submodules included, mostly related to the
+examples in the documentation.
+
+You need to initialise and update the submodules:
+
+#+BEGIN_SRC sh
+    git submodule init
+    git submodule update
+#+END_SRC
+
 *** Build the Project
     :PROPERTIES:
     :CUSTOM_ID: build-the-project
@@ -96,6 +106,20 @@ Usually this means adding this to your =~/.bashrc=:
 
 #+BEGIN_SRC sh
     PATH="${HOME}/.local/bin:${PATH}"
+#+END_SRC
+
+**** Building with older Haskell Versions
+   :PROPERTIES:
+   :CUSTOM_ID: building-with-older-haskell-versions
+   :END:
+
+To build using an older version of GHC and related dependencies, point
+stack to one of the other yaml files:
+
+#+NAME: stack-build-versions
+#+BEGIN_SRC sh
+    stack test --stack-yaml stack-8.4.4.yaml
+    stack test --stack-yaml stack-8.2.2.yaml
 #+END_SRC
 
 *** Find an Issue
