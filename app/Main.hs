@@ -14,58 +14,59 @@ import Hledger.Flow.Common
 import Hledger.Flow.Reports
 import Hledger.Flow.CSVImport
 
-data SubcommandParams = SubcommandParams { maybeBaseDir :: Maybe FilePath
-                                         , hledgerPathOpt :: Maybe FilePath
-                                         , showOpts :: Bool
-                                         , sequential :: Bool
-                                         }
-                      deriving (Show)
+data SubcommandParams = SubcommandParams { maybeBaseDir :: Maybe FilePath } deriving (Show)
 data Command = Import SubcommandParams | Report SubcommandParams deriving (Show)
 
-data BaseCommand = Version | Command { verbose :: Bool, command :: Command } deriving (Show)
+data MainParams = MainParams { verbose :: Bool
+                             , hledgerPathOpt :: Maybe FilePath
+                             , showOpts :: Bool
+                             , sequential :: Bool
+                             } deriving (Show)
+data BaseCommand = Version | Command { mainParams :: MainParams, command :: Command } deriving (Show)
 
 main :: IO ()
 main = do
   cmd <- options "An hledger workflow focusing on automated statement import and classification:\nhttps://github.com/apauley/hledger-flow#readme" baseCommandParser
   case cmd of
-    Version          -> stdout $ select versionInfo
-    Command verbose' (Import subParams) -> toImportOptions verbose' subParams >>= importCSVs
-    Command verbose' (Report subParams) -> toReportOptions verbose' subParams >>= generateReports
+    Version                                -> stdout $ select versionInfo
+    Command mainParams' (Import subParams) -> toImportOptions mainParams' subParams >>= importCSVs
+    Command mainParams' (Report subParams) -> toReportOptions mainParams' subParams >>= generateReports
 
-toImportOptions :: Bool -> SubcommandParams -> IO IT.ImportOptions
-toImportOptions verbose' params = do
-  bd <- determineBaseDir $ maybeBaseDir params
-  hli <- hledgerInfoFromPath $ hledgerPathOpt params
+toImportOptions :: MainParams -> SubcommandParams -> IO IT.ImportOptions
+toImportOptions mainParams' subParams' = do
+  bd <- determineBaseDir $ maybeBaseDir subParams'
+  hli <- hledgerInfoFromPath $ hledgerPathOpt mainParams'
   return IT.ImportOptions { IT.baseDir = bd
                           , IT.hledgerInfo = hli
-                          , IT.verbose = verbose'
-                          , IT.showOptions = showOpts params
-                          , IT.sequential = sequential params }
+                          , IT.verbose = verbose mainParams'
+                          , IT.showOptions = showOpts mainParams'
+                          , IT.sequential = sequential mainParams' }
 
-toReportOptions :: Bool -> SubcommandParams -> IO RT.ReportOptions
-toReportOptions verbose' params = do
-  bd <- determineBaseDir $ maybeBaseDir params
-  hli <- hledgerInfoFromPath $ hledgerPathOpt params
+toReportOptions :: MainParams -> SubcommandParams -> IO RT.ReportOptions
+toReportOptions mainParams' subParams' = do
+  bd <- determineBaseDir $ maybeBaseDir subParams'
+  hli <- hledgerInfoFromPath $ hledgerPathOpt mainParams'
   return RT.ReportOptions { RT.baseDir = bd
                           , RT.hledgerInfo = hli
-                          , RT.verbose = verbose'
-                          , RT.showOptions = showOpts params
-                          , RT.sequential = sequential params }
+                          , RT.verbose = verbose mainParams'
+                          , RT.showOptions = showOpts mainParams'
+                          , RT.sequential = sequential mainParams' }
 
 baseCommandParser :: Parser BaseCommand
 baseCommandParser = (Command <$> verboseParser <*> commandParser)
   <|> flag' Version (long "version" <> short 'V' <> help "Display version information")
 
 commandParser :: Parser Command
-commandParser = fmap Import (subcommand "import" "Converts CSV transactions into categorised journal files" subcommandParser)
+commandParser = fmap Import (subcommand "import" "Converts electronic transactions into categorised journal files" subcommandParser)
   <|> fmap Report (subcommand "report" "Generate Reports" subcommandParser)
 
-verboseParser :: Parser Bool
-verboseParser = switch (long "verbose" <> short 'v' <> help "Print more verbose output")
+verboseParser :: Parser MainParams
+verboseParser = MainParams
+  <$> switch (long "verbose" <> short 'v' <> help "Print more verbose output")
+  <*> optional (optPath "hledger-path" 'H' "The full path to an hledger executable")
+  <*> switch (long "show-options" <> help "Print the options this program will run with")
+  <*> switch (long "sequential" <> help "Disable parallel processing")
 
 subcommandParser :: Parser SubcommandParams
 subcommandParser = SubcommandParams
   <$> optional (argPath "basedir" "The hledger-flow base directory")
-  <*> optional (optPath "hledger-path" 'H' "The full path to an hledger executable")
-  <*> switch (long "show-options" <> help "Print the options this program will run with")
-  <*> switch (long "sequential" <> help "Disable parallel processing")

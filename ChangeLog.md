@@ -1,5 +1,13 @@
 # Changelog for [hledger-flow](https://github.com/apauley/hledger-flow)
 
+## 0.12.0
+
+- Re-organised the command-line interface:
+  moved various command-line options out of subcommands, into the top-level.
+- Added a [contributor's agreement](https://github.com/apauley/hledger-flow/blob/master/CONTRIBUTING.org)
+  after receiving some more valued contributions from
+  [jecaro](https://github.com/apauley/hledger-flow/pull/42)
+
 ## 0.11.3
 
 - Detect the hledger-flow base directory correctly, even when in a subdirectory. Similar to how git behaves.
