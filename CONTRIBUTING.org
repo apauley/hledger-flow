@@ -22,6 +22,7 @@ username) to the list below, and include it in a new or existing pull request.
 
 Hledger Flow is brought to you by:
 - [[https://github.com/apauley][Andreas Pauley]]
+- [[https://github.com/jecaro][Jean-Charles Quillet]]
 
 * Contributing
   :PROPERTIES:
