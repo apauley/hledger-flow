@@ -28,7 +28,7 @@ $ hledger-flow --show-options import
 **To Reproduce**
 Steps to reproduce the behavior:
 1. Given this input (files or other input)
-2. And when running the this exact command (with `--show-options`)
+2. And when running this exact command (with `--show-options`)
 3. Under these extra conditions
 4. See error - please paste the full error
 
