@@ -46,30 +46,28 @@ ownerParams opts owner = (journalFile opts ["import", owner], outputDir opts [ow
 
 generateReports'' :: ReportOptions -> TChan FlowTypes.LogMessage -> (FilePath, FilePath) -> [IO FilePath]
 generateReports'' opts ch (journal, reportsDir) = do
-  let actions = map (\r -> r opts ch journal reportsDir) [accountList, incomeStatement]
+  let actions = map (\r -> r opts ch journal reportsDir 2018) [accountList, incomeStatement]
   map (fmap fst) actions
 
-incomeStatement :: ReportOptions -> TChan FlowTypes.LogMessage -> FilePath -> FilePath -> IO (FilePath, FlowTypes.FullTimedOutput)
-incomeStatement opts ch journal reportsDir = do
-  mktree reportsDir
-  let outputFile = reportsDir </> "income-expenses" <.> "txt"
+incomeStatement :: ReportOptions -> TChan FlowTypes.LogMessage -> FilePath -> FilePath -> Int -> IO (FilePath, FlowTypes.FullTimedOutput)
+incomeStatement opts ch journal reportsDir year = do
   let sharedOptions = ["--depth", "2", "--pretty-tables", "not:equity"]
-  let reportArgs = ["incomestatement"] ++ sharedOptions ++ ["--average", "--yearly"]
-  generateReport opts ch journal outputFile reportArgs
+  let reportArgs = ["incomestatement"] ++ sharedOptions
+  generateReport opts ch journal reportsDir year ("income-expenses" <.> "txt") reportArgs
 
-accountList :: ReportOptions -> TChan FlowTypes.LogMessage -> FilePath -> FilePath -> IO (FilePath, FlowTypes.FullTimedOutput)
-accountList opts ch journal reportsDir = do
-  let outputFile = reportsDir </> "accounts" <.> "txt"
+accountList :: ReportOptions -> TChan FlowTypes.LogMessage -> FilePath -> FilePath -> Int -> IO (FilePath, FlowTypes.FullTimedOutput)
+accountList opts ch journal reportsDir year = do
   let reportArgs = ["accounts"]
-  generateReport opts ch journal outputFile reportArgs
+  generateReport opts ch journal reportsDir year ("accounts" <.> "txt") reportArgs
 
-generateReport :: ReportOptions -> TChan FlowTypes.LogMessage -> FilePath -> FilePath -> [Text] -> IO (FilePath, FlowTypes.FullTimedOutput)
-generateReport opts ch journal outputFile args = do
-  let reportsDir = directory outputFile
+generateReport :: ReportOptions -> TChan FlowTypes.LogMessage -> FilePath -> FilePath -> Int -> FilePath -> [Text] -> IO (FilePath, FlowTypes.FullTimedOutput)
+generateReport opts ch journal baseOutDir year fileName args = do
+  let reportsDir = baseOutDir </> intPath year
   mktree reportsDir
+  let outputFile = reportsDir </> fileName
   let relativeJournal = relativeToBase opts journal
-  let reportArgs = ["--file", format fp journal] ++ args
-  let reportDisplayArgs = ["--file", format fp relativeJournal] ++ args
+  let reportArgs = ["--file", format fp journal, "--period", repr year] ++ args
+  let reportDisplayArgs = ["--file", format fp relativeJournal, "--period", repr year] ++ args
   let hledger = format fp $ FlowTypes.hlPath . hledgerInfo $ opts :: Text
   let cmdLabel = format ("hledger "%s) $ showCmdArgs reportDisplayArgs
   result@((exitCode, stdOut, _), _) <- timeAndExitOnErr opts ch cmdLabel dummyLogger channelErr procStrictWithErr (hledger, reportArgs, empty)

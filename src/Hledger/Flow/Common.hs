@@ -449,3 +449,6 @@ extractImportDirs inputFile = do
 
 listOwners :: HasBaseDir o => o -> Shell FilePath
 listOwners opts = fmap basename $ lsDirs $ (baseDir opts) </> "import"
+
+intPath :: Int -> FilePath
+intPath = fromText . (format d)
