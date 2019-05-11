@@ -30,8 +30,10 @@ generateReports' :: ReportOptions -> TChan FlowTypes.LogMessage -> IO [FilePath]
 generateReports' opts ch = do
   channelOutLn ch "Report generation has not been fully implemented yet. Keep an eye out for report pull requests: https://github.com/apauley/hledger-flow/pulls"
   owners <- single $ shellToList $ listOwners opts
-  let ppp = map (ownerParams opts) owners :: [(FilePath, FilePath)]
-  let actions = List.concat $ fmap (\params -> generateReports'' opts ch params) ppp
+  let reportParams = [((baseDir opts) </> "all-years" <.> "journal",
+                       (baseDir opts) </> "reports")]
+                     ++ map (ownerParams opts) owners :: [(FilePath, FilePath)]
+  let actions = List.concat $ fmap (\params -> generateReports'' opts ch params) reportParams
   if (sequential opts) then sequence actions else single $ shellToList $ parallel actions
 
 ownerParams :: ReportOptions -> FilePath -> (FilePath, FilePath)
