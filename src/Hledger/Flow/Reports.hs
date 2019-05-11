@@ -55,16 +55,16 @@ incomeStatement opts ch journal reportsDir = do
   let outputFile = reportsDir </> "income-expenses" <.> "txt"
   let sharedOptions = ["--depth", "2", "--pretty-tables", "not:equity"]
   let reportArgs = ["incomestatement"] ++ sharedOptions ++ ["--average", "--yearly"]
-  generateReport' opts ch journal outputFile reportArgs
+  generateReport opts ch journal outputFile reportArgs
 
 accountList :: ReportOptions -> TChan FlowTypes.LogMessage -> FilePath -> FilePath -> IO (FilePath, FlowTypes.FullTimedOutput)
 accountList opts ch journal reportsDir = do
   let outputFile = reportsDir </> "accounts" <.> "txt"
   let reportArgs = ["accounts"]
-  generateReport' opts ch journal outputFile reportArgs
+  generateReport opts ch journal outputFile reportArgs
 
-generateReport' :: ReportOptions -> TChan FlowTypes.LogMessage -> FilePath -> FilePath -> [Text] -> IO (FilePath, FlowTypes.FullTimedOutput)
-generateReport' opts ch journal outputFile args = do
+generateReport :: ReportOptions -> TChan FlowTypes.LogMessage -> FilePath -> FilePath -> [Text] -> IO (FilePath, FlowTypes.FullTimedOutput)
+generateReport opts ch journal outputFile args = do
   let reportsDir = directory outputFile
   mktree reportsDir
   let relativeJournal = relativeToBase opts journal
