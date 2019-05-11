@@ -446,3 +446,6 @@ extractImportDirs inputFile = do
                       %"\n\nhledger-flow expects to find input files in this structure:\n"%
                       "import/owner/bank/account/filestate/year/trxfile\n\n"%
                       "Have a look at the documentation for a detailed explanation:\n"%s) inputFile (docURL "input-files")
+
+listOwners :: HasBaseDir o => o -> Shell FilePath
+listOwners opts = fmap basename $ lsDirs $ (baseDir opts) </> "import"

@@ -6,11 +6,13 @@ module Hledger.Flow.Reports
 
 import Turtle hiding (stdout, stderr, proc)
 import Prelude hiding (FilePath, putStrLn, writeFile)
-import qualified Data.Text as T
-import qualified Hledger.Flow.Types as FlowTypes
 import Hledger.Flow.Report.Types
 import Hledger.Flow.Common
 import Control.Concurrent.STM
+
+import qualified Data.Text as T
+import qualified Hledger.Flow.Types as FlowTypes
+import qualified Data.List as List
 
 generateReports :: ReportOptions -> IO ()
 generateReports opts = sh (
@@ -27,15 +29,16 @@ generateReports opts = sh (
 generateReports' :: ReportOptions -> TChan FlowTypes.LogMessage -> IO [FilePath]
 generateReports' opts ch = do
   channelOutLn ch "Report generation has not been fully implemented yet. Keep an eye out for report pull requests: https://github.com/apauley/hledger-flow/pulls"
-  ownerReports opts ch "everyone"
+  owners <- single $ shellToList $ listOwners opts
+  let actions = List.concat $ fmap (\owner -> ownerReports opts ch owner) owners
+  if (sequential opts) then sequence actions else single $ shellToList $ parallel actions
 
-ownerReports :: ReportOptions -> TChan FlowTypes.LogMessage -> Text -> IO [FilePath]
+ownerReports :: ReportOptions -> TChan FlowTypes.LogMessage -> FilePath -> [IO FilePath]
 ownerReports opts ch owner = do
-  let journal = (baseDir opts) </> "all-years" <.> "journal"
-  let reportsDir = (baseDir opts) </> "reports" </> fromText owner
+  let journal = (baseDir opts) </> "import" </> owner </> "all-years" <.> "journal"
+  let reportsDir = (baseDir opts) </> "reports" </> owner
   let actions = map (\r -> r opts ch journal reportsDir) [accountList, incomeStatement]
-  results <- if (sequential opts) then sequence actions else single $ shellToList $ parallel actions
-  return $ map fst results
+  map (fmap fst) actions
 
 incomeStatement :: ReportOptions -> TChan FlowTypes.LogMessage -> FilePath -> FilePath -> IO (FilePath, FlowTypes.FullTimedOutput)
 incomeStatement opts ch journal reportsDir = do
