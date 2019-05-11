@@ -46,7 +46,9 @@ ownerParams opts owner = (journalFile opts ["import", owner], outputDir opts [ow
 
 generateReports'' :: ReportOptions -> TChan FlowTypes.LogMessage -> (FilePath, FilePath) -> [IO FilePath]
 generateReports'' opts ch (journal, reportsDir) = do
-  let actions = map (\r -> r opts ch journal reportsDir 2018) [accountList, incomeStatement]
+  let years = [2016, 2017]
+  y <- years
+  let actions = map (\r -> r opts ch journal reportsDir y) [accountList, incomeStatement]
   map (fmap fst) actions
 
 incomeStatement :: ReportOptions -> TChan FlowTypes.LogMessage -> FilePath -> FilePath -> Int -> IO (FilePath, FlowTypes.FullTimedOutput)
