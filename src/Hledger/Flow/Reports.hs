@@ -30,20 +30,19 @@ generateReports' :: ReportOptions -> TChan FlowTypes.LogMessage -> IO [FilePath]
 generateReports' opts ch = do
   channelOutLn ch "Report generation has not been fully implemented yet. Keep an eye out for report pull requests: https://github.com/apauley/hledger-flow/pulls"
   owners <- single $ shellToList $ listOwners opts
-  let reportParams = [((baseDir opts) </> "all-years" <.> "journal",
-                       (baseDir opts) </> "reports")]
-                     ++ map (ownerParams opts) owners :: [(FilePath, FilePath)]
+
+  let reportParams = [(journalFile opts [], outputDir opts [])] ++ map (ownerParams opts) owners
   let actions = List.concat $ fmap (\params -> generateReports'' opts ch params) reportParams
   if (sequential opts) then sequence actions else single $ shellToList $ parallel actions
 
+journalFile :: ReportOptions -> [FilePath] -> FilePath
+journalFile opts dirs = (foldl (</>) (baseDir opts) dirs) </> "all-years" <.> "journal"
+
+outputDir :: ReportOptions -> [FilePath] -> FilePath
+outputDir opts dirs = foldl (</>) (baseDir opts) ("reports":dirs)
+
 ownerParams :: ReportOptions -> FilePath -> (FilePath, FilePath)
-ownerParams opts owner = (ownerJournal opts owner, ownerReportDir opts owner)
-
-ownerJournal :: ReportOptions -> FilePath -> FilePath
-ownerJournal opts owner = (baseDir opts) </> "import" </> owner </> "all-years" <.> "journal"
-
-ownerReportDir :: ReportOptions -> FilePath -> FilePath
-ownerReportDir opts owner = (baseDir opts) </> "reports" </> owner
+ownerParams opts owner = (journalFile opts ["import", owner], outputDir opts [owner])
 
 generateReports'' :: ReportOptions -> TChan FlowTypes.LogMessage -> (FilePath, FilePath) -> [IO FilePath]
 generateReports'' opts ch (journal, reportsDir) = do
