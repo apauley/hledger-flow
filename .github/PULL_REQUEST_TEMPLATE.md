@@ -1,13 +1,6 @@
----
-name: Pull Request
-about: Make a Contribution
-title: ''
-labels: ''
-assignees: ''
+After reading the text below, please replace it with your own PR description.
 
----
-
-**Thank you for your contribution!**
+**Thank you for contributing to hledger-flow!**
 
 There are some helpful information in our [Contibutor's Guide](https://github.com/apauley/hledger-flow/blob/master/CONTRIBUTING.org)
 
