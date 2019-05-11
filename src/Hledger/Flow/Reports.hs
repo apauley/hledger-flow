@@ -26,8 +26,7 @@ generateReports opts = sh (
 
 generateReports' :: ReportOptions -> TChan FlowTypes.LogMessage -> IO [FilePath]
 generateReports' opts ch = do
-  logVerbose opts ch "Something will be here Real Soon Now (tm)"
-  channelOutLn ch "Report generation has not been implemented. Yet. https://github.com/apauley/hledger-flow/pull/4"
+  channelOutLn ch "Report generation has not been fully implemented yet. Keep an eye out for report pull requests: https://github.com/apauley/hledger-flow/pulls"
   ownerReports opts ch "everyone"
 
 ownerReports :: ReportOptions -> TChan FlowTypes.LogMessage -> Text -> IO [FilePath]
