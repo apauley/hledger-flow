@@ -452,3 +452,6 @@ listOwners opts = fmap basename $ lsDirs $ (baseDir opts) </> "import"
 
 intPath :: Int -> FilePath
 intPath = fromText . (format d)
+
+includeYears :: FilePath -> IO [Int]
+includeYears _ = return [2016, 2017]
