@@ -38,7 +38,7 @@ generateReports' opts ch = do
   channelOutLn ch wipMsg
   owners <- single $ shellToList $ listOwners opts
   let baseJournal = journalFile opts []
-  let baseReportDir = outputDir opts []
+  let baseReportDir = outputDir opts ["all"]
   years <- includeYears ch baseJournal
   let reportParams = [(baseJournal, baseReportDir)] ++ map (ownerParams opts) owners
   let actions = List.concat $ fmap (generateReports'' opts ch years) reportParams
