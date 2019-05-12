@@ -6,6 +6,7 @@ where
 
 import Turtle
 import Prelude hiding (FilePath, putStrLn)
+import Data.Version
 
 data LogMessage = StdOut Text | StdErr Text | Terminate deriving (Show)
 type FullOutput = (ExitCode, Text, Text)
@@ -18,6 +19,13 @@ data HledgerInfo = HledgerInfo { hlPath :: FilePath
                                , hlVersion :: Text
                                }
                  deriving (Show)
+
+data SystemInfo = SystemInfo { os :: String
+                             , arch :: String
+                             , compilerName :: String
+                             , compilerVersion :: Version
+                             }
+                deriving (Show)
 
 class HasVerbosity a where
   verbose :: a -> Bool

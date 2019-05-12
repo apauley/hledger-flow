@@ -49,7 +49,7 @@ defaultHlInfo :: FlowTypes.HledgerInfo
 defaultHlInfo = FlowTypes.HledgerInfo "/path/to/hledger" "1.2.3"
 
 defaultOpts :: FilePath -> ImportOptions
-defaultOpts bd = ImportOptions bd versionInfo' defaultHlInfo False False False
+defaultOpts bd = ImportOptions bd versionInfo' defaultHlInfo systemInfo False False False
 
 toJournals :: [FilePath] -> [FilePath]
 toJournals = map (changePathAndExtension "3-journal" "journal")
