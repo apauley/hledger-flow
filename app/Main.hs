@@ -37,7 +37,9 @@ toImportOptions mainParams' subParams' = do
   bd <- determineBaseDir $ maybeBaseDir subParams'
   hli <- hledgerInfoFromPath $ hledgerPathOpt mainParams'
   return IT.ImportOptions { IT.baseDir = bd
+                          , IT.hfVersion = versionInfo'
                           , IT.hledgerInfo = hli
+                          , IT.sysInfo = systemInfo
                           , IT.verbose = verbose mainParams'
                           , IT.showOptions = showOpts mainParams'
                           , IT.sequential = sequential mainParams' }
@@ -47,7 +49,9 @@ toReportOptions mainParams' subParams' = do
   bd <- determineBaseDir $ maybeBaseDir subParams'
   hli <- hledgerInfoFromPath $ hledgerPathOpt mainParams'
   return RT.ReportOptions { RT.baseDir = bd
+                          , RT.hfVersion = versionInfo'
                           , RT.hledgerInfo = hli
+                          , RT.sysInfo = systemInfo
                           , RT.verbose = verbose mainParams'
                           , RT.showOptions = showOpts mainParams'
                           , RT.sequential = sequential mainParams' }

@@ -38,9 +38,10 @@ generateReports' opts ch = do
   channelOutLn ch wipMsg
   owners <- single $ shellToList $ listOwners opts
   let baseJournal = journalFile opts []
-  let baseReportDir = outputDir opts []
+  let baseReportDir = outputDir opts ["all"]
   years <- includeYears ch baseJournal
-  let reportParams = [(baseJournal, baseReportDir)] ++ map (ownerParams opts) owners
+  let baseParams = if length owners > 1 then [(baseJournal, baseReportDir)] else []
+  let reportParams = baseParams ++  map (ownerParams opts) owners
   let actions = List.concat $ fmap (generateReports'' opts ch years) reportParams
   if (sequential opts) then sequence actions else single $ shellToList $ parallel actions
 
@@ -52,7 +53,7 @@ generateReports'' opts ch years (journal, reportsDir) = do
 
 incomeStatement :: ReportOptions -> TChan FlowTypes.LogMessage -> FilePath -> FilePath -> Integer -> IO (Either FilePath FilePath, FlowTypes.FullTimedOutput)
 incomeStatement opts ch journal reportsDir year = do
-  let sharedOptions = ["--depth", "2", "--pretty-tables", "not:equity"]
+  let sharedOptions = ["--depth", "2", "--pretty-tables", "not:equity", "--cost", "--value"]
   let reportArgs = ["incomestatement"] ++ sharedOptions
   generateReport opts ch journal reportsDir year ("income-expenses" <.> "txt") reportArgs
 
@@ -76,7 +77,7 @@ generateReport opts ch journal baseOutDir year fileName args = do
     then
     do
       writeTextFile outputFile (cmdLabel <> "\n\n"<> stdOut)
-      channelOutLn ch $ format ("Wrote "%fp) $ relativeToBase opts outputFile
+      logVerbose opts ch $ format ("Wrote "%fp) $ relativeToBase opts outputFile
       return (Right outputFile, result)
     else
     do

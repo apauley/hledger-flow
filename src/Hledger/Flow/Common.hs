@@ -27,11 +27,22 @@ import Control.Concurrent.STM
 import qualified Data.List.NonEmpty as NE
 import Paths_hledger_flow (version)
 import qualified Data.Version as Version (showVersion)
+import qualified System.Info as Sys
 
 type InputFileBundle = Map.Map FilePath [FilePath]
 
 versionInfo :: NE.NonEmpty Line
-versionInfo = textToLines $ T.pack ("hledger-flow " ++ Version.showVersion version)
+versionInfo = textToLines versionInfo'
+
+versionInfo' :: Text
+versionInfo' = T.pack ("hledger-flow " ++ Version.showVersion version)
+
+systemInfo :: SystemInfo
+systemInfo = SystemInfo { os = Sys.os
+                        , arch = Sys.arch
+                        , compilerName = Sys.compilerName
+                        , compilerVersion = Sys.compilerVersion
+                        }
 
 hledgerPathFromOption :: Maybe FilePath -> IO FilePath
 hledgerPathFromOption pathOption = do

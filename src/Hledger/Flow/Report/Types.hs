@@ -6,7 +6,9 @@ import Prelude hiding (FilePath, putStrLn)
 import Hledger.Flow.Types
 
 data ReportOptions = ReportOptions { baseDir :: FilePath
+                                   , hfVersion :: Text
                                    , hledgerInfo :: HledgerInfo
+                                   , sysInfo :: SystemInfo
                                    , verbose :: Bool
                                    , showOptions :: Bool
                                    , sequential :: Bool
@@ -14,10 +16,10 @@ data ReportOptions = ReportOptions { baseDir :: FilePath
   deriving (Show)
 
 instance HasVerbosity ReportOptions where
-  verbose (ReportOptions _ _ v _ _) = v
+  verbose (ReportOptions _ _ _ _ v _ _) = v
 
 instance HasSequential ReportOptions where
-  sequential (ReportOptions _ _ _ _ sq) = sq
+  sequential (ReportOptions _ _ _ _ _ _ sq) = sq
 
 instance HasBaseDir ReportOptions where
-  baseDir (ReportOptions bd _ _ _ _) = bd
+  baseDir (ReportOptions bd _ _ _ _ _ _) = bd
