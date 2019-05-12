@@ -35,29 +35,29 @@ generateReports' opts ch = do
   owners <- single $ shellToList $ listOwners opts
   let baseJournal = journalFile opts []
   let baseReportDir = outputDir opts []
-  years <- includeYears baseJournal
+  years <- includeYears ch baseJournal
   let reportParams = [(baseJournal, baseReportDir)] ++ map (ownerParams opts) owners
   let actions = List.concat $ fmap (generateReports'' opts ch years) reportParams
   if (sequential opts) then sequence actions else single $ shellToList $ parallel actions
 
-generateReports'' :: ReportOptions -> TChan FlowTypes.LogMessage -> [Int] -> (FilePath, FilePath) -> [IO (Either FilePath FilePath)]
+generateReports'' :: ReportOptions -> TChan FlowTypes.LogMessage -> [Integer] -> (FilePath, FilePath) -> [IO (Either FilePath FilePath)]
 generateReports'' opts ch years (journal, reportsDir) = do
   y <- years
   let actions = map (\r -> r opts ch journal reportsDir y) [accountList, incomeStatement]
   map (fmap fst) actions
 
-incomeStatement :: ReportOptions -> TChan FlowTypes.LogMessage -> FilePath -> FilePath -> Int -> IO (Either FilePath FilePath, FlowTypes.FullTimedOutput)
+incomeStatement :: ReportOptions -> TChan FlowTypes.LogMessage -> FilePath -> FilePath -> Integer -> IO (Either FilePath FilePath, FlowTypes.FullTimedOutput)
 incomeStatement opts ch journal reportsDir year = do
   let sharedOptions = ["--depth", "2", "--pretty-tables", "not:equity"]
   let reportArgs = ["incomestatement"] ++ sharedOptions
   generateReport opts ch journal reportsDir year ("income-expenses" <.> "txt") reportArgs
 
-accountList :: ReportOptions -> TChan FlowTypes.LogMessage -> FilePath -> FilePath -> Int -> IO (Either FilePath FilePath, FlowTypes.FullTimedOutput)
+accountList :: ReportOptions -> TChan FlowTypes.LogMessage -> FilePath -> FilePath -> Integer -> IO (Either FilePath FilePath, FlowTypes.FullTimedOutput)
 accountList opts ch journal reportsDir year = do
   let reportArgs = ["accounts"]
   generateReport opts ch journal reportsDir year ("accounts" <.> "txt") reportArgs
 
-generateReport :: ReportOptions -> TChan FlowTypes.LogMessage -> FilePath -> FilePath -> Int -> FilePath -> [Text] -> IO (Either FilePath FilePath, FlowTypes.FullTimedOutput)
+generateReport :: ReportOptions -> TChan FlowTypes.LogMessage -> FilePath -> FilePath -> Integer -> FilePath -> [Text] -> IO (Either FilePath FilePath, FlowTypes.FullTimedOutput)
 generateReport opts ch journal baseOutDir year fileName args = do
   let reportsDir = baseOutDir </> intPath year
   mktree reportsDir

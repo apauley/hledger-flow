@@ -6,9 +6,13 @@ import Turtle
 import Prelude hiding (FilePath, putStrLn)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
+import qualified Data.Text.Read as T
 import qualified GHC.IO.Handle.FD as H
 
+import Data.Char (isDigit)
 import Data.Maybe
+import Data.Either
+
 import qualified Control.Foldl as Fold
 import qualified Data.Map.Strict as Map
 import Data.Time.LocalTime
@@ -450,8 +454,27 @@ extractImportDirs inputFile = do
 listOwners :: HasBaseDir o => o -> Shell FilePath
 listOwners opts = fmap basename $ lsDirs $ (baseDir opts) </> "import"
 
-intPath :: Int -> FilePath
+intPath :: Integer -> FilePath
 intPath = fromText . (format d)
 
-includeYears :: FilePath -> IO [Int]
-includeYears _ = return [2016, 2017]
+includeYears :: TChan LogMessage -> FilePath -> IO [Integer]
+includeYears ch includeFile = do
+  txt <- readTextFile includeFile
+  case includeYears' txt of
+    Left  msg   -> do
+      channelErrLn ch msg
+      return []
+    Right years -> return years
+
+includeYears' :: Text -> Either Text [Integer]
+includeYears' txt = case partitionEithers (includeYears'' txt) of
+  (errors, []) -> do
+    let msg = format ("Unable to extract years from the following text:\n"%s%"\nErrors:\n"%s) txt (T.intercalate "\n" $ map T.pack errors)
+    Left msg
+  (_, years) -> Right years
+
+includeYears'' :: Text -> [Either String Integer]
+includeYears'' txt = map extractDigits (T.lines txt)
+
+extractDigits :: Text -> Either String Integer
+extractDigits txt = fmap fst $ (T.decimal . (T.filter isDigit)) txt
