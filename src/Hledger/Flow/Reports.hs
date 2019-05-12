@@ -52,7 +52,7 @@ generateReports'' opts ch years (journal, reportsDir) = do
 
 incomeStatement :: ReportOptions -> TChan FlowTypes.LogMessage -> FilePath -> FilePath -> Integer -> IO (Either FilePath FilePath, FlowTypes.FullTimedOutput)
 incomeStatement opts ch journal reportsDir year = do
-  let sharedOptions = ["--depth", "2", "--pretty-tables", "not:equity"]
+  let sharedOptions = ["--depth", "2", "--pretty-tables", "not:equity", "--cost", "--value"]
   let reportArgs = ["incomestatement"] ++ sharedOptions
   generateReport opts ch journal reportsDir year ("income-expenses" <.> "txt") reportArgs
 
