@@ -31,7 +31,10 @@ import qualified Data.Version as Version (showVersion)
 type InputFileBundle = Map.Map FilePath [FilePath]
 
 versionInfo :: NE.NonEmpty Line
-versionInfo = textToLines $ T.pack ("hledger-flow " ++ Version.showVersion version)
+versionInfo = textToLines versionInfo'
+
+versionInfo' :: Text
+versionInfo' = T.pack ("hledger-flow " ++ Version.showVersion version)
 
 hledgerPathFromOption :: Maybe FilePath -> IO FilePath
 hledgerPathFromOption pathOption = do

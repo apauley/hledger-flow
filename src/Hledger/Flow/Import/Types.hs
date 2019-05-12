@@ -6,6 +6,7 @@ import Prelude hiding (FilePath, putStrLn)
 import Hledger.Flow.Types
 
 data ImportOptions = ImportOptions { baseDir :: FilePath
+                                   , hfVersion :: Text
                                    , hledgerInfo :: HledgerInfo
                                    , verbose :: Bool
                                    , showOptions :: Bool
@@ -13,13 +14,13 @@ data ImportOptions = ImportOptions { baseDir :: FilePath
   deriving (Show)
 
 instance HasVerbosity ImportOptions where
-  verbose (ImportOptions _ _ v _ _) = v
+  verbose (ImportOptions _ _ _ v _ _) = v
 
 instance HasSequential ImportOptions where
-  sequential (ImportOptions _ _ _ _ sq) = sq
+  sequential (ImportOptions _ _ _ _ _ sq) = sq
 
 instance HasBaseDir ImportOptions where
-  baseDir (ImportOptions bd _ _ _ _) = bd
+  baseDir (ImportOptions bd _ _ _ _ _) = bd
 
 data ImportDirs = ImportDirs { importDir  :: FilePath
                              , ownerDir   :: FilePath
