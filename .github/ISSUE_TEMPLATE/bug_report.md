@@ -26,6 +26,12 @@ $ hledger-flow --show-options import
 ```
 
 **To Reproduce**
+
+FYI, we have a repo with some example transactions which you can use to run `hledger-flow` on:
+https://github.com/apauley/hledger-flow-example
+
+Can you reproduce your issue on these example files?
+
 Steps to reproduce the behavior:
 1. Given this input (files or other input)
 2. And when running this exact command (with `--show-options`)
