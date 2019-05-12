@@ -40,7 +40,8 @@ generateReports' opts ch = do
   let baseJournal = journalFile opts []
   let baseReportDir = outputDir opts ["all"]
   years <- includeYears ch baseJournal
-  let reportParams = [(baseJournal, baseReportDir)] ++ map (ownerParams opts) owners
+  let baseParams = if length owners > 1 then [(baseJournal, baseReportDir)] else []
+  let reportParams = baseParams ++  map (ownerParams opts) owners
   let actions = List.concat $ fmap (generateReports'' opts ch years) reportParams
   if (sequential opts) then sequence actions else single $ shellToList $ parallel actions
 
