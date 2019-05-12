@@ -31,7 +31,11 @@ generateReports opts = sh (
 
 generateReports' :: ReportOptions -> TChan FlowTypes.LogMessage -> IO [Either FilePath FilePath]
 generateReports' opts ch = do
-  channelOutLn ch "Report generation has not been fully implemented yet. Keep an eye out for report pull requests: https://github.com/apauley/hledger-flow/pulls"
+  let wipMsg = "Report generation is still a work-in-progress - please let me know how this can be more useful.\n\n"
+               <> "Keep an eye out for report-related pull requests and issues, and feel free to submit some of your own:\n"
+               <> "https://github.com/apauley/hledger-flow/pulls\n"
+               <> "https://github.com/apauley/hledger-flow/issues\n"
+  channelOutLn ch wipMsg
   owners <- single $ shellToList $ listOwners opts
   let baseJournal = journalFile opts []
   let baseReportDir = outputDir opts []
