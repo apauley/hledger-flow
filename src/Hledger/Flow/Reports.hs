@@ -76,7 +76,7 @@ generateReport opts ch journal baseOutDir year fileName args = do
     then
     do
       writeTextFile outputFile (cmdLabel <> "\n\n"<> stdOut)
-      channelOutLn ch $ format ("Wrote "%fp) $ relativeToBase opts outputFile
+      logVerbose opts ch $ format ("Wrote "%fp) $ relativeToBase opts outputFile
       return (Right outputFile, result)
     else
     do
