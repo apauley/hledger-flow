@@ -1,5 +1,13 @@
 # Changelog for [hledger-flow](https://github.com/apauley/hledger-flow)
 
+## 0.12.1
+
+Generate some reports per owner.
+
+Report generation is still a work-in-progress.
+
+https://github.com/apauley/hledger-flow/pull/57
+
 ## 0.12.0
 
 - Re-organised the command-line interface:
