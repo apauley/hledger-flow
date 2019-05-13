@@ -35,7 +35,10 @@ versionInfo :: NE.NonEmpty Line
 versionInfo = textToLines versionInfo'
 
 versionInfo' :: Text
-versionInfo' = T.pack ("hledger-flow " ++ Version.showVersion version)
+versionInfo' = T.pack ("hledger-flow " ++ Version.showVersion version ++ "\n\n" ++
+                       os systemInfo ++ " " ++ arch systemInfo ++ " " ++
+                       compilerName systemInfo ++ " " ++
+                       Version.showVersion (compilerVersion systemInfo))
 
 systemInfo :: SystemInfo
 systemInfo = SystemInfo { os = Sys.os
