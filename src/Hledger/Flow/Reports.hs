@@ -45,14 +45,14 @@ generateReports' opts ch = do
   owners <- single $ shellToList $ listOwners opts
   let baseJournal = journalFile opts []
   let baseReportDir = outputReportDir opts ["all"]
-  years <- includeYears ch baseJournal
-  let baseParams = if length owners > 1 then [(ReportParams baseJournal [] baseReportDir)] else []
-  let reportParams = baseParams ++  map (ownerParams opts) owners
-  let actions = List.concat $ fmap (generateReports'' opts ch years) reportParams
+  baseYears <- includeYears ch baseJournal
+  let baseParams = if length owners > 1 then [(ReportParams baseJournal baseYears baseReportDir)] else []
+  let reportParams = baseParams ++ map (ownerParams opts baseYears) owners
+  let actions = List.concat $ fmap (generateReports'' opts ch) reportParams
   if (sequential opts) then sequence actions else single $ shellToList $ parallel actions
 
-generateReports'' :: ReportOptions -> TChan FlowTypes.LogMessage -> [Integer] -> ReportParams -> [IO (Either FilePath FilePath)]
-generateReports'' opts ch years (ReportParams journal _ reportsDir) = do
+generateReports'' :: ReportOptions -> TChan FlowTypes.LogMessage -> ReportParams -> [IO (Either FilePath FilePath)]
+generateReports'' opts ch (ReportParams journal years reportsDir) = do
   y <- years
   let actions = map (\r -> r opts ch journal reportsDir y) [accountList, incomeStatement]
   map (fmap fst) actions
@@ -96,5 +96,5 @@ journalFile opts dirs = (foldl (</>) (baseDir opts) dirs) </> "all-years" <.> "j
 outputReportDir :: ReportOptions -> [FilePath] -> FilePath
 outputReportDir opts dirs = foldl (</>) (baseDir opts) ("reports":dirs)
 
-ownerParams :: ReportOptions -> FilePath -> ReportParams
-ownerParams opts owner = ReportParams (journalFile opts ["import", owner]) [] (outputReportDir opts [owner])
+ownerParams :: ReportOptions -> [Integer] -> FilePath -> ReportParams
+ownerParams opts years owner = ReportParams (journalFile opts ["import", owner]) years (outputReportDir opts [owner])
