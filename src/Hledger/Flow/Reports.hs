@@ -16,6 +16,7 @@ import qualified Hledger.Flow.Types as FlowTypes
 import qualified Data.List as List
 
 data ReportParams = ReportParams { ledgerFile :: FilePath
+                                 , reportYears :: [Integer]
                                  , outputDir :: FilePath
                                  }
                   deriving (Show)
@@ -45,13 +46,13 @@ generateReports' opts ch = do
   let baseJournal = journalFile opts []
   let baseReportDir = outputReportDir opts ["all"]
   years <- includeYears ch baseJournal
-  let baseParams = if length owners > 1 then [(ReportParams baseJournal baseReportDir)] else []
+  let baseParams = if length owners > 1 then [(ReportParams baseJournal [] baseReportDir)] else []
   let reportParams = baseParams ++  map (ownerParams opts) owners
   let actions = List.concat $ fmap (generateReports'' opts ch years) reportParams
   if (sequential opts) then sequence actions else single $ shellToList $ parallel actions
 
 generateReports'' :: ReportOptions -> TChan FlowTypes.LogMessage -> [Integer] -> ReportParams -> [IO (Either FilePath FilePath)]
-generateReports'' opts ch years (ReportParams journal reportsDir) = do
+generateReports'' opts ch years (ReportParams journal _ reportsDir) = do
   y <- years
   let actions = map (\r -> r opts ch journal reportsDir y) [accountList, incomeStatement]
   map (fmap fst) actions
@@ -96,4 +97,4 @@ outputReportDir :: ReportOptions -> [FilePath] -> FilePath
 outputReportDir opts dirs = foldl (</>) (baseDir opts) ("reports":dirs)
 
 ownerParams :: ReportOptions -> FilePath -> ReportParams
-ownerParams opts owner = ReportParams (journalFile opts ["import", owner]) (outputReportDir opts [owner])
+ownerParams opts owner = ReportParams (journalFile opts ["import", owner]) [] (outputReportDir opts [owner])
