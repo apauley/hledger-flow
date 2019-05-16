@@ -1,5 +1,9 @@
 # Changelog for [hledger-flow](https://github.com/apauley/hledger-flow)
 
+## 0.12.2.1
+
+Fix resolver extraction and hledger-flow --version in release-tarball script
+
 ## 0.12.2
 
 Slightly smarter reporting.
