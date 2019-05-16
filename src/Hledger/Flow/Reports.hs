@@ -15,6 +15,12 @@ import qualified Data.Text as T
 import qualified Hledger.Flow.Types as FlowTypes
 import qualified Data.List as List
 
+data ReportParams = ReportParams { ledgerFile :: FilePath
+                                 , reportYears :: [Integer]
+                                 , outputDir :: FilePath
+                                 }
+                  deriving (Show)
+
 generateReports :: ReportOptions -> IO ()
 generateReports opts = sh (
   do
@@ -38,15 +44,16 @@ generateReports' opts ch = do
   channelOutLn ch wipMsg
   owners <- single $ shellToList $ listOwners opts
   let baseJournal = journalFile opts []
-  let baseReportDir = outputDir opts ["all"]
-  years <- includeYears ch baseJournal
-  let baseParams = if length owners > 1 then [(baseJournal, baseReportDir)] else []
-  let reportParams = baseParams ++  map (ownerParams opts) owners
-  let actions = List.concat $ fmap (generateReports'' opts ch years) reportParams
-  if (sequential opts) then sequence actions else single $ shellToList $ parallel actions
+  let baseReportDir = outputReportDir opts ["all"]
+  baseYears <- includeYears ch baseJournal
+  let baseParams = if length owners > 1 then [(ReportParams baseJournal baseYears baseReportDir)] else []
+  ownerParams <- ownerParameters opts ch owners
+  let reportParams = baseParams ++ ownerParams
+  let actions = List.concat $ fmap (generateReports'' opts ch) reportParams
+  parAwareActions opts actions
 
-generateReports'' :: ReportOptions -> TChan FlowTypes.LogMessage -> [Integer] -> (FilePath, FilePath) -> [IO (Either FilePath FilePath)]
-generateReports'' opts ch years (journal, reportsDir) = do
+generateReports'' :: ReportOptions -> TChan FlowTypes.LogMessage -> ReportParams -> [IO (Either FilePath FilePath)]
+generateReports'' opts ch (ReportParams journal years reportsDir) = do
   y <- years
   let actions = map (\r -> r opts ch journal reportsDir y) [accountList, incomeStatement]
   map (fmap fst) actions
@@ -87,8 +94,16 @@ generateReport opts ch journal baseOutDir year fileName args = do
 journalFile :: ReportOptions -> [FilePath] -> FilePath
 journalFile opts dirs = (foldl (</>) (baseDir opts) dirs) </> "all-years" <.> "journal"
 
-outputDir :: ReportOptions -> [FilePath] -> FilePath
-outputDir opts dirs = foldl (</>) (baseDir opts) ("reports":dirs)
+outputReportDir :: ReportOptions -> [FilePath] -> FilePath
+outputReportDir opts dirs = foldl (</>) (baseDir opts) ("reports":dirs)
 
-ownerParams :: ReportOptions -> FilePath -> (FilePath, FilePath)
-ownerParams opts owner = (journalFile opts ["import", owner], outputDir opts [owner])
+ownerParameters :: ReportOptions -> TChan FlowTypes.LogMessage -> [FilePath] -> IO [ReportParams]
+ownerParameters opts ch owners = do
+  let actions = map (ownerParameters' opts ch) owners
+  parAwareActions opts actions
+
+ownerParameters' :: ReportOptions -> TChan FlowTypes.LogMessage -> FilePath -> IO ReportParams
+ownerParameters' opts ch owner = do
+  let ownerJournal = journalFile opts ["import", owner]
+  years <- includeYears ch ownerJournal
+  return $ ReportParams ownerJournal years (outputReportDir opts [owner])

@@ -35,7 +35,10 @@ versionInfo :: NE.NonEmpty Line
 versionInfo = textToLines versionInfo'
 
 versionInfo' :: Text
-versionInfo' = T.pack ("hledger-flow " ++ Version.showVersion version)
+versionInfo' = T.pack ("hledger-flow " ++ Version.showVersion version ++ " " ++
+                       os systemInfo ++ " " ++ arch systemInfo ++ " " ++
+                       compilerName systemInfo ++ " " ++
+                       Version.showVersion (compilerVersion systemInfo))
 
 systemInfo :: SystemInfo
 systemInfo = SystemInfo { os = Sys.os
@@ -180,6 +183,11 @@ procWithEmptyOutput cmd args stdinput = do
 
 parAwareProc :: HasSequential o => o -> ProcFun
 parAwareProc opts = if (sequential opts) then procWithEmptyOutput else procStrictWithErr
+
+parAwareActions :: HasSequential o => o -> [IO a] -> IO [a]
+parAwareActions opts = parAwareFun opts
+  where
+    parAwareFun op = if (sequential op) then sequence else single . shellToList . parallel
 
 inprocWithErrFun :: (Text -> IO ()) -> ProcInput -> Shell Line
 inprocWithErrFun errFun (cmd, args, standardInput) = do

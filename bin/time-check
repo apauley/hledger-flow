@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+
+BASEDIRS="$@"
+
+date
+echo -e "A simple script to get a rough idea of execution time."
+echo -e "Each script argument is a base directory.\n"
+
+hledger-flow --version|head -n 1
+echo
+
+for bd in ${BASEDIRS}
+do
+    DIRNAME=$(basename ${bd})
+    echo "$(date) BEGIN: ${DIRNAME}"
+    for subcommand in $(echo "import report")
+    do
+        /usr/bin/time --format="${DIRNAME} ${subcommand} sequential real %es" hledger-flow --sequential ${subcommand} ${bd} 2>&1 | grep 'Generated.*reports\|Imported.*journals\|real'
+        echo
+        /usr/bin/time --format="${DIRNAME} ${subcommand} parallel   real %es" hledger-flow ${subcommand} ${bd} 2>&1 | grep 'Generated.*reports\|Imported.*journals\|real'
+        echo
+    done
+    echo -e "$(date) END: ${DIRNAME}\n"
+done
+
+echo "***"
