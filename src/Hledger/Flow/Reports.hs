@@ -50,7 +50,7 @@ generateReports' opts ch = do
   ownerParams <- ownerParameters opts ch owners
   let reportParams = baseParams ++ ownerParams
   let actions = List.concat $ fmap (generateReports'' opts ch) reportParams
-  if (sequential opts) then sequence actions else single $ shellToList $ parallel actions
+  parAwareActions opts actions
 
 generateReports'' :: ReportOptions -> TChan FlowTypes.LogMessage -> ReportParams -> [IO (Either FilePath FilePath)]
 generateReports'' opts ch (ReportParams journal years reportsDir) = do
@@ -100,7 +100,7 @@ outputReportDir opts dirs = foldl (</>) (baseDir opts) ("reports":dirs)
 ownerParameters :: ReportOptions -> TChan FlowTypes.LogMessage -> [FilePath] -> IO [ReportParams]
 ownerParameters opts ch owners = do
   let actions = map (ownerParameters' opts ch) owners
-  if (sequential opts) then sequence actions else single $ shellToList $ parallel actions
+  parAwareActions opts actions
 
 ownerParameters' :: ReportOptions -> TChan FlowTypes.LogMessage -> FilePath -> IO ReportParams
 ownerParameters' opts ch owner = do
