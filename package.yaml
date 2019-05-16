@@ -1,5 +1,5 @@
 name:                hledger-flow
-version:             0.12.1.99
+version:             0.12.2.0
 synopsis:            An hledger workflow focusing on automated statement import and classification.
 category:            Finance, Console
 license:             GPL-3

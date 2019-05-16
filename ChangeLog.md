@@ -1,5 +1,13 @@
 # Changelog for [hledger-flow](https://github.com/apauley/hledger-flow)
 
+## 0.12.2
+
+Slightly smarter reporting.
+
+- Get the available report years for each individual owner. Only generate reports for those years.
+- Create uniform output directories.
+- Add system info to version output
+
 ## 0.12.1
 
 Generate some reports per owner.
