@@ -41,9 +41,7 @@ install:
   - stack setup --interleaved-output
   - stack exec -- ghc --version
 
-  - stack build --interleaved-output --pedantic
-  - stack build --interleaved-output --test --bench --no-run-tests --no-run-benchmarks
-  - stack install
+  - ./bin/build-and-test
   - which hledger-flow
   - hledger-flow --help
   - hledger-flow --version
