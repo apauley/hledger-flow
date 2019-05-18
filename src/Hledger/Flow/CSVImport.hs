@@ -11,9 +11,10 @@ import qualified Data.List.NonEmpty as NonEmpty
 import qualified Hledger.Flow.Types as FlowTypes
 import Hledger.Flow.Import.Types
 import Hledger.Flow.Common
+import Hledger.Flow.RuntimeOptions
 import Control.Concurrent.STM
 
-importCSVs :: ImportOptions -> IO ()
+importCSVs :: RuntimeOptions -> IO ()
 importCSVs opts = sh (
   do
     ch <- liftIO newTChanIO
@@ -32,7 +33,7 @@ pathSeparators = ['/', '\\', ':']
 inputFilePattern :: Pattern Text
 inputFilePattern = contains (once (oneOf pathSeparators) <> asciiCI "1-in" <> once (oneOf pathSeparators) <> plus digit <> once (oneOf pathSeparators))
 
-importCSVs' :: ImportOptions -> TChan FlowTypes.LogMessage -> IO [FilePath]
+importCSVs' :: RuntimeOptions -> TChan FlowTypes.LogMessage -> IO [FilePath]
 importCSVs' opts ch = do
   channelOutLn ch "Collecting input files..."
   (inputFiles, diff) <- time $ single . shellToList . onlyFiles $ find inputFilePattern $ baseDir opts
@@ -51,14 +52,14 @@ importCSVs' opts ch = do
       sh $ writeIncludesUpTo opts ch "import" importedJournals
       return importedJournals
 
-extractAndImport :: ImportOptions -> TChan FlowTypes.LogMessage -> FilePath -> IO FilePath
+extractAndImport :: RuntimeOptions -> TChan FlowTypes.LogMessage -> FilePath -> IO FilePath
 extractAndImport opts ch inputFile = do
   case extractImportDirs inputFile of
     Right importDirs -> importCSV opts ch importDirs inputFile
     Left errorMessage -> do
       errExit 1 ch errorMessage inputFile
 
-importCSV :: ImportOptions -> TChan FlowTypes.LogMessage -> ImportDirs -> FilePath -> IO FilePath
+importCSV :: RuntimeOptions -> TChan FlowTypes.LogMessage -> ImportDirs -> FilePath -> IO FilePath
 importCSV opts ch importDirs srcFile = do
   let preprocessScript = accountDir importDirs </> "preprocess"
   let constructScript = accountDir importDirs </> "construct"
@@ -74,14 +75,14 @@ importCSV opts ch importDirs srcFile = do
   mktree $ directory journalOut
   importFun csvFile journalOut
 
-preprocessIfNeeded :: ImportOptions -> TChan FlowTypes.LogMessage -> FilePath -> Line -> Line -> Line -> FilePath -> IO FilePath
+preprocessIfNeeded :: RuntimeOptions -> TChan FlowTypes.LogMessage -> FilePath -> Line -> Line -> Line -> FilePath -> IO FilePath
 preprocessIfNeeded opts ch script bank account owner src = do
   shouldPreprocess <- verboseTestFile opts ch script
   if shouldPreprocess
     then preprocess opts ch script bank account owner src
     else return src
 
-preprocess :: ImportOptions -> TChan FlowTypes.LogMessage -> FilePath -> Line -> Line -> Line -> FilePath -> IO FilePath
+preprocess :: RuntimeOptions -> TChan FlowTypes.LogMessage -> FilePath -> Line -> Line -> Line -> FilePath -> IO FilePath
 preprocess opts ch script bank account owner src = do
   let csvOut = changePathAndExtension "2-preprocessed" "csv" src
   mktree $ directory csvOut
@@ -92,14 +93,14 @@ preprocess opts ch script bank account owner src = do
   _ <- timeAndExitOnErr opts ch cmdLabel channelOut channelErr (parAwareProc opts) (format fp script, args, empty)
   return csvOut
 
-hledgerImport :: ImportOptions -> TChan FlowTypes.LogMessage -> FilePath -> FilePath -> IO FilePath
+hledgerImport :: RuntimeOptions -> TChan FlowTypes.LogMessage -> FilePath -> FilePath -> IO FilePath
 hledgerImport opts ch csvSrc journalOut = do
   case extractImportDirs csvSrc of
     Right importDirs -> hledgerImport' opts ch importDirs csvSrc journalOut
     Left errorMessage -> do
       errExit 1 ch errorMessage csvSrc
 
-hledgerImport' :: ImportOptions -> TChan FlowTypes.LogMessage -> ImportDirs -> FilePath -> FilePath -> IO FilePath
+hledgerImport' :: RuntimeOptions -> TChan FlowTypes.LogMessage -> ImportDirs -> FilePath -> FilePath -> IO FilePath
 hledgerImport' opts ch importDirs csvSrc journalOut = do
   let candidates = rulesFileCandidates csvSrc importDirs
   maybeRulesFile <- firstExistingFile candidates
@@ -151,7 +152,7 @@ statementSpecificRulesFiles csvSrc importDirs = do
       map (</> srcSpecificFilename) [accountDir importDirs, bankDir importDirs, importDir importDirs]
     else []
 
-customConstruct :: ImportOptions -> TChan FlowTypes.LogMessage -> FilePath -> Line -> Line -> Line -> FilePath -> FilePath -> IO FilePath
+customConstruct :: RuntimeOptions -> TChan FlowTypes.LogMessage -> FilePath -> Line -> Line -> Line -> FilePath -> FilePath -> IO FilePath
 customConstruct opts ch constructScript bank account owner csvSrc journalOut = do
   let script = format fp constructScript :: Text
   let relScript = relativeToBase opts constructScript

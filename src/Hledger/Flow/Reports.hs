@@ -6,7 +6,7 @@ module Hledger.Flow.Reports
 
 import Turtle hiding (stdout, stderr, proc)
 import Prelude hiding (FilePath, putStrLn, writeFile)
-import Hledger.Flow.Report.Types
+import Hledger.Flow.RuntimeOptions
 import Hledger.Flow.Common
 import Control.Concurrent.STM
 import Data.Either
@@ -21,7 +21,7 @@ data ReportParams = ReportParams { ledgerFile :: FilePath
                                  }
                   deriving (Show)
 
-generateReports :: ReportOptions -> IO ()
+generateReports :: RuntimeOptions -> IO ()
 generateReports opts = sh (
   do
     ch <- liftIO newTChanIO
@@ -35,7 +35,7 @@ generateReports opts = sh (
     wait logHandle
   )
 
-generateReports' :: ReportOptions -> TChan FlowTypes.LogMessage -> IO [Either FilePath FilePath]
+generateReports' :: RuntimeOptions -> TChan FlowTypes.LogMessage -> IO [Either FilePath FilePath]
 generateReports' opts ch = do
   let wipMsg = "Report generation is still a work-in-progress - please let me know how this can be more useful.\n\n"
                <> "Keep an eye out for report-related pull requests and issues, and feel free to submit some of your own:\n"
@@ -52,24 +52,24 @@ generateReports' opts ch = do
   let actions = List.concat $ fmap (generateReports'' opts ch) reportParams
   parAwareActions opts actions
 
-generateReports'' :: ReportOptions -> TChan FlowTypes.LogMessage -> ReportParams -> [IO (Either FilePath FilePath)]
+generateReports'' :: RuntimeOptions -> TChan FlowTypes.LogMessage -> ReportParams -> [IO (Either FilePath FilePath)]
 generateReports'' opts ch (ReportParams journal years reportsDir) = do
   y <- years
   let actions = map (\r -> r opts ch journal reportsDir y) [accountList, incomeStatement]
   map (fmap fst) actions
 
-incomeStatement :: ReportOptions -> TChan FlowTypes.LogMessage -> FilePath -> FilePath -> Integer -> IO (Either FilePath FilePath, FlowTypes.FullTimedOutput)
+incomeStatement :: RuntimeOptions -> TChan FlowTypes.LogMessage -> FilePath -> FilePath -> Integer -> IO (Either FilePath FilePath, FlowTypes.FullTimedOutput)
 incomeStatement opts ch journal reportsDir year = do
   let sharedOptions = ["--depth", "2", "--pretty-tables", "not:equity", "--cost", "--value"]
   let reportArgs = ["incomestatement"] ++ sharedOptions
   generateReport opts ch journal reportsDir year ("income-expenses" <.> "txt") reportArgs
 
-accountList :: ReportOptions -> TChan FlowTypes.LogMessage -> FilePath -> FilePath -> Integer -> IO (Either FilePath FilePath, FlowTypes.FullTimedOutput)
+accountList :: RuntimeOptions -> TChan FlowTypes.LogMessage -> FilePath -> FilePath -> Integer -> IO (Either FilePath FilePath, FlowTypes.FullTimedOutput)
 accountList opts ch journal reportsDir year = do
   let reportArgs = ["accounts"]
   generateReport opts ch journal reportsDir year ("accounts" <.> "txt") reportArgs
 
-generateReport :: ReportOptions -> TChan FlowTypes.LogMessage -> FilePath -> FilePath -> Integer -> FilePath -> [Text] -> IO (Either FilePath FilePath, FlowTypes.FullTimedOutput)
+generateReport :: RuntimeOptions -> TChan FlowTypes.LogMessage -> FilePath -> FilePath -> Integer -> FilePath -> [Text] -> IO (Either FilePath FilePath, FlowTypes.FullTimedOutput)
 generateReport opts ch journal baseOutDir year fileName args = do
   let reportsDir = baseOutDir </> intPath year
   mktree reportsDir
@@ -91,18 +91,18 @@ generateReport opts ch journal baseOutDir year fileName args = do
       channelErrLn ch $ format ("No report output for '"%s%"' "%s) cmdLabel (repr exitCode)
       return (Left outputFile, result)
 
-journalFile :: ReportOptions -> [FilePath] -> FilePath
+journalFile :: RuntimeOptions -> [FilePath] -> FilePath
 journalFile opts dirs = (foldl (</>) (baseDir opts) dirs) </> "all-years" <.> "journal"
 
-outputReportDir :: ReportOptions -> [FilePath] -> FilePath
+outputReportDir :: RuntimeOptions -> [FilePath] -> FilePath
 outputReportDir opts dirs = foldl (</>) (baseDir opts) ("reports":dirs)
 
-ownerParameters :: ReportOptions -> TChan FlowTypes.LogMessage -> [FilePath] -> IO [ReportParams]
+ownerParameters :: RuntimeOptions -> TChan FlowTypes.LogMessage -> [FilePath] -> IO [ReportParams]
 ownerParameters opts ch owners = do
   let actions = map (ownerParameters' opts ch) owners
   parAwareActions opts actions
 
-ownerParameters' :: ReportOptions -> TChan FlowTypes.LogMessage -> FilePath -> IO ReportParams
+ownerParameters' :: RuntimeOptions -> TChan FlowTypes.LogMessage -> FilePath -> IO ReportParams
 ownerParameters' opts ch owner = do
   let ownerJournal = journalFile opts ["import", owner]
   years <- includeYears ch ownerJournal

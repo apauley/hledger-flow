@@ -7,8 +7,8 @@ import Turtle
 import Prelude hiding (FilePath)
 
 import qualified Hledger.Flow.Types as FlowTypes
-import Hledger.Flow.Import.Types
 import Hledger.Flow.Common
+import Hledger.Flow.RuntimeOptions
 
 inputJohnBogart :: [FilePath]
 inputJohnBogart = [
@@ -58,8 +58,8 @@ hiddenFiles = [".hiddenfile", "checking/.DS_Store", "import/john/bogartbank/savi
 defaultHlInfo :: FlowTypes.HledgerInfo
 defaultHlInfo = FlowTypes.HledgerInfo "/path/to/hledger" "1.2.3"
 
-defaultOpts :: FilePath -> ImportOptions
-defaultOpts bd = ImportOptions bd versionInfo' defaultHlInfo systemInfo False False False
+defaultOpts :: FilePath -> RuntimeOptions
+defaultOpts bd = RuntimeOptions bd versionInfo' defaultHlInfo systemInfo False False False
 
 toJournals :: [FilePath] -> [FilePath]
 toJournals = map (changePathAndExtension "3-journal" "journal")
