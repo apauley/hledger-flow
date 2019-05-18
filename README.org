@@ -1,5 +1,4 @@
 #+STARTUP: showall
-#+PROPERTY: header-args:sh :prologue exec 2>&1 :epilogue echo :
 
 * Hledger Flow
   :PROPERTIES:
@@ -20,8 +19,8 @@
 processing of electronic statements as much as possible, as opposed to
 manually adding your own hledger journal entries.
 
-Manual entries are still possible, we just think it saves time in the
-long run to automatically process a statement whenever one is available.
+Manual entries are still possible, it just saves time in the long run to
+automatically process a statement whenever one is available.
 
 Within =hledger-flow= you will keep your original bank statements around
 permanently as input, and generate classified Hledger journals each time
@@ -37,17 +36,6 @@ classification rules, and run the program again.
 It started when I realized that the scripts I wrote while playing around
 with the ideas in [[https://github.com/adept/full-fledged-hledger/wiki][adept's Full-fledged Hledger]] aren't really specific to
 my own finances, and can be shared.
-
-* How do I install it?
-  :PROPERTIES:
-  :CUSTOM_ID: how-do-i-install-it
-  :END:
-
-The easiest way to get it running is to download [[https://github.com/apauley/hledger-flow/releases][the latest release]]
-for your OS, and copy the =hledger-flow= executable to a directory in your PATH.
-Then just run it and see what it tells you to do.
-
-You can also compile it yourself by following the [[https://github.com/apauley/hledger-flow/blob/master/CONTRIBUTING.org#build-the-project][build instructions]].
 
 * Overview of the Basic Workflow
   :PROPERTIES:
@@ -93,6 +81,17 @@ diff.
   as opposed to just the parts that some online tool currently supports.
 - You appreciate the fact that all your financial information stays
   within your control.
+
+* How do I install it?
+  :PROPERTIES:
+  :CUSTOM_ID: how-do-i-install-it
+  :END:
+
+The easiest way to get it running is to download [[https://github.com/apauley/hledger-flow/releases][the latest release]]
+for your OS, and copy the =hledger-flow= executable to a directory in your PATH.
+Then just run it and see what it tells you to do.
+
+You can also compile it yourself by following the [[https://github.com/apauley/hledger-flow/blob/master/CONTRIBUTING.org#build-the-project][build instructions]].
 
 * How Stable is it?
   :PROPERTIES:
@@ -612,14 +611,91 @@ Have a look at the [[file:CONTRIBUTING.org][contribution guidelines]].
   :CUSTOM_ID: faq
   :END:
 
+** How do you balance transfers between 2 accounts when you have statements for both accounts?
+   :PROPERTIES:
+   :CUSTOM_ID: transfer-2-accounts
+   :END:
+
+*** The Problem
+
+In your primary bank account you've happily been classifying transfers to a
+secondary account as just =Expenses:OtherAccount=.
+
+But you've recently started processing the statements from the second account as
+well so that you can classify those expenses more accurately.
+
+And now the balances of these two accounts are all wrong when the statements of
+each account deals with money transferred between these two accounts.
+
+In =bank1.journal=, imported from =bank1.csv=:
+#+BEGIN_EXAMPLE
+2018/11/09 Transfer from primary account to secondary account
+    Assets:Bank1:Primary    $-200
+    Assets:Bank2:Secondary
+#+END_EXAMPLE
+
+In =bank2.journal=, imported from =bank2.csv=:
+#+BEGIN_EXAMPLE
+2018/11/09 Transfer from primary account to secondary account
+    Assets:Bank2:Secondary  $200
+    Assets:Bank1:Primary
+#+END_EXAMPLE
+
+*** The Solution
+
+As soon as you start importing statements for both accounts you will have to
+introduce an intermediate account for classification between these two accounts.
+
+I use =Assets:Transfers:*=.
+
+And we may have reports looking at these transfers accounts at some point, you
+should consider using the same names.
+
+The above example then becomes as follows.
+
+In =bank1.journal=, imported from =bank1.csv=:
+#+BEGIN_EXAMPLE
+2019-05-18 Transfer from primary account to secondary account
+    Assets:Bank1:Primary         $-200
+    Assets:Transfers:Bank1Bank2
+#+END_EXAMPLE
+
+In =bank2.journal=, imported from =bank2.csv=:
+#+BEGIN_EXAMPLE
+2019-05-18 Transfer from primary account to secondary account
+    Assets:Bank2:Secondary       $200
+    Assets:Transfers:Bank1Bank2
+#+END_EXAMPLE
+
+Any posting to =Assets:Transfers:*= indicates an in "in-flight" amount.
+You would expect the balance of =Assets:Transfers= to be zero most of the time.
+Whenever it isn't zero it means that you either don't yet have the other side of
+the transfer, or that something is wrong in your rules.
+
+You could theoretically just use =Assets:Transfers= without any subaccounts, but
+I found it useful to use subaccounts. Because then the subaccounts can show me
+where I should look for any missing transfer transaction.
+
+I typically use sorted names as the subaccount (Python code sample):
+
+#+BEGIN_SRC python
+    "Assets:Transfers:" + "".join(sorted(["Bank2", "Bank1"]))
+#+END_SRC
+
+*** External references
+
+    This approach is based on what is described in Full-fledged hledger:
+    [[https://github.com/adept/full-fledged-hledger/wiki/Adding-more-accounts#lets-make-sure-that-transfers-are-not-double-counted]]
+
+    The question was first asked in [[%0Ahttps://github.com/apauley/hledger-flow/issues/51%0A][issue #51]].
+
 ** How does =hledger-flow= differ from =Full-fledged Hledger=?
    :PROPERTIES:
    :CUSTOM_ID: how-does-hledger-flow-differ-from-full-fledged-hledger
    :END:
 
-[[https://github.com/adept/full-fledged-hledger/wiki#full-fledged-hledger-tutorial][Full-fledged
-Hledger]] is a brilliant system, and hledger-flow continues to learn
-much from it.
+[[https://github.com/adept/full-fledged-hledger/wiki#full-fledged-hledger-tutorial][Full-fledged Hledger]]
+is a brilliant system, and hledger-flow continues to learn much from it.
 
 It has great documentation that does an excellent job of not only
 showing *how* things can be done, but also *why* it is such a great
@@ -637,7 +713,7 @@ different.
 |                                                                                                                                                                                                                            |                                                                                                                                                                                                                                                            |
 | Maintaining include files are currently part of the user's responsibility.                                                                                                                                                 | Hledger Flow generates flexible include files for you, and automatically includes opening/closing journals if the appropriately named files are present on disk.                                                                                           |
 |                                                                                                                                                                                                                            |                                                                                                                                                                                                                                                            |
-| FFH actually generates some useful reports right now. Hledger Flow still [[https://github.com/apauley/hledger-flow/pull/4][plans to get this done]] one day.                                                                                                                   | The "owner/bank/account" structure may look a bit much at first, but it allows us to run separate queries/reports for me/my spouse/my business etc and also allows for reports covering all of it in a an overall view.                                    |
+| FFH generates some of the same reports as Hledger Flow.                                                                                                                                                                    | The "owner/bank/account" structure may look a bit much at first, but it allows us to run separate queries/reports for "me" vs "my spouse" vs "my business" etc and also allows for reports covering all of it in a an overall view.                       |
 |                                                                                                                                                                                                                            |                                                                                                                                                                                                                                                            |
 | FFH chose scripts and build files that you can easily modify as you go along, but this requires a Haskell runtime to be installed everywhere it needs to run. The included docker image helps to make it less of an issue. | Hledger Flow distributes a compiled binary. This means users or deployment targets don't need extra dependencies installed, they can just run a CLI program. This also provides a clearer distinction between what is provided, and what users need to do. |
 |                                                                                                                                                                                                                            |                                                                                                                                                                                                                                                            |
