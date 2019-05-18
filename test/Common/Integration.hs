@@ -6,16 +6,12 @@ module Common.Integration (tests) where
 import Test.HUnit
 import Turtle
 import Prelude hiding (FilePath)
-import qualified Data.Map.Strict as Map
-import qualified Control.Foldl as Fold
-import qualified Data.Text as T
 import qualified Data.List as List (sort)
 
 import TestHelpers
-import Hledger.Flow.Import.Types
 import Hledger.Flow.Common
-import Control.Concurrent.STM
 
+testHiddenFiles :: Test
 testHiddenFiles = TestCase (
   sh (
       do
@@ -31,6 +27,7 @@ testHiddenFiles = TestCase (
      )
   )
 
+testDirOrPwd :: Test
 testDirOrPwd = TestCase (
   sh (
       do
@@ -52,6 +49,7 @@ testDirOrPwd = TestCase (
      )
   )
 
+testDetermineBaseDir :: Test
 testDetermineBaseDir = TestCase (
   sh (
       do
@@ -113,6 +111,7 @@ testDetermineBaseDir = TestCase (
      )
   )
 
+testFilterPaths :: Test
 testFilterPaths = TestCase (
   sh (
       do
@@ -131,5 +130,5 @@ testFilterPaths = TestCase (
      )
   )
 
-
+tests :: Test
 tests = TestList [testDirOrPwd, testDetermineBaseDir, testHiddenFiles, testFilterPaths]

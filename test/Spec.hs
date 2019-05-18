@@ -12,11 +12,12 @@ import qualified Common.Integration
 import qualified CSVImport.Unit
 import qualified CSVImport.Integration
 
+tests :: Test
 tests = TestList [Common.Unit.tests, Common.Integration.tests, CSVImport.Unit.tests, CSVImport.Integration.tests]
 
 main :: IO Counts
 main = do
-  counts <- runTestTT tests
-  if (errors counts > 0 || failures counts > 0)
+  errCounts <- runTestTT tests
+  if (errors errCounts > 0 || failures errCounts > 0)
     then exit $ ExitFailure 1
-    else return counts
+    else return errCounts
