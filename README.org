@@ -687,7 +687,7 @@ I typically use sorted names as the subaccount (Python code sample):
     This approach is based on what is described in Full-fledged hledger:
     [[https://github.com/adept/full-fledged-hledger/wiki/Adding-more-accounts#lets-make-sure-that-transfers-are-not-double-counted]]
 
-    The question was first asked in [[%0Ahttps://github.com/apauley/hledger-flow/issues/51%0A][issue #51]].
+    The question was first asked in [[https://github.com/apauley/hledger-flow/issues/51][issue #51]].
 
 ** How does =hledger-flow= differ from =Full-fledged Hledger=?
    :PROPERTIES:
