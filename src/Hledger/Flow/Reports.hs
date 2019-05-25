@@ -105,6 +105,8 @@ generateReport opts ch journal baseOutDir year fileName args successCheck = do
     else
     do
       channelErrLn ch $ format ("Did not write '"%fp%"' ("%s%") "%s) relativeOutputFile cmdLabel (repr exitCode)
+      exists <- testfile outputFile
+      if exists then rm outputFile else return ()
       return $ Left outputFile
 
 journalFile :: RuntimeOptions -> [FilePath] -> FilePath
