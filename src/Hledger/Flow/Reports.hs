@@ -62,48 +62,49 @@ generateReports'' opts ch (ReportParams journal years reportsDir) = do
 accountList :: RuntimeOptions -> TChan FlowTypes.LogMessage -> FilePath -> FilePath -> Integer -> IO (Either FilePath FilePath)
 accountList opts ch journal reportsDir year = do
   let reportArgs = ["accounts"]
-  generateReport opts ch journal reportsDir year ("accounts" <.> "txt") reportArgs
+  generateReport opts ch journal reportsDir year ("accounts" <.> "txt") reportArgs (not . T.null)
 
 unknownTransactions :: RuntimeOptions -> TChan FlowTypes.LogMessage -> FilePath -> FilePath -> Integer -> IO (Either FilePath FilePath)
 unknownTransactions opts ch journal reportsDir year = do
   let reportArgs = ["print", "unknown"]
-  generateReport opts ch journal reportsDir year ("unknown-transactions" <.> "txt") reportArgs
+  generateReport opts ch journal reportsDir year ("unknown-transactions" <.> "txt") reportArgs (not . T.null)
 
 incomeStatement :: [Text] -> RuntimeOptions -> TChan FlowTypes.LogMessage -> FilePath -> FilePath -> Integer -> IO (Either FilePath FilePath)
 incomeStatement sharedOptions opts ch journal reportsDir year = do
   let reportArgs = ["incomestatement"] ++ sharedOptions ++ ["--cost", "--value"]
-  generateReport opts ch journal reportsDir year ("income-expenses" <.> "txt") reportArgs
+  generateReport opts ch journal reportsDir year ("income-expenses" <.> "txt") reportArgs (not . T.null)
 
 balanceSheet :: [Text] -> RuntimeOptions -> TChan FlowTypes.LogMessage -> FilePath -> FilePath -> Integer -> IO (Either FilePath FilePath)
 balanceSheet sharedOptions opts ch journal reportsDir year = do
   let reportArgs = ["balancesheet"] ++ sharedOptions ++ ["--cost", "--flat"]
-  generateReport opts ch journal reportsDir year ("balance-sheet" <.> "txt") reportArgs
+  generateReport opts ch journal reportsDir year ("balance-sheet" <.> "txt") reportArgs (not . T.null)
 
 transferBalance :: RuntimeOptions -> TChan FlowTypes.LogMessage -> FilePath -> FilePath -> Integer -> IO (Either FilePath FilePath)
 transferBalance opts ch journal reportsDir year = do
   let reportArgs = ["balance", "--pretty-tables", "--quarterly", "--flat", "--no-total", "transfer"]
-  generateReport opts ch journal reportsDir year ("transfer-balance" <.> "txt") reportArgs
+  generateReport opts ch journal reportsDir year ("transfer-balance" <.> "txt") reportArgs (not . T.null)
 
-generateReport :: RuntimeOptions -> TChan FlowTypes.LogMessage -> FilePath -> FilePath -> Integer -> FilePath -> [Text] -> IO (Either FilePath FilePath)
-generateReport opts ch journal baseOutDir year fileName args = do
+generateReport :: RuntimeOptions -> TChan FlowTypes.LogMessage -> FilePath -> FilePath -> Integer -> FilePath -> [Text] -> (Text -> Bool) -> IO (Either FilePath FilePath)
+generateReport opts ch journal baseOutDir year fileName args successCheck = do
   let reportsDir = baseOutDir </> intPath year
   mktree reportsDir
   let outputFile = reportsDir </> fileName
   let relativeJournal = relativeToBase opts journal
+  let relativeOutputFile = relativeToBase opts outputFile
   let reportArgs = ["--file", format fp journal, "--period", repr year] ++ args
   let reportDisplayArgs = ["--file", format fp relativeJournal, "--period", repr year] ++ args
   let hledger = format fp $ FlowTypes.hlPath . hledgerInfo $ opts :: Text
   let cmdLabel = format ("hledger "%s) $ showCmdArgs reportDisplayArgs
   ((exitCode, stdOut, _), _) <- timeAndExitOnErr opts ch cmdLabel dummyLogger channelErr procStrictWithErr (hledger, reportArgs, empty)
-  if not (T.null stdOut)
+  if (successCheck stdOut)
     then
     do
       writeTextFile outputFile (cmdLabel <> "\n\n"<> stdOut)
-      logVerbose opts ch $ format ("Wrote "%fp) $ relativeToBase opts outputFile
+      logVerbose opts ch $ format ("Wrote "%fp) $ relativeOutputFile
       return $ Right outputFile
     else
     do
-      channelErrLn ch $ format ("No report output for '"%s%"' "%s) cmdLabel (repr exitCode)
+      channelErrLn ch $ format ("Did not write '"%fp%"' ("%s%") "%s) relativeOutputFile cmdLabel (repr exitCode)
       return $ Left outputFile
 
 journalFile :: RuntimeOptions -> [FilePath] -> FilePath
