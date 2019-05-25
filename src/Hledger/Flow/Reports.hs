@@ -55,19 +55,24 @@ generateReports' opts ch = do
 generateReports'' :: RuntimeOptions -> TChan FlowTypes.LogMessage -> ReportParams -> [IO (Either FilePath FilePath)]
 generateReports'' opts ch (ReportParams journal years reportsDir) = do
   y <- years
-  let actions = map (\r -> r opts ch journal reportsDir y) [accountList, incomeStatement]
+  let sharedOptions = ["--depth", "2", "--pretty-tables", "not:equity"]
+  let actions = map (\r -> r opts ch journal reportsDir y) [accountList, incomeStatement sharedOptions, balanceSheet sharedOptions]
   map (fmap fst) actions
-
-incomeStatement :: RuntimeOptions -> TChan FlowTypes.LogMessage -> FilePath -> FilePath -> Integer -> IO (Either FilePath FilePath, FlowTypes.FullTimedOutput)
-incomeStatement opts ch journal reportsDir year = do
-  let sharedOptions = ["--depth", "2", "--pretty-tables", "not:equity", "--cost", "--value"]
-  let reportArgs = ["incomestatement"] ++ sharedOptions
-  generateReport opts ch journal reportsDir year ("income-expenses" <.> "txt") reportArgs
 
 accountList :: RuntimeOptions -> TChan FlowTypes.LogMessage -> FilePath -> FilePath -> Integer -> IO (Either FilePath FilePath, FlowTypes.FullTimedOutput)
 accountList opts ch journal reportsDir year = do
   let reportArgs = ["accounts"]
   generateReport opts ch journal reportsDir year ("accounts" <.> "txt") reportArgs
+
+incomeStatement :: [Text] -> RuntimeOptions -> TChan FlowTypes.LogMessage -> FilePath -> FilePath -> Integer -> IO (Either FilePath FilePath, FlowTypes.FullTimedOutput)
+incomeStatement sharedOptions opts ch journal reportsDir year = do
+  let reportArgs = ["incomestatement"] ++ sharedOptions ++ ["--cost", "--value"]
+  generateReport opts ch journal reportsDir year ("income-expenses" <.> "txt") reportArgs
+
+balanceSheet :: [Text] -> RuntimeOptions -> TChan FlowTypes.LogMessage -> FilePath -> FilePath -> Integer -> IO (Either FilePath FilePath, FlowTypes.FullTimedOutput)
+balanceSheet sharedOptions opts ch journal reportsDir year = do
+  let reportArgs = ["balancesheet"] ++ sharedOptions ++ ["--cost", "--flat"]
+  generateReport opts ch journal reportsDir year ("balance-sheet" <.> "txt") reportArgs
 
 generateReport :: RuntimeOptions -> TChan FlowTypes.LogMessage -> FilePath -> FilePath -> Integer -> FilePath -> [Text] -> IO (Either FilePath FilePath, FlowTypes.FullTimedOutput)
 generateReport opts ch journal baseOutDir year fileName args = do
