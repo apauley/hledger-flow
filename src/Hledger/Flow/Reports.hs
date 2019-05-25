@@ -56,13 +56,18 @@ generateReports'' :: RuntimeOptions -> TChan FlowTypes.LogMessage -> ReportParam
 generateReports'' opts ch (ReportParams journal years reportsDir) = do
   y <- years
   let sharedOptions = ["--depth", "2", "--pretty-tables", "not:equity"]
-  let actions = map (\r -> r opts ch journal reportsDir y) [accountList, incomeStatement sharedOptions, balanceSheet sharedOptions]
+  let actions = map (\r -> r opts ch journal reportsDir y) [accountList, unknownTransactions, incomeStatement sharedOptions, balanceSheet sharedOptions]
   map (fmap fst) actions
 
 accountList :: RuntimeOptions -> TChan FlowTypes.LogMessage -> FilePath -> FilePath -> Integer -> IO (Either FilePath FilePath, FlowTypes.FullTimedOutput)
 accountList opts ch journal reportsDir year = do
   let reportArgs = ["accounts"]
   generateReport opts ch journal reportsDir year ("accounts" <.> "txt") reportArgs
+
+unknownTransactions :: RuntimeOptions -> TChan FlowTypes.LogMessage -> FilePath -> FilePath -> Integer -> IO (Either FilePath FilePath, FlowTypes.FullTimedOutput)
+unknownTransactions opts ch journal reportsDir year = do
+  let reportArgs = ["print", "unknown"]
+  generateReport opts ch journal reportsDir year ("unknown-transactions" <.> "txt") reportArgs
 
 incomeStatement :: [Text] -> RuntimeOptions -> TChan FlowTypes.LogMessage -> FilePath -> FilePath -> Integer -> IO (Either FilePath FilePath, FlowTypes.FullTimedOutput)
 incomeStatement sharedOptions opts ch journal reportsDir year = do
