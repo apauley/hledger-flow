@@ -56,7 +56,8 @@ generateReports'' :: RuntimeOptions -> TChan FlowTypes.LogMessage -> ReportParam
 generateReports'' opts ch (ReportParams journal years reportsDir) = do
   y <- years
   let sharedOptions = ["--depth", "2", "--pretty-tables", "not:equity"]
-  map (\r -> r opts ch journal reportsDir y) [accountList, unknownTransactions, incomeStatement sharedOptions, balanceSheet sharedOptions]
+  map (\r -> r opts ch journal reportsDir y) [accountList, unknownTransactions, incomeStatement sharedOptions,
+                                              balanceSheet sharedOptions, transferBalance]
 
 accountList :: RuntimeOptions -> TChan FlowTypes.LogMessage -> FilePath -> FilePath -> Integer -> IO (Either FilePath FilePath)
 accountList opts ch journal reportsDir year = do
@@ -77,6 +78,11 @@ balanceSheet :: [Text] -> RuntimeOptions -> TChan FlowTypes.LogMessage -> FilePa
 balanceSheet sharedOptions opts ch journal reportsDir year = do
   let reportArgs = ["balancesheet"] ++ sharedOptions ++ ["--cost", "--flat"]
   generateReport opts ch journal reportsDir year ("balance-sheet" <.> "txt") reportArgs
+
+transferBalance :: RuntimeOptions -> TChan FlowTypes.LogMessage -> FilePath -> FilePath -> Integer -> IO (Either FilePath FilePath)
+transferBalance opts ch journal reportsDir year = do
+  let reportArgs = ["balance", "--pretty-tables", "--quarterly", "--flat", "--no-total", "transfer"]
+  generateReport opts ch journal reportsDir year ("transfer-balance" <.> "txt") reportArgs
 
 generateReport :: RuntimeOptions -> TChan FlowTypes.LogMessage -> FilePath -> FilePath -> Integer -> FilePath -> [Text] -> IO (Either FilePath FilePath)
 generateReport opts ch journal baseOutDir year fileName args = do
