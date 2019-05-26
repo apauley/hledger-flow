@@ -46,18 +46,24 @@ generateReports' opts ch = do
   let aggregateJournal = journalFile opts []
   let aggregateReportDir = outputReportDir opts ["all"]
   aggregateYears <- includeYears ch aggregateJournal
-  let aggregateParams = if length owners > 1 then [(ReportParams aggregateJournal aggregateYears aggregateReportDir)] else []
+  let aggregateParams = ReportParams aggregateJournal aggregateYears aggregateReportDir
+  let aggregateOnlyReports = generateAggregateOnlyReports opts ch aggregateParams
   ownerParams <- ownerParameters opts ch owners
-  let reportParams = aggregateParams ++ ownerParams
-  let actions = List.concat $ fmap (generatePerOwnerWithAggregateReports opts ch) reportParams
-  parAwareActions opts actions
+  let ownerWithAggregateParams = (if length owners > 1 then [aggregateParams] else []) ++ ownerParams
+  let ownerWithAggregateReports = List.concat $ fmap (generatePerOwnerWithAggregateReports opts ch) ownerWithAggregateParams
+  parAwareActions opts (aggregateOnlyReports ++ ownerWithAggregateReports)
+
+generateAggregateOnlyReports :: RuntimeOptions -> TChan FlowTypes.LogMessage -> ReportParams -> [IO (Either FilePath FilePath)]
+generateAggregateOnlyReports opts ch (ReportParams journal years reportsDir) = do
+  y <- years
+  map (\r -> r opts ch journal reportsDir y) [transferBalance]
 
 generatePerOwnerWithAggregateReports :: RuntimeOptions -> TChan FlowTypes.LogMessage -> ReportParams -> [IO (Either FilePath FilePath)]
 generatePerOwnerWithAggregateReports opts ch (ReportParams journal years reportsDir) = do
   y <- years
   let sharedOptions = ["--depth", "2", "--pretty-tables", "not:equity"]
   map (\r -> r opts ch journal reportsDir y) [accountList, unknownTransactions, incomeStatement sharedOptions,
-                                              balanceSheet sharedOptions, transferBalance]
+                                              balanceSheet sharedOptions]
 
 accountList :: RuntimeOptions -> TChan FlowTypes.LogMessage -> FilePath -> FilePath -> Integer -> IO (Either FilePath FilePath)
 accountList opts ch journal reportsDir year = do
