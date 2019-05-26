@@ -56,18 +56,18 @@ generateReports' opts ch = do
   parAwareActions opts (aggregateOnlyReports ++ ownerWithAggregateReports ++ ownerOnlyReports)
 
 generateAggregateOnlyReports :: RuntimeOptions -> TChan FlowTypes.LogMessage -> ReportParams -> [IO (Either FilePath FilePath)]
-generateAggregateOnlyReports opts ch params = ggg opts ch params [transferBalance]
+generateAggregateOnlyReports opts ch params = ggg opts ch [transferBalance] params
 
 generatePerOwnerWithAggregateReports :: RuntimeOptions -> TChan FlowTypes.LogMessage -> ReportParams -> [IO (Either FilePath FilePath)]
 generatePerOwnerWithAggregateReports opts ch params = do
   let sharedOptions = ["--depth", "2", "--pretty-tables", "not:equity"]
-  ggg opts ch params [incomeStatement sharedOptions, balanceSheet sharedOptions]
+  ggg opts ch [incomeStatement sharedOptions, balanceSheet sharedOptions] params
 
 generatePerOwnerOnlyReports :: RuntimeOptions -> TChan FlowTypes.LogMessage -> ReportParams -> [IO (Either FilePath FilePath)]
-generatePerOwnerOnlyReports opts ch params = ggg opts ch params [accountList, unknownTransactions]
+generatePerOwnerOnlyReports opts ch params = ggg opts ch [accountList, unknownTransactions] params
 
-ggg :: RuntimeOptions -> TChan FlowTypes.LogMessage -> ReportParams -> [ReportGenerator] -> [IO (Either FilePath FilePath)]
-ggg opts ch (ReportParams journal years reportsDir) reports = do
+ggg :: RuntimeOptions -> TChan FlowTypes.LogMessage -> [ReportGenerator] -> ReportParams -> [IO (Either FilePath FilePath)]
+ggg opts ch reports (ReportParams journal years reportsDir) = do
   y <- years
   map (\r -> r opts ch journal reportsDir y) reports
 
