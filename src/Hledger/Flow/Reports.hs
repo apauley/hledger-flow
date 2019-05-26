@@ -48,26 +48,16 @@ generateReports' opts ch = do
   let aggregateReportDir = outputReportDir opts ["all"]
   aggregateYears <- includeYears ch aggregateJournal
   let aggregateParams = ReportParams aggregateJournal aggregateYears aggregateReportDir
-  let aggregateOnlyReports = generateAggregateOnlyReports opts ch aggregateParams
+  let aggregateOnlyReports = reportActions opts ch [transferBalance] aggregateParams
   ownerParams <- ownerParameters opts ch owners
   let ownerWithAggregateParams = (if length owners > 1 then [aggregateParams] else []) ++ ownerParams
-  let ownerWithAggregateReports = List.concat $ fmap (generatePerOwnerWithAggregateReports opts ch) ownerWithAggregateParams
-  let ownerOnlyReports = List.concat $ fmap (generatePerOwnerOnlyReports opts ch) ownerParams
+  let sharedOptions = ["--depth", "2", "--pretty-tables", "not:equity"]
+  let ownerWithAggregateReports = List.concat $ fmap (reportActions opts ch [incomeStatement sharedOptions, balanceSheet sharedOptions]) ownerWithAggregateParams
+  let ownerOnlyReports = List.concat $ fmap (reportActions opts ch [accountList, unknownTransactions]) ownerParams
   parAwareActions opts (aggregateOnlyReports ++ ownerWithAggregateReports ++ ownerOnlyReports)
 
-generateAggregateOnlyReports :: RuntimeOptions -> TChan FlowTypes.LogMessage -> ReportParams -> [IO (Either FilePath FilePath)]
-generateAggregateOnlyReports opts ch params = ggg opts ch [transferBalance] params
-
-generatePerOwnerWithAggregateReports :: RuntimeOptions -> TChan FlowTypes.LogMessage -> ReportParams -> [IO (Either FilePath FilePath)]
-generatePerOwnerWithAggregateReports opts ch params = do
-  let sharedOptions = ["--depth", "2", "--pretty-tables", "not:equity"]
-  ggg opts ch [incomeStatement sharedOptions, balanceSheet sharedOptions] params
-
-generatePerOwnerOnlyReports :: RuntimeOptions -> TChan FlowTypes.LogMessage -> ReportParams -> [IO (Either FilePath FilePath)]
-generatePerOwnerOnlyReports opts ch params = ggg opts ch [accountList, unknownTransactions] params
-
-ggg :: RuntimeOptions -> TChan FlowTypes.LogMessage -> [ReportGenerator] -> ReportParams -> [IO (Either FilePath FilePath)]
-ggg opts ch reports (ReportParams journal years reportsDir) = do
+reportActions :: RuntimeOptions -> TChan FlowTypes.LogMessage -> [ReportGenerator] -> ReportParams -> [IO (Either FilePath FilePath)]
+reportActions opts ch reports (ReportParams journal years reportsDir) = do
   y <- years
   map (\r -> r opts ch journal reportsDir y) reports
 
