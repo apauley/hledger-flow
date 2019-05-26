@@ -1,5 +1,13 @@
 # Changelog for [hledger-flow](https://github.com/apauley/hledger-flow)
 
+## 0.12.3
+
+Add more reports:
+
+- Balance Sheet per owner per year, and for all owners per year
+- Unknown transactions per owner per year
+- A transfer balance overview per year
+
 ## 0.12.2.1
 
 Fix resolver extraction and hledger-flow --version in release-tarball script
