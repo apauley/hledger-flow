@@ -20,6 +20,7 @@ data ReportParams = ReportParams { ledgerFile :: FilePath
                                  , outputDir :: FilePath
                                  }
                   deriving (Show)
+type ReportGenerator = RuntimeOptions -> TChan FlowTypes.LogMessage -> FilePath -> FilePath -> Integer -> IO (Either FilePath FilePath)
 
 generateReports :: RuntimeOptions -> IO ()
 generateReports opts = sh (
@@ -51,41 +52,46 @@ generateReports' opts ch = do
   ownerParams <- ownerParameters opts ch owners
   let ownerWithAggregateParams = (if length owners > 1 then [aggregateParams] else []) ++ ownerParams
   let ownerWithAggregateReports = List.concat $ fmap (generatePerOwnerWithAggregateReports opts ch) ownerWithAggregateParams
-  parAwareActions opts (aggregateOnlyReports ++ ownerWithAggregateReports)
+  let ownerOnlyReports = List.concat $ fmap (generatePerOwnerOnlyReports opts ch) ownerParams
+  parAwareActions opts (aggregateOnlyReports ++ ownerWithAggregateReports ++ ownerOnlyReports)
 
 generateAggregateOnlyReports :: RuntimeOptions -> TChan FlowTypes.LogMessage -> ReportParams -> [IO (Either FilePath FilePath)]
-generateAggregateOnlyReports opts ch (ReportParams journal years reportsDir) = do
-  y <- years
-  map (\r -> r opts ch journal reportsDir y) [transferBalance]
+generateAggregateOnlyReports opts ch params = ggg opts ch params [transferBalance]
 
 generatePerOwnerWithAggregateReports :: RuntimeOptions -> TChan FlowTypes.LogMessage -> ReportParams -> [IO (Either FilePath FilePath)]
-generatePerOwnerWithAggregateReports opts ch (ReportParams journal years reportsDir) = do
-  y <- years
+generatePerOwnerWithAggregateReports opts ch params = do
   let sharedOptions = ["--depth", "2", "--pretty-tables", "not:equity"]
-  map (\r -> r opts ch journal reportsDir y) [accountList, unknownTransactions, incomeStatement sharedOptions,
-                                              balanceSheet sharedOptions]
+  ggg opts ch params [incomeStatement sharedOptions, balanceSheet sharedOptions]
 
-accountList :: RuntimeOptions -> TChan FlowTypes.LogMessage -> FilePath -> FilePath -> Integer -> IO (Either FilePath FilePath)
+generatePerOwnerOnlyReports :: RuntimeOptions -> TChan FlowTypes.LogMessage -> ReportParams -> [IO (Either FilePath FilePath)]
+generatePerOwnerOnlyReports opts ch params = ggg opts ch params [accountList, unknownTransactions]
+
+ggg :: RuntimeOptions -> TChan FlowTypes.LogMessage -> ReportParams -> [ReportGenerator] -> [IO (Either FilePath FilePath)]
+ggg opts ch (ReportParams journal years reportsDir) reports = do
+  y <- years
+  map (\r -> r opts ch journal reportsDir y) reports
+
+accountList :: ReportGenerator
 accountList opts ch journal reportsDir year = do
   let reportArgs = ["accounts"]
   generateReport opts ch journal reportsDir year ("accounts" <.> "txt") reportArgs (not . T.null)
 
-unknownTransactions :: RuntimeOptions -> TChan FlowTypes.LogMessage -> FilePath -> FilePath -> Integer -> IO (Either FilePath FilePath)
+unknownTransactions :: ReportGenerator
 unknownTransactions opts ch journal reportsDir year = do
   let reportArgs = ["print", "unknown"]
   generateReport opts ch journal reportsDir year ("unknown-transactions" <.> "txt") reportArgs (not . T.null)
 
-incomeStatement :: [Text] -> RuntimeOptions -> TChan FlowTypes.LogMessage -> FilePath -> FilePath -> Integer -> IO (Either FilePath FilePath)
+incomeStatement :: [Text] -> ReportGenerator
 incomeStatement sharedOptions opts ch journal reportsDir year = do
   let reportArgs = ["incomestatement"] ++ sharedOptions ++ ["--cost", "--value"]
   generateReport opts ch journal reportsDir year ("income-expenses" <.> "txt") reportArgs (not . T.null)
 
-balanceSheet :: [Text] -> RuntimeOptions -> TChan FlowTypes.LogMessage -> FilePath -> FilePath -> Integer -> IO (Either FilePath FilePath)
+balanceSheet :: [Text] -> ReportGenerator
 balanceSheet sharedOptions opts ch journal reportsDir year = do
   let reportArgs = ["balancesheet"] ++ sharedOptions ++ ["--cost", "--flat"]
   generateReport opts ch journal reportsDir year ("balance-sheet" <.> "txt") reportArgs (not . T.null)
 
-transferBalance :: RuntimeOptions -> TChan FlowTypes.LogMessage -> FilePath -> FilePath -> Integer -> IO (Either FilePath FilePath)
+transferBalance :: ReportGenerator
 transferBalance opts ch journal reportsDir year = do
   let reportArgs = ["balance", "--pretty-tables", "--quarterly", "--flat", "--no-total", "transfer"]
   generateReport opts ch journal reportsDir year ("transfer-balance" <.> "txt") reportArgs (\txt -> (length $ T.lines txt) > 4)
