@@ -82,7 +82,7 @@ balanceSheet sharedOptions opts ch journal reportsDir year = do
 transferBalance :: RuntimeOptions -> TChan FlowTypes.LogMessage -> FilePath -> FilePath -> Integer -> IO (Either FilePath FilePath)
 transferBalance opts ch journal reportsDir year = do
   let reportArgs = ["balance", "--pretty-tables", "--quarterly", "--flat", "--no-total", "transfer"]
-  generateReport opts ch journal reportsDir year ("transfer-balance" <.> "txt") reportArgs (not . T.null)
+  generateReport opts ch journal reportsDir year ("transfer-balance" <.> "txt") reportArgs (\txt -> (length $ T.lines txt) > 4)
 
 generateReport :: RuntimeOptions -> TChan FlowTypes.LogMessage -> FilePath -> FilePath -> Integer -> FilePath -> [Text] -> (Text -> Bool) -> IO (Either FilePath FilePath)
 generateReport opts ch journal baseOutDir year fileName args successCheck = do
