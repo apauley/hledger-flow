@@ -17,14 +17,8 @@ jobs:
           name: Resolve/Update Dependencies
           command: stack setup --interleaved-output
       - run:
-          name: Stack Build
-          command: stack build --interleaved-output --test --bench --no-run-tests --no-run-benchmarks --ghc-options=-Werror
-      - run:
-          name: Run tests
-          command: stack test --interleaved-output
-      - run:
-          name: Install hledger-flow executable
-          command: stack install
+          name: Stack Build And Test
+          command: ./bin/build-and-test
       - run:
           name: hledger-flow --help
           command: ~/.local/bin/hledger-flow --help

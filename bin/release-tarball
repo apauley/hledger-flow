@@ -42,7 +42,15 @@ GHC_VERSION="$(stack exec -- ghc --version)"
 CLI_NAME="$(basename ${FILE})"
 PLATFORM=`uname -s`
 ARCH=`uname -m`
-VNAME="${CLI_NAME}_${PLATFORM}_${ARCH}_${VERSION}_${STACK_RESOLVER}_${ABBRHASH}"
+
+if [ ${PLATFORM} == "Darwin" ]
+then
+    OS="MacOSX_${PLATFORM}"
+else
+    OS=${PLATFORM}
+fi
+
+VNAME="${CLI_NAME}_${OS}_${ARCH}_${VERSION}_${ABBRHASH}"
 TARNAME="${VNAME}.tar.gz"
 
 TARGET=${TARGETBASE}/${VNAME}

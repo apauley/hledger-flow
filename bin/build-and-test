@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+
+set -e
+
+stack test --interleaved-output --pedantic && stack install

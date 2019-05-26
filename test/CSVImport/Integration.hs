@@ -7,15 +7,13 @@ import Test.HUnit
 import Turtle
 import Prelude hiding (FilePath)
 import qualified Data.Map.Strict as Map
-import qualified Control.Foldl as Fold
-import qualified Data.Text as T
 import qualified Data.List as List (sort)
 
 import TestHelpers
-import Hledger.Flow.Import.Types
 import Hledger.Flow.Common
 import Control.Concurrent.STM
 
+testExtraIncludesForFile :: Test
 testExtraIncludesForFile = TestCase (
   sh (
       do
@@ -47,6 +45,7 @@ testExtraIncludesForFile = TestCase (
         liftIO $ assertEqual "The closing journal should be included when it is on disk" [(accountInclude, [closing])] extraClosing2
      ))
 
+testIncludesPrePost :: Test
 testIncludesPrePost = TestCase (
   sh (
       do
@@ -71,6 +70,7 @@ testIncludesPrePost = TestCase (
         liftIO $ assertEqual "All pre/post files on disk should be included" expectedMap fileMap
      ))
 
+testIncludesOpeningClosing :: Test
 testIncludesOpeningClosing = TestCase (
   sh (
       do
@@ -94,6 +94,7 @@ testIncludesOpeningClosing = TestCase (
         liftIO $ assertEqual "All pre/post files on disk should be included" expectedMap fileMap
      ))
 
+testWriteIncludeFiles :: Test
 testWriteIncludeFiles = TestCase (
   sh (
       do
@@ -172,4 +173,5 @@ testWriteIncludeFiles = TestCase (
      )
   )
 
+tests :: Test
 tests = TestList [testExtraIncludesForFile, testIncludesPrePost, testIncludesOpeningClosing, testWriteIncludeFiles]

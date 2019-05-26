@@ -89,10 +89,16 @@ You need a recent version of [[https://docs.haskellstack.org/en/stable/README/][
 
 Then run:
 
+#+NAME: build-script
+#+BEGIN_SRC sh
+    ./bin/build-and-test
+#+END_SRC
+
+This script just runs:
+
 #+NAME: stack-build
 #+BEGIN_SRC sh
-    stack build --pedantic
-    stack test
+    stack test --interleaved-output --pedantic
     stack install
 #+END_SRC
 

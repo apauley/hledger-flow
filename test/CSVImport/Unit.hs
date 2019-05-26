@@ -7,9 +7,6 @@ import Test.HUnit
 import Turtle
 import Prelude hiding (FilePath)
 import qualified Data.Map.Strict as Map
-import qualified Control.Foldl as Fold
-import qualified Data.Text as T
-import qualified CSVImport.Integration
 import Control.Concurrent.STM
 
 import TestHelpers
@@ -68,6 +65,7 @@ groupedIncludeFiles :: Map.Map FilePath [FilePath]
 groupedIncludeFiles = groupedJaneBogart <> groupedJaneOther <>
                       groupedJohnBogart <> groupedJohnOther
 
+testYearsIncludeMap :: Test
 testYearsIncludeMap = TestCase (
   do
     let maps = allYearIncludeFiles groupedJohnOther
@@ -81,6 +79,7 @@ testYearsIncludeMap = TestCase (
     assertEqual "An augmented map with grouped years per level added" expected maps
   )
 
+testYearsIncludeGrouping :: Test
 testYearsIncludeGrouping = TestCase (
   do
     let yearsMap = yearsIncludeMap (Map.keys groupedJohnOther)
@@ -93,6 +92,7 @@ testYearsIncludeGrouping = TestCase (
     assertEqual "A basic map with grouped years per level" expected yearsMap
   )
 
+testGroupIncludeFilesTinySet :: Test
 testGroupIncludeFilesTinySet = TestCase (
   do
     let journals1 = [   "import/jane/bogartbank/savings/3-journals/2017/2017-12-30.journal"]
@@ -117,6 +117,7 @@ testGroupIncludeFilesTinySet = TestCase (
     assertEqual "groupIncludeFiles small set 3" expected3 group3
   )
 
+testGroupIncludeFilesSmallSet :: Test
 testGroupIncludeFilesSmallSet = TestCase (
   do
     let (group1, allYears1) = groupIncludeFiles (toJournals inputJaneBogart)
@@ -193,6 +194,7 @@ testGroupIncludeFilesSmallSet = TestCase (
     assertEqual "groupIncludeFiles Jane 5" expectedGroup5 group5
  )
 
+testGroupIncludeFiles :: Test
 testGroupIncludeFiles = TestCase (
   do
     let (group1, allYears1) = groupIncludeFiles journalFiles
@@ -348,6 +350,7 @@ testGroupIncludeFiles = TestCase (
     assertEqual "groupIncludeFiles 5" expectedGroup5 group5
   )
 
+testRelativeToBase :: Test
 testRelativeToBase = TestCase (
   do
     let expected = "file1.journal"
@@ -367,6 +370,7 @@ testRelativeToBase = TestCase (
     assertEqual "A basedir with no shared prefix should return the supplied file unchanged" "/unrelated/dir/file1.journal" mismatch
   )
 
+testToIncludeLine :: Test
 testToIncludeLine = TestCase (
   do
     let expected = "!include file1.journal"
@@ -383,6 +387,7 @@ testToIncludeLine = TestCase (
     assertEqual "Include line - absolute base dir without a trailing slash" expected absoluteNoTrailingSlash
   )
 
+testToIncludeFiles :: Test
 testToIncludeFiles = TestCase (
   do
     let expected = [
@@ -408,4 +413,5 @@ testToIncludeFiles = TestCase (
     txt <- single $ toIncludeFiles (defaultOpts ".") ch groupedJohnBogart
     assertEqual "Convert a grouped map of paths, to a map with text contents for each file" expected txt)
 
+tests :: Test
 tests = TestList [testYearsIncludeMap, testYearsIncludeGrouping, testGroupIncludeFilesTinySet, testGroupIncludeFilesSmallSet, testGroupIncludeFiles, testRelativeToBase, testToIncludeLine, testToIncludeFiles]

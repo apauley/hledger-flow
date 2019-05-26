@@ -7,20 +7,20 @@ import Test.HUnit
 import Turtle
 import Prelude hiding (FilePath)
 
-import TestHelpers
 import Hledger.Flow.Common
 
 import Data.Either
 import qualified Data.Text as T
-import qualified Data.List as List
 
+testShowCmdArgs :: Test
 testShowCmdArgs = TestCase (
   do
-    let options = ["--number", "/tmp/file with spaces"]
+    let opts = ["--number", "/tmp/file with spaces"]
     let expected = "--number '/tmp/file with spaces'"
-    let actual = showCmdArgs options
+    let actual = showCmdArgs opts
     assertEqual "Convert command-line arguments to text" expected actual)
 
+testIncludeYears :: Test
 testIncludeYears = TestCase (
   do
     let txterr = "Some text without years"
@@ -47,6 +47,7 @@ testIncludeYears = TestCase (
     assertEqual "Get a list of years from an include file - success case 2" expected2 actual2
   )
 
+testExtractDigits :: Test
 testExtractDigits = TestCase (
   do
     let txt1 = "A number: 321\nAnother number is 42, so is 0"
@@ -62,4 +63,5 @@ testExtractDigits = TestCase (
     assertEqual "Extract digits from text 2" expected2 actual2
   )
 
+tests :: Test
 tests = TestList [testShowCmdArgs, testIncludeYears, testExtractDigits]
