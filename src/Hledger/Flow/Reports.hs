@@ -43,17 +43,17 @@ generateReports' opts ch = do
                <> "https://github.com/apauley/hledger-flow/issues\n"
   channelOutLn ch wipMsg
   owners <- single $ shellToList $ listOwners opts
-  let baseJournal = journalFile opts []
-  let baseReportDir = outputReportDir opts ["all"]
-  baseYears <- includeYears ch baseJournal
-  let baseParams = if length owners > 1 then [(ReportParams baseJournal baseYears baseReportDir)] else []
+  let aggregateJournal = journalFile opts []
+  let aggregateReportDir = outputReportDir opts ["all"]
+  aggregateYears <- includeYears ch aggregateJournal
+  let aggregateParams = if length owners > 1 then [(ReportParams aggregateJournal aggregateYears aggregateReportDir)] else []
   ownerParams <- ownerParameters opts ch owners
-  let reportParams = baseParams ++ ownerParams
-  let actions = List.concat $ fmap (generateReports'' opts ch) reportParams
+  let reportParams = aggregateParams ++ ownerParams
+  let actions = List.concat $ fmap (generatePerOwnerWithAggregateReports opts ch) reportParams
   parAwareActions opts actions
 
-generateReports'' :: RuntimeOptions -> TChan FlowTypes.LogMessage -> ReportParams -> [IO (Either FilePath FilePath)]
-generateReports'' opts ch (ReportParams journal years reportsDir) = do
+generatePerOwnerWithAggregateReports :: RuntimeOptions -> TChan FlowTypes.LogMessage -> ReportParams -> [IO (Either FilePath FilePath)]
+generatePerOwnerWithAggregateReports opts ch (ReportParams journal years reportsDir) = do
   y <- years
   let sharedOptions = ["--depth", "2", "--pretty-tables", "not:equity"]
   map (\r -> r opts ch journal reportsDir y) [accountList, unknownTransactions, incomeStatement sharedOptions,
