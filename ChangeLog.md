@@ -1,5 +1,21 @@
 # Changelog for [hledger-flow](https://github.com/apauley/hledger-flow)
 
+## 0.12.3.1
+
+Fixed a bug where:
+
+Given:
+- A run of `hledger-flow import`
+
+When:
+- specifying a relative import base directory
+- but specifically without any relative prefixes such as `./` or `../`
+
+Then:
+- the account-level include files pointing to the real journal entries would have incorrect paths
+
+https://github.com/apauley/hledger-flow/issues/65
+
 ## 0.12.3
 
 Add more reports:
