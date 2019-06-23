@@ -427,7 +427,9 @@ determineBaseDir Nothing = pwd >>= determineBaseDir'
 
 determineBaseDir' :: FilePath -> IO FilePath
 determineBaseDir' startDir = do
-  ebd <- determineBaseDir'' startDir startDir
+  currentDir <- pwd
+  let absoluteStartDir = if relative startDir then collapse (currentDir </> startDir) else startDir
+  ebd <- determineBaseDir'' absoluteStartDir absoluteStartDir
   case ebd of
     Right bd -> return bd
     Left  t  -> die t

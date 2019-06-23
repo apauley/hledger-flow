@@ -7,6 +7,7 @@ import Test.HUnit
 import Turtle
 import Prelude hiding (FilePath)
 import qualified Data.List as List (sort)
+import qualified Data.Text as T
 
 import TestHelpers
 import Hledger.Flow.Common
@@ -49,6 +50,23 @@ testDirOrPwd = TestCase (
      )
   )
 
+assertSubDirsForDetermineBaseDir :: FilePath -> [FilePath] -> IO ()
+assertSubDirsForDetermineBaseDir expectedBaseDir importDirs = do
+  _ <- sequence $ map (assertDetermineBaseDir expectedBaseDir) importDirs
+  return ()
+
+assertDetermineBaseDir :: FilePath -> FilePath -> IO ()
+assertDetermineBaseDir expectedBaseDir subDir = do
+  initialPwd <- pwd
+  bd1 <- determineBaseDir $ Just subDir
+  cd subDir
+  bd2 <- determineBaseDir Nothing
+  bd3 <- determineBaseDir $ Just "."
+  cd initialPwd
+  let msg = format ("determineBaseDir searches from pwd upwards until it finds a dir containing 'import' - "%fp) subDir
+  _ <- sequence $ map (assertEqual (T.unpack msg) expectedBaseDir) [bd1, bd2, bd3]
+  return ()
+
 testDetermineBaseDir :: Test
 testDetermineBaseDir = TestCase (
   sh (
@@ -63,51 +81,29 @@ testDetermineBaseDir = TestCase (
         bdUnrelated <- liftIO $ determineBaseDir'' unrelatedDir unrelatedDir
         liftIO $ assertEqual "determineBaseDir produces an error message when it cannot find a baseDir" (Left $ errorMessageBaseDir unrelatedDir) bdUnrelated
 
-        currentDir <- pwd
-        let baseDir = forceTrailingSlash $ collapse $ currentDir </> tmpdir </> "bd1"
-
+        let baseDir = "bd1"
         let importDir = baseDir </> "import"
         let ownerDir = importDir </> "john"
         let bankDir = ownerDir </> "mybank"
         let accDir = bankDir </> "myacc"
         let inDir = accDir </> "1-in"
         let yearDir = inDir </> "2019"
-        mktree yearDir
+        let subDirs = [yearDir, inDir, accDir, bankDir, ownerDir, importDir, baseDir]
 
-        let reportDir = baseDir </> "report"
-        mkdir reportDir
+        mktree $ tmpdir </> yearDir
 
-        cd baseDir
-        bd <- liftIO $ determineBaseDir Nothing
-        liftIO $ assertEqual "determineBaseDir searches from pwd upwards until it finds a dir containing 'import' - in the base dir" baseDir bd
+        let subDirsRelativeToTop = map (tmpdir </>) subDirs
 
-        cd reportDir
-        bdReport <- liftIO $ determineBaseDir Nothing
-        liftIO $ assertEqual "determineBaseDir searches from pwd upwards until it finds a dir containing 'import' - report dir" baseDir bdReport
+        currentDir <- pwd
+        let absoluteTempDir = forceTrailingSlash $ collapse $ currentDir </> tmpdir
+        let absoluteSubDirs = map (absoluteTempDir </>) subDirs
 
-        cd yearDir
-        bdYear <- liftIO $ determineBaseDir Nothing
-        liftIO $ assertEqual "determineBaseDir searches from pwd upwards until it finds a dir containing 'import' - year dir" baseDir bdYear
+        let absoluteBaseDir = forceTrailingSlash $ absoluteTempDir </> baseDir
+        liftIO $ assertSubDirsForDetermineBaseDir absoluteBaseDir absoluteSubDirs
+        liftIO $ assertSubDirsForDetermineBaseDir absoluteBaseDir subDirsRelativeToTop
 
-        cd inDir
-        bdIn <- liftIO $ determineBaseDir Nothing
-        liftIO $ assertEqual "determineBaseDir searches from pwd upwards until it finds a dir containing 'import' - input dir" baseDir bdIn
-
-        cd accDir
-        bdAcc <- liftIO $ determineBaseDir Nothing
-        liftIO $ assertEqual "determineBaseDir searches from pwd upwards until it finds a dir containing 'import' - account dir" baseDir bdAcc
-
-        cd bankDir
-        bdBank <- liftIO $ determineBaseDir Nothing
-        liftIO $ assertEqual "determineBaseDir searches from pwd upwards until it finds a dir containing 'import' - bank dir" baseDir bdBank
-
-        cd ownerDir
-        bdOwner <- liftIO $ determineBaseDir Nothing
-        liftIO $ assertEqual "determineBaseDir searches from pwd upwards until it finds a dir containing 'import' - owner dir" baseDir bdOwner
-
-        cd importDir
-        bdImport <- liftIO $ determineBaseDir Nothing
-        liftIO $ assertEqual "determineBaseDir searches from pwd upwards until it finds a dir containing 'import' - import dir" baseDir bdImport
+        cd absoluteTempDir
+        liftIO $ assertSubDirsForDetermineBaseDir absoluteBaseDir subDirs
      )
   )
 
