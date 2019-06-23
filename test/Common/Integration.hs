@@ -51,17 +51,20 @@ testDirOrPwd = TestCase (
   )
 
 assertSubDirsForDetermineBaseDir :: FilePath -> [FilePath] -> IO ()
-assertSubDirsForDetermineBaseDir baseDir importDirs = do
-  _ <- sequence $ map (assertDetermineBaseDir baseDir) importDirs
+assertSubDirsForDetermineBaseDir expectedBaseDir importDirs = do
+  _ <- sequence $ map (assertDetermineBaseDir expectedBaseDir) importDirs
   return ()
 
 assertDetermineBaseDir :: FilePath -> FilePath -> IO ()
-assertDetermineBaseDir baseDir subDir = do
+assertDetermineBaseDir expectedBaseDir subDir = do
+  initialPwd <- pwd
   bd1 <- determineBaseDir $ Just subDir
   cd subDir
   bd2 <- determineBaseDir Nothing
+  bd3 <- determineBaseDir $ Just "."
+  cd initialPwd
   let msg = format ("determineBaseDir searches from pwd upwards until it finds a dir containing 'import' - "%fp) subDir
-  _ <- sequence $ map (assertEqual (T.unpack msg) baseDir) [bd1, bd2]
+  _ <- sequence $ map (assertEqual (T.unpack msg) expectedBaseDir) [bd1, bd2, bd3]
   return ()
 
 testDetermineBaseDir :: Test
@@ -78,19 +81,29 @@ testDetermineBaseDir = TestCase (
         bdUnrelated <- liftIO $ determineBaseDir'' unrelatedDir unrelatedDir
         liftIO $ assertEqual "determineBaseDir produces an error message when it cannot find a baseDir" (Left $ errorMessageBaseDir unrelatedDir) bdUnrelated
 
-        currentDir <- pwd
-        let baseDir = forceTrailingSlash $ collapse $ currentDir </> tmpdir </> "bd1"
-
+        let baseDir = "bd1"
         let importDir = baseDir </> "import"
         let ownerDir = importDir </> "john"
         let bankDir = ownerDir </> "mybank"
         let accDir = bankDir </> "myacc"
         let inDir = accDir </> "1-in"
         let yearDir = inDir </> "2019"
-        mktree yearDir
-
         let subDirs = [yearDir, inDir, accDir, bankDir, ownerDir, importDir, baseDir]
-        liftIO $ assertSubDirsForDetermineBaseDir baseDir subDirs
+
+        mktree $ tmpdir </> yearDir
+
+        let subDirsRelativeToTop = map (tmpdir </>) subDirs
+
+        currentDir <- pwd
+        let absoluteTempDir = forceTrailingSlash $ collapse $ currentDir </> tmpdir
+        let absoluteSubDirs = map (absoluteTempDir </>) subDirs
+
+        let absoluteBaseDir = forceTrailingSlash $ absoluteTempDir </> baseDir
+        liftIO $ assertSubDirsForDetermineBaseDir absoluteBaseDir absoluteSubDirs
+        liftIO $ assertSubDirsForDetermineBaseDir absoluteBaseDir subDirsRelativeToTop
+
+        cd absoluteTempDir
+        liftIO $ assertSubDirsForDetermineBaseDir absoluteBaseDir subDirs
      )
   )
 
