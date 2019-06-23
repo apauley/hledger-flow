@@ -54,8 +54,8 @@ install:
 
 script:
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then git checkout HEAD package.yaml; fi
-  - cd ${HOME} && hledger-flow --verbose --show-options import hledger-flow-example
-  - cd /tmp && hledger-flow --verbose --show-options report $HOME/hledger-flow-example
+  - hledger-flow --verbose --show-options import $HOME/hledger-flow-example
+  - hledger-flow --verbose --show-options report $HOME/hledger-flow-example
 
 deploy:
   - provider: releases
