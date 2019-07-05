@@ -76,7 +76,7 @@ To make =hledger= happy, we need to tell it what the opening balance for this ac
     Equity:Opening Balances:Gawie:Bogart:Cheque
 #+END_SRC
 
-Save this as =my-finances/import/gawie/bogart/cheque/3-journal/2016-opening.journal=.
+Save this as =my-finances/import/gawie/bogart/cheque/2016-opening.journal=.
 
 #+NAME: tangle-opening-balances
 #+BEGIN_SRC emacs-lisp :results none :exports results
