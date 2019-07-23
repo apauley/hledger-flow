@@ -16,7 +16,7 @@ import Hledger.Flow.CSVImport
 data SubcommandParams = SubcommandParams { maybeBaseDir :: Maybe FilePath } deriving (Show)
 data Command = Import SubcommandParams | Report SubcommandParams deriving (Show)
 
-data MainParams = MainParams { verbose :: Bool
+data MainParams = MainParams { verbosity :: Int
                              , hledgerPathOpt :: Maybe FilePath
                              , showOpts :: Bool
                              , sequential :: Bool
@@ -39,7 +39,7 @@ toRuntimeOptions mainParams' subParams' = do
                            , RT.hfVersion = versionInfo'
                            , RT.hledgerInfo = hli
                            , RT.sysInfo = systemInfo
-                           , RT.verbose = verbose mainParams'
+                           , RT.verbose = verbosity mainParams' > 0
                            , RT.showOptions = showOpts mainParams'
                            , RT.sequential = sequential mainParams' }
 
@@ -53,7 +53,7 @@ commandParser = fmap Import (subcommand "import" "Converts electronic transactio
 
 verboseParser :: Parser MainParams
 verboseParser = MainParams
-  <$> switch (long "verbose" <> short 'v' <> help "Print more verbose output")
+  <$> (length <$> many (flag' () (long "verbose" <> short 'v' <> help "Print more verbose output")))
   <*> optional (optPath "hledger-path" 'H' "The full path to an hledger executable")
   <*> switch (long "show-options" <> help "Print the options this program will run with")
   <*> switch (long "sequential" <> help "Disable parallel processing")
