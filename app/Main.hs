@@ -6,7 +6,6 @@ import Turtle hiding (switch)
 import Prelude hiding (FilePath, putStrLn)
 
 import Options.Applicative
-import Data.Semigroup ((<>))
 
 import Hledger.Flow.Common
 import qualified Hledger.Flow.RuntimeOptions as RT
