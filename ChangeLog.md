@@ -1,5 +1,11 @@
 # Changelog for [hledger-flow](https://github.com/apauley/hledger-flow)
 
+## 0.12.4.0
+
+- Update usage of hledger to reflect updated command-line flags of hledger version 1.15
+  https://github.com/apauley/hledger-flow/issues/73
+- Compile with stackage lts-14.9
+
 ## 0.12.3.1
 
 Fixed a bug where:

@@ -73,7 +73,7 @@ unknownTransactions opts ch journal reportsDir year = do
 
 incomeStatement :: [Text] -> ReportGenerator
 incomeStatement sharedOptions opts ch journal reportsDir year = do
-  let reportArgs = ["incomestatement"] ++ sharedOptions ++ ["--cost", "--value"]
+  let reportArgs = ["incomestatement"] ++ sharedOptions ++ ["--cost"]
   generateReport opts ch journal reportsDir year ("income-expenses" <.> "txt") reportArgs (not . T.null)
 
 balanceSheet :: [Text] -> ReportGenerator
