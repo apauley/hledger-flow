@@ -556,6 +556,37 @@ An include file may look like this:
 It works, but the naming of =_manual_= looks a bit weird. Should it be
 changed?
 
+* Validating an hledger repository using Github Actions
+
+The following example was contributed by [[https://github.com/amitaibu][Amitai Burstein]]:
+
+#+BEGIN_SRC yaml
+# .github/workflows/hledger-flow.yml
+
+name: Validate hledger-flow
+
+on: [push]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+
+    - name: Install hledger
+      run: docker pull dastapov/hledger
+
+    - name: Install hledger-flow
+      run: curl -L https://github.com/apauley/hledger-flow/releases/download/v0.12.4.0/hledger-flow_Linux_x86_64_v0.12.4.0_4b9b027.tar.gz | tar xvz && mv hledger-flow_Linux_x86_64_v0.12.4.0_4b9b027/hledger-flow .
+
+    - name: Grant permissions to create files
+      run: chmod 777 -R ./my-finances
+
+    - name: Test hledger file
+      run: docker run --name="ledger" -v $(pwd):/data dastapov/hledger ./hledger-flow import ./my-finances
+#+END_SRC yaml
+
 * Compatibility with Ledger
   :PROPERTIES:
   :CUSTOM_ID: compatibility-with-ledger
