@@ -41,7 +41,7 @@ importCSVs' opts ch = do
   if (fileCount == 0) then
     do
       let msg = format ("I couldn't find any input files underneath "%fp
-                        %"\n\nhledger-makitso expects to find its input files in specifically\nnamed directories.\n\n"%
+                        %"\n\nhledger-flow expects to find its input files in specifically\nnamed directories.\n\n"%
                         "Have a look at the documentation for a detailed explanation:\n"%s) (dirname (baseDir opts) </> "import/") (docURL "input-files")
       errExit 1 ch msg []
     else
