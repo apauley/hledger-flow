@@ -14,18 +14,21 @@
   :CUSTOM_ID: what-is-it
   :END:
 
-=hledger-flow= is a command-line program that gives you a guided
-[[https://hledger.org/][Hledger]] workflow. It focuses on automated
-processing of electronic statements as much as possible, as opposed to
-manually adding your own hledger journal entries.
+=hledger-flow= is a command-line program that gives you a guided [[https://hledger.org/][Hledger]]
+workflow. It is important to note that most of the heavy lifting is done by the
+upstream =hledger= project. For example, =hledger-flow= cares about where you
+put your files for long-term maintainability, but the actual conversion to
+classified accounting journals are done by =hledger=.
 
-Manual entries are still possible, it just saves time in the long run to
-automatically process a statement whenever one is available.
+=hledger-flow= focuses on automated processing of electronic statements as much as possible,
+as opposed to manually adding your own hledger journal entries. Manual entries
+are still possible, it just saves time in the long run to automatically process
+a statement whenever one is available.
 
 Within =hledger-flow= you will keep your original bank statements around
 permanently as input, and generate classified Hledger journals each time
-you run the program. The classification is done with rules files, or
-your own script hooks.
+you run the program. The classification is done with [[https://hledger.org/csv.html][hledger's rules files]],
+and/or your own script hooks.
 
 Keeping the original statements means that you never have to worry too
 much about "am I doing this accounting thing right?" or "what happens if
@@ -33,9 +36,9 @@ I make a mistake?". If you want to change your mind about some
 classification, or if you made a mistake, you just change your
 classification rules, and run the program again.
 
-It started when I realized that the scripts I wrote while playing around
-with the ideas in [[https://github.com/adept/full-fledged-hledger/wiki][adept's Full-fledged Hledger]] aren't really specific to
-my own finances, and can be shared.
+It started when I realized that the scripts I wrote while playing around with
+[[https://github.com/adept/full-fledged-hledger/wiki][adept's Full-fledged Hledger]] aren't really specific to my own finances, and can
+be shared.
 
 * Overview of the Basic Workflow
   :PROPERTIES:
@@ -726,7 +729,7 @@ different.
 
 | Full-fledged Hledger                                                                                                                                                                                                                    | Hledger Flow                                                                                                                                                                                                                                               |
 |-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| FFH is a [[https://github.com/adept/full-fledged-hledger/wiki#full-fledged-hledger-tutorial][tutorial]] with helper scripts that you can start using and adapt to your needs.                                                                                                                                                 | I started by following the FFH tutorial, and changed bits and pieces over time to suit my needs. The "owner/bank/account" structure for example.                                                                                                           |
+| FFH is a [[https://github.com/adept/full-fledged-hledger/wiki#full-fledged-hledger-tutorial][tutorial with helper scripts]] that you can start using and adapt to your needs.                                                                                                                                                 | I started with FFH, and changed bits and pieces over time to suit my needs. The "owner/bank/account" structure for example.                                                                                                                                |
 |                                                                                                                                                                                                                                         |                                                                                                                                                                                                                                                            |
 | FFH is more open-ended: you can start with the basic scripts and over time turn it into something that solves your needs exactly. But you'll also end up with more code that you need to maintain yourself.                             | Hledger Flow is more opinionated and less open-ended. For example, you have to adopt the "owner/bank/account" structure precisely as specified. But this allows Hledger Flow to do more work for you.                                                      |
 |                                                                                                                                                                                                                                         |                                                                                                                                                                                                                                                            |
