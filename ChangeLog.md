@@ -1,5 +1,19 @@
 # Changelog for [hledger-flow](https://github.com/apauley/hledger-flow)
 
+## 0.13.0
+
+- Add an experimental rundir option for imports
+
+The experimental rundir is an attempt to restrict hledger-flow into processing just a subset of files, primarily to quickly get feedback/failures while adding new accounts to an existing set of accounts.
+
+The use case has been described in [issue 64](https://github.com/apauley/hledger-flow/issues/64).
+
+It is experimental, because the only problem it currently solves is getting hledger-flow to fail fast.
+One of the current side effects of doing so is that the generated include files are then written to only 
+include the subset of files that were processed.
+
+But as soon as you do a full run again, the include files will be correctly re-generated as before.
+
 ## 0.12.4.0
 
 - Update usage of hledger to reflect updated command-line flags of hledger version 1.15
