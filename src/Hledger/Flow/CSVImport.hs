@@ -36,13 +36,16 @@ inputFilePattern = contains (once (oneOf pathSeparators) <> asciiCI "1-in" <> on
 importCSVs' :: RuntimeOptions -> TChan FlowTypes.LogMessage -> IO [FilePath]
 importCSVs' opts ch = do
   channelOutLn ch "Collecting input files..."
-  (inputFiles, diff) <- time $ single . shellToList . onlyFiles $ find inputFilePattern $ baseDir opts
+  let effectiveDir = case runDir opts of
+        Nothing -> (baseDir opts) </> "import"
+        Just rd -> rd
+  (inputFiles, diff) <- time $ single . shellToList . onlyFiles $ find inputFilePattern effectiveDir
   let fileCount = length inputFiles
   if (fileCount == 0) then
     do
       let msg = format ("I couldn't find any input files underneath "%fp
                         %"\n\nhledger-flow expects to find its input files in specifically\nnamed directories.\n\n"%
-                        "Have a look at the documentation for a detailed explanation:\n"%s) (dirname (baseDir opts) </> "import/") (docURL "input-files")
+                        "Have a look at the documentation for a detailed explanation:\n"%s) effectiveDir (docURL "input-files")
       errExit 1 ch msg []
     else
     do

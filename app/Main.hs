@@ -12,7 +12,8 @@ import qualified Hledger.Flow.RuntimeOptions as RT
 import Hledger.Flow.Reports
 import Hledger.Flow.CSVImport
 
-data SubcommandParams = SubcommandParams { maybeBaseDir :: Maybe FilePath } deriving (Show)
+data SubcommandParams = SubcommandParams { maybeBaseDir :: Maybe FilePath
+                                         , maybeRunDir :: Maybe FilePath } deriving (Show)
 data Command = Import SubcommandParams | Report SubcommandParams deriving (Show)
 
 data MainParams = MainParams { verbosity :: Int
@@ -35,6 +36,7 @@ toRuntimeOptions mainParams' subParams' = do
   bd <- determineBaseDir $ maybeBaseDir subParams'
   hli <- hledgerInfoFromPath $ hledgerPathOpt mainParams'
   return RT.RuntimeOptions { RT.baseDir = bd
+                           , RT.runDir = maybeRunDir subParams'
                            , RT.hfVersion = versionInfo'
                            , RT.hledgerInfo = hli
                            , RT.sysInfo = systemInfo
@@ -60,3 +62,4 @@ verboseParser = MainParams
 subcommandParser :: Parser SubcommandParams
 subcommandParser = SubcommandParams
   <$> optional (argPath "basedir" "The hledger-flow base directory")
+  <*> optional (strOption (long "experimental-rundir" <> help "A subdirectory of the base where the command will restrict itself to"))

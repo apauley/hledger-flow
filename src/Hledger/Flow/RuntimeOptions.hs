@@ -6,6 +6,7 @@ import Prelude hiding (FilePath, putStrLn)
 import Hledger.Flow.Types
 
 data RuntimeOptions = RuntimeOptions { baseDir :: FilePath
+                                     , runDir :: Maybe FilePath
                                      , hfVersion :: Text
                                      , hledgerInfo :: HledgerInfo
                                      , sysInfo :: SystemInfo
@@ -16,10 +17,10 @@ data RuntimeOptions = RuntimeOptions { baseDir :: FilePath
   deriving (Show)
 
 instance HasVerbosity RuntimeOptions where
-  verbose (RuntimeOptions _ _ _ _ v _ _) = v
+  verbose (RuntimeOptions _ _ _ _ _ v _ _) = v
 
 instance HasSequential RuntimeOptions where
-  sequential (RuntimeOptions _ _ _ _ _ _ sq) = sq
+  sequential (RuntimeOptions _ _ _ _ _ _ _ sq) = sq
 
 instance HasBaseDir RuntimeOptions where
-  baseDir (RuntimeOptions bd _ _ _ _ _ _) = bd
+  baseDir (RuntimeOptions bd _ _ _ _ _ _ _) = bd
