@@ -51,7 +51,7 @@ generateReports' opts ch = do
   let aggregateOnlyReports = reportActions opts ch [transferBalance] aggregateParams
   ownerParams <- ownerParameters opts ch owners
   let ownerWithAggregateParams = (if length owners > 1 then [aggregateParams] else []) ++ ownerParams
-  let sharedOptions = ["--depth", "2", "--pretty-tables", "not:equity"]
+  let sharedOptions = ["--pretty-tables", "--depth", "2"]
   let ownerWithAggregateReports = List.concat $ fmap (reportActions opts ch [incomeStatement sharedOptions, balanceSheet sharedOptions]) ownerWithAggregateParams
   let ownerOnlyReports = List.concat $ fmap (reportActions opts ch [accountList, unknownTransactions]) ownerParams
   parAwareActions opts (aggregateOnlyReports ++ ownerWithAggregateReports ++ ownerOnlyReports)
@@ -73,12 +73,12 @@ unknownTransactions opts ch journal reportsDir year = do
 
 incomeStatement :: [Text] -> ReportGenerator
 incomeStatement sharedOptions opts ch journal reportsDir year = do
-  let reportArgs = ["incomestatement"] ++ sharedOptions ++ ["--cost"]
+  let reportArgs = ["incomestatement"] ++ sharedOptions
   generateReport opts ch journal reportsDir year ("income-expenses" <.> "txt") reportArgs (not . T.null)
 
 balanceSheet :: [Text] -> ReportGenerator
 balanceSheet sharedOptions opts ch journal reportsDir year = do
-  let reportArgs = ["balancesheet"] ++ sharedOptions ++ ["--cost", "--flat"]
+  let reportArgs = ["balancesheet"] ++ sharedOptions ++ ["--flat"]
   generateReport opts ch journal reportsDir year ("balance-sheet" <.> "txt") reportArgs (not . T.null)
 
 transferBalance :: ReportGenerator

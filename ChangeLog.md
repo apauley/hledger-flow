@@ -1,5 +1,9 @@
 # Changelog for [hledger-flow](https://github.com/apauley/hledger-flow)
 
+## 0.13.1
+
+Minor report changes - do not assume too many extra options for default reports
+
 ## 0.13.0
 
 - Add an experimental rundir option for imports
