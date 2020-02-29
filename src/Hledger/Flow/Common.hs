@@ -322,26 +322,27 @@ includeFileName = (<.> "journal") . fromText . (format (fp%"-include")) . dirnam
 
 toIncludeFiles :: (HasBaseDir o, HasVerbosity o) => o -> TChan LogMessage -> InputFileBundle -> Shell (Map.Map FilePath Text)
 toIncludeFiles opts ch m = do
-  preMap  <- extraIncludes opts ch (Map.keys m) ["opening.journal"] ["pre-import.journal"]
-  postMap <- extraIncludes opts ch (Map.keys m) ["closing.journal"] ["post-import.journal"]
+  preMap  <- extraIncludes opts ch (Map.keys m) ["opening.journal"] ["pre-import.journal"] []
+  postMap <- extraIncludes opts ch (Map.keys m) ["closing.journal"] ["post-import.journal"] ["prices.journal"]
   return $ (addPreamble . toIncludeFiles' preMap postMap) m
 
-extraIncludes :: (HasBaseDir o, HasVerbosity o) => o -> TChan LogMessage -> [FilePath] -> [Text] -> [FilePath] -> Shell (InputFileBundle)
+extraIncludes :: (HasBaseDir o, HasVerbosity o) => o -> TChan LogMessage -> [FilePath] -> [Text] -> [FilePath] -> [FilePath] -> Shell InputFileBundle
 extraIncludes opts ch = extraIncludes' opts ch Map.empty
 
-extraIncludes' :: (HasBaseDir o, HasVerbosity o) => o -> TChan LogMessage -> InputFileBundle -> [FilePath] -> [Text] -> [FilePath] -> Shell (InputFileBundle)
-extraIncludes' _ _ acc [] _ _ = return acc
-extraIncludes' opts ch acc (file:files) extraSuffixes manualFiles = do
-  extra <- extraIncludesForFile opts ch file extraSuffixes manualFiles
-  extraIncludes' opts ch (Map.unionWith (++) acc extra) files extraSuffixes manualFiles
+extraIncludes' :: (HasBaseDir o, HasVerbosity o) => o -> TChan LogMessage -> InputFileBundle -> [FilePath] -> [Text] -> [FilePath] -> [FilePath] -> Shell InputFileBundle
+extraIncludes' _ _ acc [] _ _ _ = return acc
+extraIncludes' opts ch acc (file:files) extraSuffixes manualFiles prices = do
+  extra <- extraIncludesForFile opts ch file extraSuffixes manualFiles prices
+  extraIncludes' opts ch (Map.unionWith (++) acc extra) files extraSuffixes manualFiles prices
 
-extraIncludesForFile :: (HasVerbosity o, HasBaseDir o) => o -> TChan LogMessage -> FilePath -> [Text] -> [FilePath] -> Shell (InputFileBundle)
-extraIncludesForFile opts ch file extraSuffixes manualFiles = do
+extraIncludesForFile :: (HasVerbosity o, HasBaseDir o) => o -> TChan LogMessage -> FilePath -> [Text] -> [FilePath] -> [FilePath] -> Shell InputFileBundle
+extraIncludesForFile opts ch file extraSuffixes manualFiles prices = do
   let dirprefix = fromText $ fst $ T.breakOn "-" $ format fp $ basename file
   let fileNames = map (\suff -> fromText $ format (fp%"-"%s) dirprefix suff) extraSuffixes
   let suffixFiles = map (directory file </>) fileNames
   let suffixDirFiles = map (directory file </> "_manual_" </> dirprefix </>) manualFiles
-  let extraFiles = suffixFiles ++ suffixDirFiles
+  let priceFiles = map (directory file </> ".." </> "prices" </> dirprefix </>) prices
+  let extraFiles = suffixFiles ++ suffixDirFiles ++ priceFiles
   filtered <- filterPaths testfile extraFiles
   let logMsg = format ("Looking for possible extra include files for '"%fp%"' among these "%d%" options: "%s%". Found "%d%": "%s)
                (relativeToBase opts file) (length extraFiles) (repr $ relativeFilesAsText opts extraFiles)

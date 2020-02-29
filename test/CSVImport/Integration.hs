@@ -30,19 +30,44 @@ testExtraIncludesForFile = TestCase (
 
         ch <- liftIO newTChanIO
 
-        extraOpening1 <- extraIncludesForFile (defaultOpts tmpdir) ch accountInclude ["opening.journal"] []
+        extraOpening1 <- extraIncludesForFile (defaultOpts tmpdir) ch accountInclude ["opening.journal"] [] []
         liftIO $ assertEqual "The opening journal should not be included when it is not on disk" expectedEmpty extraOpening1
 
-        extraClosing1 <- extraIncludesForFile (defaultOpts tmpdir) ch accountInclude ["closing.journal"] []
+        extraClosing1 <- extraIncludesForFile (defaultOpts tmpdir) ch accountInclude ["closing.journal"] [] []
         liftIO $ assertEqual "The closing journal should not be included when it is not on disk" expectedEmpty extraClosing1
 
         touchAll [opening, closing]
 
-        extraOpening2 <- extraIncludesForFile (defaultOpts tmpdir) ch accountInclude ["opening.journal"] []
+        extraOpening2 <- extraIncludesForFile (defaultOpts tmpdir) ch accountInclude ["opening.journal"] [] []
         liftIO $ assertEqual "The opening journal should be included when it is on disk" [(accountInclude, [opening])] extraOpening2
 
-        extraClosing2 <- extraIncludesForFile (defaultOpts tmpdir) ch accountInclude ["closing.journal"] []
+        extraClosing2 <- extraIncludesForFile (defaultOpts tmpdir) ch accountInclude ["closing.journal"] [] []
         liftIO $ assertEqual "The closing journal should be included when it is on disk" [(accountInclude, [closing])] extraClosing2
+     ))
+
+testExtraIncludesPrices :: Test
+testExtraIncludesPrices = TestCase (
+  sh (
+      do
+        tmpdir <- using (mktempdir "." "hlflow")
+        let importedJournals = map (tmpdir </>) journalFiles :: [FilePath]
+        touchAll $ importedJournals
+
+        let priceFile = "prices" </> "2020" </> "prices.journal"
+
+        let includeFile = tmpdir </> "import" </> "2020-include.journal"
+        let expectedEmpty = [(includeFile, [])]
+
+        ch <- liftIO newTChanIO
+
+        price1 <- extraIncludesForFile (defaultOpts tmpdir) ch includeFile [] [] ["prices.journal"]
+        liftIO $ assertEqual "The price file should not be included when it is not on disk" expectedEmpty price1
+
+        touchAll [tmpdir </> priceFile]
+        let expectedPricePath = tmpdir </> "import" </> ".." </> priceFile
+
+        price2 <- extraIncludesForFile (defaultOpts tmpdir) ch includeFile [] [] ["prices.journal"]
+        liftIO $ assertEqual "The price file should be included when it is on disk" [(includeFile, [expectedPricePath])] price2
      ))
 
 testIncludesPrePost :: Test
@@ -50,7 +75,7 @@ testIncludesPrePost = TestCase (
   sh (
       do
         tmpdir <- using (mktempdir "." "hlflow")
-        let ownerDir = tmpdir </> "import/john"
+        let ownerDir = tmpdir </> "import" </> "john"
         let includeFile = ownerDir </> "2019-include.journal"
         let pre  = ownerDir </> "_manual_" </> "2019" </> "pre-import.journal"
         let post = ownerDir </> "_manual_" </> "2019" </> "post-import.journal"
@@ -91,7 +116,32 @@ testIncludesOpeningClosing = TestCase (
               <> "!include 3-journal/2019/2019-01-30.journal\n"
               <> "!include 2019-closing.journal\n"
         let expectedMap = Map.singleton includeFile expectedText
-        liftIO $ assertEqual "All pre/post files on disk should be included" expectedMap fileMap
+        liftIO $ assertEqual "All opening/closing files on disk should be included" expectedMap fileMap
+     ))
+
+testIncludesPrices :: Test
+testIncludesPrices = TestCase (
+  sh (
+      do
+        tmpdir <- using (mktempdir "." "hlflow")
+        let importDir = tmpdir </> "import"
+        let includeFile = importDir </> "2020-include.journal"
+        let prices = tmpdir </> "prices" </> "2020" </> "prices.journal"
+        let pre  = importDir </> "_manual_" </> "2020" </> "pre-import.journal"
+        let post = importDir </> "_manual_" </> "2020" </> "post-import.journal"
+        touchAll [prices, pre, post]
+
+        let includeMap = Map.singleton includeFile [importDir </> "john" </> "2020-include.journal"]
+
+        ch <- liftIO newTChanIO
+        fileMap <- toIncludeFiles (defaultOpts tmpdir) ch includeMap
+        let expectedText = includePreamble <> "\n"
+              <> "!include _manual_/2020/pre-import.journal\n"
+              <> "!include john/2020-include.journal\n"
+              <> "!include ../prices/2020/prices.journal\n"
+              <> "!include _manual_/2020/post-import.journal\n"
+        let expectedMap = Map.singleton includeFile expectedText
+        liftIO $ assertEqual "The price file should be included together with any pre/post files" expectedMap fileMap
      ))
 
 testWriteIncludeFiles :: Test
@@ -174,4 +224,4 @@ testWriteIncludeFiles = TestCase (
   )
 
 tests :: Test
-tests = TestList [testExtraIncludesForFile, testIncludesPrePost, testIncludesOpeningClosing, testWriteIncludeFiles]
+tests = TestList [testExtraIncludesForFile, testExtraIncludesPrices, testIncludesPrePost, testIncludesOpeningClosing, testIncludesPrices, testWriteIncludeFiles]

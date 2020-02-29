@@ -2,7 +2,8 @@
 
 ## 0.13.1
 
-Minor report changes - do not assume too many extra options for default reports
+- Automatically add [include lines for yearly price files](https://github.com/apauley/hledger-flow/#price-files) if they are present on disk.
+- Minor report changes - do not assume too many extra options for default reports.
 
 ## 0.13.0
 
