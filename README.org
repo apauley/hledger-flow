@@ -18,7 +18,7 @@
 workflow. It is important to note that most of the heavy lifting is done by the
 upstream =hledger= project. For example, =hledger-flow= cares about where you
 put your files for long-term maintainability, but the actual conversion to
-classified accounting journals are done by =hledger=.
+classified accounting journals is done by =hledger=.
 
 =hledger-flow= focuses on automated processing of electronic statements as much as possible,
 as opposed to manually adding your own hledger journal entries. Manual entries
