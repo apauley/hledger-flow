@@ -30,18 +30,18 @@ testExtraIncludesForFile = TestCase (
 
         ch <- liftIO newTChanIO
 
-        extraOpening1 <- extraIncludesForFile (defaultOpts tmpdir) ch accountInclude ["opening.journal"] [] []
+        extraOpening1 <- liftIO $ extraIncludesForFile (defaultOpts tmpdir) ch accountInclude ["opening.journal"] [] []
         liftIO $ assertEqual "The opening journal should not be included when it is not on disk" expectedEmpty extraOpening1
 
-        extraClosing1 <- extraIncludesForFile (defaultOpts tmpdir) ch accountInclude ["closing.journal"] [] []
+        extraClosing1 <- liftIO $ extraIncludesForFile (defaultOpts tmpdir) ch accountInclude ["closing.journal"] [] []
         liftIO $ assertEqual "The closing journal should not be included when it is not on disk" expectedEmpty extraClosing1
 
         touchAll [opening, closing]
 
-        extraOpening2 <- extraIncludesForFile (defaultOpts tmpdir) ch accountInclude ["opening.journal"] [] []
+        extraOpening2 <- liftIO $ extraIncludesForFile (defaultOpts tmpdir) ch accountInclude ["opening.journal"] [] []
         liftIO $ assertEqual "The opening journal should be included when it is on disk" [(accountInclude, [opening])] extraOpening2
 
-        extraClosing2 <- extraIncludesForFile (defaultOpts tmpdir) ch accountInclude ["closing.journal"] [] []
+        extraClosing2 <- liftIO $ extraIncludesForFile (defaultOpts tmpdir) ch accountInclude ["closing.journal"] [] []
         liftIO $ assertEqual "The closing journal should be included when it is on disk" [(accountInclude, [closing])] extraClosing2
      ))
 
@@ -60,13 +60,13 @@ testExtraIncludesPrices = TestCase (
 
         ch <- liftIO newTChanIO
 
-        price1 <- extraIncludesForFile (defaultOpts tmpdir) ch includeFile [] [] ["prices.journal"]
+        price1 <- liftIO $ extraIncludesForFile (defaultOpts tmpdir) ch includeFile [] [] ["prices.journal"]
         liftIO $ assertEqual "The price file should not be included when it is not on disk" expectedEmpty price1
 
         touchAll [tmpdir </> priceFile]
         let expectedPricePath = tmpdir </> "import" </> ".." </> priceFile
 
-        price2 <- extraIncludesForFile (defaultOpts tmpdir) ch includeFile [] [] ["prices.journal"]
+        price2 <- liftIO $ extraIncludesForFile (defaultOpts tmpdir) ch includeFile [] [] ["prices.journal"]
         liftIO $ assertEqual "The price file should be included when it is on disk" [(includeFile, [expectedPricePath])] price2
      ))
 
@@ -85,7 +85,7 @@ testIncludesPrePost = TestCase (
                                                     ownerDir </> "bank2" </> "2019-include.journal"]
 
         ch <- liftIO newTChanIO
-        fileMap <- toIncludeFiles (defaultOpts tmpdir) ch includeMap
+        fileMap <- liftIO $ toIncludeFiles (defaultOpts tmpdir) ch includeMap
         let expectedText = includePreamble <> "\n"
               <> "!include _manual_/2019/pre-import.journal\n"
               <> "!include bank1/2019-include.journal\n"
@@ -110,7 +110,7 @@ testIncludesOpeningClosing = TestCase (
         let includeMap = Map.singleton includeFile [accountDir </> "3-journal" </> "2019" </> "2019-01-30.journal"]
 
         ch <- liftIO newTChanIO
-        fileMap <- toIncludeFiles (defaultOpts tmpdir) ch includeMap
+        fileMap <- liftIO $ toIncludeFiles (defaultOpts tmpdir) ch includeMap
         let expectedText = includePreamble <> "\n"
               <> "!include 2019-opening.journal\n"
               <> "!include 3-journal/2019/2019-01-30.journal\n"
@@ -134,7 +134,7 @@ testIncludesPrices = TestCase (
         let includeMap = Map.singleton includeFile [importDir </> "john" </> "2020-include.journal"]
 
         ch <- liftIO newTChanIO
-        fileMap <- toIncludeFiles (defaultOpts tmpdir) ch includeMap
+        fileMap <- liftIO $ toIncludeFiles (defaultOpts tmpdir) ch includeMap
         let expectedText = includePreamble <> "\n"
               <> "!include _manual_/2020/pre-import.journal\n"
               <> "!include john/2020-include.journal\n"
@@ -175,7 +175,7 @@ testWriteIncludeFiles = TestCase (
                                 john1, john2, john3, john4, john5, john6, john7, john8]
 
         ch <- liftIO newTChanIO
-        reportedAsWritten <- single $ groupAndWriteIncludeFiles (defaultOpts tmpdir) ch importedJournals
+        reportedAsWritten <- liftIO $ groupAndWriteIncludeFiles (defaultOpts tmpdir) ch importedJournals
         liftIO $ assertEqual "groupAndWriteIncludeFiles should return which files it wrote" expectedIncludes reportedAsWritten
 
         let allYears = [tmpdir </> "import/jane/bogartbank/checking/all-years.journal",

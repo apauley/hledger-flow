@@ -409,8 +409,8 @@ testToIncludeFiles = TestCase (
            "!include import/john/bogartbank/savings/3-journal/2018/2018-01-30.journal\n" <>
            "!include import/john/bogartbank/savings/3-journal/2018/2018-02-30.journal\n")]
 
-    ch <- liftIO newTChanIO
-    txt <- single $ toIncludeFiles (defaultOpts ".") ch groupedJohnBogart
+    ch <- newTChanIO
+    txt <- toIncludeFiles (defaultOpts ".") ch groupedJohnBogart
     assertEqual "Convert a grouped map of paths, to a map with text contents for each file" expected txt)
 
 tests :: Test
