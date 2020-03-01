@@ -399,12 +399,15 @@ writeIncludesUpTo _ _ _ [] = return []
 writeIncludesUpTo opts ch stopAt paths = do
   let shouldStop = any (\dir -> dir == stopAt) $ map dirname paths
   if shouldStop
-    then do
-      let allTop = groupValuesBy (allYearsPath' (parent . parent)) paths
-      writeFileMap opts ch (Map.empty, allTop)
+    then return paths
     else do
       newPaths <- groupAndWriteIncludeFiles opts ch paths
       writeIncludesUpTo opts ch stopAt newPaths
+
+writeAllYearsInclude :: (HasBaseDir o, HasVerbosity o) => o -> TChan LogMessage -> [FilePath] -> Shell [FilePath]
+writeAllYearsInclude opts ch paths = do
+  let allTop = groupValuesBy (allYearsPath' (parent . parent)) paths
+  writeFileMap opts ch (Map.empty, allTop)
 
 changeExtension :: Text -> FilePath -> FilePath
 changeExtension ext path = (dropExtension path) <.> ext
