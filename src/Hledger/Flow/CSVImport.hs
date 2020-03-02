@@ -52,8 +52,9 @@ importCSVs' opts ch = do
       channelOutLn ch $ format ("Found "%d%" input files in "%s%". Proceeding with import...") fileCount (repr diff)
       let actions = map (extractAndImport opts ch) inputFiles :: [IO FilePath]
       importedJournals <- parAwareActions opts actions
-      paths <- writeIncludesUpTo opts ch "import" importedJournals
-      _ <- writeAllYearsInclude opts ch paths
+      let stopAt = forceTrailingSlash $ (baseDir opts) </> "import"
+      paths <- writeIncludesUpTo opts ch stopAt importedJournals
+      _ <- writeToplevelAllYearsInclude opts ch paths
       return importedJournals
 
 extractAndImport :: RuntimeOptions -> TChan FlowTypes.LogMessage -> FilePath -> IO FilePath

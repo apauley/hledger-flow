@@ -397,15 +397,15 @@ writeFileMap opts ch (m, allYears) = do
 writeIncludesUpTo :: (HasBaseDir o, HasVerbosity o) => o -> TChan LogMessage -> FilePath -> [FilePath] -> IO [FilePath]
 writeIncludesUpTo _ _ _ [] = return []
 writeIncludesUpTo opts ch stopAt paths = do
-  let shouldStop = any (\dir -> dir == stopAt) $ map dirname paths
+  let shouldStop = any (\dir -> dir == stopAt) $ map parent paths
   if shouldStop
     then return paths
     else do
       newPaths <- groupAndWriteIncludeFiles opts ch paths
       writeIncludesUpTo opts ch stopAt newPaths
 
-writeAllYearsInclude :: (HasBaseDir o, HasVerbosity o) => o -> TChan LogMessage -> [FilePath] -> IO [FilePath]
-writeAllYearsInclude opts ch paths = do
+writeToplevelAllYearsInclude :: (HasBaseDir o, HasVerbosity o) => o -> TChan LogMessage -> [FilePath] -> IO [FilePath]
+writeToplevelAllYearsInclude opts ch paths = do
   let allTop = groupValuesBy (allYearsPath' (parent . parent)) paths
   writeFileMap opts ch (Map.empty, allTop)
 
