@@ -12,9 +12,12 @@ import qualified Hledger.Flow.RuntimeOptions as RT
 import Hledger.Flow.Reports
 import Hledger.Flow.CSVImport
 
-data SubcommandParams = SubcommandParams { maybeBaseDir :: Maybe FilePath
-                                         , maybeRunDir :: Maybe FilePath } deriving (Show)
-data Command = Import SubcommandParams | Report SubcommandParams deriving (Show)
+data ImportParams = ImportParams { maybeImportBaseDir :: Maybe FilePath
+                                 , maybeRunDir :: Maybe FilePath } deriving (Show)
+
+data ReportParams = ReportParams { maybeReportBaseDir :: Maybe FilePath } deriving (Show)
+
+data Command = Import ImportParams | Report ReportParams deriving (Show)
 
 data MainParams = MainParams { verbosity :: Int
                              , hledgerPathOpt :: Maybe FilePath
@@ -28,15 +31,28 @@ main = do
   cmd <- options "An hledger workflow focusing on automated statement import and classification:\nhttps://github.com/apauley/hledger-flow#readme" baseCommandParser
   case cmd of
     Version                                -> stdout $ select versionInfo
-    Command mainParams' (Import subParams) -> toRuntimeOptions mainParams' subParams >>= importCSVs
-    Command mainParams' (Report subParams) -> toRuntimeOptions mainParams' subParams >>= generateReports
+    Command mainParams' (Import subParams) -> toRuntimeOptionsImport mainParams' subParams >>= importCSVs
+    Command mainParams' (Report subParams) -> toRuntimeOptionsReport mainParams' subParams >>= generateReports
 
-toRuntimeOptions :: MainParams -> SubcommandParams -> IO RT.RuntimeOptions
-toRuntimeOptions mainParams' subParams' = do
-  bd <- determineBaseDir $ maybeBaseDir subParams'
+toRuntimeOptionsImport :: MainParams -> ImportParams -> IO RT.RuntimeOptions
+toRuntimeOptionsImport mainParams' subParams' = do
+  bd <- determineBaseDir $ maybeImportBaseDir subParams'
   hli <- hledgerInfoFromPath $ hledgerPathOpt mainParams'
   return RT.RuntimeOptions { RT.baseDir = bd
                            , RT.runDir = maybeRunDir subParams'
+                           , RT.hfVersion = versionInfo'
+                           , RT.hledgerInfo = hli
+                           , RT.sysInfo = systemInfo
+                           , RT.verbose = verbosity mainParams' > 0
+                           , RT.showOptions = showOpts mainParams'
+                           , RT.sequential = sequential mainParams' }
+
+toRuntimeOptionsReport :: MainParams -> ReportParams -> IO RT.RuntimeOptions
+toRuntimeOptionsReport mainParams' subParams' = do
+  bd <- determineBaseDir $ maybeReportBaseDir subParams'
+  hli <- hledgerInfoFromPath $ hledgerPathOpt mainParams'
+  return RT.RuntimeOptions { RT.baseDir = bd
+                           , RT.runDir = Nothing
                            , RT.hfVersion = versionInfo'
                            , RT.hledgerInfo = hli
                            , RT.sysInfo = systemInfo
@@ -49,8 +65,8 @@ baseCommandParser = (Command <$> verboseParser <*> commandParser)
   <|> flag' Version (long "version" <> short 'V' <> help "Display version information")
 
 commandParser :: Parser Command
-commandParser = fmap Import (subcommand "import" "Converts electronic transactions into categorised journal files" subcommandParser)
-  <|> fmap Report (subcommand "report" "Generate Reports" subcommandParser)
+commandParser = fmap Import (subcommand "import" "Uses hledger with your own rules and/or scripts to convert electronic statements into categorised journal files" subcommandParserImport)
+  <|> fmap Report (subcommand "report" "Generate Reports" subcommandParserReport)
 
 verboseParser :: Parser MainParams
 verboseParser = MainParams
@@ -59,7 +75,11 @@ verboseParser = MainParams
   <*> switch (long "show-options" <> help "Print the options this program will run with")
   <*> switch (long "sequential" <> help "Disable parallel processing")
 
-subcommandParser :: Parser SubcommandParams
-subcommandParser = SubcommandParams
-  <$> optional (argPath "basedir" "The hledger-flow base directory")
+subcommandParserImport :: Parser ImportParams
+subcommandParserImport = ImportParams
+  <$> optional (argPath "dir" "The directory to import. Defaults to the current directory. Use the hledger-flow base directory for a full import.")
   <*> optional (strOption (long "experimental-rundir" <> help "A subdirectory of the base where the command will restrict itself to"))
+
+subcommandParserReport :: Parser ReportParams
+subcommandParserReport = ReportParams
+  <$> optional (argPath "basedir" "The hledger-flow base directory")
