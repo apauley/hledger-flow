@@ -36,7 +36,7 @@ inputFilePattern = contains (once (oneOf pathSeparators) <> asciiCI "1-in" <> on
 importCSVs' :: RuntimeOptions -> TChan FlowTypes.LogMessage -> IO [FilePath]
 importCSVs' opts ch = do
   channelOutLn ch "Collecting input files..."
-  let effectiveDir = case runDir opts of
+  let effectiveDir = case importRunDir opts of
         Nothing -> (baseDir opts) </> "import"
         Just rd -> rd
   (inputFiles, diff) <- time $ single . shellToList . onlyFiles $ find inputFilePattern effectiveDir

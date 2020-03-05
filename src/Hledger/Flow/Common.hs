@@ -211,7 +211,8 @@ relativeToBase :: HasBaseDir o => o -> FilePath -> FilePath
 relativeToBase opts = relativeToBase' (baseDir opts)
 
 relativeToBase' :: FilePath -> FilePath -> FilePath
-relativeToBase' bd p = fromMaybe p $ stripPrefix (forceTrailingSlash bd) p
+relativeToBase' bd p = if forceTrailingSlash bd == forceTrailingSlash p then "./" else
+  fromMaybe p $ stripPrefix (forceTrailingSlash bd) p
 
 groupPairs' :: (Eq a, Ord a) => [(a, b)] -> [(a, [b])]
 groupPairs' = map (\ll -> (fst . head $ ll, map snd ll)) . List.groupBy ((==) `on` fst)
@@ -425,30 +426,42 @@ errorMessageBaseDir startDir = format ("\nUnable to find an hledger-flow import 
                                        %"Have a look at the documentation for more information:\n"%s%"\n")
                                startDir (docURL "getting-started")
 
-determineBaseDir :: Maybe FilePath -> IO FilePath
+determineBaseDir :: Maybe FilePath -> IO (FilePath, FilePath)
 determineBaseDir (Just suppliedDir) = determineBaseDir' suppliedDir
 determineBaseDir Nothing = pwd >>= determineBaseDir'
 
-determineBaseDir' :: FilePath -> IO FilePath
+determineBaseDir' :: FilePath -> IO (FilePath, FilePath)
 determineBaseDir' startDir = do
   currentDir <- pwd
   let absoluteStartDir = if relative startDir then collapse (currentDir </> startDir) else startDir
-  ebd <- determineBaseDir'' absoluteStartDir absoluteStartDir
+  ebd <- determineBaseDirFromAbsoluteStartDir absoluteStartDir
   case ebd of
     Right bd -> return bd
     Left  t  -> die t
 
-determineBaseDir'' :: FilePath -> FilePath -> IO (Either Text FilePath)
-determineBaseDir'' startDir currentDir = do
-  foundBaseDir <- testdir $ currentDir </> "import"
-  if foundBaseDir
-    then return $ Right $ forceTrailingSlash currentDir
+determineBaseDirFromAbsoluteStartDir :: FilePath -> IO (Either Text (FilePath, FilePath))
+determineBaseDirFromAbsoluteStartDir absoluteStartDir = determineBaseDirFromAbsoluteStartDir' absoluteStartDir absoluteStartDir
+
+determineBaseDirFromAbsoluteStartDir' :: FilePath -> FilePath -> IO (Either Text (FilePath, FilePath))
+determineBaseDirFromAbsoluteStartDir' startDir possibleBaseDir = do
+  possibleBDExists <- testdir possibleBaseDir
+  if not possibleBDExists then return $ Left $ format ("The provided directory does not exist: "%fp) possibleBaseDir
     else
-    do
-      let doneSearching = (currentDir `elem` ["/", "./"])
+    if relative startDir || relative possibleBaseDir then
+    return $ Left $ format ("Internal error: found a relative path when expecting only absolute paths:\n"%fp%"\n"%fp%"\n") startDir possibleBaseDir
+    else do
+    foundBaseDir <- testdir $ possibleBaseDir </> "import"
+    if foundBaseDir then
+      do
+      let baseD = forceTrailingSlash possibleBaseDir
+      let runDir = forceTrailingSlash $ relativeToBase' baseD startDir
+      return $ Right $ (baseD, runDir)
+    else do
+      let doneSearching = (possibleBaseDir `elem` ["/", "./"])
       if doneSearching
         then return $ Left $ errorMessageBaseDir startDir
-        else determineBaseDir'' startDir $ parent currentDir
+        else determineBaseDirFromAbsoluteStartDir' startDir $ parent possibleBaseDir
+
 
 dirOrPwd :: Maybe FilePath -> IO FilePath
 dirOrPwd maybeBaseDir = fmap forceTrailingSlash (fromMaybe pwd $ fmap realpath maybeBaseDir)

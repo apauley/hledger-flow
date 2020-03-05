@@ -6,7 +6,7 @@ import Prelude hiding (FilePath, putStrLn)
 import Hledger.Flow.Types
 
 data RuntimeOptions = RuntimeOptions { baseDir :: FilePath
-                                     , runDir :: Maybe FilePath
+                                     , importRunDir :: Maybe FilePath
                                      , hfVersion :: Text
                                      , hledgerInfo :: HledgerInfo
                                      , sysInfo :: SystemInfo

@@ -36,10 +36,10 @@ main = do
 
 toRuntimeOptionsImport :: MainParams -> ImportParams -> IO RT.RuntimeOptions
 toRuntimeOptionsImport mainParams' subParams' = do
-  bd <- determineBaseDir $ maybeImportBaseDir subParams'
+  (bd, _runDir) <- determineBaseDir $ maybeImportBaseDir subParams'
   hli <- hledgerInfoFromPath $ hledgerPathOpt mainParams'
   return RT.RuntimeOptions { RT.baseDir = bd
-                           , RT.runDir = maybeRunDir subParams'
+                           , RT.importRunDir = maybeRunDir subParams'
                            , RT.hfVersion = versionInfo'
                            , RT.hledgerInfo = hli
                            , RT.sysInfo = systemInfo
@@ -49,10 +49,10 @@ toRuntimeOptionsImport mainParams' subParams' = do
 
 toRuntimeOptionsReport :: MainParams -> ReportParams -> IO RT.RuntimeOptions
 toRuntimeOptionsReport mainParams' subParams' = do
-  bd <- determineBaseDir $ maybeReportBaseDir subParams'
+  (bd, _) <- determineBaseDir $ maybeReportBaseDir subParams'
   hli <- hledgerInfoFromPath $ hledgerPathOpt mainParams'
   return RT.RuntimeOptions { RT.baseDir = bd
-                           , RT.runDir = Nothing
+                           , RT.importRunDir = Nothing
                            , RT.hfVersion = versionInfo'
                            , RT.hledgerInfo = hli
                            , RT.sysInfo = systemInfo
