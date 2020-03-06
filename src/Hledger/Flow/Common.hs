@@ -239,6 +239,9 @@ allYearsPath = allYearsPath' directory
 allYearsPath' :: (FilePath -> FilePath) -> FilePath -> FilePath
 allYearsPath' dir p = dir p </> "all-years.journal"
 
+allYearsFileName :: FilePath
+allYearsFileName = "all-years" <.> "journal"
+
 groupIncludeFiles :: [FilePath] -> (InputFileBundle, InputFileBundle)
 groupIncludeFiles = allYearIncludeFiles . groupIncludeFilesPerYear
 
@@ -405,10 +408,10 @@ writeIncludesUpTo opts ch stopAt paths = do
       newPaths <- groupAndWriteIncludeFiles opts ch paths
       writeIncludesUpTo opts ch stopAt newPaths
 
-writeToplevelAllYearsInclude :: (HasBaseDir o, HasVerbosity o) => o -> TChan LogMessage -> [FilePath] -> IO [FilePath]
-writeToplevelAllYearsInclude opts ch paths = do
-  let allTop = groupValuesBy (allYearsPath' (parent . parent)) paths
-  writeFileMap opts ch (Map.empty, allTop)
+writeToplevelAllYearsInclude :: (HasBaseDir o, HasVerbosity o) => o -> IO [FilePath]
+writeToplevelAllYearsInclude opts = do
+  let allTop = Map.singleton (baseDir opts </> allYearsFileName) ["import" </> allYearsFileName]
+  writeFiles' $ (addPreamble . toIncludeFiles' Map.empty Map.empty) allTop
 
 changeExtension :: Text -> FilePath -> FilePath
 changeExtension ext path = (dropExtension path) <.> ext

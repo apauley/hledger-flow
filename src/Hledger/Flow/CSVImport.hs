@@ -53,8 +53,8 @@ importCSVs' opts ch = do
       let actions = map (extractAndImport opts ch) inputFiles :: [IO FilePath]
       importedJournals <- parAwareActions opts actions
       let stopAt = forceTrailingSlash $ (baseDir opts) </> "import"
-      paths <- writeIncludesUpTo opts ch stopAt importedJournals
-      _ <- writeToplevelAllYearsInclude opts ch paths
+      _ <- writeIncludesUpTo opts ch stopAt importedJournals
+      _ <- writeToplevelAllYearsInclude opts
       return importedJournals
 
 extractAndImport :: RuntimeOptions -> TChan FlowTypes.LogMessage -> FilePath -> IO FilePath

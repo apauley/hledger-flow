@@ -112,7 +112,7 @@ generateReport opts ch journal baseOutDir year fileName args successCheck = do
       return $ Left outputFile
 
 journalFile :: RuntimeOptions -> [FilePath] -> FilePath
-journalFile opts dirs = (foldl (</>) (baseDir opts) dirs) </> "all-years" <.> "journal"
+journalFile opts dirs = (foldl (</>) (baseDir opts) ("import":dirs)) </> allYearsFileName
 
 outputReportDir :: RuntimeOptions -> [FilePath] -> FilePath
 outputReportDir opts dirs = foldl (</>) (baseDir opts) ("reports":dirs)
@@ -124,6 +124,6 @@ ownerParameters opts ch owners = do
 
 ownerParameters' :: RuntimeOptions -> TChan FlowTypes.LogMessage -> FilePath -> IO ReportParams
 ownerParameters' opts ch owner = do
-  let ownerJournal = journalFile opts ["import", owner]
+  let ownerJournal = journalFile opts [owner]
   years <- includeYears ch ownerJournal
   return $ ReportParams ownerJournal years (outputReportDir opts [owner])
