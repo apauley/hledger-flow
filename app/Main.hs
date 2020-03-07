@@ -13,7 +13,7 @@ import Hledger.Flow.Reports
 import Hledger.Flow.CSVImport
 
 data ImportParams = ImportParams { maybeImportBaseDir :: Maybe FilePath
-                                 , maybeRunDir :: Maybe FilePath } deriving (Show)
+                                 , importUseRunDir :: Bool } deriving (Show)
 
 data ReportParams = ReportParams { maybeReportBaseDir :: Maybe FilePath } deriving (Show)
 
@@ -36,10 +36,11 @@ main = do
 
 toRuntimeOptionsImport :: MainParams -> ImportParams -> IO RT.RuntimeOptions
 toRuntimeOptionsImport mainParams' subParams' = do
-  (bd, _runDir) <- determineBaseDir $ maybeImportBaseDir subParams'
+  (bd, runDir) <- determineBaseDir $ maybeImportBaseDir subParams'
   hli <- hledgerInfoFromPath $ hledgerPathOpt mainParams'
   return RT.RuntimeOptions { RT.baseDir = bd
-                           , RT.importRunDir = maybeRunDir subParams'
+                           , RT.importRunDir = runDir
+                           , RT.useRunDir = importUseRunDir subParams'
                            , RT.hfVersion = versionInfo'
                            , RT.hledgerInfo = hli
                            , RT.sysInfo = systemInfo
@@ -52,7 +53,8 @@ toRuntimeOptionsReport mainParams' subParams' = do
   (bd, _) <- determineBaseDir $ maybeReportBaseDir subParams'
   hli <- hledgerInfoFromPath $ hledgerPathOpt mainParams'
   return RT.RuntimeOptions { RT.baseDir = bd
-                           , RT.importRunDir = Nothing
+                           , RT.importRunDir = "./"
+                           , RT.useRunDir = False
                            , RT.hfVersion = versionInfo'
                            , RT.hledgerInfo = hli
                            , RT.sysInfo = systemInfo
@@ -77,8 +79,8 @@ verboseParser = MainParams
 
 subcommandParserImport :: Parser ImportParams
 subcommandParserImport = ImportParams
-  <$> optional (argPath "dir" "The directory to import. Defaults to the current directory. Use the hledger-flow base directory for a full import.")
-  <*> optional (strOption (long "experimental-rundir" <> help "A subdirectory of the base where the command will restrict itself to"))
+  <$> optional (argPath "dir" "The directory to import. Use the base directory for a full import or a sub-directory for a partial import. Defaults to the current directory. This behaviour is changing: see --enable-future-rundir")
+  <*> switch (long "enable-future-rundir" <> help "Enable the future (0.14.x) default behaviour now: start importing only from the directory that was given as an argument, or the currect directory. Previously a full import was always done. This switch will be removed in 0.14.x")
 
 subcommandParserReport :: Parser ReportParams
 subcommandParserReport = ReportParams

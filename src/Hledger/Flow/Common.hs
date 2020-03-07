@@ -400,13 +400,13 @@ writeFileMap opts ch (m, allYears) = do
 
 writeIncludesUpTo :: (HasBaseDir o, HasVerbosity o) => o -> TChan LogMessage -> FilePath -> [FilePath] -> IO [FilePath]
 writeIncludesUpTo _ _ _ [] = return []
-writeIncludesUpTo opts ch stopAt paths = do
-  let shouldStop = any (\dir -> dir == stopAt) $ map parent paths
+writeIncludesUpTo opts ch stopAt journalFiles = do
+  let shouldStop = any (\dir -> dir == stopAt) $ map parent journalFiles
   if shouldStop
-    then return paths
+    then return journalFiles
     else do
-      newPaths <- groupAndWriteIncludeFiles opts ch paths
-      writeIncludesUpTo opts ch stopAt newPaths
+      newJournalFiles <- groupAndWriteIncludeFiles opts ch journalFiles
+      writeIncludesUpTo opts ch stopAt newJournalFiles
 
 writeToplevelAllYearsInclude :: (HasBaseDir o, HasVerbosity o) => o -> IO [FilePath]
 writeToplevelAllYearsInclude opts = do

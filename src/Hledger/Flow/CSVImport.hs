@@ -35,10 +35,12 @@ inputFilePattern = contains (once (oneOf pathSeparators) <> asciiCI "1-in" <> on
 
 importCSVs' :: RuntimeOptions -> TChan FlowTypes.LogMessage -> IO [FilePath]
 importCSVs' opts ch = do
-  channelOutLn ch "Collecting input files..."
-  let effectiveDir = case importRunDir opts of
-        Nothing -> (baseDir opts) </> "import"
-        Just rd -> rd
+  let baseImportDir = forceTrailingSlash $ (baseDir opts) </> "import"
+  let runDir = forceTrailingSlash $ collapse $ (baseDir opts) </> (importRunDir opts)
+  let effectiveDir = if useRunDir opts
+        then if (forceTrailingSlash $ runDir </> "import") == baseImportDir then baseImportDir else runDir
+        else baseImportDir
+  channelOutLn ch $ format ("Collecting input files from "%fp) effectiveDir
   (inputFiles, diff) <- time $ single . shellToList . onlyFiles $ find inputFilePattern effectiveDir
   let fileCount = length inputFiles
   if (fileCount == 0) then
@@ -52,8 +54,7 @@ importCSVs' opts ch = do
       channelOutLn ch $ format ("Found "%d%" input files in "%s%". Proceeding with import...") fileCount (repr diff)
       let actions = map (extractAndImport opts ch) inputFiles :: [IO FilePath]
       importedJournals <- parAwareActions opts actions
-      let stopAt = forceTrailingSlash $ (baseDir opts) </> "import"
-      _ <- writeIncludesUpTo opts ch stopAt importedJournals
+      _ <- writeIncludesUpTo opts ch effectiveDir importedJournals
       _ <- writeToplevelAllYearsInclude opts
       return importedJournals
 

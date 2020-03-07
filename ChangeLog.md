@@ -1,5 +1,13 @@
 # Changelog for [hledger-flow](https://github.com/apauley/hledger-flow)
 
+## 0.13.2
+
+Improve support for importing a subset of journals: start importing only from the directory given as argument,
+or the current directory, and generate only the relevant include files.
+
+This is a behavioural change and (for now) it needs to be enabled with the --enable-future-rundir switch.
+This will become the default behaviour in 0.14.x, at which time the switch will be removed.
+
 ## 0.13.1
 
 - Automatically add [include lines for yearly price files](https://github.com/apauley/hledger-flow/#price-files) if they are present on disk.
