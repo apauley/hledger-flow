@@ -8,6 +8,12 @@ or the current directory, and generate only the relevant include files.
 This is a behavioural change and (for now) it needs to be enabled with the --enable-future-rundir switch.
 This will become the default behaviour in 0.14.x, at which time the switch will be removed.
 
+Reports:
+Use the LEDGER_FILE env var (if set) when generating reports.
+Default to the top-level all-years.journal if not set.
+
+Build with Stackage Nightly 2020-03-10 (ghc-8.8.3)
+
 ## 0.13.1
 
 - Automatically add [include lines for yearly price files](https://github.com/apauley/hledger-flow/#price-files) if they are present on disk.

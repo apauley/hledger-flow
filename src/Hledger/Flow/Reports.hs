@@ -10,6 +10,7 @@ import Hledger.Flow.RuntimeOptions
 import Hledger.Flow.Common
 import Control.Concurrent.STM
 import Data.Either
+import Data.Maybe
 
 import qualified Data.Text as T
 import qualified Hledger.Flow.Types as FlowTypes
@@ -44,10 +45,16 @@ generateReports' opts ch = do
                <> "https://github.com/apauley/hledger-flow/issues\n"
   channelOutLn ch wipMsg
   owners <- single $ shellToList $ listOwners opts
-  let aggregateJournal = journalFile opts []
+  ledgerEnvValue <- need "LEDGER_FILE" :: IO (Maybe Text)
+  let hledgerJournal = fromMaybe (baseDir opts </> allYearsFileName) $ fmap fromText ledgerEnvValue
+  hledgerJournalExists <- testfile hledgerJournal
+  _ <- if not hledgerJournalExists then die $ format ("Unable to find journal file: "%fp%"\nIs your LEDGER_FILE environment variable set correctly?") hledgerJournal else return ()
+  let journalWithYears = journalFile opts []
   let aggregateReportDir = outputReportDir opts ["all"]
-  aggregateYears <- includeYears ch aggregateJournal
-  let aggregateParams = ReportParams aggregateJournal aggregateYears aggregateReportDir
+  aggregateYears <- includeYears ch journalWithYears
+  let aggregateParams = ReportParams { ledgerFile = hledgerJournal
+                                     , reportYears = aggregateYears
+                                     , outputDir = aggregateReportDir}
   let aggregateOnlyReports = reportActions opts ch [transferBalance] aggregateParams
   ownerParams <- ownerParameters opts ch owners
   let ownerWithAggregateParams = (if length owners > 1 then [aggregateParams] else []) ++ ownerParams
