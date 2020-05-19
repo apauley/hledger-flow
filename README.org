@@ -267,17 +267,17 @@ Two accounts at =mybank= may have rules files similar to these.
 A checking account at mybank:
 
 #+BEGIN_EXAMPLE
-    # Saved as: import/john/mybank/checking/mybank-checking.rules
-    include ../../../mybank-shared.rules
-    account1 Assets:Current:John:MyBank:Checking
+# Saved as: import/john/mybank/checking/mybank-checking.rules
+include ../../../mybank-shared.rules
+account1 Assets:Current:John:MyBank:Checking
 #+END_EXAMPLE
 
 Another account at mybank:
 
 #+BEGIN_EXAMPLE
-    # Saved as: import/alice/mybank/savings/mybank-savings.rules
-    include ../../../mybank-shared.rules
-    account1 Assets:Current:Alice:MyBank:Savings
+# Saved as: import/alice/mybank/savings/mybank-savings.rules
+include ../../../mybank-shared.rules
+account1 Assets:Current:Alice:MyBank:Savings
 #+END_EXAMPLE
 
 Where =import/mybank-shared.rules= may define some shared attributes:
@@ -299,7 +299,7 @@ You could then create the above mentioned global =import/mybank.rules=
 with the fields defined more or less like this:
 
 #+BEGIN_EXAMPLE
-    fields date, description, amount, balance, account1, account2
+fields date, description, amount, balance, account1, account2
 #+END_EXAMPLE
 
 *** Stability of this Feature
@@ -341,7 +341,7 @@ balance at the date of the first available transaction.
 An opening balance may look something like this:
 
 #+BEGIN_EXAMPLE
-    2018-06-01 Savings Account Opening Balance
+2018-06-01 Savings Account Opening Balance
     assets:Current:MyBank:Savings               $102.01
     equity:Opening Balances:MyBank:Savings
 #+END_EXAMPLE
@@ -361,7 +361,7 @@ generated journal include file for that year.
 A closing balance may look something like this:
 
 #+BEGIN_EXAMPLE
-    2018-06-01 Savings Account Closing Balance
+2018-06-01 Savings Account Closing Balance
     assets:Current:MyBank:Savings               $-234.56 = $0.00
     equity:Closing Balances:MyBank:Savings
 #+END_EXAMPLE
