@@ -10,6 +10,9 @@ import qualified Data.Text as T
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Hledger.Flow.Types as FlowTypes
 import Hledger.Flow.Import.Types
+import Hledger.Flow.BaseDir (turtleBaseDir, turtleRunDir, relativeToBase)
+import Hledger.Flow.PathHelpers (forceTrailingSlash)
+import Hledger.Flow.DocHelpers (docURL)
 import Hledger.Flow.Common
 import Hledger.Flow.RuntimeOptions
 import Control.Concurrent.STM
@@ -35,8 +38,8 @@ inputFilePattern = contains (once (oneOf pathSeparators) <> asciiCI "1-in" <> on
 
 importCSVs' :: RuntimeOptions -> TChan FlowTypes.LogMessage -> IO [FilePath]
 importCSVs' opts ch = do
-  let baseImportDir = forceTrailingSlash $ (baseDir opts) </> "import"
-  let runDir = forceTrailingSlash $ collapse $ (baseDir opts) </> (importRunDir opts)
+  let baseImportDir = forceTrailingSlash $ (turtleBaseDir opts) </> "import"
+  let runDir = forceTrailingSlash $ collapse $ (turtleBaseDir opts) </> (turtleRunDir opts)
   let effectiveDir = if useRunDir opts
         then if (forceTrailingSlash $ runDir </> "import") == baseImportDir then baseImportDir else runDir
         else baseImportDir

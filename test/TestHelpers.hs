@@ -1,8 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE OverloadedLists #-}
+{-# LANGUAGE QuasiQuotes #-}
 
 module TestHelpers where
 
+import Path
 import Turtle
 import Prelude hiding (FilePath)
 
@@ -58,8 +60,8 @@ hiddenFiles = [".hiddenfile", "checking/.DS_Store", "import/john/bogartbank/savi
 defaultHlInfo :: FlowTypes.HledgerInfo
 defaultHlInfo = FlowTypes.HledgerInfo "/path/to/hledger" "1.2.3"
 
-defaultOpts :: FilePath -> RuntimeOptions
-defaultOpts bd = RuntimeOptions bd "./" True versionInfo' defaultHlInfo systemInfo False False False
+defaultOpts :: FlowTypes.BaseDir -> RuntimeOptions
+defaultOpts bd = RuntimeOptions bd [reldir|./|] True versionInfo' defaultHlInfo systemInfo False False False
 
 toJournals :: [FilePath] -> [FilePath]
 toJournals = map (changePathAndExtension "3-journal" "journal")
