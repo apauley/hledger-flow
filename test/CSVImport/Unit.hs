@@ -1,9 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE OverloadedLists #-}
+{-# LANGUAGE QuasiQuotes #-}
 
 module CSVImport.Unit where
 
 import Test.HUnit
+import Path
 import Turtle
 import Prelude hiding (FilePath)
 import qualified Data.Map.Strict as Map
@@ -420,7 +422,7 @@ testToIncludeFiles = TestCase (
            "!include import/john/bogartbank/savings/3-journal/2018/2018-02-30.journal\n")]
 
     ch <- newTChanIO
-    txt <- toIncludeFiles (defaultOpts ".") ch groupedJohnBogart
+    txt <- toIncludeFiles (defaultOpts [absdir|/|]) ch groupedJohnBogart
     assertEqual "Convert a grouped map of paths, to a map with text contents for each file" expected txt)
 
 tests :: Test

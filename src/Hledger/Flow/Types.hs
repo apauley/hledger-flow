@@ -8,6 +8,11 @@ import Turtle
 import Prelude hiding (FilePath, putStrLn)
 import Data.Version
 
+import Hledger.Flow.PathHelpers
+
+type BaseDir = AbsDir
+type RunDir = RelDir
+
 data LogMessage = StdOut Text | StdErr Text | Terminate deriving (Show)
 type FullOutput = (ExitCode, Text, Text)
 type FullTimedOutput = (FullOutput, NominalDiffTime)
@@ -31,7 +36,10 @@ class HasVerbosity a where
   verbose :: a -> Bool
 
 class HasBaseDir a where
-  baseDir :: a -> FilePath
+  baseDir :: a -> BaseDir
+
+class HasRunDir a where
+  importRunDir :: a -> RunDir
 
 class HasSequential a where
   sequential :: a -> Bool

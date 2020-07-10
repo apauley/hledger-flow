@@ -1,5 +1,5 @@
 name:                hledger-flow
-version:             0.13.2.0
+version:             0.14.0.0
 synopsis:            An hledger workflow focusing on automated statement import and classification.
 category:            Finance, Console
 license:             GPL-3
@@ -31,6 +31,9 @@ library:
   - -Wall
   dependencies:
   - turtle
+  - path
+  - path-io
+  - exceptions
   - text
   - foldl
   - containers
@@ -52,6 +55,7 @@ executables:
 
     dependencies:
     - hledger-flow
+    - path
     - turtle
     - text
     - optparse-applicative
@@ -66,6 +70,8 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - hledger-flow
+    - path
+    - path-io
     - turtle
     - HUnit
     - containers

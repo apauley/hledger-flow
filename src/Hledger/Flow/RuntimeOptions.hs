@@ -5,8 +5,8 @@ import Turtle
 import Prelude hiding (FilePath, putStrLn)
 import Hledger.Flow.Types
 
-data RuntimeOptions = RuntimeOptions { baseDir :: FilePath
-                                     , importRunDir :: FilePath
+data RuntimeOptions = RuntimeOptions { baseDir :: BaseDir
+                                     , importRunDir :: RunDir
                                      , useRunDir :: Bool
                                      , hfVersion :: Text
                                      , hledgerInfo :: HledgerInfo
@@ -25,3 +25,6 @@ instance HasSequential RuntimeOptions where
 
 instance HasBaseDir RuntimeOptions where
   baseDir (RuntimeOptions bd _ _ _ _ _ _ _ _) = bd
+
+instance HasRunDir RuntimeOptions where
+  importRunDir (RuntimeOptions _ rd _ _ _ _ _ _ _) = rd

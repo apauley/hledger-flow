@@ -1,13 +1,16 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE QuasiQuotes #-}
 
 module Main where
 
+import Path
 import Turtle hiding (switch)
 import Prelude hiding (FilePath, putStrLn)
 
 import Options.Applicative
 
 import Hledger.Flow.Common
+import Hledger.Flow.BaseDir
 import qualified Hledger.Flow.RuntimeOptions as RT
 import Hledger.Flow.Reports
 import Hledger.Flow.CSVImport
@@ -36,7 +39,8 @@ main = do
 
 toRuntimeOptionsImport :: MainParams -> ImportParams -> IO RT.RuntimeOptions
 toRuntimeOptionsImport mainParams' subParams' = do
-  (bd, runDir) <- determineBaseDir $ maybeImportBaseDir subParams'
+  let maybeBD = maybeImportBaseDir subParams' :: Maybe FilePath
+  (bd, runDir) <- determineBaseDir maybeBD
   hli <- hledgerInfoFromPath $ hledgerPathOpt mainParams'
   return RT.RuntimeOptions { RT.baseDir = bd
                            , RT.importRunDir = runDir
@@ -50,10 +54,11 @@ toRuntimeOptionsImport mainParams' subParams' = do
 
 toRuntimeOptionsReport :: MainParams -> ReportParams -> IO RT.RuntimeOptions
 toRuntimeOptionsReport mainParams' subParams' = do
-  (bd, _) <- determineBaseDir $ maybeReportBaseDir subParams'
+  let maybeBD = maybeReportBaseDir subParams' :: Maybe FilePath
+  (bd, _) <- determineBaseDir maybeBD
   hli <- hledgerInfoFromPath $ hledgerPathOpt mainParams'
   return RT.RuntimeOptions { RT.baseDir = bd
-                           , RT.importRunDir = "./"
+                           , RT.importRunDir = [reldir|.|]
                            , RT.useRunDir = False
                            , RT.hfVersion = versionInfo'
                            , RT.hledgerInfo = hli

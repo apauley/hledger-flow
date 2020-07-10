@@ -6,8 +6,11 @@ module Hledger.Flow.Reports
 
 import Turtle hiding (stdout, stderr, proc)
 import Prelude hiding (FilePath, putStrLn, writeFile)
+
 import Hledger.Flow.RuntimeOptions
 import Hledger.Flow.Common
+import Hledger.Flow.BaseDir (turtleBaseDir, relativeToBase)
+
 import Control.Concurrent.STM
 import Data.Either
 import Data.Maybe
@@ -46,7 +49,7 @@ generateReports' opts ch = do
   channelOutLn ch wipMsg
   owners <- single $ shellToList $ listOwners opts
   ledgerEnvValue <- need "LEDGER_FILE" :: IO (Maybe Text)
-  let hledgerJournal = fromMaybe (baseDir opts </> allYearsFileName) $ fmap fromText ledgerEnvValue
+  let hledgerJournal = fromMaybe (turtleBaseDir opts </> allYearsFileName) $ fmap fromText ledgerEnvValue
   hledgerJournalExists <- testfile hledgerJournal
   _ <- if not hledgerJournalExists then die $ format ("Unable to find journal file: "%fp%"\nIs your LEDGER_FILE environment variable set correctly?") hledgerJournal else return ()
   let journalWithYears = journalFile opts []
@@ -124,10 +127,10 @@ generateReport opts ch journal baseOutDir year fileName args successCheck = do
       return $ Left outputFile
 
 journalFile :: RuntimeOptions -> [FilePath] -> FilePath
-journalFile opts dirs = (foldl (</>) (baseDir opts) ("import":dirs)) </> allYearsFileName
+journalFile opts dirs = (foldl (</>) (turtleBaseDir opts) ("import":dirs)) </> allYearsFileName
 
 outputReportDir :: RuntimeOptions -> [FilePath] -> FilePath
-outputReportDir opts dirs = foldl (</>) (baseDir opts) ("reports":dirs)
+outputReportDir opts dirs = foldl (</>) (turtleBaseDir opts) ("reports":dirs)
 
 ownerParameters :: RuntimeOptions -> TChan FlowTypes.LogMessage -> [FilePath] -> IO [ReportParams]
 ownerParameters opts ch owners = do

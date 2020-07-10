@@ -11,13 +11,17 @@ import qualified Data.List as List (sort)
 
 import TestHelpers
 import Hledger.Flow.Common
+import Hledger.Flow.PathHelpers
 import Control.Concurrent.STM
 
 testExtraIncludesForFile :: Test
 testExtraIncludesForFile = TestCase (
   sh (
       do
-        tmpdir <- using (mktempdir "." "hlflow")
+        currentDir <- pwd
+        tmpdir <- using (mktempdir currentDir "hlflow")
+        tmpdirAbsPath <- fromTurtleAbsDir tmpdir
+
         let importedJournals = map (tmpdir </>) journalFiles :: [FilePath]
         let accountDir = "import/john/bogartbank/savings"
         let opening = tmpdir </> accountDir </> "2017-opening.journal"
@@ -30,18 +34,18 @@ testExtraIncludesForFile = TestCase (
 
         ch <- liftIO newTChanIO
 
-        extraOpening1 <- liftIO $ extraIncludesForFile (defaultOpts tmpdir) ch accountInclude ["opening.journal"] [] []
+        extraOpening1 <- liftIO $ extraIncludesForFile (defaultOpts tmpdirAbsPath) ch accountInclude ["opening.journal"] [] []
         liftIO $ assertEqual "The opening journal should not be included when it is not on disk" expectedEmpty extraOpening1
 
-        extraClosing1 <- liftIO $ extraIncludesForFile (defaultOpts tmpdir) ch accountInclude ["closing.journal"] [] []
+        extraClosing1 <- liftIO $ extraIncludesForFile (defaultOpts tmpdirAbsPath) ch accountInclude ["closing.journal"] [] []
         liftIO $ assertEqual "The closing journal should not be included when it is not on disk" expectedEmpty extraClosing1
 
         touchAll [opening, closing]
 
-        extraOpening2 <- liftIO $ extraIncludesForFile (defaultOpts tmpdir) ch accountInclude ["opening.journal"] [] []
+        extraOpening2 <- liftIO $ extraIncludesForFile (defaultOpts tmpdirAbsPath) ch accountInclude ["opening.journal"] [] []
         liftIO $ assertEqual "The opening journal should be included when it is on disk" [(accountInclude, [opening])] extraOpening2
 
-        extraClosing2 <- liftIO $ extraIncludesForFile (defaultOpts tmpdir) ch accountInclude ["closing.journal"] [] []
+        extraClosing2 <- liftIO $ extraIncludesForFile (defaultOpts tmpdirAbsPath) ch accountInclude ["closing.journal"] [] []
         liftIO $ assertEqual "The closing journal should be included when it is on disk" [(accountInclude, [closing])] extraClosing2
      ))
 
@@ -49,7 +53,10 @@ testExtraIncludesPrices :: Test
 testExtraIncludesPrices = TestCase (
   sh (
       do
-        tmpdir <- using (mktempdir "." "hlflow")
+        currentDir <- pwd
+        tmpdir <- using (mktempdir currentDir "hlflow")
+        tmpdirAbsPath <- fromTurtleAbsDir tmpdir
+
         let importedJournals = map (tmpdir </>) journalFiles :: [FilePath]
         touchAll $ importedJournals
 
@@ -60,13 +67,13 @@ testExtraIncludesPrices = TestCase (
 
         ch <- liftIO newTChanIO
 
-        price1 <- liftIO $ extraIncludesForFile (defaultOpts tmpdir) ch includeFile [] [] ["prices.journal"]
+        price1 <- liftIO $ extraIncludesForFile (defaultOpts tmpdirAbsPath) ch includeFile [] [] ["prices.journal"]
         liftIO $ assertEqual "The price file should not be included when it is not on disk" expectedEmpty price1
 
         touchAll [tmpdir </> priceFile]
         let expectedPricePath = tmpdir </> "import" </> ".." </> priceFile
 
-        price2 <- liftIO $ extraIncludesForFile (defaultOpts tmpdir) ch includeFile [] [] ["prices.journal"]
+        price2 <- liftIO $ extraIncludesForFile (defaultOpts tmpdirAbsPath) ch includeFile [] [] ["prices.journal"]
         liftIO $ assertEqual "The price file should be included when it is on disk" [(includeFile, [expectedPricePath])] price2
      ))
 
@@ -74,7 +81,10 @@ testIncludesPrePost :: Test
 testIncludesPrePost = TestCase (
   sh (
       do
-        tmpdir <- using (mktempdir "." "hlflow")
+        currentDir <- pwd
+        tmpdir <- using (mktempdir currentDir "hlflow")
+        tmpdirAbsPath <- fromTurtleAbsDir tmpdir
+
         let ownerDir = tmpdir </> "import" </> "john"
         let includeFile = ownerDir </> "2019-include.journal"
         let pre  = ownerDir </> "_manual_" </> "2019" </> "pre-import.journal"
@@ -85,7 +95,7 @@ testIncludesPrePost = TestCase (
                                                     ownerDir </> "bank2" </> "2019-include.journal"]
 
         ch <- liftIO newTChanIO
-        fileMap <- liftIO $ toIncludeFiles (defaultOpts tmpdir) ch includeMap
+        fileMap <- liftIO $ toIncludeFiles (defaultOpts tmpdirAbsPath) ch includeMap
         let expectedText = includePreamble <> "\n"
               <> "!include _manual_/2019/pre-import.journal\n"
               <> "!include bank1/2019-include.journal\n"
@@ -99,7 +109,10 @@ testIncludesOpeningClosing :: Test
 testIncludesOpeningClosing = TestCase (
   sh (
       do
-        tmpdir <- using (mktempdir "." "hlflow")
+        currentDir <- pwd
+        tmpdir <- using (mktempdir currentDir "hlflow")
+        tmpdirAbsPath <- fromTurtleAbsDir tmpdir
+
         let ownerDir = tmpdir </> "import/john"
         let accountDir = ownerDir </> "bank1" </> "savings"
         let includeFile = accountDir </> "2019-include.journal"
@@ -110,7 +123,7 @@ testIncludesOpeningClosing = TestCase (
         let includeMap = Map.singleton includeFile [accountDir </> "3-journal" </> "2019" </> "2019-01-30.journal"]
 
         ch <- liftIO newTChanIO
-        fileMap <- liftIO $ toIncludeFiles (defaultOpts tmpdir) ch includeMap
+        fileMap <- liftIO $ toIncludeFiles (defaultOpts tmpdirAbsPath) ch includeMap
         let expectedText = includePreamble <> "\n"
               <> "!include 2019-opening.journal\n"
               <> "!include 3-journal/2019/2019-01-30.journal\n"
@@ -123,7 +136,10 @@ testIncludesPrices :: Test
 testIncludesPrices = TestCase (
   sh (
       do
-        tmpdir <- using (mktempdir "." "hlflow")
+        currentDir <- pwd
+        tmpdir <- using (mktempdir currentDir "hlflow")
+        tmpdirAbsPath <- fromTurtleAbsDir tmpdir
+
         let importDir = tmpdir </> "import"
         let includeFile = importDir </> "2020-include.journal"
         let prices = tmpdir </> "prices" </> "2020" </> "prices.journal"
@@ -134,7 +150,7 @@ testIncludesPrices = TestCase (
         let includeMap = Map.singleton includeFile [importDir </> "john" </> "2020-include.journal"]
 
         ch <- liftIO newTChanIO
-        fileMap <- liftIO $ toIncludeFiles (defaultOpts tmpdir) ch includeMap
+        fileMap <- liftIO $ toIncludeFiles (defaultOpts tmpdirAbsPath) ch includeMap
         let expectedText = includePreamble <> "\n"
               <> "!include _manual_/2020/pre-import.journal\n"
               <> "!include john/2020-include.journal\n"
@@ -148,7 +164,10 @@ testWriteIncludeFiles :: Test
 testWriteIncludeFiles = TestCase (
   sh (
       do
-        tmpdir <- using (mktempdir "." "hlflow")
+        currentDir <- pwd
+        tmpdir <- using (mktempdir currentDir "hlflow")
+        tmpdirAbsPath <- fromTurtleAbsDir tmpdir
+
         let importedJournals = map (tmpdir </>) journalFiles :: [FilePath]
         let extras = map (tmpdir </>) extraFiles :: [FilePath]
         let hidden = map (tmpdir </>) hiddenFiles :: [FilePath]
@@ -175,7 +194,7 @@ testWriteIncludeFiles = TestCase (
                                 john1, john2, john3, john4, john5, john6, john7, john8]
 
         ch <- liftIO newTChanIO
-        reportedAsWritten <- liftIO $ groupAndWriteIncludeFiles (defaultOpts tmpdir) ch importedJournals
+        reportedAsWritten <- liftIO $ groupAndWriteIncludeFiles (defaultOpts tmpdirAbsPath) ch importedJournals
         liftIO $ assertEqual "groupAndWriteIncludeFiles should return which files it wrote" expectedIncludes reportedAsWritten
 
         let allYears = [tmpdir </> "import/jane/bogartbank/checking/all-years.journal",
