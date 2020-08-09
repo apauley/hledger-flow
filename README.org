@@ -91,10 +91,21 @@ diff.
   :END:
 
 The easiest way to get it running is to download [[https://github.com/apauley/hledger-flow/releases][the latest release]]
-for your OS, and copy the =hledger-flow= executable to a directory in your PATH.
+for your OS (Linux or Mac OS X), and copy the =hledger-flow= executable to a directory in your PATH.
 Then just run it and see what it tells you to do.
 
 You can also compile it yourself by following the [[https://github.com/apauley/hledger-flow/blob/master/CONTRIBUTING.org#build-the-project][build instructions]].
+
+** Windows Support
+
+Currently =hledger-flow= does not work on Windows.
+
+This [[https://github.com/apauley/hledger-flow/issues?q=is%3Aissue+is%3Aopen+label%3Awindows][list of issues]] describes some of the details of what doesn't work.
+
+I believe it wouldn't take too much effort to fix those issues, but I'm going to leave Windows support
+for other contributors.
+
+Please send me some pull requests if you would like =hledger-flow= to work on Windows.
 
 * How Stable is it?
   :PROPERTIES:
