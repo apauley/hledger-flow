@@ -4,7 +4,8 @@ module Hledger.Flow.Reports
     ( generateReports
     ) where
 
-import Turtle hiding (stdout, stderr, proc)
+import qualified Turtle as Turtle hiding (stdout, stderr, proc)
+import Turtle ((%), (</>), (<.>))
 import Prelude hiding (putStrLn, writeFile)
 
 import Hledger.Flow.RuntimeOptions
@@ -28,17 +29,17 @@ data ReportParams = ReportParams { ledgerFile :: TurtlePath
 type ReportGenerator = RuntimeOptions -> TChan FlowTypes.LogMessage -> TurtlePath -> TurtlePath -> Integer -> IO (Either TurtlePath TurtlePath)
 
 generateReports :: RuntimeOptions -> IO ()
-generateReports opts = sh (
+generateReports opts = Turtle.sh (
   do
-    ch <- liftIO newTChanIO
-    logHandle <- fork $ consoleChannelLoop ch
-    liftIO $ if (showOptions opts) then channelOutLn ch (repr opts) else return ()
-    (reports, diff) <- time $ liftIO $ generateReports' opts ch
+    ch <- Turtle.liftIO newTChanIO
+    logHandle <- Turtle.fork $ consoleChannelLoop ch
+    Turtle.liftIO $ if (showOptions opts) then channelOutLn ch (Turtle.repr opts) else return ()
+    (reports, diff) <- Turtle.time $ Turtle.liftIO $ generateReports' opts ch
     let failedAttempts = lefts reports
-    let failedText = if List.null failedAttempts then "" else format ("(and attempted to write "%d%" more) ") $ length failedAttempts
-    liftIO $ channelOutLn ch $ format ("Generated "%d%" reports "%s%"in "%s) (length (rights reports)) failedText $ repr diff
-    liftIO $ terminateChannelLoop ch
-    wait logHandle
+    let failedText = if List.null failedAttempts then "" else Turtle.format ("(and attempted to write "%Turtle.d%" more) ") $ length failedAttempts
+    Turtle.liftIO $ channelOutLn ch $ Turtle.format ("Generated "%Turtle.d%" reports "%Turtle.s%"in "%Turtle.s) (length (rights reports)) failedText $ Turtle.repr diff
+    Turtle.liftIO $ terminateChannelLoop ch
+    Turtle.wait logHandle
   )
 
 generateReports' :: RuntimeOptions -> TChan FlowTypes.LogMessage -> IO [Either TurtlePath TurtlePath]
@@ -48,11 +49,11 @@ generateReports' opts ch = do
                <> "https://github.com/apauley/hledger-flow/pulls\n"
                <> "https://github.com/apauley/hledger-flow/issues\n"
   channelOutLn ch wipMsg
-  owners <- single $ shellToList $ listOwners opts
-  ledgerEnvValue <- need "LEDGER_FILE" :: IO (Maybe Text)
-  let hledgerJournal = fromMaybe (turtleBaseDir opts </> allYearsFileName) $ fmap fromText ledgerEnvValue
-  hledgerJournalExists <- testfile hledgerJournal
-  _ <- if not hledgerJournalExists then die $ format ("Unable to find journal file: "%fp%"\nIs your LEDGER_FILE environment variable set correctly?") hledgerJournal else return ()
+  owners <- Turtle.single $ shellToList $ listOwners opts
+  ledgerEnvValue <- Turtle.need "LEDGER_FILE" :: IO (Maybe T.Text)
+  let hledgerJournal = fromMaybe (turtleBaseDir opts </> allYearsFileName) $ fmap Turtle.fromText ledgerEnvValue
+  hledgerJournalExists <- Turtle.testfile hledgerJournal
+  _ <- if not hledgerJournalExists then Turtle.die $ Turtle.format ("Unable to find journal file: "%Turtle.fp%"\nIs your LEDGER_FILE environment variable set correctly?") hledgerJournal else return ()
   let journalWithYears = journalFile opts []
   let aggregateReportDir = outputReportDir opts ["all"]
   aggregateYears <- includeYears ch journalWithYears
@@ -82,17 +83,17 @@ unknownTransactions opts ch journal reportsDir year = do
   let reportArgs = ["print", "unknown"]
   generateReport opts ch journal reportsDir year ("unknown-transactions" <.> "txt") reportArgs (not . T.null)
 
-incomeStatement :: [Text] -> ReportGenerator
+incomeStatement :: [T.Text] -> ReportGenerator
 incomeStatement sharedOptions opts ch journal reportsDir year = do
   let reportArgs = ["incomestatement"] ++ sharedOptions
   generateReport opts ch journal reportsDir year ("income-expenses" <.> "txt") reportArgs (not . T.null)
 
-incomeMonthlyStatement :: [Text] -> ReportGenerator
+incomeMonthlyStatement :: [T.Text] -> ReportGenerator
 incomeMonthlyStatement sharedOptions opts ch journal reportsDir year = do
   let reportArgs = ["incomestatement"] ++ sharedOptions ++ ["--monthly"]
   generateReport opts ch journal reportsDir year ("income-expenses-monthly" <.> "txt") reportArgs (not . T.null)
 
-balanceSheet :: [Text] -> ReportGenerator
+balanceSheet :: [T.Text] -> ReportGenerator
 balanceSheet sharedOptions opts ch journal reportsDir year = do
   let reportArgs = ["balancesheet"] ++ sharedOptions ++ ["--flat"]
   generateReport opts ch journal reportsDir year ("balance-sheet" <.> "txt") reportArgs (not . T.null)
@@ -102,29 +103,29 @@ transferBalance opts ch journal reportsDir year = do
   let reportArgs = ["balance", "--pretty-tables", "--quarterly", "--flat", "--no-total", "transfer"]
   generateReport opts ch journal reportsDir year ("transfer-balance" <.> "txt") reportArgs (\txt -> (length $ T.lines txt) > 4)
 
-generateReport :: RuntimeOptions -> TChan FlowTypes.LogMessage -> TurtlePath -> TurtlePath -> Integer -> TurtlePath -> [Text] -> (Text -> Bool) -> IO (Either TurtlePath TurtlePath)
+generateReport :: RuntimeOptions -> TChan FlowTypes.LogMessage -> TurtlePath -> TurtlePath -> Integer -> TurtlePath -> [T.Text] -> (T.Text -> Bool) -> IO (Either TurtlePath TurtlePath)
 generateReport opts ch journal baseOutDir year fileName args successCheck = do
   let reportsDir = baseOutDir </> intPath year
-  mktree reportsDir
+  Turtle.mktree reportsDir
   let outputFile = reportsDir </> fileName
   let relativeJournal = relativeToBase opts journal
   let relativeOutputFile = relativeToBase opts outputFile
-  let reportArgs = ["--file", format fp journal, "--period", repr year] ++ args
-  let reportDisplayArgs = ["--file", format fp relativeJournal, "--period", repr year] ++ args
-  let hledger = format fp $ FlowTypes.hlPath . hledgerInfo $ opts :: Text
-  let cmdLabel = format ("hledger "%s) $ showCmdArgs reportDisplayArgs
-  ((exitCode, stdOut, _), _) <- timeAndExitOnErr opts ch cmdLabel dummyLogger channelErr procStrictWithErr (hledger, reportArgs, empty)
+  let reportArgs = ["--file", Turtle.format Turtle.fp journal, "--period", Turtle.repr year] ++ args
+  let reportDisplayArgs = ["--file", Turtle.format Turtle.fp relativeJournal, "--period", Turtle.repr year] ++ args
+  let hledger = Turtle.format Turtle.fp $ FlowTypes.hlPath . hledgerInfo $ opts :: T.Text
+  let cmdLabel = Turtle.format ("hledger "%Turtle.s) $ showCmdArgs reportDisplayArgs
+  ((exitCode, stdOut, _), _) <- timeAndExitOnErr opts ch cmdLabel dummyLogger channelErr Turtle.procStrictWithErr (hledger, reportArgs, mempty)
   if (successCheck stdOut)
     then
     do
-      writeTextFile outputFile (cmdLabel <> "\n\n"<> stdOut)
-      logVerbose opts ch $ format ("Wrote "%fp) $ relativeOutputFile
+      Turtle.writeTextFile outputFile (cmdLabel <> "\n\n"<> stdOut)
+      logVerbose opts ch $ Turtle.format ("Wrote "%Turtle.fp) $ relativeOutputFile
       return $ Right outputFile
     else
     do
-      channelErrLn ch $ format ("Did not write '"%fp%"' ("%s%") "%s) relativeOutputFile cmdLabel (repr exitCode)
-      exists <- testfile outputFile
-      if exists then rm outputFile else return ()
+      channelErrLn ch $ Turtle.format ("Did not write '"%Turtle.fp%"' ("%Turtle.s%") "%Turtle.s) relativeOutputFile cmdLabel (Turtle.repr exitCode)
+      exists <- Turtle.testfile outputFile
+      if exists then Turtle.rm outputFile else return ()
       return $ Left outputFile
 
 journalFile :: RuntimeOptions -> [TurtlePath] -> TurtlePath

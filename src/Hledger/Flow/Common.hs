@@ -2,7 +2,9 @@
 
 module Hledger.Flow.Common where
 
-import Turtle
+import qualified Turtle as Turtle
+import Turtle ((%), (</>), (<.>))
+
 import Prelude hiding (putStrLn)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
@@ -37,10 +39,10 @@ import qualified System.Info as Sys
 
 type InputFileBundle = Map.Map TurtlePath [TurtlePath]
 
-versionInfo :: NE.NonEmpty Line
-versionInfo = textToLines versionInfo'
+versionInfo :: NE.NonEmpty Turtle.Line
+versionInfo = Turtle.textToLines versionInfo'
 
-versionInfo' :: Text
+versionInfo' :: T.Text
 versionInfo' = T.pack ("hledger-flow " ++ Version.showVersion version ++ " " ++
                        os systemInfo ++ " " ++ arch systemInfo ++ " " ++
                        compilerName systemInfo ++ " " ++
@@ -57,12 +59,12 @@ hledgerPathFromOption :: Maybe TurtlePath -> IO TurtlePath
 hledgerPathFromOption pathOption = do
   case pathOption of
     Just h  -> do
-      isOnDisk <- testfile h
+      isOnDisk <- Turtle.testfile h
       if isOnDisk then return h else do
-        let msg = format ("Unable to find hledger at "%fp) h
+        let msg = Turtle.format ("Unable to find hledger at "%Turtle.fp) h
         errExit' 1 (T.hPutStrLn H.stderr) msg h
     Nothing -> do
-      maybeH <- which "hledger"
+      maybeH <- Turtle.which "hledger"
       case maybeH of
         Just h  -> return h
         Nothing -> do
@@ -71,8 +73,8 @@ hledgerPathFromOption pathOption = do
                 <> "There are a number of installation options on the hledger website: https://hledger.org/download.html"
           errExit' 1 (T.hPutStrLn H.stderr) msg "/"
 
-hledgerVersionFromPath :: TurtlePath -> IO Text
-hledgerVersionFromPath hlp = fmap (T.strip . linesToText) (single $ shellToList $ inproc (format fp hlp) ["--version"] empty)
+hledgerVersionFromPath :: TurtlePath -> IO T.Text
+hledgerVersionFromPath hlp = fmap (T.strip . Turtle.linesToText) (Turtle.single $ shellToList $ Turtle.inproc (Turtle.format Turtle.fp hlp) ["--version"] Turtle.empty)
 
 hledgerInfoFromPath :: Maybe TurtlePath -> IO HledgerInfo
 hledgerInfoFromPath pathOption = do
@@ -80,43 +82,43 @@ hledgerInfoFromPath pathOption = do
   hlv <- hledgerVersionFromPath hlp
   return $ HledgerInfo hlp hlv
 
-showCmdArgs :: [Text] -> Text
+showCmdArgs :: [T.Text] -> T.Text
 showCmdArgs args = T.intercalate " " (map escapeArg args)
 
-escapeArg :: Text -> Text
+escapeArg :: T.Text -> T.Text
 escapeArg a = if (T.count " " a > 0) then "'" <> a <> "'" else a
 
-dummyLogger :: TChan LogMessage -> Text -> IO ()
+dummyLogger :: TChan LogMessage -> T.Text -> IO ()
 dummyLogger _ _ = return ()
 
-channelOut :: TChan LogMessage -> Text -> IO ()
+channelOut :: TChan LogMessage -> T.Text -> IO ()
 channelOut ch txt = atomically $ writeTChan ch $ StdOut txt
 
-channelOutLn :: TChan LogMessage -> Text -> IO ()
+channelOutLn :: TChan LogMessage -> T.Text -> IO ()
 channelOutLn ch txt = channelOut ch (txt <> "\n")
 
-channelErr :: TChan LogMessage -> Text -> IO ()
+channelErr :: TChan LogMessage -> T.Text -> IO ()
 channelErr ch txt = atomically $ writeTChan ch $ StdErr txt
 
-channelErrLn :: TChan LogMessage -> Text -> IO ()
+channelErrLn :: TChan LogMessage -> T.Text -> IO ()
 channelErrLn ch txt = channelErr ch (txt <> "\n")
 
-errExit :: Int -> TChan LogMessage -> Text -> a -> IO a
+errExit :: Int -> TChan LogMessage -> T.Text -> a -> IO a
 errExit exitStatus ch = errExit' exitStatus (channelErrLn ch)
 
-errExit' :: Int -> (Text -> IO ()) -> Text -> a -> IO a
+errExit' :: Int -> (T.Text -> IO ()) -> T.Text -> a -> IO a
 errExit' exitStatus logFun errorMessage dummyReturnValue = do
   logFun errorMessage
-  sleep 0.1
-  _ <- exit $ ExitFailure exitStatus
+  Turtle.sleep 0.1
+  _ <- Turtle.exit $ Turtle.ExitFailure exitStatus
   return dummyReturnValue
 
-timestampPrefix :: Text -> IO Text
+timestampPrefix :: T.Text -> IO T.Text
 timestampPrefix txt = do
   t <- getZonedTime
-  return $ format (s%"\thledger-flow "%s) (repr t) txt
+  return $ Turtle.format (Turtle.s%"\thledger-flow "%Turtle.s) (Turtle.repr t) txt
 
-logToChannel :: TChan LogMessage -> Text -> IO ()
+logToChannel :: TChan LogMessage -> T.Text -> IO ()
 logToChannel ch msg = do
   ts <- timestampPrefix msg
   channelErrLn ch ts
@@ -136,81 +138,81 @@ consoleChannelLoop ch = do
 terminateChannelLoop :: TChan LogMessage -> IO ()
 terminateChannelLoop ch = atomically $ writeTChan ch Terminate
 
-logVerbose :: HasVerbosity o => o -> TChan LogMessage -> Text -> IO ()
+logVerbose :: HasVerbosity o => o -> TChan LogMessage -> T.Text -> IO ()
 logVerbose opts ch msg = if (verbose opts) then logToChannel ch msg else return ()
 
-descriptiveOutput :: Text -> Text -> Text
+descriptiveOutput :: T.Text -> T.Text -> T.Text
 descriptiveOutput outputLabel outTxt = do
   if not (T.null outTxt)
-    then format (s%":\n"%s%"\n") outputLabel outTxt
+    then Turtle.format (Turtle.s%":\n"%Turtle.s%"\n") outputLabel outTxt
     else ""
 
-logTimedAction :: HasVerbosity o => o -> TChan LogMessage -> Text -> [Text]
-  -> (TChan LogMessage -> Text -> IO ()) -> (TChan LogMessage -> Text -> IO ())
+logTimedAction :: HasVerbosity o => o -> TChan LogMessage -> T.Text -> [T.Text]
+  -> (TChan LogMessage -> T.Text -> IO ()) -> (TChan LogMessage -> T.Text -> IO ())
   -> IO FullOutput
   -> IO FullTimedOutput
 logTimedAction opts ch cmdLabel extraCmdLabels stdoutLogger stderrLogger action = do
-  logVerbose opts ch $ format ("Begin: "%s) cmdLabel
+  logVerbose opts ch $ Turtle.format ("Begin: "%Turtle.s) cmdLabel
   if (List.null extraCmdLabels) then return () else logVerbose opts ch $ T.intercalate "\n" extraCmdLabels
-  timed@((ec, stdOut, stdErr), diff) <- time action
+  timed@((ec, stdOut, stdErr), diff) <- Turtle.time action
   stdoutLogger ch stdOut
   stderrLogger ch stdErr
-  logVerbose opts ch $ format ("End:   "%s%" "%s%" ("%s%")") cmdLabel (repr ec) (repr diff)
+  logVerbose opts ch $ Turtle.format ("End:   "%Turtle.s%" "%Turtle.s%" ("%Turtle.s%")") cmdLabel (Turtle.repr ec) (Turtle.repr diff)
   return timed
 
-timeAndExitOnErr :: (HasSequential o, HasVerbosity o) => o -> TChan LogMessage -> Text
-  -> (TChan LogMessage -> Text -> IO ()) -> (TChan LogMessage -> Text -> IO ())
+timeAndExitOnErr :: (HasSequential o, HasVerbosity o) => o -> TChan LogMessage -> T.Text
+  -> (TChan LogMessage -> T.Text -> IO ()) -> (TChan LogMessage -> T.Text -> IO ())
   -> ProcFun -> ProcInput
   -> IO FullTimedOutput
 timeAndExitOnErr opts ch cmdLabel = timeAndExitOnErr' opts ch cmdLabel []
 
-timeAndExitOnErr' :: (HasSequential o, HasVerbosity o) => o -> TChan LogMessage -> Text -> [Text]
-  -> (TChan LogMessage -> Text -> IO ()) -> (TChan LogMessage -> Text -> IO ())
+timeAndExitOnErr' :: (HasSequential o, HasVerbosity o) => o -> TChan LogMessage -> T.Text -> [T.Text]
+  -> (TChan LogMessage -> T.Text -> IO ()) -> (TChan LogMessage -> T.Text -> IO ())
   -> ProcFun -> ProcInput
   -> IO FullTimedOutput
 timeAndExitOnErr' opts ch cmdLabel extraCmdLabels stdoutLogger stderrLogger procFun (cmd, args, stdInput) = do
   let action = procFun cmd args stdInput
   timed@((ec, stdOut, stdErr), _) <- logTimedAction opts ch cmdLabel extraCmdLabels stdoutLogger stderrLogger action
   case ec of
-    ExitFailure i -> do
-      let cmdText = format (s%" "%s) cmd $ showCmdArgs args
+    Turtle.ExitFailure i -> do
+      let cmdText = Turtle.format (Turtle.s%" "%Turtle.s) cmd $ showCmdArgs args
       let msgOut = descriptiveOutput "Standard output" stdOut
       let msgErr = descriptiveOutput "Error output" stdErr
 
-      let exitMsg = format ("\n=== Begin Error: "%s%" ===\nExternal command:\n"%s%"\nExit code "%d%"\n"
-                            %s%s%"=== End Error: "%s%" ===\n") cmdLabel cmdText i msgOut msgErr cmdLabel
+      let exitMsg = Turtle.format ("\n=== Begin Error: "%Turtle.s%" ===\nExternal command:\n"%Turtle.s%"\nExit code "%Turtle.d%"\n"
+                            %Turtle.s%Turtle.s%"=== End Error: "%Turtle.s%" ===\n") cmdLabel cmdText i msgOut msgErr cmdLabel
       errExit i ch exitMsg timed
-    ExitSuccess -> return timed
+    Turtle.ExitSuccess -> return timed
 
 procWithEmptyOutput :: ProcFun
 procWithEmptyOutput cmd args stdinput = do
-  ec <- proc cmd args stdinput
+  ec <- Turtle.proc cmd args stdinput
   return (ec, T.empty, T.empty)
 
 parAwareProc :: HasSequential o => o -> ProcFun
-parAwareProc opts = if (sequential opts) then procWithEmptyOutput else procStrictWithErr
+parAwareProc opts = if (sequential opts) then procWithEmptyOutput else Turtle.procStrictWithErr
 
 parAwareActions :: HasSequential o => o -> [IO a] -> IO [a]
 parAwareActions opts = parAwareFun opts
   where
-    parAwareFun op = if (sequential op) then sequence else single . shellToList . parallel
+    parAwareFun op = if (sequential op) then sequence else Turtle.single . shellToList . Turtle.parallel
 
-inprocWithErrFun :: (Text -> IO ()) -> ProcInput -> Shell Line
+inprocWithErrFun :: (T.Text -> IO ()) -> ProcInput -> Turtle.Shell Turtle.Line
 inprocWithErrFun errFun (cmd, args, standardInput) = do
-  result <- inprocWithErr cmd args standardInput
+  result <- Turtle.inprocWithErr cmd args standardInput
   case result of
     Right ln -> return ln
     Left  ln -> do
-      (liftIO . errFun . lineToText) ln
-      empty
+      (Turtle.liftIO . errFun . Turtle.lineToText) ln
+      Turtle.empty
 
 verboseTestFile :: (HasVerbosity o, HasBaseDir o) => o -> TChan LogMessage -> TurtlePath -> IO Bool
 verboseTestFile opts ch p = do
-  fileExists <- testfile p
+  fileExists <- Turtle.testfile p
   let rel = relativeToBase opts p
   if fileExists
-    then logVerbose opts ch $ format ("Found a "       %fp%" file at '"%fp%"'") (basename rel) rel
-    else logVerbose opts ch $ format ("Did not find a "%fp%" file at '"%fp%"'") (basename rel) rel
+    then logVerbose opts ch $ Turtle.format ("Found a "       %Turtle.fp%" file at '"%Turtle.fp%"'") (Turtle.basename rel) rel
+    else logVerbose opts ch $ Turtle.format ("Did not find a "%Turtle.fp%" file at '"%Turtle.fp%"'") (Turtle.basename rel) rel
   return fileExists
 
 groupPairs' :: (Eq a, Ord a) => [(a, b)] -> [(a, [b])]
@@ -227,13 +229,13 @@ groupValuesBy :: (Ord k, Ord v) => (v -> k) -> [v] -> Map.Map k [v]
 groupValuesBy keyFun = groupPairs . pairBy keyFun
 
 initialIncludeFilePath :: TurtlePath -> TurtlePath
-initialIncludeFilePath p = (parent . parent . parent) p </> includeFileName p
+initialIncludeFilePath p = (Turtle.parent . Turtle.parent . Turtle.parent) p </> includeFileName p
 
 parentIncludeFilePath :: TurtlePath -> TurtlePath
-parentIncludeFilePath p = (parent . parent) p </> (filename p)
+parentIncludeFilePath p = (Turtle.parent . Turtle.parent) p </> (Turtle.filename p)
 
 allYearsPath :: TurtlePath -> TurtlePath
-allYearsPath = allYearsPath' directory
+allYearsPath = allYearsPath' Turtle.directory
 
 allYearsPath' :: (TurtlePath -> TurtlePath) -> TurtlePath -> TurtlePath
 allYearsPath' dir p = dir p </> "all-years.journal"
@@ -256,138 +258,138 @@ allYearIncludeFiles m = (m, yearsIncludeMap $ Map.keys m)
 yearsIncludeMap :: [TurtlePath] -> InputFileBundle
 yearsIncludeMap = groupValuesBy allYearsPath
 
-lsDirs :: TurtlePath -> Shell TurtlePath
-lsDirs = onlyDirs . ls
+lsDirs :: TurtlePath -> Turtle.Shell TurtlePath
+lsDirs = onlyDirs . Turtle.ls
 
-onlyDirs :: Shell TurtlePath -> Shell TurtlePath
-onlyDirs = excludeHiddenFiles . excludeWeirdPaths . filterPathsByFileStatus isDirectory
+onlyDirs :: Turtle.Shell TurtlePath -> Turtle.Shell TurtlePath
+onlyDirs = excludeHiddenFiles . excludeWeirdPaths . filterPathsByFileStatus Turtle.isDirectory
 
-onlyFiles :: Shell TurtlePath -> Shell TurtlePath
-onlyFiles = excludeHiddenFiles . filterPathsByFileStatus isRegularFile
+onlyFiles :: Turtle.Shell TurtlePath -> Turtle.Shell TurtlePath
+onlyFiles = excludeHiddenFiles . filterPathsByFileStatus Turtle.isRegularFile
 
-filterPathsByFileStatus :: (FileStatus -> Bool) -> Shell TurtlePath -> Shell TurtlePath
+filterPathsByFileStatus :: (Turtle.FileStatus -> Bool) -> Turtle.Shell TurtlePath -> Turtle.Shell TurtlePath
 filterPathsByFileStatus filepred files = do
   files' <- shellToList files
   filtered <- filterPathsByFileStatus' filepred [] files'
-  select filtered
+  Turtle.select filtered
 
-filterPathsByFileStatus' :: (FileStatus -> Bool) -> [TurtlePath] -> [TurtlePath] -> Shell [TurtlePath]
+filterPathsByFileStatus' :: (Turtle.FileStatus -> Bool) -> [TurtlePath] -> [TurtlePath] -> Turtle.Shell [TurtlePath]
 filterPathsByFileStatus' _ acc [] = return acc
 filterPathsByFileStatus' filepred acc (file:files) = do
-  filestat <- stat file
+  filestat <- Turtle.stat file
   let filtered = if (filepred filestat) then file:acc else acc
   filterPathsByFileStatus' filepred filtered files
 
-filterPaths :: (TurtlePath -> IO Bool) -> [TurtlePath] -> Shell [TurtlePath]
+filterPaths :: (TurtlePath -> IO Bool) -> [TurtlePath] -> Turtle.Shell [TurtlePath]
 filterPaths = filterPaths' []
 
-filterPaths' :: [TurtlePath] -> (TurtlePath -> IO Bool) -> [TurtlePath] -> Shell [TurtlePath]
+filterPaths' :: [TurtlePath] -> (TurtlePath -> IO Bool) -> [TurtlePath] -> Turtle.Shell [TurtlePath]
 filterPaths' acc _ [] = return acc
 filterPaths' acc filepred (file:files) = do
-  shouldInclude <- liftIO $ filepred file
+  shouldInclude <- Turtle.liftIO $ filepred file
   let filtered = if shouldInclude then file:acc else acc
   filterPaths' filtered filepred files
 
-excludeHiddenFiles :: Shell TurtlePath -> Shell TurtlePath
+excludeHiddenFiles :: Turtle.Shell TurtlePath -> Turtle.Shell TurtlePath
 excludeHiddenFiles paths = do
   p <- paths
-  case (match (prefix ".") $ format fp $ filename p) of
-    [] -> select [p]
-    _  -> select []
+  case (Turtle.match (Turtle.prefix ".") $ Turtle.format Turtle.fp $ Turtle.filename p) of
+    [] -> Turtle.select [p]
+    _  -> Turtle.select []
 
-excludeWeirdPaths :: Shell TurtlePath -> Shell TurtlePath
-excludeWeirdPaths = findtree (suffix $ noneOf "_")
+excludeWeirdPaths :: Turtle.Shell TurtlePath -> Turtle.Shell TurtlePath
+excludeWeirdPaths = Turtle.findtree (Turtle.suffix $ Turtle.noneOf "_")
 
 firstExistingFile :: [TurtlePath] -> IO (Maybe TurtlePath)
 firstExistingFile files = do
   case files of
     []   -> return Nothing
     file:fs -> do
-      exists <- testfile file
+      exists <- Turtle.testfile file
       if exists then return (Just file) else firstExistingFile fs
 
-basenameLine :: TurtlePath -> Shell Line
-basenameLine path = case (textToLine $ format fp $ basename path) of
-  Nothing -> die $ format ("Unable to determine basename from path: "%fp%"\n") path
+basenameLine :: TurtlePath -> Turtle.Shell Turtle.Line
+basenameLine path = case (Turtle.textToLine $ Turtle.format Turtle.fp $ Turtle.basename path) of
+  Nothing -> Turtle.die $ Turtle.format ("Unable to determine basename from path: "%Turtle.fp%"\n") path
   Just bn -> return bn
 
-buildFilename :: [Line] -> Text -> TurtlePath
-buildFilename identifiers ext = fromText (T.intercalate "-" (map lineToText identifiers)) <.> ext
+buildFilename :: [Turtle.Line] -> T.Text -> TurtlePath
+buildFilename identifiers ext = Turtle.fromText (T.intercalate "-" (map Turtle.lineToText identifiers)) <.> ext
 
-shellToList :: Shell a -> Shell [a]
-shellToList files = fold files Fold.list
+shellToList :: Turtle.Shell a -> Turtle.Shell [a]
+shellToList files = Turtle.fold files Fold.list
 
 includeFileName :: TurtlePath -> TurtlePath
-includeFileName = (<.> "journal") . fromText . (format (fp%"-include")) . dirname
+includeFileName = (<.> "journal") . Turtle.fromText . (Turtle.format (Turtle.fp%"-include")) . Turtle.dirname
 
-toIncludeFiles :: (HasBaseDir o, HasVerbosity o) => o -> TChan LogMessage -> InputFileBundle -> IO (Map.Map TurtlePath Text)
+toIncludeFiles :: (HasBaseDir o, HasVerbosity o) => o -> TChan LogMessage -> InputFileBundle -> IO (Map.Map TurtlePath T.Text)
 toIncludeFiles opts ch m = do
   preMap  <- extraIncludes opts ch (Map.keys m) ["opening.journal"] ["pre-import.journal"] []
   postMap <- extraIncludes opts ch (Map.keys m) ["closing.journal"] ["post-import.journal"] ["prices.journal"]
   return $ (addPreamble . toIncludeFiles' preMap postMap) m
 
-extraIncludes :: (HasBaseDir o, HasVerbosity o) => o -> TChan LogMessage -> [TurtlePath] -> [Text] -> [TurtlePath] -> [TurtlePath] -> IO InputFileBundle
+extraIncludes :: (HasBaseDir o, HasVerbosity o) => o -> TChan LogMessage -> [TurtlePath] -> [T.Text] -> [TurtlePath] -> [TurtlePath] -> IO InputFileBundle
 extraIncludes opts ch = extraIncludes' opts ch Map.empty
 
-extraIncludes' :: (HasBaseDir o, HasVerbosity o) => o -> TChan LogMessage -> InputFileBundle -> [TurtlePath] -> [Text] -> [TurtlePath] -> [TurtlePath] -> IO InputFileBundle
+extraIncludes' :: (HasBaseDir o, HasVerbosity o) => o -> TChan LogMessage -> InputFileBundle -> [TurtlePath] -> [T.Text] -> [TurtlePath] -> [TurtlePath] -> IO InputFileBundle
 extraIncludes' _ _ acc [] _ _ _ = return acc
 extraIncludes' opts ch acc (file:files) extraSuffixes manualFiles prices = do
   extra <- extraIncludesForFile opts ch file extraSuffixes manualFiles prices
   extraIncludes' opts ch (Map.unionWith (++) acc extra) files extraSuffixes manualFiles prices
 
-extraIncludesForFile :: (HasVerbosity o, HasBaseDir o) => o -> TChan LogMessage -> TurtlePath -> [Text] -> [TurtlePath] -> [TurtlePath] -> IO InputFileBundle
+extraIncludesForFile :: (HasVerbosity o, HasBaseDir o) => o -> TChan LogMessage -> TurtlePath -> [T.Text] -> [TurtlePath] -> [TurtlePath] -> IO InputFileBundle
 extraIncludesForFile opts ch file extraSuffixes manualFiles prices = do
-  let dirprefix = fromText $ fst $ T.breakOn "-" $ format fp $ basename file
-  let fileNames = map (\suff -> fromText $ format (fp%"-"%s) dirprefix suff) extraSuffixes
-  let suffixFiles = map (directory file </>) fileNames
-  let suffixDirFiles = map (directory file </> "_manual_" </> dirprefix </>) manualFiles
-  let priceFiles = map (directory file </> ".." </> "prices" </> dirprefix </>) prices
+  let dirprefix = Turtle.fromText $ fst $ T.breakOn "-" $ Turtle.format Turtle.fp $ Turtle.basename file
+  let fileNames = map (\suff -> Turtle.fromText $ Turtle.format (Turtle.fp%"-"%Turtle.s) dirprefix suff) extraSuffixes
+  let suffixFiles = map (Turtle.directory file </>) fileNames
+  let suffixDirFiles = map (Turtle.directory file </> "_manual_" </> dirprefix </>) manualFiles
+  let priceFiles = map (Turtle.directory file </> ".." </> "prices" </> dirprefix </>) prices
   let extraFiles = suffixFiles ++ suffixDirFiles ++ priceFiles
-  filtered <- single $ filterPaths testfile extraFiles
-  let logMsg = format ("Looking for possible extra include files for '"%fp%"' among these "%d%" options: "%s%". Found "%d%": "%s)
-               (relativeToBase opts file) (length extraFiles) (repr $ relativeFilesAsText opts extraFiles)
-               (length filtered) (repr $ relativeFilesAsText opts filtered)
+  filtered <- Turtle.single $ filterPaths Turtle.testfile extraFiles
+  let logMsg = Turtle.format ("Looking for possible extra include files for '"%Turtle.fp%"' among these "%Turtle.d%" options: "%Turtle.s%". Found "%Turtle.d%": "%Turtle.s)
+               (relativeToBase opts file) (length extraFiles) (Turtle.repr $ relativeFilesAsText opts extraFiles)
+               (length filtered) (Turtle.repr $ relativeFilesAsText opts filtered)
   logVerbose opts ch logMsg
   return $ Map.fromList [(file, filtered)]
 
-relativeFilesAsText :: HasBaseDir o => o -> [TurtlePath] -> [Text]
-relativeFilesAsText opts ps = map ((format fp) . (relativeToBase opts)) ps
+relativeFilesAsText :: HasBaseDir o => o -> [TurtlePath] -> [T.Text]
+relativeFilesAsText opts ps = map ((Turtle.format Turtle.fp) . (relativeToBase opts)) ps
 
-toIncludeFiles' :: InputFileBundle -> InputFileBundle -> InputFileBundle -> Map.Map TurtlePath Text
+toIncludeFiles' :: InputFileBundle -> InputFileBundle -> InputFileBundle -> Map.Map TurtlePath T.Text
 toIncludeFiles' preMap postMap = Map.mapWithKey $ generatedIncludeText preMap postMap
 
-addPreamble :: Map.Map TurtlePath Text -> Map.Map TurtlePath Text
+addPreamble :: Map.Map TurtlePath T.Text -> Map.Map TurtlePath T.Text
 addPreamble = Map.map (\txt -> includePreamble <> "\n" <> txt)
 
-toIncludeLine :: TurtlePath -> TurtlePath -> Text
-toIncludeLine base file = format ("!include "%fp) $ relativeToBase' base file
+toIncludeLine :: TurtlePath -> TurtlePath -> T.Text
+toIncludeLine base file = Turtle.format ("!include "%Turtle.fp) $ relativeToBase' base file
 
-generatedIncludeText :: InputFileBundle -> InputFileBundle -> TurtlePath -> [TurtlePath] -> Text
+generatedIncludeText :: InputFileBundle -> InputFileBundle -> TurtlePath -> [TurtlePath] -> T.Text
 generatedIncludeText preMap postMap outputFile fs = do
   let preFiles = fromMaybe [] $ Map.lookup outputFile preMap
   let files = List.nub . List.sort $ fs
   let postFiles = fromMaybe [] $ Map.lookup outputFile postMap
-  let lns = map (toIncludeLine $ directory outputFile) $ preFiles ++ files ++ postFiles
+  let lns = map (toIncludeLine $ Turtle.directory outputFile) $ preFiles ++ files ++ postFiles
   T.intercalate "\n" $ lns ++ [""]
 
-includePreamble :: Text
+includePreamble :: T.Text
 includePreamble = "### Generated by hledger-flow - DO NOT EDIT ###\n"
 
 groupAndWriteIncludeFiles :: (HasBaseDir o, HasVerbosity o) => o -> TChan LogMessage -> [TurtlePath] -> IO [TurtlePath]
 groupAndWriteIncludeFiles opts ch = writeFileMap opts ch . groupIncludeFiles
 
-writeFiles :: IO (Map.Map TurtlePath Text) -> IO [TurtlePath]
+writeFiles :: IO (Map.Map TurtlePath T.Text) -> IO [TurtlePath]
 writeFiles fileMap = do
   m <- fileMap
   writeFiles' m
 
-writeFiles' :: Map.Map TurtlePath Text -> IO [TurtlePath]
+writeFiles' :: Map.Map TurtlePath T.Text -> IO [TurtlePath]
 writeFiles' fileMap = do
   writeTextMap fileMap
   return $ Map.keys fileMap
 
-writeTextMap :: Map.Map TurtlePath Text -> IO ()
-writeTextMap = Map.foldlWithKey (\a k v -> a <> writeTextFile k v) (return ())
+writeTextMap :: Map.Map TurtlePath T.Text -> IO ()
+writeTextMap = Map.foldlWithKey (\a k v -> a <> Turtle.writeTextFile k v) (return ())
 
 writeFileMap :: (HasBaseDir o, HasVerbosity o) => o -> TChan LogMessage -> (InputFileBundle, InputFileBundle) -> IO [TurtlePath]
 writeFileMap opts ch (m, allYears) = do
@@ -397,7 +399,7 @@ writeFileMap opts ch (m, allYears) = do
 writeIncludesUpTo :: (HasBaseDir o, HasVerbosity o) => o -> TChan LogMessage -> TurtlePath -> [TurtlePath] -> IO [TurtlePath]
 writeIncludesUpTo _ _ _ [] = return []
 writeIncludesUpTo opts ch stopAt journalFiles = do
-  let shouldStop = any (\dir -> dir == stopAt) $ map parent journalFiles
+  let shouldStop = any (\dir -> dir == stopAt) $ map Turtle.parent journalFiles
   if shouldStop
     then return journalFiles
     else do
@@ -409,14 +411,14 @@ writeToplevelAllYearsInclude opts = do
   let allTop = Map.singleton (turtleBaseDir opts </> allYearsFileName) ["import" </> allYearsFileName]
   writeFiles' $ (addPreamble . toIncludeFiles' Map.empty Map.empty) allTop
 
-changeExtension :: Text -> TurtlePath -> TurtlePath
-changeExtension ext path = (dropExtension path) <.> ext
+changeExtension :: T.Text -> TurtlePath -> TurtlePath
+changeExtension ext path = (Turtle.dropExtension path) <.> ext
 
-changePathAndExtension :: TurtlePath -> Text -> TurtlePath -> TurtlePath
+changePathAndExtension :: TurtlePath -> T.Text -> TurtlePath -> TurtlePath
 changePathAndExtension newOutputLocation newExt = (changeOutputPath newOutputLocation) . (changeExtension newExt)
 
 changeOutputPath :: TurtlePath -> TurtlePath -> TurtlePath
-changeOutputPath newOutputLocation srcFile = mconcat $ map changeSrcDir $ splitDirectories srcFile
+changeOutputPath newOutputLocation srcFile = mconcat $ map changeSrcDir $ Turtle.splitDirectories srcFile
   where changeSrcDir file = if (file == "1-in/" || file == "2-preprocessed/") then newOutputLocation else file
 
 importDirBreakdown ::  TurtlePath -> [TurtlePath]
@@ -424,45 +426,45 @@ importDirBreakdown = importDirBreakdown' []
 
 importDirBreakdown' :: [TurtlePath] -> TurtlePath -> [TurtlePath]
 importDirBreakdown' acc path = do
-  let dir = directory path
-  if (dirname dir == "import" || (dirname dir == ""))
+  let dir = Turtle.directory path
+  if (Turtle.dirname dir == "import" || (Turtle.dirname dir == ""))
     then dir:acc
-    else importDirBreakdown' (dir:acc) $ parent dir
+    else importDirBreakdown' (dir:acc) $ Turtle.parent dir
 
-extractImportDirs :: TurtlePath -> Either Text IT.ImportDirs
+extractImportDirs :: TurtlePath -> Either T.Text IT.ImportDirs
 extractImportDirs inputFile = do
   case importDirBreakdown inputFile of
     [bd,owner,bank,account,filestate,year] -> Right $ IT.ImportDirs bd owner bank account filestate year
     _ -> do
-      Left $ format ("I couldn't find the right number of directories between \"import\" and the input file:\n"%fp
+      Left $ Turtle.format ("I couldn't find the right number of directories between \"import\" and the input file:\n"%Turtle.fp
                       %"\n\nhledger-flow expects to find input files in this structure:\n"%
                       "import/owner/bank/account/filestate/year/trxfile\n\n"%
-                      "Have a look at the documentation for a detailed explanation:\n"%s) inputFile (docURL "input-files")
+                      "Have a look at the documentation for a detailed explanation:\n"%Turtle.s) inputFile (docURL "input-files")
 
-listOwners :: HasBaseDir o => o -> Shell TurtlePath
-listOwners opts = fmap basename $ lsDirs $ (turtleBaseDir opts) </> "import"
+listOwners :: HasBaseDir o => o -> Turtle.Shell TurtlePath
+listOwners opts = fmap Turtle.basename $ lsDirs $ (turtleBaseDir opts) </> "import"
 
 intPath :: Integer -> TurtlePath
-intPath = fromText . (format d)
+intPath = Turtle.fromText . (Turtle.format Turtle.d)
 
 includeYears :: TChan LogMessage -> TurtlePath -> IO [Integer]
 includeYears ch includeFile = do
-  txt <- readTextFile includeFile
+  txt <- Turtle.readTextFile includeFile
   case includeYears' txt of
     Left  msg   -> do
       channelErrLn ch msg
       return []
     Right years -> return years
 
-includeYears' :: Text -> Either Text [Integer]
+includeYears' :: T.Text -> Either T.Text [Integer]
 includeYears' txt = case partitionEithers (includeYears'' txt) of
   (errors, []) -> do
-    let msg = format ("Unable to extract years from the following text:\n"%s%"\nErrors:\n"%s) txt (T.intercalate "\n" $ map T.pack errors)
+    let msg = Turtle.format ("Unable to extract years from the following text:\n"%Turtle.s%"\nErrors:\n"%Turtle.s) txt (T.intercalate "\n" $ map T.pack errors)
     Left msg
   (_, years) -> Right years
 
-includeYears'' :: Text -> [Either String Integer]
+includeYears'' :: T.Text -> [Either String Integer]
 includeYears'' txt = map extractDigits (T.lines txt)
 
-extractDigits :: Text -> Either String Integer
+extractDigits :: T.Text -> Either String Integer
 extractDigits txt = fmap fst $ (T.decimal . (T.filter isDigit)) txt

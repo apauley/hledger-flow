@@ -2,8 +2,9 @@
 
 module Hledger.Flow.DocHelpers where
 
-import Data.Text
-import Turtle
+import qualified Data.Text as T (Text)
+import qualified Turtle as Turtle (Line, format, l)
+import Turtle ((%))
 
-docURL :: Line -> Text
-docURL = format ("https://github.com/apauley/hledger-flow#"%l)
+docURL :: Turtle.Line -> T.Text
+docURL = Turtle.format ("https://github.com/apauley/hledger-flow#"%Turtle.l)

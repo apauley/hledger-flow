@@ -4,7 +4,8 @@
 module Hledger.Flow.Types
 where
 
-import Turtle
+import qualified Turtle as Turtle (ExitCode, NominalDiffTime, Shell, Line)
+import qualified Data.Text as T
 import Data.Version
 
 import Hledger.Flow.PathHelpers
@@ -12,15 +13,15 @@ import Hledger.Flow.PathHelpers
 type BaseDir = AbsDir
 type RunDir = RelDir
 
-data LogMessage = StdOut Text | StdErr Text | Terminate deriving (Show)
-type FullOutput = (ExitCode, Text, Text)
-type FullTimedOutput = (FullOutput, NominalDiffTime)
+data LogMessage = StdOut T.Text | StdErr T.Text | Terminate deriving (Show)
+type FullOutput = (Turtle.ExitCode, T.Text, T.Text)
+type FullTimedOutput = (FullOutput, Turtle.NominalDiffTime)
 
-type ProcFun = Text -> [Text] -> Shell Line -> IO FullOutput
-type ProcInput = (Text, [Text], Shell Line)
+type ProcFun = T.Text -> [T.Text] -> Turtle.Shell Turtle.Line -> IO FullOutput
+type ProcInput = (T.Text, [T.Text], Turtle.Shell Turtle.Line)
 
 data HledgerInfo = HledgerInfo { hlPath :: TurtlePath
-                               , hlVersion :: Text
+                               , hlVersion :: T.Text
                                }
                  deriving (Show)
 
