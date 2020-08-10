@@ -5,7 +5,6 @@ module Main where
 
 import Test.HUnit
 import Turtle
-import Prelude hiding (FilePath)
 
 import qualified Common.Unit
 import qualified Common.Integration

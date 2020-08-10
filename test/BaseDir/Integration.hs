@@ -9,7 +9,6 @@ import Test.HUnit
 
 import Path
 import Path.IO
-import Prelude hiding (FilePath)
 
 import qualified Turtle as Turtle
 import qualified Data.Text as T

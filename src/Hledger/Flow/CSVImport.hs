@@ -5,13 +5,13 @@ module Hledger.Flow.CSVImport
     ) where
 
 import Turtle hiding (stdout, stderr, proc, procStrictWithErr)
-import Prelude hiding (FilePath, putStrLn, take)
+import Prelude hiding (putStrLn, take)
 import qualified Data.Text as T
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Hledger.Flow.Types as FlowTypes
 import Hledger.Flow.Import.Types
 import Hledger.Flow.BaseDir (turtleBaseDir, turtleRunDir, relativeToBase)
-import Hledger.Flow.PathHelpers (forceTrailingSlash)
+import Hledger.Flow.PathHelpers (TurtlePath, forceTrailingSlash)
 import Hledger.Flow.DocHelpers (docURL)
 import Hledger.Flow.Common
 import Hledger.Flow.RuntimeOptions
@@ -36,7 +36,7 @@ pathSeparators = ['/', '\\', ':']
 inputFilePattern :: Pattern Text
 inputFilePattern = contains (once (oneOf pathSeparators) <> asciiCI "1-in" <> once (oneOf pathSeparators) <> plus digit <> once (oneOf pathSeparators))
 
-importCSVs' :: RuntimeOptions -> TChan FlowTypes.LogMessage -> IO [FilePath]
+importCSVs' :: RuntimeOptions -> TChan FlowTypes.LogMessage -> IO [TurtlePath]
 importCSVs' opts ch = do
   let baseImportDir = forceTrailingSlash $ (turtleBaseDir opts) </> "import"
   let runDir = forceTrailingSlash $ collapse $ (turtleBaseDir opts) </> (turtleRunDir opts)
@@ -55,20 +55,20 @@ importCSVs' opts ch = do
     else
     do
       channelOutLn ch $ format ("Found "%d%" input files in "%s%". Proceeding with import...") fileCount (repr diff)
-      let actions = map (extractAndImport opts ch) inputFiles :: [IO FilePath]
+      let actions = map (extractAndImport opts ch) inputFiles :: [IO TurtlePath]
       importedJournals <- parAwareActions opts actions
       _ <- writeIncludesUpTo opts ch effectiveDir importedJournals
       _ <- writeToplevelAllYearsInclude opts
       return importedJournals
 
-extractAndImport :: RuntimeOptions -> TChan FlowTypes.LogMessage -> FilePath -> IO FilePath
+extractAndImport :: RuntimeOptions -> TChan FlowTypes.LogMessage -> TurtlePath -> IO TurtlePath
 extractAndImport opts ch inputFile = do
   case extractImportDirs inputFile of
     Right importDirs -> importCSV opts ch importDirs inputFile
     Left errorMessage -> do
       errExit 1 ch errorMessage inputFile
 
-importCSV :: RuntimeOptions -> TChan FlowTypes.LogMessage -> ImportDirs -> FilePath -> IO FilePath
+importCSV :: RuntimeOptions -> TChan FlowTypes.LogMessage -> ImportDirs -> TurtlePath -> IO TurtlePath
 importCSV opts ch importDirs srcFile = do
   let preprocessScript = accountDir importDirs </> "preprocess"
   let constructScript = accountDir importDirs </> "construct"
@@ -84,14 +84,14 @@ importCSV opts ch importDirs srcFile = do
   mktree $ directory journalOut
   importFun csvFile journalOut
 
-preprocessIfNeeded :: RuntimeOptions -> TChan FlowTypes.LogMessage -> FilePath -> Line -> Line -> Line -> FilePath -> IO FilePath
+preprocessIfNeeded :: RuntimeOptions -> TChan FlowTypes.LogMessage -> TurtlePath -> Line -> Line -> Line -> TurtlePath -> IO TurtlePath
 preprocessIfNeeded opts ch script bank account owner src = do
   shouldPreprocess <- verboseTestFile opts ch script
   if shouldPreprocess
     then preprocess opts ch script bank account owner src
     else return src
 
-preprocess :: RuntimeOptions -> TChan FlowTypes.LogMessage -> FilePath -> Line -> Line -> Line -> FilePath -> IO FilePath
+preprocess :: RuntimeOptions -> TChan FlowTypes.LogMessage -> TurtlePath -> Line -> Line -> Line -> TurtlePath -> IO TurtlePath
 preprocess opts ch script bank account owner src = do
   let csvOut = changePathAndExtension "2-preprocessed" "csv" src
   mktree $ directory csvOut
@@ -102,14 +102,14 @@ preprocess opts ch script bank account owner src = do
   _ <- timeAndExitOnErr opts ch cmdLabel channelOut channelErr (parAwareProc opts) (format fp script, args, empty)
   return csvOut
 
-hledgerImport :: RuntimeOptions -> TChan FlowTypes.LogMessage -> FilePath -> FilePath -> IO FilePath
+hledgerImport :: RuntimeOptions -> TChan FlowTypes.LogMessage -> TurtlePath -> TurtlePath -> IO TurtlePath
 hledgerImport opts ch csvSrc journalOut = do
   case extractImportDirs csvSrc of
     Right importDirs -> hledgerImport' opts ch importDirs csvSrc journalOut
     Left errorMessage -> do
       errExit 1 ch errorMessage csvSrc
 
-hledgerImport' :: RuntimeOptions -> TChan FlowTypes.LogMessage -> ImportDirs -> FilePath -> FilePath -> IO FilePath
+hledgerImport' :: RuntimeOptions -> TChan FlowTypes.LogMessage -> ImportDirs -> TurtlePath -> TurtlePath -> IO TurtlePath
 hledgerImport' opts ch importDirs csvSrc journalOut = do
   let candidates = rulesFileCandidates csvSrc importDirs
   maybeRulesFile <- firstExistingFile candidates
@@ -132,16 +132,16 @@ hledgerImport' opts ch importDirs csvSrc journalOut = do
                   relCSV (length candidates) candidatesTxt (docURL "rules-files")
         errExit 1 ch msg csvSrc
 
-rulesFileCandidates :: FilePath -> ImportDirs -> [FilePath]
+rulesFileCandidates :: TurtlePath -> ImportDirs -> [TurtlePath]
 rulesFileCandidates csvSrc importDirs = statementSpecificRulesFiles csvSrc importDirs ++ generalRulesFiles importDirs
 
-importDirLines :: (ImportDirs -> FilePath) -> ImportDirs -> [Line]
+importDirLines :: (ImportDirs -> TurtlePath) -> ImportDirs -> [Line]
 importDirLines dirFun importDirs = NonEmpty.toList $ textToLines $ format fp $ dirname $ dirFun importDirs
 
-importDirLine :: (ImportDirs -> FilePath) -> ImportDirs -> Line
+importDirLine :: (ImportDirs -> TurtlePath) -> ImportDirs -> Line
 importDirLine dirFun importDirs = foldl (<>) "" $ importDirLines dirFun importDirs
 
-generalRulesFiles :: ImportDirs -> [FilePath]
+generalRulesFiles :: ImportDirs -> [TurtlePath]
 generalRulesFiles importDirs = do
   let bank = importDirLines bankDir importDirs
   let account = importDirLines accountDir importDirs
@@ -150,7 +150,7 @@ generalRulesFiles importDirs = do
   let bankRulesFile = importDir importDirs </> buildFilename bank "rules"
   [accountRulesFile, bankRulesFile]
 
-statementSpecificRulesFiles :: FilePath -> ImportDirs -> [FilePath]
+statementSpecificRulesFiles :: TurtlePath -> ImportDirs -> [TurtlePath]
 statementSpecificRulesFiles csvSrc importDirs = do
   let srcSuffix = snd $ T.breakOnEnd "_" (format fp (basename csvSrc))
 
@@ -161,7 +161,7 @@ statementSpecificRulesFiles csvSrc importDirs = do
       map (</> srcSpecificFilename) [accountDir importDirs, bankDir importDirs, importDir importDirs]
     else []
 
-customConstruct :: RuntimeOptions -> TChan FlowTypes.LogMessage -> FilePath -> Line -> Line -> Line -> FilePath -> FilePath -> IO FilePath
+customConstruct :: RuntimeOptions -> TChan FlowTypes.LogMessage -> TurtlePath -> Line -> Line -> Line -> TurtlePath -> TurtlePath -> IO TurtlePath
 customConstruct opts ch constructScript bank account owner csvSrc journalOut = do
   let script = format fp constructScript :: Text
   let relScript = relativeToBase opts constructScript

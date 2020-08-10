@@ -5,7 +5,7 @@ module Hledger.Flow.Reports
     ) where
 
 import Turtle hiding (stdout, stderr, proc)
-import Prelude hiding (FilePath, putStrLn, writeFile)
+import Prelude hiding (putStrLn, writeFile)
 
 import Hledger.Flow.RuntimeOptions
 import Hledger.Flow.Common
@@ -17,14 +17,15 @@ import Data.Maybe
 
 import qualified Data.Text as T
 import qualified Hledger.Flow.Types as FlowTypes
+import Hledger.Flow.PathHelpers (TurtlePath)
 import qualified Data.List as List
 
-data ReportParams = ReportParams { ledgerFile :: FilePath
+data ReportParams = ReportParams { ledgerFile :: TurtlePath
                                  , reportYears :: [Integer]
-                                 , outputDir :: FilePath
+                                 , outputDir :: TurtlePath
                                  }
                   deriving (Show)
-type ReportGenerator = RuntimeOptions -> TChan FlowTypes.LogMessage -> FilePath -> FilePath -> Integer -> IO (Either FilePath FilePath)
+type ReportGenerator = RuntimeOptions -> TChan FlowTypes.LogMessage -> TurtlePath -> TurtlePath -> Integer -> IO (Either TurtlePath TurtlePath)
 
 generateReports :: RuntimeOptions -> IO ()
 generateReports opts = sh (
@@ -40,7 +41,7 @@ generateReports opts = sh (
     wait logHandle
   )
 
-generateReports' :: RuntimeOptions -> TChan FlowTypes.LogMessage -> IO [Either FilePath FilePath]
+generateReports' :: RuntimeOptions -> TChan FlowTypes.LogMessage -> IO [Either TurtlePath TurtlePath]
 generateReports' opts ch = do
   let wipMsg = "Report generation is still a work-in-progress - please let me know how this can be more useful.\n\n"
                <> "Keep an eye out for report-related pull requests and issues, and feel free to submit some of your own:\n"
@@ -66,7 +67,7 @@ generateReports' opts ch = do
   let ownerOnlyReports = List.concat $ fmap (reportActions opts ch [accountList, unknownTransactions]) ownerParams
   parAwareActions opts (aggregateOnlyReports ++ ownerWithAggregateReports ++ ownerOnlyReports)
 
-reportActions :: RuntimeOptions -> TChan FlowTypes.LogMessage -> [ReportGenerator] -> ReportParams -> [IO (Either FilePath FilePath)]
+reportActions :: RuntimeOptions -> TChan FlowTypes.LogMessage -> [ReportGenerator] -> ReportParams -> [IO (Either TurtlePath TurtlePath)]
 reportActions opts ch reports (ReportParams journal years reportsDir) = do
   y <- years
   map (\r -> r opts ch journal reportsDir y) reports
@@ -101,7 +102,7 @@ transferBalance opts ch journal reportsDir year = do
   let reportArgs = ["balance", "--pretty-tables", "--quarterly", "--flat", "--no-total", "transfer"]
   generateReport opts ch journal reportsDir year ("transfer-balance" <.> "txt") reportArgs (\txt -> (length $ T.lines txt) > 4)
 
-generateReport :: RuntimeOptions -> TChan FlowTypes.LogMessage -> FilePath -> FilePath -> Integer -> FilePath -> [Text] -> (Text -> Bool) -> IO (Either FilePath FilePath)
+generateReport :: RuntimeOptions -> TChan FlowTypes.LogMessage -> TurtlePath -> TurtlePath -> Integer -> TurtlePath -> [Text] -> (Text -> Bool) -> IO (Either TurtlePath TurtlePath)
 generateReport opts ch journal baseOutDir year fileName args successCheck = do
   let reportsDir = baseOutDir </> intPath year
   mktree reportsDir
@@ -126,18 +127,18 @@ generateReport opts ch journal baseOutDir year fileName args successCheck = do
       if exists then rm outputFile else return ()
       return $ Left outputFile
 
-journalFile :: RuntimeOptions -> [FilePath] -> FilePath
+journalFile :: RuntimeOptions -> [TurtlePath] -> TurtlePath
 journalFile opts dirs = (foldl (</>) (turtleBaseDir opts) ("import":dirs)) </> allYearsFileName
 
-outputReportDir :: RuntimeOptions -> [FilePath] -> FilePath
+outputReportDir :: RuntimeOptions -> [TurtlePath] -> TurtlePath
 outputReportDir opts dirs = foldl (</>) (turtleBaseDir opts) ("reports":dirs)
 
-ownerParameters :: RuntimeOptions -> TChan FlowTypes.LogMessage -> [FilePath] -> IO [ReportParams]
+ownerParameters :: RuntimeOptions -> TChan FlowTypes.LogMessage -> [TurtlePath] -> IO [ReportParams]
 ownerParameters opts ch owners = do
   let actions = map (ownerParameters' opts ch) owners
   parAwareActions opts actions
 
-ownerParameters' :: RuntimeOptions -> TChan FlowTypes.LogMessage -> FilePath -> IO ReportParams
+ownerParameters' :: RuntimeOptions -> TChan FlowTypes.LogMessage -> TurtlePath-> IO ReportParams
 ownerParameters' opts ch owner = do
   let ownerJournal = journalFile opts [owner]
   years <- includeYears ch ownerJournal
