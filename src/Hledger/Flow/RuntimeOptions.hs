@@ -1,14 +1,14 @@
 module Hledger.Flow.RuntimeOptions
 where
 
-import Turtle
+import qualified Data.Text as T
 import Prelude hiding (putStrLn)
 import Hledger.Flow.Types
 
 data RuntimeOptions = RuntimeOptions { baseDir :: BaseDir
                                      , importRunDir :: RunDir
                                      , useRunDir :: Bool
-                                     , hfVersion :: Text
+                                     , hfVersion :: T.Text
                                      , hledgerInfo :: HledgerInfo
                                      , sysInfo :: SystemInfo
                                      , verbose :: Bool
