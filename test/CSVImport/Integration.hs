@@ -5,7 +5,6 @@ module CSVImport.Integration (tests) where
 
 import Test.HUnit
 import Turtle
-import Prelude hiding (FilePath)
 import qualified Data.Map.Strict as Map
 import qualified Data.List as List (sort)
 
@@ -22,11 +21,11 @@ testExtraIncludesForFile = TestCase (
         tmpdir <- using (mktempdir currentDir "hlflow")
         tmpdirAbsPath <- fromTurtleAbsDir tmpdir
 
-        let importedJournals = map (tmpdir </>) journalFiles :: [FilePath]
+        let importedJournals = map (tmpdir </>) journalFiles :: [TurtlePath]
         let accountDir = "import/john/bogartbank/savings"
         let opening = tmpdir </> accountDir </> "2017-opening.journal"
         let closing = tmpdir </> accountDir </> "2017-closing.journal"
-        let hidden = map (tmpdir </>) hiddenFiles :: [FilePath]
+        let hidden = map (tmpdir </>) hiddenFiles :: [TurtlePath]
         touchAll $ importedJournals ++ hidden
 
         let accountInclude = tmpdir </> accountDir </> "2017-include.journal"
@@ -57,7 +56,7 @@ testExtraIncludesPrices = TestCase (
         tmpdir <- using (mktempdir currentDir "hlflow")
         tmpdirAbsPath <- fromTurtleAbsDir tmpdir
 
-        let importedJournals = map (tmpdir </>) journalFiles :: [FilePath]
+        let importedJournals = map (tmpdir </>) journalFiles :: [TurtlePath]
         touchAll $ importedJournals
 
         let priceFile = "prices" </> "2020" </> "prices.journal"
@@ -168,9 +167,9 @@ testWriteIncludeFiles = TestCase (
         tmpdir <- using (mktempdir currentDir "hlflow")
         tmpdirAbsPath <- fromTurtleAbsDir tmpdir
 
-        let importedJournals = map (tmpdir </>) journalFiles :: [FilePath]
-        let extras = map (tmpdir </>) extraFiles :: [FilePath]
-        let hidden = map (tmpdir </>) hiddenFiles :: [FilePath]
+        let importedJournals = map (tmpdir </>) journalFiles :: [TurtlePath]
+        let extras = map (tmpdir </>) extraFiles :: [TurtlePath]
+        let hidden = map (tmpdir </>) hiddenFiles :: [TurtlePath]
         touchAll $ importedJournals ++ extras ++ hidden
 
         let jane1 = tmpdir </> "import/jane/bogartbank/checking/2018-include.journal"

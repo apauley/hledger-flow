@@ -5,25 +5,26 @@ module Main where
 
 import Path
 import Turtle hiding (switch)
-import Prelude hiding (FilePath, putStrLn)
+import Prelude hiding (putStrLn)
 
 import Options.Applicative
 
+import Hledger.Flow.PathHelpers (TurtlePath)
 import Hledger.Flow.Common
 import Hledger.Flow.BaseDir
 import qualified Hledger.Flow.RuntimeOptions as RT
 import Hledger.Flow.Reports
 import Hledger.Flow.CSVImport
 
-data ImportParams = ImportParams { maybeImportBaseDir :: Maybe FilePath
+data ImportParams = ImportParams { maybeImportBaseDir :: Maybe TurtlePath
                                  , importUseRunDir :: Bool } deriving (Show)
 
-data ReportParams = ReportParams { maybeReportBaseDir :: Maybe FilePath } deriving (Show)
+data ReportParams = ReportParams { maybeReportBaseDir :: Maybe TurtlePath } deriving (Show)
 
 data Command = Import ImportParams | Report ReportParams deriving (Show)
 
 data MainParams = MainParams { verbosity :: Int
-                             , hledgerPathOpt :: Maybe FilePath
+                             , hledgerPathOpt :: Maybe TurtlePath
                              , showOpts :: Bool
                              , sequential :: Bool
                              } deriving (Show)
@@ -39,7 +40,7 @@ main = do
 
 toRuntimeOptionsImport :: MainParams -> ImportParams -> IO RT.RuntimeOptions
 toRuntimeOptionsImport mainParams' subParams' = do
-  let maybeBD = maybeImportBaseDir subParams' :: Maybe FilePath
+  let maybeBD = maybeImportBaseDir subParams' :: Maybe TurtlePath
   (bd, runDir) <- determineBaseDir maybeBD
   hli <- hledgerInfoFromPath $ hledgerPathOpt mainParams'
   return RT.RuntimeOptions { RT.baseDir = bd
@@ -54,7 +55,7 @@ toRuntimeOptionsImport mainParams' subParams' = do
 
 toRuntimeOptionsReport :: MainParams -> ReportParams -> IO RT.RuntimeOptions
 toRuntimeOptionsReport mainParams' subParams' = do
-  let maybeBD = maybeReportBaseDir subParams' :: Maybe FilePath
+  let maybeBD = maybeReportBaseDir subParams' :: Maybe TurtlePath
   (bd, _) <- determineBaseDir maybeBD
   hli <- hledgerInfoFromPath $ hledgerPathOpt mainParams'
   return RT.RuntimeOptions { RT.baseDir = bd

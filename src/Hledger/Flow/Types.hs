@@ -5,7 +5,6 @@ module Hledger.Flow.Types
 where
 
 import Turtle
-import Prelude hiding (FilePath, putStrLn)
 import Data.Version
 
 import Hledger.Flow.PathHelpers
@@ -20,7 +19,7 @@ type FullTimedOutput = (FullOutput, NominalDiffTime)
 type ProcFun = Text -> [Text] -> Shell Line -> IO FullOutput
 type ProcInput = (Text, [Text], Shell Line)
 
-data HledgerInfo = HledgerInfo { hlPath :: FilePath
+data HledgerInfo = HledgerInfo { hlPath :: TurtlePath
                                , hlVersion :: Text
                                }
                  deriving (Show)

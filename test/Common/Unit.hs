@@ -4,7 +4,6 @@
 module Common.Unit where
 
 import Test.HUnit
-import Prelude hiding (FilePath)
 
 import Hledger.Flow.BaseDir (relativeToBase')
 import Hledger.Flow.Common

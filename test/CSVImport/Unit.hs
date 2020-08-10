@@ -7,17 +7,17 @@ module CSVImport.Unit where
 import Test.HUnit
 import Path
 import Turtle
-import Prelude hiding (FilePath)
 import qualified Data.Map.Strict as Map
 import Control.Concurrent.STM
 
 import TestHelpers
+import Hledger.Flow.PathHelpers (TurtlePath)
 import Hledger.Flow.Common
 
 import Data.Either
 import qualified Data.Text as T
 
-groupedJaneBogart :: Map.Map FilePath [FilePath]
+groupedJaneBogart :: Map.Map TurtlePath [TurtlePath]
 groupedJaneBogart = [
   ("./import/jane/bogartbank/checking/2018-include.journal",
    ["import/jane/bogartbank/checking/3-journal/2018/2018-12-30.journal"]),
@@ -28,7 +28,7 @@ groupedJaneBogart = [
   ("./import/jane/bogartbank/savings/2018-include.journal",
    ["import/jane/bogartbank/savings/3-journal/2018/2018-01-30.journal"])]
 
-groupedJaneOther :: Map.Map FilePath [FilePath]
+groupedJaneOther :: Map.Map TurtlePath [TurtlePath]
 groupedJaneOther = [
   ("./import/jane/otherbank/creditcard/2017-include.journal",
    ["import/jane/otherbank/creditcard/3-journal/2017/2017-12-30.journal"]),
@@ -39,7 +39,7 @@ groupedJaneOther = [
   ("./import/jane/otherbank/investments/2019-include.journal",
    ["import/jane/otherbank/investments/3-journal/2019/2019-01-30.journal"])]
 
-groupedJohnBogart :: Map.Map FilePath [FilePath]
+groupedJohnBogart :: Map.Map TurtlePath [TurtlePath]
 groupedJohnBogart = [
   ("./import/john/bogartbank/checking/2018-include.journal",
    ["import/john/bogartbank/checking/3-journal/2018/2018-11-30.journal",
@@ -55,7 +55,7 @@ groupedJohnBogart = [
    ["import/john/bogartbank/savings/3-journal/2018/2018-02-30.journal",
     "import/john/bogartbank/savings/3-journal/2018/2018-01-30.journal"])]
 
-groupedJohnOther :: Map.Map FilePath [FilePath]
+groupedJohnOther :: Map.Map TurtlePath [TurtlePath]
 groupedJohnOther = [
   ("./import/john/otherbank/creditcard/2017-include.journal",
    ["import/john/otherbank/creditcard/3-journal/2017/2017-12-30.journal"]),
@@ -66,7 +66,7 @@ groupedJohnOther = [
   ("./import/john/otherbank/investments/2019-include.journal",
    ["import/john/otherbank/investments/3-journal/2019/2019-01-30.journal"])]
 
-groupedIncludeFiles :: Map.Map FilePath [FilePath]
+groupedIncludeFiles :: Map.Map TurtlePath [TurtlePath]
 groupedIncludeFiles = groupedJaneBogart <> groupedJaneOther <>
                       groupedJohnBogart <> groupedJohnOther
 
@@ -101,21 +101,21 @@ testGroupIncludeFilesTinySet :: Test
 testGroupIncludeFilesTinySet = TestCase (
   do
     let journals1 = [   "import/jane/bogartbank/savings/3-journals/2017/2017-12-30.journal"]
-    let expected1 = [("./import/jane/bogartbank/savings/2017-include.journal", journals1)] :: Map.Map FilePath [FilePath]
+    let expected1 = [("./import/jane/bogartbank/savings/2017-include.journal", journals1)] :: Map.Map TurtlePath [TurtlePath]
     let expectedAllYears1 = [("./import/jane/bogartbank/savings/all-years.journal", ["./import/jane/bogartbank/savings/2017-include.journal"])]
     let (group1, allYears1) = groupIncludeFiles journals1
     assertEqual "groupIncludeFiles small allYears 1" expectedAllYears1 allYears1
     assertEqual "groupIncludeFiles small set 1" expected1 group1
 
-    let journals2 = [(fst . head . Map.toList) expected1] :: [FilePath]
-    let expected2 = [("./import/jane/bogartbank/2017-include.journal", journals2)] :: Map.Map FilePath [FilePath]
+    let journals2 = [(fst . head . Map.toList) expected1] :: [TurtlePath]
+    let expected2 = [("./import/jane/bogartbank/2017-include.journal", journals2)] :: Map.Map TurtlePath [TurtlePath]
     let expectedAllYears2 = [("./import/jane/bogartbank/all-years.journal", ["./import/jane/bogartbank/2017-include.journal"])]
     let (group2, allYears2) = groupIncludeFiles journals2
     assertEqual "groupIncludeFiles small allYears 2" expectedAllYears2 allYears2
     assertEqual "groupIncludeFiles small set 2" expected2 group2
 
-    let journals3 = [(fst . head . Map.toList) expected2] :: [FilePath]
-    let expected3 = [("./import/jane/2017-include.journal", journals3)] :: Map.Map FilePath [FilePath]
+    let journals3 = [(fst . head . Map.toList) expected2] :: [TurtlePath]
+    let expected3 = [("./import/jane/2017-include.journal", journals3)] :: Map.Map TurtlePath [TurtlePath]
     let expectedAllYears3 = [("./import/jane/all-years.journal", ["./import/jane/2017-include.journal"])]
     let (group3, allYears3) = groupIncludeFiles journals3
     assertEqual "groupIncludeFiles small allYears 3" expectedAllYears3 allYears3

@@ -2,7 +2,7 @@ module Hledger.Flow.RuntimeOptions
 where
 
 import Turtle
-import Prelude hiding (FilePath, putStrLn)
+import Prelude hiding (putStrLn)
 import Hledger.Flow.Types
 
 data RuntimeOptions = RuntimeOptions { baseDir :: BaseDir
