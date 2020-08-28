@@ -73,9 +73,11 @@ importCSV opts ch importDirs srcFile = do
   let bankName = importDirLine bankDir importDirs
   let accountName = importDirLine accountDir importDirs
   let ownerName = importDirLine ownerDir importDirs
-  csvFile <- preprocessIfNeeded opts ch preprocessScript bankName accountName ownerName srcFile
+  (csvFile, preprocessHappened) <- preprocessIfNeeded opts ch preprocessScript bankName accountName ownerName srcFile
   let journalOut = changePathAndExtension "3-journal" "journal" csvFile
-  shouldImport <- if onlyNewFiles opts then not <$> verboseTestFile opts ch journalOut else return True
+  shouldImport <- if onlyNewFiles opts && not preprocessHappened
+    then not <$> verboseTestFile opts ch journalOut
+    else return True
 
   importFun <- if shouldImport
     then constructOrImport opts ch constructScript bankName accountName ownerName
@@ -92,7 +94,7 @@ constructOrImport opts ch constructScript bankName accountName ownerName = do
     then return $ customConstruct opts ch constructScript bankName accountName ownerName
     else return $ hledgerImport opts ch
 
-preprocessIfNeeded :: RuntimeOptions -> TChan FlowTypes.LogMessage -> TurtlePath -> Turtle.Line -> Turtle.Line -> Turtle.Line -> TurtlePath -> IO TurtlePath
+preprocessIfNeeded :: RuntimeOptions -> TChan FlowTypes.LogMessage -> TurtlePath -> Turtle.Line -> Turtle.Line -> Turtle.Line -> TurtlePath -> IO (TurtlePath, Bool)
 preprocessIfNeeded opts ch script bank account owner src = do
   let csvOut = changePathAndExtension "2-preprocessed" "csv" src
   scriptExists <- verboseTestFile opts ch script
@@ -102,10 +104,12 @@ preprocessIfNeeded opts ch script bank account owner src = do
       return $ scriptExists && not targetExists
     else return scriptExists
   if shouldProceed
-    then preprocess opts ch script bank account owner src csvOut
+    then do
+     out <- preprocess opts ch script bank account owner src csvOut
+     return (out, True)
     else do
       _ <- logNewFileSkip opts ch "preprocess" csvOut
-      return src
+      return (src, False)
 
 logNewFileSkip :: RuntimeOptions -> TChan FlowTypes.LogMessage -> T.Text -> TurtlePath -> IO ()
 logNewFileSkip opts ch logIdentifier absTarget =
