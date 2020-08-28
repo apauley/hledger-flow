@@ -11,8 +11,8 @@ import qualified Data.Text as T
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Hledger.Flow.Types as FlowTypes
 import Hledger.Flow.Import.Types
-import Hledger.Flow.BaseDir (turtleBaseDir, turtleRunDir, relativeToBase)
-import Hledger.Flow.PathHelpers (TurtlePath, forceTrailingSlash)
+import Hledger.Flow.BaseDir (relativeToBase, effectiveRunDir)
+import Hledger.Flow.PathHelpers (TurtlePath, pathToTurtle)
 import Hledger.Flow.DocHelpers (docURL)
 import Hledger.Flow.Common
 import Hledger.Flow.RuntimeOptions
@@ -39,26 +39,22 @@ inputFilePattern = Turtle.contains (Turtle.once (Turtle.oneOf pathSeparators) <>
 
 importCSVs' :: RuntimeOptions -> TChan FlowTypes.LogMessage -> IO [TurtlePath]
 importCSVs' opts ch = do
-  let baseImportDir = forceTrailingSlash $ (turtleBaseDir opts) </> "import"
-  let runDir = forceTrailingSlash $ Turtle.collapse $ (turtleBaseDir opts) </> (turtleRunDir opts)
-  let effectiveDir = if useRunDir opts
-        then if (forceTrailingSlash $ runDir </> "import") == baseImportDir then baseImportDir else runDir
-        else baseImportDir
-  channelOutLn ch $ Turtle.format ("Collecting input files from "%Turtle.fp) effectiveDir
-  (inputFiles, diff) <- Turtle.time $ Turtle.single . shellToList . onlyFiles $ Turtle.find inputFilePattern effectiveDir
+  let effectiveDir = effectiveRunDir (baseDir opts) (importRunDir opts) (useRunDir opts)
+  channelOutLn ch $ Turtle.format ("Collecting input files from "%Turtle.fp) $ pathToTurtle effectiveDir
+  (inputFiles, diff) <- Turtle.time $ Turtle.single . shellToList . onlyFiles $ Turtle.find inputFilePattern (pathToTurtle effectiveDir)
   let fileCount = length inputFiles
   if (fileCount == 0) then
     do
       let msg = Turtle.format ("I couldn't find any input files underneath "%Turtle.fp
                         %"\n\nhledger-flow expects to find its input files in specifically\nnamed directories.\n\n"%
-                        "Have a look at the documentation for a detailed explanation:\n"%Turtle.s) effectiveDir (docURL "input-files")
+                        "Have a look at the documentation for a detailed explanation:\n"%Turtle.s) (pathToTurtle effectiveDir) (docURL "input-files")
       errExit 1 ch msg []
     else
     do
       channelOutLn ch $ Turtle.format ("Found "%Turtle.d%" input files in "%Turtle.s%". Proceeding with import...") fileCount (Turtle.repr diff)
       let actions = map (extractAndImport opts ch) inputFiles :: [IO TurtlePath]
       importedJournals <- parAwareActions opts actions
-      _ <- writeIncludesUpTo opts ch effectiveDir importedJournals
+      _ <- writeIncludesUpTo opts ch (pathToTurtle effectiveDir) importedJournals
       _ <- writeToplevelAllYearsInclude opts
       return importedJournals
 

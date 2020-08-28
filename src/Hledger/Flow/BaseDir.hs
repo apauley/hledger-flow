@@ -5,7 +5,7 @@ module Hledger.Flow.BaseDir where
 
 import Path
 import Path.IO
-import Hledger.Flow.Types (HasBaseDir, HasRunDir, BaseDir, RunDir, baseDir, importRunDir)
+import Hledger.Flow.Types (HasBaseDir, BaseDir, RunDir, baseDir)
 import Hledger.Flow.PathHelpers
 
 import Data.Maybe
@@ -50,5 +50,10 @@ relativeToBase' bd p = if forceTrailingSlash bd == forceTrailingSlash p then "./
 turtleBaseDir :: HasBaseDir o => o -> TurtlePath
 turtleBaseDir opts = pathToTurtle $ baseDir opts
 
-turtleRunDir :: HasRunDir o => o -> TurtlePath
-turtleRunDir opts = pathToTurtle $ importRunDir opts
+effectiveRunDir :: BaseDir -> RunDir -> Bool -> AbsDir
+effectiveRunDir bd rd useRunDir = do
+  let baseImportDir = bd </> [Path.reldir|import|]
+  let absRunDir = bd </> rd
+  if useRunDir
+    then if absRunDir == bd then baseImportDir else absRunDir
+    else baseImportDir
