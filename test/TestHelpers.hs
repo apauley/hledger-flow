@@ -61,7 +61,18 @@ defaultHlInfo :: FlowTypes.HledgerInfo
 defaultHlInfo = FlowTypes.HledgerInfo "/path/to/hledger" "1.2.3"
 
 defaultOpts :: FlowTypes.BaseDir -> RuntimeOptions
-defaultOpts bd = RuntimeOptions bd [reldir|./|] True versionInfo' defaultHlInfo systemInfo False False False
+defaultOpts bd = RuntimeOptions {
+    baseDir = bd
+  , importRunDir = [reldir|./|]
+  , useRunDir = True
+  , onlyNewFiles = False
+  , hfVersion = versionInfo'
+  , hledgerInfo = defaultHlInfo
+  , sysInfo = systemInfo
+  , verbose = False
+  , showOptions = False
+  , sequential = False
+}
 
 toJournals :: [TurtlePath] -> [TurtlePath]
 toJournals = map (changePathAndExtension "3-journal" "journal")

@@ -211,8 +211,8 @@ verboseTestFile opts ch p = do
   fileExists <- Turtle.testfile p
   let rel = relativeToBase opts p
   if fileExists
-    then logVerbose opts ch $ Turtle.format ("Found a "       %Turtle.fp%" file at '"%Turtle.fp%"'") (Turtle.basename rel) rel
-    else logVerbose opts ch $ Turtle.format ("Did not find a "%Turtle.fp%" file at '"%Turtle.fp%"'") (Turtle.basename rel) rel
+    then logVerbose opts ch $ Turtle.format ("Found '"%Turtle.fp%"'") rel
+    else logVerbose opts ch $ Turtle.format ("Looked for but did not find '"%Turtle.fp%"'") rel
   return fileExists
 
 groupPairs' :: (Eq a, Ord a) => [(a, b)] -> [(a, [b])]

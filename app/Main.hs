@@ -17,7 +17,9 @@ import Hledger.Flow.Reports
 import Hledger.Flow.CSVImport
 
 data ImportParams = ImportParams { maybeImportBaseDir :: Maybe TurtlePath
-                                 , importUseRunDir :: Bool } deriving (Show)
+                                 , importUseRunDir :: Bool
+                                 , onlyNewFiles :: Bool
+                                 } deriving (Show)
 
 data ReportParams = ReportParams { maybeReportBaseDir :: Maybe TurtlePath } deriving (Show)
 
@@ -46,6 +48,7 @@ toRuntimeOptionsImport mainParams' subParams' = do
   return RT.RuntimeOptions { RT.baseDir = bd
                            , RT.importRunDir = runDir
                            , RT.useRunDir = importUseRunDir subParams'
+                           , RT.onlyNewFiles = onlyNewFiles subParams'
                            , RT.hfVersion = versionInfo'
                            , RT.hledgerInfo = hli
                            , RT.sysInfo = systemInfo
@@ -61,6 +64,7 @@ toRuntimeOptionsReport mainParams' subParams' = do
   return RT.RuntimeOptions { RT.baseDir = bd
                            , RT.importRunDir = [reldir|.|]
                            , RT.useRunDir = False
+                           , RT.onlyNewFiles = False
                            , RT.hfVersion = versionInfo'
                            , RT.hledgerInfo = hli
                            , RT.sysInfo = systemInfo
@@ -87,6 +91,7 @@ subcommandParserImport :: Parser ImportParams
 subcommandParserImport = ImportParams
   <$> optional (Turtle.argPath "dir" "The directory to import. Use the base directory for a full import or a sub-directory for a partial import. Defaults to the current directory. This behaviour is changing: see --enable-future-rundir")
   <*> switch (long "enable-future-rundir" <> help "Enable the future (0.14.x) default behaviour now: start importing only from the directory that was given as an argument, or the currect directory. Previously a full import was always done. This switch will be removed in 0.14.x")
+  <*> switch (long "new-files-only" <> help "Don't regenerate transaction files if they are already present. This applies to hledger journal files as well as files produced by the preprocess and construct scripts.")
 
 subcommandParserReport :: Parser ReportParams
 subcommandParserReport = ReportParams

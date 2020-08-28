@@ -8,6 +8,7 @@ import Hledger.Flow.Types
 data RuntimeOptions = RuntimeOptions { baseDir :: BaseDir
                                      , importRunDir :: RunDir
                                      , useRunDir :: Bool
+                                     , onlyNewFiles :: Bool
                                      , hfVersion :: T.Text
                                      , hledgerInfo :: HledgerInfo
                                      , sysInfo :: SystemInfo
@@ -18,13 +19,13 @@ data RuntimeOptions = RuntimeOptions { baseDir :: BaseDir
   deriving (Show)
 
 instance HasVerbosity RuntimeOptions where
-  verbose (RuntimeOptions _ _ _ _ _ _ v _ _) = v
+  verbose (RuntimeOptions _ _ _ _ _ _ _ v _ _) = v
 
 instance HasSequential RuntimeOptions where
-  sequential (RuntimeOptions _ _ _ _ _ _ _ _ sq) = sq
+  sequential (RuntimeOptions _ _ _ _ _ _ _ _ _ sq) = sq
 
 instance HasBaseDir RuntimeOptions where
-  baseDir (RuntimeOptions bd _ _ _ _ _ _ _ _) = bd
+  baseDir (RuntimeOptions bd _ _ _ _ _ _ _ _ _) = bd
 
 instance HasRunDir RuntimeOptions where
-  importRunDir (RuntimeOptions _ rd _ _ _ _ _ _ _) = rd
+  importRunDir (RuntimeOptions _ rd _ _ _ _ _ _ _ _) = rd

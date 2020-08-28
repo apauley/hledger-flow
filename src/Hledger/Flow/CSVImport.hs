@@ -17,6 +17,7 @@ import Hledger.Flow.DocHelpers (docURL)
 import Hledger.Flow.Common
 import Hledger.Flow.RuntimeOptions
 import Control.Concurrent.STM
+import Control.Monad
 
 importCSVs :: RuntimeOptions -> IO ()
 importCSVs opts = Turtle.sh (
@@ -73,24 +74,52 @@ importCSV opts ch importDirs srcFile = do
   let accountName = importDirLine accountDir importDirs
   let ownerName = importDirLine ownerDir importDirs
   csvFile <- preprocessIfNeeded opts ch preprocessScript bankName accountName ownerName srcFile
-  doCustomConstruct <- verboseTestFile opts ch constructScript
-  let importFun = if doCustomConstruct
-        then customConstruct opts ch constructScript bankName accountName ownerName
-        else hledgerImport opts ch
   let journalOut = changePathAndExtension "3-journal" "journal" csvFile
+  shouldImport <- if onlyNewFiles opts then not <$> verboseTestFile opts ch journalOut else return True
+
+  importFun <- if shouldImport
+    then constructOrImport opts ch constructScript bankName accountName ownerName
+    else do
+      _ <- logNewFileSkip opts ch "import" journalOut
+      return $ \_p1 _p2 -> return journalOut
   Turtle.mktree $ Turtle.directory journalOut
   importFun csvFile journalOut
 
+constructOrImport :: RuntimeOptions -> TChan FlowTypes.LogMessage -> TurtlePath -> Turtle.Line -> Turtle.Line -> Turtle.Line -> IO (TurtlePath -> TurtlePath -> IO TurtlePath)
+constructOrImport opts ch constructScript bankName accountName ownerName = do
+  constructScriptExists <- verboseTestFile opts ch constructScript
+  if constructScriptExists
+    then return $ customConstruct opts ch constructScript bankName accountName ownerName
+    else return $ hledgerImport opts ch
+
 preprocessIfNeeded :: RuntimeOptions -> TChan FlowTypes.LogMessage -> TurtlePath -> Turtle.Line -> Turtle.Line -> Turtle.Line -> TurtlePath -> IO TurtlePath
 preprocessIfNeeded opts ch script bank account owner src = do
-  shouldPreprocess <- verboseTestFile opts ch script
-  if shouldPreprocess
-    then preprocess opts ch script bank account owner src
-    else return src
-
-preprocess :: RuntimeOptions -> TChan FlowTypes.LogMessage -> TurtlePath -> Turtle.Line -> Turtle.Line -> Turtle.Line -> TurtlePath -> IO TurtlePath
-preprocess opts ch script bank account owner src = do
   let csvOut = changePathAndExtension "2-preprocessed" "csv" src
+  scriptExists <- verboseTestFile opts ch script
+  shouldProceed <- if onlyNewFiles opts 
+    then do
+      targetExists <- verboseTestFile opts ch csvOut
+      return $ scriptExists && not targetExists
+    else return scriptExists
+  if shouldProceed
+    then preprocess opts ch script bank account owner src csvOut
+    else do
+      _ <- logNewFileSkip opts ch "preprocess" csvOut
+      return src
+
+logNewFileSkip :: RuntimeOptions -> TChan FlowTypes.LogMessage -> T.Text -> TurtlePath -> IO ()
+logNewFileSkip opts ch logIdentifier absTarget =
+  Control.Monad.when (onlyNewFiles opts) $ do
+   let relativeTarget = relativeToBase opts absTarget
+   logVerbose opts ch
+     $ Turtle.format
+        ("Skipping " % Turtle.s
+         % " - only creating new files and this output file already exists: '"
+         % Turtle.fp
+         % "'") logIdentifier relativeTarget
+
+preprocess :: RuntimeOptions -> TChan FlowTypes.LogMessage -> TurtlePath -> Turtle.Line -> Turtle.Line -> Turtle.Line -> TurtlePath -> TurtlePath -> IO TurtlePath
+preprocess opts ch script bank account owner src csvOut = do
   Turtle.mktree $ Turtle.directory csvOut
   let args = [Turtle.format Turtle.fp src, Turtle.format Turtle.fp csvOut, Turtle.lineToText bank, Turtle.lineToText account, Turtle.lineToText owner]
   let relScript = relativeToBase opts script
