@@ -72,7 +72,7 @@ diff.
 =hledger-flow= is intended for you if:
 
 - You are interested in getting started with
-  [[http://hledger.org/][hledger]] and you wouldn't mind pointers to the
+  [[http://hledger.org/][hledger]] or [[https://www.ledger-cli.org/][ledger-cli]] and you wouldn't mind pointers to the
   right docs along the way.
 - You want a way to organise your finances into a structure that will be
   maintainable over the long term.
@@ -84,6 +84,13 @@ diff.
   as opposed to just the parts that some online tool currently supports.
 - You appreciate the fact that all your financial information stays
   within your control.
+
+* About This Documentation
+
+The rest of this file documents how to use =hledger-flow=, and it has probably outgrown what should be in a README file.
+
+If you can spare some time to contribute to this project, please consider converting these docs to something more suitable,
+such as [[https://github.com/apauley/hledger-flow/issues/47][Read the Docs]].
 
 * How do I install it?
   :PROPERTIES:
@@ -114,6 +121,10 @@ Please send me some pull requests if you would like =hledger-flow= to work on Wi
 
 We're not close to a 1.0 release yet, which means that we can still make
 changes if needed.
+
+As an example, the command-line switches we use will probably change over time.
+Some switches change the behaviour of the program - the default behaviour will probably change between releases.
+The names of these command-line options can change, or they can be removed when it is no longer needed.
 
 That being said, some parts have been used and tested extensively and
 are likely to remain stable. Have a look at the "Stability of this
@@ -357,6 +368,16 @@ An opening balance may look something like this:
     equity:Opening Balances:MyBank:Savings
 #+END_EXAMPLE
 
+
+*** A Note of Caution Regarding Closing Balances
+
+When closing your balances it may result in some =hledger= queries showing zero-values, or there could be issues with balance assertions.
+
+Please have a look at the upstream =hledger= documentation on closing balances, e.g here:
+https://hledger.org/hledger.html#close-usage
+
+Some of the gotchas you may run into are also described in [[https://github.com/apauley/hledger-flow/issues/79][this hledger-flow issue]].
+
 *** Closing Balances
     :PROPERTIES:
     :CUSTOM_ID: closing-balances
@@ -413,10 +434,14 @@ An include file may look like this:
     :CUSTOM_ID: stability-of-this-feature-2
     :END:
 
-The opening balances file works well in my opinion, I don't expect it to
-change. I'm only using closing balances in one or two places, so maybe
-that could do with some suggestions from people who use this more than
-myself.
+Closing balances sometimes result in [[https://github.com/apauley/hledger-flow/issues/79][unexpected query results]].
+In future we may change how/where the generated files include the closing journal.
+
+We may also need to suggest some naming conventions for opening and closing balances so that reports can exclude
+some of these transactions.
+
+It is also possible that we might want to change the name/location of the closing journal,
+but we'll try to avoid this if possible, because that would require users to rename their existing files.
 
 ** Price Files
    :PROPERTIES:
