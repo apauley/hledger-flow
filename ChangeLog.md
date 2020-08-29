@@ -1,5 +1,30 @@
 # Changelog for [hledger-flow](https://github.com/apauley/hledger-flow)
 
+## 0.14.0
+
+- Add a new performance-related command-line option to import: `--new-files-only`. [PR #89](https://github.com/apauley/hledger-flow/pull/89)
+
+  Don't regenerate transaction files if they are
+  already present. This applies to hledger journal
+  files as well as files produced by the preprocess and
+  construct scripts.
+
+- Generate monthly versions of the income statement in reports. A contribution by [Max Linke](https://github.com/apauley/hledger-flow/pull/88)
+
+- Switch some usages of system-filepath over to [path](https://github.com/apauley/hledger-flow/pull/87)
+
+  hledger-flow started as a collection of bash scripts that I translated into Haskell with the help of [Turtle](https://hackage.haskell.org/package/turtle).
+
+  Turtle uses the now deprecated [system-filepath](https://hackage.haskell.org/package/system-filepath) to represent all paths.
+
+  I've had many filepath-related issues in hledger-flow.
+  They were related to issues such as that 2 instances of the same directory would not be treated as equal, because one could have a trailing slash and the other not.
+  Another issue that popped up was knowing wether a path is a file or a directory, and if it is absolute or relative.
+
+  All of these issues are articulated in the `path` library:
+  https://github.com/commercialhaskell/path
+
+
 ## 0.13.2
 
 Improve support for importing a subset of journals: start importing only from the directory given as argument,

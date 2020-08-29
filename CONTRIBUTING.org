@@ -24,7 +24,10 @@ Hledger Flow is brought to you by:
 - [[https://github.com/apauley][Andreas Pauley]]
 
 Miscellaneous contributors:
+- [[https://github.com/apauley/hledger-flow/issues/created_by/lestephane][Le Stephane]] (various contributions to issues with suggested solutions and always with thoughtful feedback)
 - [[https://github.com/jecaro][Jean-Charles Quillet]] (improved command-line parameters)
+- [[https://github.com/kain88-de][Max Linke]] (added a monthly version of the income statement in reports)
+- [[https://github.com/apauley/hledger-flow/commits?author=kepi][Kepi]] (doc fixes)
 
 * Contributing
   :PROPERTIES:
