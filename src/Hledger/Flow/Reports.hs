@@ -74,38 +74,37 @@ reportActions opts ch reports (ReportParams journal years reportsDir) = do
   map (\r -> r opts ch journal reportsDir y) reports
 
 accountList :: ReportGenerator
-accountList opts ch journal reportsDir year = do
+accountList opts ch journal baseOutDir year = do
   let reportArgs = ["accounts"]
-  generateReport opts ch journal reportsDir year ("accounts" <.> "txt") reportArgs (not . T.null)
+  generateReport opts ch journal year (baseOutDir </> intPath year) ("accounts" <.> "txt") reportArgs (not . T.null)
 
 unknownTransactions :: ReportGenerator
-unknownTransactions opts ch journal reportsDir year = do
+unknownTransactions opts ch journal baseOutDir year = do
   let reportArgs = ["print", "unknown"]
-  generateReport opts ch journal reportsDir year ("unknown-transactions" <.> "txt") reportArgs (not . T.null)
+  generateReport opts ch journal year (baseOutDir </> intPath year) ("unknown-transactions" <.> "txt") reportArgs (not . T.null)
 
 incomeStatement :: [T.Text] -> ReportGenerator
-incomeStatement sharedOptions opts ch journal reportsDir year = do
+incomeStatement sharedOptions opts ch journal baseOutDir year = do
   let reportArgs = ["incomestatement"] ++ sharedOptions
-  generateReport opts ch journal reportsDir year ("income-expenses" <.> "txt") reportArgs (not . T.null)
+  generateReport opts ch journal year (baseOutDir </> intPath year) ("income-expenses" <.> "txt") reportArgs (not . T.null)
 
 incomeMonthlyStatement :: [T.Text] -> ReportGenerator
-incomeMonthlyStatement sharedOptions opts ch journal reportsDir year = do
+incomeMonthlyStatement sharedOptions opts ch journal baseOutDir year = do
   let reportArgs = ["incomestatement"] ++ sharedOptions ++ ["--monthly"]
-  generateReport opts ch journal reportsDir year ("income-expenses-monthly" <.> "txt") reportArgs (not . T.null)
+  generateReport opts ch journal year (baseOutDir </> intPath year </> "monthly") ("income-expenses" <.> "txt") reportArgs (not . T.null)
 
 balanceSheet :: [T.Text] -> ReportGenerator
-balanceSheet sharedOptions opts ch journal reportsDir year = do
+balanceSheet sharedOptions opts ch journal baseOutDir year = do
   let reportArgs = ["balancesheet"] ++ sharedOptions ++ ["--flat"]
-  generateReport opts ch journal reportsDir year ("balance-sheet" <.> "txt") reportArgs (not . T.null)
+  generateReport opts ch journal year (baseOutDir </> intPath year) ("balance-sheet" <.> "txt") reportArgs (not . T.null)
 
 transferBalance :: ReportGenerator
-transferBalance opts ch journal reportsDir year = do
+transferBalance opts ch journal baseOutDir year = do
   let reportArgs = ["balance", "--pretty-tables", "--quarterly", "--flat", "--no-total", "transfer"]
-  generateReport opts ch journal reportsDir year ("transfer-balance" <.> "txt") reportArgs (\txt -> (length $ T.lines txt) > 4)
+  generateReport opts ch journal year (baseOutDir </> intPath year) ("transfer-balance" <.> "txt") reportArgs (\txt -> (length $ T.lines txt) > 4)
 
-generateReport :: RuntimeOptions -> TChan FlowTypes.LogMessage -> TurtlePath -> TurtlePath -> Integer -> TurtlePath -> [T.Text] -> (T.Text -> Bool) -> IO (Either TurtlePath TurtlePath)
-generateReport opts ch journal baseOutDir year fileName args successCheck = do
-  let reportsDir = baseOutDir </> intPath year
+generateReport :: RuntimeOptions -> TChan FlowTypes.LogMessage -> TurtlePath -> Integer -> TurtlePath -> TurtlePath -> [T.Text] -> (T.Text -> Bool) -> IO (Either TurtlePath TurtlePath)
+generateReport opts ch journal year reportsDir fileName args successCheck = do
   Turtle.mktree reportsDir
   let outputFile = reportsDir </> fileName
   let relativeJournal = relativeToBase opts journal
