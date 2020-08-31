@@ -1,0 +1,3 @@
+#!/usr/bin/env sh
+
+curl https://api.github.com/repos/apauley/hledger-flow/releases/latest
