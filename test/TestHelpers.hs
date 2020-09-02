@@ -64,7 +64,6 @@ defaultOpts :: FlowTypes.BaseDir -> RuntimeOptions
 defaultOpts bd = RuntimeOptions {
     baseDir = bd
   , importRunDir = [reldir|./|]
-  , useRunDir = True
   , onlyNewFiles = False
   , hfVersion = versionInfo'
   , hledgerInfo = defaultHlInfo

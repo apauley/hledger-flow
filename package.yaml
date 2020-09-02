@@ -1,11 +1,11 @@
 name:                hledger-flow
-version:             0.14.0.0
+version:             0.14.1.0
 synopsis:            An hledger workflow focusing on automated statement import and classification.
 category:            Finance, Console
 license:             GPL-3
 author:              "Andreas Pauley <hledger-flow@pauley.org.za>"
 maintainer:          "Andreas Pauley <hledger-flow@pauley.org.za>"
-copyright:           "2018 Andreas Pauley"
+copyright:           "2020 Andreas Pauley"
 github:              "apauley/hledger-flow"
 bug-reports:         https://github.com/apauley/hledger-flow/issues
 

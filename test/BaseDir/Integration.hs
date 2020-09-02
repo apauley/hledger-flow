@@ -10,7 +10,7 @@ import Test.HUnit
 import Path
 import Path.IO
 
-import qualified Turtle as Turtle
+import qualified Turtle
 import qualified Data.Text as T
 
 import Hledger.Flow.Common
@@ -20,8 +20,7 @@ import Hledger.Flow.PathHelpers
 
 assertSubDirsForDetermineBaseDir :: AbsDir -> BaseDir -> [Path.Path b Dir] -> IO ()
 assertSubDirsForDetermineBaseDir initialPwd expectedBaseDir importDirs = do
-  _ <- sequence $ map (assertDetermineBaseDir initialPwd expectedBaseDir) importDirs
-  return ()
+  sequence_ $ map (assertDetermineBaseDir initialPwd expectedBaseDir) importDirs
 
 assertDetermineBaseDir :: AbsDir -> BaseDir -> Path.Path b Dir -> IO ()
 assertDetermineBaseDir initialPwd expectedBaseDir subDir = do
@@ -40,9 +39,8 @@ assertDetermineBaseDir initialPwd expectedBaseDir subDir = do
   assertFindTestFileUsingRundir bd4 runDir4
 
   setCurrentDir initialPwd
-  let msg dir = "determineBaseDir searches from pwd upwards until it finds a dir containing 'import' - " ++ (show dir)
-  _ <- sequence $ map (\dir -> assertEqual (msg dir) expectedBaseDir dir) [bd1, bd2, bd3, bd4]
-  return ()
+  let msg dir = "determineBaseDir searches from pwd upwards until it finds a dir containing 'import' - " ++ show dir
+  sequence_ $ map (\ dir -> assertEqual (msg dir) expectedBaseDir dir) [bd1, bd2, bd3, bd4]
 
 assertFindTestFileUsingRundir :: BaseDir -> RunDir -> IO ()
 assertFindTestFileUsingRundir baseDir runDir = do
@@ -62,10 +60,9 @@ assertCurrentDirVariations absoluteTempDir bdRelativeToTempDir = do
   (bd3, runDir3) <- determineBaseDir $ Just "./"
   (bd4, runDir4) <- determineBaseDir $ Just $ pathToTurtle absBaseDir
 
-  let msg label dir = "When pwd is the base dir, determineBaseDir returns the same " ++ label ++ ", regardless of the input variation. " ++ (show dir)
-  _ <- sequence $ map (\dir -> assertEqual (msg "baseDir" dir) absBaseDir dir) [bd1, bd2, bd3, bd4]
-  _ <- sequence $ map (\dir -> assertEqual (msg "runDir" dir) [reldir|.|] dir) [runDir1, runDir2, runDir3, runDir4]
-  return ()
+  let msg label dir = "When pwd is the base dir, determineBaseDir returns the same " ++ label ++ ", regardless of the input variation. " ++ show dir
+  sequence_ $ map (\ dir -> assertEqual (msg "baseDir" dir) absBaseDir dir) [bd1, bd2, bd3, bd4]
+  sequence_ $ map (\dir -> assertEqual (msg "runDir" dir) [reldir|.|] dir) [runDir1, runDir2, runDir3, runDir4]
 
 testBaseDirWithTempDir :: AbsDir -> AbsDir -> IO ()
 testBaseDirWithTempDir initialPwd absoluteTempDir = do
@@ -108,6 +105,39 @@ testBaseDirWithTempDir initialPwd absoluteTempDir = do
   assertSubDirsForDetermineBaseDir initialPwd absoluteBaseDir subDirsRelativeToTop
   return ()
 
+assertRunDirs :: RelDir -> [RelDir] -> [RelDir] -> IO ()
+assertRunDirs accDir businessAsUsualRundirs specialTreatmentRundirs = do
+  sequence_ $ map (assertRunDir id "Normal rundirs should not be modified") businessAsUsualRundirs
+  sequence_ $ map (assertRunDir (\_ -> accDir) "Rundirs deeper than account-level should return the account dir instead") specialTreatmentRundirs
+
+assertRunDir :: (RelDir -> RelDir) -> String -> RelDir -> IO ()
+assertRunDir expectedRunDir msg subDir = do
+  (_, runDir) <- determineBaseDir $ Just $ pathToTurtle subDir
+  assertEqual msg (expectedRunDir subDir) runDir
+
+testRunDirsWithTempDir :: AbsDir -> IO ()
+testRunDirsWithTempDir absoluteTempDir = do
+  let baseDir = absoluteTempDir </> [reldir|bd1|]
+
+  let importDir = [reldir|import|]
+  let ownerDir = importDir </> [reldir|john|]
+  let bankDir = ownerDir </> [reldir|mybank|]
+  let accDir = bankDir </> [reldir|myacc|]
+  let inDir = accDir </> [reldir|1-in|]
+  let yearDir = inDir </> [reldir|2019|]
+
+  createDirIfMissing True $ baseDir </> yearDir
+
+  withCurrentDir baseDir $ assertRunDirs accDir [accDir, bankDir, ownerDir, importDir] [yearDir, inDir]
+
+testRunDirs :: Test
+testRunDirs = TestCase (
+  do
+    initialPwd <- getCurrentDir
+    let tmpbase = initialPwd </> [reldir|test|] </> [reldir|tmp|]
+    withTempDir tmpbase "hlflowtest" testRunDirsWithTempDir
+  )
+
 testDetermineBaseDir :: Test
 testDetermineBaseDir = TestCase (
   do
@@ -118,4 +148,4 @@ testDetermineBaseDir = TestCase (
   )
 
 tests :: Test
-tests = TestList [testDetermineBaseDir]
+tests = TestList [testDetermineBaseDir, testRunDirs]

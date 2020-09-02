@@ -4,7 +4,7 @@ module Hledger.Flow.CSVImport
     ( importCSVs
     ) where
 
-import qualified Turtle as Turtle hiding (stdout, stderr, proc, procStrictWithErr)
+import qualified Turtle hiding (stdout, stderr, proc, procStrictWithErr)
 import Turtle ((%), (</>), (<.>))
 import Prelude hiding (putStrLn, take)
 import qualified Data.Text as T
@@ -43,7 +43,7 @@ inputFilePattern = Turtle.contains (Turtle.once (Turtle.oneOf pathSeparators) <>
 
 importCSVs' :: RuntimeOptions -> TChan FlowTypes.LogMessage -> IO [(TurtlePath, FileWasGenerated)]
 importCSVs' opts ch = do
-  let effectiveDir = effectiveRunDir (baseDir opts) (importRunDir opts) (useRunDir opts)
+  let effectiveDir = effectiveRunDir (baseDir opts) (importRunDir opts)
   channelOutLn ch $ Turtle.format ("Collecting input files from "%Turtle.fp) $ pathToTurtle effectiveDir
   (inputFiles, diff) <- Turtle.time $ Turtle.single . shellToList . onlyFiles $ Turtle.find inputFilePattern (pathToTurtle effectiveDir)
   let fileCount = length inputFiles

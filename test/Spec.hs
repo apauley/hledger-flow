@@ -7,13 +7,14 @@ import Test.HUnit
 import Turtle
 
 import qualified Common.Unit
+import qualified PathHelpers.Unit
 import qualified Common.Integration
 import qualified BaseDir.Integration
 import qualified CSVImport.Unit
 import qualified CSVImport.Integration
 
 tests :: Test
-tests = TestList [Common.Unit.tests, Common.Integration.tests, BaseDir.Integration.tests, CSVImport.Unit.tests, CSVImport.Integration.tests]
+tests = TestList [Common.Unit.tests, Common.Integration.tests, PathHelpers.Unit.tests, BaseDir.Integration.tests, CSVImport.Unit.tests, CSVImport.Integration.tests]
 
 main :: IO Counts
 main = do

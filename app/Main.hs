@@ -4,7 +4,7 @@
 module Main where
 
 import Path
-import qualified Turtle as Turtle hiding (switch)
+import qualified Turtle hiding (switch)
 import Prelude hiding (putStrLn)
 
 import Options.Applicative
@@ -15,6 +15,9 @@ import Hledger.Flow.BaseDir
 import qualified Hledger.Flow.RuntimeOptions as RT
 import Hledger.Flow.Reports
 import Hledger.Flow.CSVImport
+
+import Control.Monad (when)
+import qualified Data.Text.IO as T
 
 data ImportParams = ImportParams { maybeImportBaseDir :: Maybe TurtlePath
                                  , importUseRunDir :: Bool
@@ -43,11 +46,12 @@ main = do
 toRuntimeOptionsImport :: MainParams -> ImportParams -> IO RT.RuntimeOptions
 toRuntimeOptionsImport mainParams' subParams' = do
   let maybeBD = maybeImportBaseDir subParams' :: Maybe TurtlePath
+  Control.Monad.when (importUseRunDir subParams') $ do
+    T.putStrLn "The enable-future-rundir option is now the default, no need to specify it. This option is currently being ignored and will be removed in future."
   (bd, runDir) <- determineBaseDir maybeBD
   hli <- hledgerInfoFromPath $ hledgerPathOpt mainParams'
   return RT.RuntimeOptions { RT.baseDir = bd
                            , RT.importRunDir = runDir
-                           , RT.useRunDir = importUseRunDir subParams'
                            , RT.onlyNewFiles = onlyNewFiles subParams'
                            , RT.hfVersion = versionInfo'
                            , RT.hledgerInfo = hli
@@ -63,7 +67,6 @@ toRuntimeOptionsReport mainParams' subParams' = do
   hli <- hledgerInfoFromPath $ hledgerPathOpt mainParams'
   return RT.RuntimeOptions { RT.baseDir = bd
                            , RT.importRunDir = [reldir|.|]
-                           , RT.useRunDir = False
                            , RT.onlyNewFiles = False
                            , RT.hfVersion = versionInfo'
                            , RT.hledgerInfo = hli
@@ -90,7 +93,7 @@ verboseParser = MainParams
 subcommandParserImport :: Parser ImportParams
 subcommandParserImport = ImportParams
   <$> optional (Turtle.argPath "dir" "The directory to import. Use the base directory for a full import or a sub-directory for a partial import. Defaults to the current directory. This behaviour is changing: see --enable-future-rundir")
-  <*> switch (long "enable-future-rundir" <> help "Enable the future (0.14.x) default behaviour now: start importing only from the directory that was given as an argument, or the currect directory. Previously a full import was always done. This switch will be removed in 0.14.x")
+  <*> switch (long "enable-future-rundir" <> help "This switch is currently being ignored, since the behaviour it previously enabled is now the default. It will be removed in future.")
   <*> switch (long "new-files-only" <> help "Don't regenerate transaction files if they are already present. This applies to hledger journal files as well as files produced by the preprocess and construct scripts.")
 
 subcommandParserReport :: Parser ReportParams

@@ -6,9 +6,9 @@ import Control.Monad.Catch (MonadThrow, Exception, throwM)
 import Control.Monad.IO.Class (MonadIO)
 
 import qualified Data.Text as T
-import qualified Path as Path
+import qualified Path
 import qualified Path.IO as Path
-import qualified Turtle as Turtle
+import qualified Turtle
 
 import Hledger.Flow.DocHelpers (docURL)
 
@@ -27,7 +27,7 @@ instance Show PathException where
     " (or in any of its parent directories).\n\n" ++
     "Have a look at the documentation for more information:\n" ++
     T.unpack (docURL "getting-started")
-  show (InvalidTurtleDir  d) = "Expected a directory but got this instead: " ++ Turtle.encodeString d
+  show (InvalidTurtleDir d) = "Expected a directory but got this instead: " ++ Turtle.encodeString d
 
 instance Exception PathException
 
@@ -55,3 +55,9 @@ pathToTurtle = Turtle.decodeString . Path.toFilePath
 
 forceTrailingSlash :: TurtlePath -> TurtlePath
 forceTrailingSlash p = Turtle.directory (p Turtle.</> "temp")
+
+pathSize :: Path.Path b Path.Dir -> Int
+pathSize p = pathSize' p 0
+
+pathSize' :: Path.Path b Path.Dir -> Int -> Int
+pathSize' p count = if Path.parent p == p then count else pathSize' (Path.parent p) (count+1)

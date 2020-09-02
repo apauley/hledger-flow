@@ -1,5 +1,10 @@
 # Changelog for [hledger-flow](https://github.com/apauley/hledger-flow)
 
+## 0.14.1
+
+- Make `--enable-future-rundir` the default, and deprecate the command-line option. To be removed in a future release.
+- Ensure that the deepest rundir is the account directory, because the program doesn't generate include files correctly in directories below the account level.
+
 ## 0.14.0
 
 - Add a new performance-related command-line option to import: `--new-files-only`. [PR #89](https://github.com/apauley/hledger-flow/pull/89)
