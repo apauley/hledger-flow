@@ -12,13 +12,13 @@ import qualified Data.List.NonEmpty as NonEmpty
 import qualified Hledger.Flow.Types as FlowTypes
 import Hledger.Flow.Import.Types
 import Hledger.Flow.BaseDir (relativeToBase, effectiveRunDir)
+import Hledger.Flow.Import.ImportHelpers
 import Hledger.Flow.PathHelpers (TurtlePath, pathToTurtle)
 import Hledger.Flow.DocHelpers (docURL)
 import Hledger.Flow.Common
 import Hledger.Flow.RuntimeOptions
 import Control.Concurrent.STM
 import Control.Monad
-
 type FileWasGenerated = Bool
 
 importCSVs :: RuntimeOptions -> IO ()
@@ -26,7 +26,7 @@ importCSVs opts = Turtle.sh (
   do
     ch <- Turtle.liftIO newTChanIO
     logHandle <- Turtle.fork $ consoleChannelLoop ch
-    Turtle.liftIO $ if (showOptions opts) then channelOutLn ch (Turtle.repr opts) else return ()
+    Turtle.liftIO $ when (showOptions opts) (channelOutLn ch (Turtle.repr opts))
     Turtle.liftIO $ logVerbose opts ch "Starting import"
     (journals, diff) <- Turtle.time $ Turtle.liftIO $ importCSVs' opts ch
     let generatedJournals = filter snd journals
@@ -35,19 +35,14 @@ importCSVs opts = Turtle.sh (
     Turtle.wait logHandle
   )
 
-pathSeparators :: [Char]
-pathSeparators = ['/', '\\', ':']
-
-inputFilePattern :: Turtle.Pattern T.Text
-inputFilePattern = Turtle.contains (Turtle.once (Turtle.oneOf pathSeparators) <> Turtle.asciiCI "1-in" <> Turtle.once (Turtle.oneOf pathSeparators) <> Turtle.plus Turtle.digit <> Turtle.once (Turtle.oneOf pathSeparators))
-
 importCSVs' :: RuntimeOptions -> TChan FlowTypes.LogMessage -> IO [(TurtlePath, FileWasGenerated)]
 importCSVs' opts ch = do
   let effectiveDir = effectiveRunDir (baseDir opts) (importRunDir opts)
   channelOutLn ch $ Turtle.format ("Collecting input files from "%Turtle.fp) $ pathToTurtle effectiveDir
-  (inputFiles, diff) <- Turtle.time $ Turtle.single . shellToList . onlyFiles $ Turtle.find inputFilePattern (pathToTurtle effectiveDir)
+  (inputFiles, diff) <- Turtle.time $ pathFindFiles effectiveDir
+
   let fileCount = length inputFiles
-  if (fileCount == 0) then
+  if fileCount == 0 then
     do
       let msg = Turtle.format ("I couldn't find any input files underneath "%Turtle.fp
                         %"\n\nhledger-flow expects to find its input files in specifically\nnamed directories.\n\n"%
@@ -56,7 +51,7 @@ importCSVs' opts ch = do
     else
     do
       channelOutLn ch $ Turtle.format ("Found "%Turtle.d%" input files in "%Turtle.s%". Proceeding with import...") fileCount (Turtle.repr diff)
-      let actions = map (extractAndImport opts ch) inputFiles :: [IO (TurtlePath, FileWasGenerated)]
+      let actions = map (extractAndImport opts ch . pathToTurtle) inputFiles :: [IO (TurtlePath, FileWasGenerated)]
       importedJournals <- parAwareActions opts actions
       _ <- writeIncludesUpTo opts ch (pathToTurtle effectiveDir) $ fmap fst importedJournals
       _ <- writeToplevelAllYearsInclude opts

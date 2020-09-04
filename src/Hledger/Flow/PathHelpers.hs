@@ -6,6 +6,8 @@ import Control.Monad.Catch (MonadThrow, Exception, throwM)
 import Control.Monad.IO.Class (MonadIO)
 
 import qualified Data.Text as T
+
+import Path ((</>))
 import qualified Path
 import qualified Path.IO as Path
 import qualified Turtle
@@ -61,3 +63,20 @@ pathSize p = pathSize' p 0
 
 pathSize' :: Path.Path b Path.Dir -> Int -> Int
 pathSize' p count = if Path.parent p == p then count else pathSize' (Path.parent p) (count+1)
+
+-- | Do a recursive search starting from the given directory.
+-- Return all files contained in each directory which matches the given predicate.
+findFilesIn :: MonadIO m
+  => (AbsDir -> Bool) -- ^ Do we want the files in this directory?
+  -> [RelDir]         -- ^ Exclude these directory names
+  -> AbsDir           -- ^ Top of the search tree
+  -> m [AbsFile]      -- ^ Absolute paths to all files in the directories which match the predicate
+findFilesIn includePred excludeDirs = Path.walkDirAccum (Just excludeHandler) accumulator
+  where excludeHandler currentDir _ _ = return $ Path.WalkExclude (map (currentDir </>) excludeDirs)
+        accumulator currentDir _ files =
+          if includePred currentDir
+              then return $ excludeHiddenFiles files
+              else return []
+
+excludeHiddenFiles :: [AbsFile] -> [AbsFile]
+excludeHiddenFiles = filter (\ f -> head (Path.toFilePath (Path.filename f)) /= '.')
