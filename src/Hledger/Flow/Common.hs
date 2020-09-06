@@ -376,7 +376,7 @@ changePathAndExtension newOutputLocation newExt = (changeOutputPath newOutputLoc
 
 changeOutputPath :: TurtlePath -> TurtlePath -> TurtlePath
 changeOutputPath newOutputLocation srcFile = mconcat $ map changeSrcDir $ Turtle.splitDirectories srcFile
-  where changeSrcDir file = if (file == "1-in/" || file == "2-preprocessed/") then newOutputLocation else file
+  where changeSrcDir file = if file == "1-in/" || file == "2-preprocessed/" then newOutputLocation else file
 
 importDirBreakdown ::  TurtlePath -> [TurtlePath]
 importDirBreakdown = importDirBreakdown' []
@@ -384,7 +384,7 @@ importDirBreakdown = importDirBreakdown' []
 importDirBreakdown' :: [TurtlePath] -> TurtlePath -> [TurtlePath]
 importDirBreakdown' acc path = do
   let dir = Turtle.directory path
-  if (Turtle.dirname dir == "import" || (Turtle.dirname dir == ""))
+  if Turtle.dirname dir == "import" || (Turtle.dirname dir == "")
     then dir:acc
     else importDirBreakdown' (dir:acc) $ Turtle.parent dir
 

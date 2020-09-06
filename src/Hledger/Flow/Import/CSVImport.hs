@@ -20,6 +20,7 @@ import Hledger.Flow.Logging
 import Hledger.Flow.RuntimeOptions
 import Control.Concurrent.STM
 import Control.Monad
+
 type FileWasGenerated = Bool
 
 importCSVs :: RuntimeOptions -> IO ()
@@ -40,7 +41,7 @@ importCSVs' :: RuntimeOptions -> TChan FlowTypes.LogMessage -> IO [(TurtlePath, 
 importCSVs' opts ch = do
   let effectiveDir = effectiveRunDir (baseDir opts) (importRunDir opts)
   channelOutLn ch $ Turtle.format ("Collecting input files from "%Turtle.fp) $ pathToTurtle effectiveDir
-  (inputFiles, diff) <- Turtle.time $ pathFindFiles effectiveDir
+  (inputFiles, diff) <- Turtle.time $ findInputFiles effectiveDir
 
   let fileCount = length inputFiles
   if fileCount == 0 then
@@ -54,8 +55,12 @@ importCSVs' opts ch = do
       channelOutLn ch $ Turtle.format ("Found "%Turtle.d%" input files in "%Turtle.s%". Proceeding with import...") fileCount (Turtle.repr diff)
       let actions = map (extractAndImport opts ch . pathToTurtle) inputFiles :: [IO (TurtlePath, FileWasGenerated)]
       importedJournals <- parAwareActions opts actions
-      _ <- writeIncludesUpTo opts ch (pathToTurtle effectiveDir) $ fmap fst importedJournals
-      _ <- writeToplevelAllYearsInclude opts
+      channelOutLn ch "Writing include files..."
+      (journalsOnDisk, journalFindTime) <- Turtle.time $ findJournalFiles effectiveDir
+      (_, writeIncludeTime1) <- Turtle.time $ writeIncludesUpTo opts ch (pathToTurtle effectiveDir) $ fmap pathToTurtle journalsOnDisk
+      (_, writeIncludeTime2) <- Turtle.time $ writeToplevelAllYearsInclude opts
+      let includeGenTime = journalFindTime + writeIncludeTime1 + writeIncludeTime2
+      channelOutLn ch $ Turtle.format ("Wrote include files for "%Turtle.d%" journals in "%Turtle.s) (length journalsOnDisk) (Turtle.repr includeGenTime)
       return importedJournals
 
 extractAndImport :: RuntimeOptions -> TChan FlowTypes.LogMessage -> TurtlePath -> IO (TurtlePath, FileWasGenerated)
