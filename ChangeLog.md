@@ -1,5 +1,15 @@
 # Changelog for [hledger-flow](https://github.com/apauley/hledger-flow)
 
+## 0.14.2
+
+Add an optional `--start-year` command-line option for imports:
+
+Import only from the specified year and onwards,
+ignoring previous years. Valid values include a 4-digit
+year or 'current' for the current year.
+
+An implementation for [this feature request](https://github.com/apauley/hledger-flow/issues/81)
+
 ## 0.14.1
 
 - Make `--enable-future-rundir` the default, and deprecate the command-line option. To be removed in a future release.
