@@ -14,7 +14,7 @@ import Hledger.Flow.Common
 import Hledger.Flow.BaseDir
 import qualified Hledger.Flow.RuntimeOptions as RT
 import Hledger.Flow.Reports
-import Hledger.Flow.CSVImport
+import Hledger.Flow.Import.CSVImport
 
 import Control.Monad (when)
 import qualified Data.Text.IO as T

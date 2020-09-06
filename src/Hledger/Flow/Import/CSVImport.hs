@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Hledger.Flow.CSVImport
+module Hledger.Flow.Import.CSVImport
     ( importCSVs
     ) where
 
@@ -16,6 +16,7 @@ import Hledger.Flow.Import.ImportHelpers
 import Hledger.Flow.PathHelpers (TurtlePath, pathToTurtle)
 import Hledger.Flow.DocHelpers (docURL)
 import Hledger.Flow.Common
+import Hledger.Flow.Logging
 import Hledger.Flow.RuntimeOptions
 import Control.Concurrent.STM
 import Control.Monad

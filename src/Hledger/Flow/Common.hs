@@ -2,7 +2,7 @@
 
 module Hledger.Flow.Common where
 
-import qualified Turtle as Turtle
+import qualified Turtle
 import Turtle ((%), (</>), (<.>))
 
 import Prelude hiding (putStrLn)
@@ -17,7 +17,6 @@ import Data.Either
 
 import qualified Control.Foldl as Fold
 import qualified Data.Map.Strict as Map
-import Data.Time.LocalTime
 
 import Data.Function (on)
 import qualified Data.List as List (nub, null, sort, sortBy, groupBy)
@@ -26,6 +25,7 @@ import Data.Ord (comparing)
 import Hledger.Flow.Types
 import qualified Hledger.Flow.Import.Types as IT
 
+import Hledger.Flow.Logging
 import Hledger.Flow.PathHelpers (TurtlePath)
 import Hledger.Flow.BaseDir (turtleBaseDir, relativeToBase, relativeToBase')
 import Hledger.Flow.DocHelpers (docURL)
@@ -86,22 +86,7 @@ showCmdArgs :: [T.Text] -> T.Text
 showCmdArgs args = T.intercalate " " (map escapeArg args)
 
 escapeArg :: T.Text -> T.Text
-escapeArg a = if (T.count " " a > 0) then "'" <> a <> "'" else a
-
-dummyLogger :: TChan LogMessage -> T.Text -> IO ()
-dummyLogger _ _ = return ()
-
-channelOut :: TChan LogMessage -> T.Text -> IO ()
-channelOut ch txt = atomically $ writeTChan ch $ StdOut txt
-
-channelOutLn :: TChan LogMessage -> T.Text -> IO ()
-channelOutLn ch txt = channelOut ch (txt <> "\n")
-
-channelErr :: TChan LogMessage -> T.Text -> IO ()
-channelErr ch txt = atomically $ writeTChan ch $ StdErr txt
-
-channelErrLn :: TChan LogMessage -> T.Text -> IO ()
-channelErrLn ch txt = channelErr ch (txt <> "\n")
+escapeArg a = if T.count " " a > 0 then "'" <> a <> "'" else a
 
 errExit :: Int -> TChan LogMessage -> T.Text -> a -> IO a
 errExit exitStatus ch = errExit' exitStatus (channelErrLn ch)
@@ -112,34 +97,6 @@ errExit' exitStatus logFun errorMessage dummyReturnValue = do
   Turtle.sleep 0.1
   _ <- Turtle.exit $ Turtle.ExitFailure exitStatus
   return dummyReturnValue
-
-timestampPrefix :: T.Text -> IO T.Text
-timestampPrefix txt = do
-  t <- getZonedTime
-  return $ Turtle.format (Turtle.s%"\thledger-flow "%Turtle.s) (Turtle.repr t) txt
-
-logToChannel :: TChan LogMessage -> T.Text -> IO ()
-logToChannel ch msg = do
-  ts <- timestampPrefix msg
-  channelErrLn ch ts
-
-consoleChannelLoop :: TChan LogMessage -> IO ()
-consoleChannelLoop ch = do
-  logMsg <- atomically $ readTChan ch
-  case logMsg of
-    StdOut msg -> do
-      T.hPutStr H.stdout msg
-      consoleChannelLoop ch
-    StdErr msg -> do
-      T.hPutStr H.stderr msg
-      consoleChannelLoop ch
-    Terminate  -> return ()
-
-terminateChannelLoop :: TChan LogMessage -> IO ()
-terminateChannelLoop ch = atomically $ writeTChan ch Terminate
-
-logVerbose :: HasVerbosity o => o -> TChan LogMessage -> T.Text -> IO ()
-logVerbose opts ch msg = if (verbose opts) then logToChannel ch msg else return ()
 
 descriptiveOutput :: T.Text -> T.Text -> T.Text
 descriptiveOutput outputLabel outTxt = do

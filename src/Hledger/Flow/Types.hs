@@ -1,10 +1,9 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
 
-module Hledger.Flow.Types
-where
+module Hledger.Flow.Types where
 
-import qualified Turtle as Turtle (ExitCode, NominalDiffTime, Shell, Line)
+import qualified Turtle (ExitCode, NominalDiffTime, Shell, Line)
 import qualified Data.Text as T
 import Data.Version
 

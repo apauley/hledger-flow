@@ -19,6 +19,7 @@ import Data.Maybe
 import qualified Data.Text as T
 import qualified Hledger.Flow.Types as FlowTypes
 import Hledger.Flow.PathHelpers (TurtlePath)
+import Hledger.Flow.Logging
 import qualified Data.List as List
 
 data ReportParams = ReportParams { ledgerFile :: TurtlePath
