@@ -10,7 +10,9 @@ import qualified Data.List as List (sort)
 
 import TestHelpers
 import Hledger.Flow.Common
+import Hledger.Flow.Import.ImportHelpersTurtle (extraIncludesForFile, groupAndWriteIncludeFiles, includePreamble, toIncludeFiles)
 import Hledger.Flow.PathHelpers
+
 import Control.Concurrent.STM
 
 testExtraIncludesForFile :: Test

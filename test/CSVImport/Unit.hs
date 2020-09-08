@@ -13,6 +13,7 @@ import Control.Concurrent.STM
 import TestHelpers
 import Hledger.Flow.PathHelpers (TurtlePath)
 import Hledger.Flow.Common
+import Hledger.Flow.Import.ImportHelpersTurtle (allYearIncludeFiles, groupIncludeFiles, toIncludeFiles, toIncludeLine, yearsIncludeMap)
 
 import Data.Either
 import qualified Data.Text as T

@@ -13,6 +13,7 @@ import qualified Hledger.Flow.Types as FlowTypes
 import Hledger.Flow.Import.Types
 import Hledger.Flow.BaseDir (relativeToBase, effectiveRunDir)
 import Hledger.Flow.Import.ImportHelpers
+import Hledger.Flow.Import.ImportHelpersTurtle (extractImportDirs, writeIncludesUpTo, writeToplevelAllYearsInclude)
 import Hledger.Flow.PathHelpers (TurtlePath, pathToTurtle)
 import Hledger.Flow.DocHelpers (docURL)
 import Hledger.Flow.Common
