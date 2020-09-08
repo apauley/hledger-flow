@@ -132,8 +132,11 @@ writeIncludesUpTo opts ch stopAt journalFiles = do
 
 writeToplevelAllYearsInclude :: (HasBaseDir o, HasVerbosity o) => o -> IO [TurtlePath]
 writeToplevelAllYearsInclude opts = do
+  let directivesFile = turtleBaseDir opts </> "directives" <.> "journal"
+  directivesExists <- Turtle.testfile directivesFile
+  let preMap = if directivesExists then Map.singleton (turtleBaseDir opts </> allYearsFileName) [directivesFile] else Map.empty
   let allTop = Map.singleton (turtleBaseDir opts </> allYearsFileName) ["import" </> allYearsFileName]
-  writeFiles' $ (addPreamble . toIncludeFiles' Map.empty Map.empty) allTop
+  writeFiles' $ (addPreamble . toIncludeFiles' preMap Map.empty) allTop
 
 extraIncludes :: (HasBaseDir o, HasVerbosity o) => o -> TChan LogMessage -> [TurtlePath] -> [T.Text] -> [TurtlePath] -> [TurtlePath] -> IO InputFileBundle
 extraIncludes opts ch = extraIncludes' opts ch Map.empty
