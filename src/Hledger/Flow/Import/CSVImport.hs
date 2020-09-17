@@ -154,7 +154,7 @@ hledgerImport' opts ch importDirs csvSrc journalOut = do
   case maybeRulesFile of
     Just rf -> do
       let relRules = relativeToBase opts rf
-      let hledger = Turtle.format Turtle.fp $ FlowTypes.hlPath . hledgerInfo $ opts :: T.Text
+      let hledger = Turtle.format Turtle.fp $ pathToTurtle . FlowTypes.hlPath . hledgerInfo $ opts :: T.Text
       let args = ["print", "--rules-file", Turtle.format Turtle.fp rf, "--file", Turtle.format Turtle.fp csvSrc, "--output-file", Turtle.format Turtle.fp journalOut]
       let cmdLabel = Turtle.format ("importing '"%Turtle.fp%"' using rules file '"%Turtle.fp%"'") relCSV relRules
       _ <- timeAndExitOnErr opts ch cmdLabel channelOut channelErr (parAwareProc opts) (hledger, args, Turtle.empty)
@@ -205,7 +205,7 @@ customConstruct opts ch constructScript bank account owner csvSrc journalOut = d
   let constructArgs = [Turtle.format Turtle.fp csvSrc, "-", Turtle.lineToText bank, Turtle.lineToText account, Turtle.lineToText owner]
   let constructCmdText = Turtle.format ("Running: "%Turtle.fp%" "%Turtle.s) relScript (showCmdArgs constructArgs)
   let stdLines = inprocWithErrFun (channelErrLn ch) (script, constructArgs, Turtle.empty)
-  let hledger = Turtle.format Turtle.fp $ FlowTypes.hlPath . hledgerInfo $ opts :: T.Text
+  let hledger = Turtle.format Turtle.fp $ pathToTurtle . FlowTypes.hlPath . hledgerInfo $ opts :: T.Text
   let args = ["print", "--ignore-assertions", "--file", "-", "--output-file", Turtle.format Turtle.fp journalOut]
   let relSrc = relativeToBase opts csvSrc
   let cmdLabel = Turtle.format ("executing '"%Turtle.fp%"' on '"%Turtle.fp%"'") relScript relSrc

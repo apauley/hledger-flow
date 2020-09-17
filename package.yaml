@@ -33,6 +33,7 @@ library:
   - turtle
   - path
   - path-io
+  - filepath
   - exceptions
   - text
   - foldl

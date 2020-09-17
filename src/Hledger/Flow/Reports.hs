@@ -18,7 +18,7 @@ import Data.Maybe
 
 import qualified Data.Text as T
 import qualified Hledger.Flow.Types as FlowTypes
-import Hledger.Flow.PathHelpers (TurtlePath)
+import Hledger.Flow.PathHelpers (TurtlePath, pathToTurtle)
 import Hledger.Flow.Logging
 import qualified Data.List as List
 
@@ -112,7 +112,7 @@ generateReport opts ch journal year reportsDir fileName args successCheck = do
   let relativeOutputFile = relativeToBase opts outputFile
   let reportArgs = ["--file", Turtle.format Turtle.fp journal, "--period", Turtle.repr year] ++ args
   let reportDisplayArgs = ["--file", Turtle.format Turtle.fp relativeJournal, "--period", Turtle.repr year] ++ args
-  let hledger = Turtle.format Turtle.fp $ FlowTypes.hlPath . hledgerInfo $ opts :: T.Text
+  let hledger = Turtle.format Turtle.fp $ pathToTurtle . FlowTypes.hlPath . hledgerInfo $ opts :: T.Text
   let cmdLabel = Turtle.format ("hledger "%Turtle.s) $ showCmdArgs reportDisplayArgs
   ((exitCode, stdOut, _), _) <- timeAndExitOnErr opts ch cmdLabel dummyLogger channelErr Turtle.procStrictWithErr (hledger, reportArgs, mempty)
   if (successCheck stdOut)

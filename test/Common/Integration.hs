@@ -7,7 +7,7 @@ import Test.HUnit
 import Turtle
 import qualified Data.List as List (sort)
 
-import TestHelpers
+import TestHelpersTurtle
 import Hledger.Flow.PathHelpers (TurtlePath)
 import Hledger.Flow.Common
 

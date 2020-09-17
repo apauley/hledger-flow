@@ -8,7 +8,8 @@ import Turtle
 import qualified Data.Map.Strict as Map
 import qualified Data.List as List (sort)
 
-import TestHelpers
+import TestHelpers (defaultOpts)
+import TestHelpersTurtle (journalFiles, hiddenFiles, touchAll, extraFiles)
 import Hledger.Flow.Common
 import Hledger.Flow.Import.ImportHelpersTurtle (extraIncludesForFile, groupAndWriteIncludeFiles, includePreamble, toIncludeFiles)
 import Hledger.Flow.PathHelpers

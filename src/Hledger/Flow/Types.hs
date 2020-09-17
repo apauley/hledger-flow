@@ -18,7 +18,7 @@ type FullTimedOutput = (FullOutput, Turtle.NominalDiffTime)
 type ProcFun = T.Text -> [T.Text] -> Turtle.Shell Turtle.Line -> IO FullOutput
 type ProcInput = (T.Text, [T.Text], Turtle.Shell Turtle.Line)
 
-data HledgerInfo = HledgerInfo { hlPath :: TurtlePath
+data HledgerInfo = HledgerInfo { hlPath :: AbsFile
                                , hlVersion :: T.Text
                                }
                  deriving (Show)

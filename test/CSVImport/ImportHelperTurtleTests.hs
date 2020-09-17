@@ -10,7 +10,8 @@ import Turtle
 import qualified Data.Map.Strict as Map
 import Control.Concurrent.STM
 
-import TestHelpers
+import TestHelpers (defaultOpts)
+import TestHelpersTurtle
 import Hledger.Flow.PathHelpers (TurtlePath)
 import Hledger.Flow.Common
 import Hledger.Flow.Import.Types (TurtleFileBundle)

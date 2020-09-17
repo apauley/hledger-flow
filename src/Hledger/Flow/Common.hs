@@ -1,6 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE QuasiQuotes #-}
 
 module Hledger.Flow.Common where
+
+import Path (absfile, relfile)
+import qualified Path.IO as Path
 
 import qualified Turtle
 import Turtle ((%), (</>), (<.>))
@@ -24,7 +28,7 @@ import Data.Ord (comparing)
 import Hledger.Flow.Types
 
 import Hledger.Flow.Logging
-import Hledger.Flow.PathHelpers (TurtlePath)
+import Hledger.Flow.PathHelpers (AbsFile, TurtlePath, fromTurtleAbsFile, pathToTurtle)
 import Hledger.Flow.BaseDir (turtleBaseDir, relativeToBase)
 
 import Control.Concurrent.STM
@@ -50,23 +54,24 @@ systemInfo = SystemInfo { os = Sys.os
                         , compilerVersion = Sys.compilerVersion
                         }
 
-hledgerPathFromOption :: Maybe TurtlePath -> IO TurtlePath
+hledgerPathFromOption :: Maybe TurtlePath -> IO AbsFile
 hledgerPathFromOption pathOption = do
   case pathOption of
     Just h  -> do
-      isOnDisk <- Turtle.testfile h
-      if isOnDisk then return h else do
+      hlAbs <- fromTurtleAbsFile h
+      isOnDisk <- Path.doesFileExist hlAbs
+      if isOnDisk then return hlAbs else do
         let msg = Turtle.format ("Unable to find hledger at "%Turtle.fp) h
-        errExit' 1 (T.hPutStrLn H.stderr) msg h
+        errExit' 1 (T.hPutStrLn H.stderr) msg hlAbs
     Nothing -> do
-      maybeH <- Turtle.which "hledger"
+      maybeH <- Path.findExecutable [relfile|hledger|]
       case maybeH of
         Just h  -> return h
         Nothing -> do
           let msg = "Unable to find hledger in your path.\n"
                 <> "You need to either install hledger, or add it to your PATH, or provide the path to an hledger executable.\n\n"
                 <> "There are a number of installation options on the hledger website: https://hledger.org/download.html"
-          errExit' 1 (T.hPutStrLn H.stderr) msg "/"
+          errExit' 1 (T.hPutStrLn H.stderr) msg [absfile|/hledger|]
 
 hledgerVersionFromPath :: TurtlePath -> IO T.Text
 hledgerVersionFromPath hlp = fmap (T.strip . Turtle.linesToText) (Turtle.single $ shellToList $ Turtle.inproc (Turtle.format Turtle.fp hlp) ["--version"] Turtle.empty)
@@ -74,7 +79,7 @@ hledgerVersionFromPath hlp = fmap (T.strip . Turtle.linesToText) (Turtle.single 
 hledgerInfoFromPath :: Maybe TurtlePath -> IO HledgerInfo
 hledgerInfoFromPath pathOption = do
   hlp <- hledgerPathFromOption pathOption
-  hlv <- hledgerVersionFromPath hlp
+  hlv <- hledgerVersionFromPath $ pathToTurtle hlp
   return $ HledgerInfo hlp hlv
 
 showCmdArgs :: [T.Text] -> T.Text
