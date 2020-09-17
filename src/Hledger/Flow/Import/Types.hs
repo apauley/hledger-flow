@@ -1,10 +1,10 @@
-module Hledger.Flow.Import.Types
-where
+module Hledger.Flow.Import.Types where
 
-import Hledger.Flow.PathHelpers (TurtlePath)
+import Hledger.Flow.PathHelpers (RelFile, TurtlePath)
 import qualified Data.Map.Strict as Map
 
-type InputFileBundle = Map.Map TurtlePath [TurtlePath]
+type TurtleFileBundle = Map.Map TurtlePath [TurtlePath]
+type InputFileBundle = Map.Map RelFile [RelFile]
 
 data ImportDirs = ImportDirs { importDir  :: TurtlePath
                              , ownerDir   :: TurtlePath

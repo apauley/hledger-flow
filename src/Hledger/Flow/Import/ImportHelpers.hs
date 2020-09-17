@@ -1,11 +1,15 @@
 {-# LANGUAGE QuasiQuotes #-}
 
-module Hledger.Flow.Import.ImportHelpers (findInputFiles, findJournalFiles) where
+module Hledger.Flow.Import.ImportHelpers (findInputFiles, findJournalFiles, groupIncludesUpTo) where
 
 import Path
 import Data.Char (isDigit)
 
-import Hledger.Flow.PathHelpers (AbsDir, AbsFile, RelDir, findFilesIn)
+import Hledger.Flow.Common (groupValuesBy)
+import Hledger.Flow.PathHelpers (AbsDir, AbsFile, RelDir, RelFile, findFilesIn, pathSize)
+import Hledger.Flow.Import.Types (InputFileBundle)
+
+import qualified Data.Map.Strict as Map
 
 findInputFiles :: Integer -> AbsDir -> IO [AbsFile]
 findInputFiles startYear = do
@@ -30,3 +34,30 @@ dirToStringNoSlash = init . Path.toFilePath . Path.dirname
 
 commonExcludeDirs :: [RelDir]
 commonExcludeDirs = [[Path.reldir|_manual_|], [Path.reldir|__pycache__|]]
+
+groupIncludesUpTo :: RelDir -> [RelFile] -> InputFileBundle
+groupIncludesUpTo = groupIncludesUpTo' Map.empty
+
+groupIncludesUpTo' :: InputFileBundle -> RelDir -> [RelFile] -> InputFileBundle
+groupIncludesUpTo' acc _ [] = acc
+groupIncludesUpTo' acc stopAt journals = do
+  let dirs = map parent journals :: [RelDir]
+  let shouldStop = stopAt `elem` dirs
+  if shouldStop then acc else do
+    let grouped = groupIncludeFiles journals
+    groupIncludesUpTo' (acc <> grouped) stopAt (Map.keys grouped)
+
+groupIncludeFiles :: [RelFile] -> InputFileBundle
+groupIncludeFiles = groupIncludeFilesPerYear
+
+groupIncludeFilesPerYear :: [RelFile] -> InputFileBundle
+groupIncludeFilesPerYear [] = Map.empty
+groupIncludeFilesPerYear ps@(p:_) = if pathSize (parent p) == 6
+  then groupValuesBy initialIncludeFilePath ps
+  else groupValuesBy parentIncludeFilePath ps
+
+initialIncludeFilePath :: RelFile -> RelFile
+initialIncludeFilePath p = (parent . parent . parent) p </> [relfile|2017-include.journal|]
+
+parentIncludeFilePath :: RelFile -> RelFile
+parentIncludeFilePath p = (parent . parent) p </> filename p
