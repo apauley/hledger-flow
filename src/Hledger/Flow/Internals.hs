@@ -1,5 +1,8 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 module Hledger.Flow.Internals where
 
+import Development.GitRev
 import Data.Version (Version, showVersion)
 import Paths_hledger_flow (version)
 
@@ -17,7 +20,8 @@ versionInfo :: T.Text
 versionInfo = T.pack ("hledger-flow " ++ showVersion version ++ " " ++
                        os systemInfo ++ " " ++ arch systemInfo ++ " " ++
                        compilerName systemInfo ++ " " ++
-                       showVersion (compilerVersion systemInfo))
+                       showVersion (compilerVersion systemInfo) ++
+                       " " ++ $(gitHash))
 
 systemInfo :: SystemInfo
 systemInfo = SystemInfo { os = Sys.os

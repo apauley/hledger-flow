@@ -40,6 +40,7 @@ library:
   - containers
   - time
   - stm
+  - gitrev
 
 executables:
   hledger-flow:
