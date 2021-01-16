@@ -12,6 +12,7 @@ import Options.Applicative
 
 import Hledger.Flow.PathHelpers (TurtlePath)
 import Hledger.Flow.Common
+import Hledger.Flow.Internals (versionInfo, systemInfo)
 import Hledger.Flow.BaseDir
 import qualified Hledger.Flow.RuntimeOptions as RT
 import Hledger.Flow.Reports
@@ -41,7 +42,7 @@ main :: IO ()
 main = do
   cmd <- Turtle.options "An hledger workflow focusing on automated statement import and classification:\nhttps://github.com/apauley/hledger-flow#readme" baseCommandParser
   case cmd of
-    Version                                -> Turtle.stdout $ Turtle.select versionInfo
+    Version                                -> T.putStrLn versionInfo
     Command mainParams' (Import subParams) -> toRuntimeOptionsImport mainParams' subParams >>= importCSVs
     Command mainParams' (Report subParams) -> toRuntimeOptionsReport mainParams' subParams >>= generateReports
 
@@ -57,7 +58,7 @@ toRuntimeOptionsImport mainParams' subParams' = do
                            , RT.importRunDir = runDir
                            , RT.importStartYear = startYear
                            , RT.onlyNewFiles = onlyNewFiles subParams'
-                           , RT.hfVersion = versionInfo'
+                           , RT.hfVersion = versionInfo
                            , RT.hledgerInfo = hli
                            , RT.sysInfo = systemInfo
                            , RT.verbose = verbosity mainParams' > 0
@@ -73,7 +74,7 @@ toRuntimeOptionsReport mainParams' subParams' = do
                            , RT.importRunDir = [reldir|.|]
                            , RT.importStartYear = Nothing
                            , RT.onlyNewFiles = False
-                           , RT.hfVersion = versionInfo'
+                           , RT.hfVersion = versionInfo
                            , RT.hledgerInfo = hli
                            , RT.sysInfo = systemInfo
                            , RT.verbose = verbosity mainParams' > 0

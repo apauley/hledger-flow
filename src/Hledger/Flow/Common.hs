@@ -33,27 +33,6 @@ import Hledger.Flow.BaseDir (turtleBaseDir, relativeToBase)
 
 import Control.Concurrent.STM
 
-import qualified Data.List.NonEmpty as NE
-import Paths_hledger_flow (version)
-import qualified Data.Version as Version (showVersion)
-import qualified System.Info as Sys
-
-versionInfo :: NE.NonEmpty Turtle.Line
-versionInfo = Turtle.textToLines versionInfo'
-
-versionInfo' :: T.Text
-versionInfo' = T.pack ("hledger-flow " ++ Version.showVersion version ++ " " ++
-                       os systemInfo ++ " " ++ arch systemInfo ++ " " ++
-                       compilerName systemInfo ++ " " ++
-                       Version.showVersion (compilerVersion systemInfo))
-
-systemInfo :: SystemInfo
-systemInfo = SystemInfo { os = Sys.os
-                        , arch = Sys.arch
-                        , compilerName = Sys.compilerName
-                        , compilerVersion = Sys.compilerVersion
-                        }
-
 hledgerPathFromOption :: Maybe TurtlePath -> IO AbsFile
 hledgerPathFromOption pathOption = do
   case pathOption of

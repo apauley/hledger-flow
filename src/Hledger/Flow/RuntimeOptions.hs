@@ -4,6 +4,7 @@ where
 import qualified Data.Text as T
 import Prelude hiding (putStrLn)
 import Hledger.Flow.Types
+import Hledger.Flow.Internals (SystemInfo)
 
 data RuntimeOptions = RuntimeOptions { baseDir :: BaseDir
                                      , importRunDir :: RunDir

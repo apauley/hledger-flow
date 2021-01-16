@@ -7,7 +7,7 @@ import Path
 
 import Data.Maybe (fromMaybe)
 
-import Hledger.Flow.Common (versionInfo', systemInfo)
+import Hledger.Flow.Internals (versionInfo, systemInfo)
 import Hledger.Flow.PathHelpers (RelFile)
 
 import qualified Hledger.Flow.Types as FlowTypes
@@ -22,7 +22,7 @@ defaultOpts bd = RuntimeOptions {
   , importRunDir = [reldir|./|]
   , importStartYear = Nothing
   , onlyNewFiles = False
-  , hfVersion = versionInfo'
+  , hfVersion = versionInfo
   , hledgerInfo = defaultHlInfo
   , sysInfo = systemInfo
   , verbose = False
