@@ -44,13 +44,20 @@ inputFiles :: [TurtlePath]
 inputFiles = inputJohnBogart <> inputJohnOther <> inputJaneBogart <> inputJaneOther
 
 journalFiles :: [TurtlePath]
-journalFiles = toJournals inputFiles
+journalFiles = toJournals inputFiles ++ ignoredJournalFiles
+
+ignoredJournalFiles :: [TurtlePath]
+ignoredJournalFiles = ["import/john/bogartbank/checking/3-journal/2018/not-a-journal.pdf"]
 
 extraFiles :: [TurtlePath]
 extraFiles = ["import/john/bogartbank/savings/2017-opening.journal"]
 
 hiddenFiles :: [TurtlePath]
-hiddenFiles = [".hiddenfile", "checking/.DS_Store", "import/john/bogartbank/savings/1-in/.anotherhiddenfile", "import/john/bogartbank/checking/1-in/2018/.hidden"]
+hiddenFiles = [".hiddenfile",
+               "checking/.DS_Store",
+               "import/john/bogartbank/savings/1-in/.anotherhiddenfile",
+               "import/john/bogartbank/checking/1-in/2018/.hidden",
+               "import/john/bogartbank/checking/3-journal/2018/.hidden"]
 
 toJournals :: [TurtlePath] -> [TurtlePath]
 toJournals = map (changePathAndExtension "3-journal" "journal")

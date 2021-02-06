@@ -56,7 +56,10 @@ importDirBreakdown' acc path = do
     else importDirBreakdown' (dir:acc) $ Turtle.parent dir
 
 groupIncludeFiles :: [TurtlePath] -> (TurtleFileBundle, TurtleFileBundle)
-groupIncludeFiles = allYearIncludeFiles . groupIncludeFilesPerYear
+groupIncludeFiles = allYearIncludeFiles . groupIncludeFilesPerYear . filter isJournalFile
+
+isJournalFile :: TurtlePath -> Bool
+isJournalFile f = Turtle.extension f == Just "journal"
 
 allYearIncludeFiles :: TurtleFileBundle -> (TurtleFileBundle, TurtleFileBundle)
 allYearIncludeFiles m = (m, yearsIncludeMap $ Map.keys m)

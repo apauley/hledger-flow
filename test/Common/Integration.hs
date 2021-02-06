@@ -23,7 +23,7 @@ testHiddenFiles = TestCase (
         let tmpHidden = map (tmpdir </>) hiddenFiles :: [TurtlePath]
         let onDisk = List.sort $ tmpJournals ++ tmpExtras ++ tmpHidden
         touchAll onDisk
-        filtered <- (fmap List.sort) $ shellToList $ onlyFiles $ select onDisk
+        filtered <- fmap List.sort $ shellToList $ onlyFiles $ select onDisk
         let expected = List.sort $ tmpExtras ++ tmpJournals
         liftIO $ assertEqual "Hidden files should be excluded" expected filtered
      )

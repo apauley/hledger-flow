@@ -1,5 +1,11 @@
 # Changelog for [hledger-flow](https://github.com/apauley/hledger-flow)
 
+## 0.14.3
+
+Ensure that generated include files only contain files ending with .journal
+
+Fixes [#92](https://github.com/apauley/hledger-flow/issues/92)
+
 ## 0.14.2
 
 Add an optional `--start-year` command-line option for imports:
