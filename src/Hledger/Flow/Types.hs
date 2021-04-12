@@ -33,3 +33,6 @@ class HasRunDir a where
 
 class HasSequential a where
   sequential :: a -> Bool
+
+class HasBatchSize a where
+  batchSize :: a -> Int

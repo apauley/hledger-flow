@@ -128,10 +128,17 @@ procWithEmptyOutput cmd args stdinput = do
 parAwareProc :: HasSequential o => o -> ProcFun
 parAwareProc opts = if (sequential opts) then procWithEmptyOutput else Turtle.procStrictWithErr
 
-parAwareActions :: HasSequential o => o -> [IO a] -> IO [a]
-parAwareActions opts = parAwareFun opts
-  where
-    parAwareFun op = if (sequential op) then sequence else Turtle.single . shellToList . Turtle.parallel
+parAwareActions :: (HasSequential o, HasBatchSize o) => o -> [IO a] -> IO [a]
+parAwareActions opts = if (sequential opts) then sequence else parBatchedActions (batchSize opts) []
+
+parBatchedActions :: Int -> [a] -> [IO a] -> IO [a]
+parBatchedActions _ done [] = return done
+parBatchedActions batch done todo = do
+  let doNow = take batch todo
+  let remaining = drop batch todo
+  doneNow <- (Turtle.single . shellToList . Turtle.parallel) doNow
+  parBatchedActions batch (done ++ doneNow) remaining
+
 
 inprocWithErrFun :: (T.Text -> IO ()) -> ProcInput -> Turtle.Shell Turtle.Line
 inprocWithErrFun errFun (cmd, args, standardInput) = do

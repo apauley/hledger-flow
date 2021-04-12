@@ -7,14 +7,25 @@ import Path
 
 import Data.Maybe (fromMaybe)
 
-import Hledger.Flow.Internals (versionInfo, systemInfo)
+import Hledger.Flow.Internals ( versionInfo, SystemInfo(..) )
 import Hledger.Flow.PathHelpers (RelFile)
 
 import qualified Hledger.Flow.Types as FlowTypes
 import Hledger.Flow.RuntimeOptions
+import qualified System.Info as Sys
 
 defaultHlInfo :: FlowTypes.HledgerInfo
 defaultHlInfo = FlowTypes.HledgerInfo [absfile|/path/to/hledger|] "1.2.3"
+
+testSystemInfo :: SystemInfo
+testSystemInfo = SystemInfo {
+        os = Sys.os,
+        arch = Sys.arch,
+        compilerName = Sys.compilerName,
+        compilerVersion = Sys.compilerVersion,
+        cores = 1,
+        availableCores = 1
+        }
 
 defaultOpts :: FlowTypes.BaseDir -> RuntimeOptions
 defaultOpts bd = RuntimeOptions {
@@ -22,12 +33,13 @@ defaultOpts bd = RuntimeOptions {
   , importRunDir = [reldir|./|]
   , importStartYear = Nothing
   , onlyNewFiles = False
-  , hfVersion = versionInfo
+  , hfVersion = versionInfo testSystemInfo
   , hledgerInfo = defaultHlInfo
-  , sysInfo = systemInfo
+  , sysInfo = testSystemInfo
   , verbose = False
   , showOptions = False
   , sequential = False
+  , batchSize = 1
 }
 
 toJournal :: RelFile -> RelFile
