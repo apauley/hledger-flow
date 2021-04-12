@@ -2,6 +2,7 @@
 
 module Hledger.Flow.Internals where
 
+import GHC.Conc (getNumCapabilities, getNumProcessors)
 import Development.GitRev
 import Data.Version (Version, showVersion)
 import Paths_hledger_flow (version)
@@ -13,19 +14,27 @@ data SystemInfo = SystemInfo { os :: String
                              , arch :: String
                              , compilerName :: String
                              , compilerVersion :: Version
+                             , cores :: Int
+                             , availableCores :: Int
                              }
                 deriving (Show)
 
-versionInfo :: T.Text
-versionInfo = T.pack ("hledger-flow " ++ showVersion version ++ " " ++
-                       os systemInfo ++ " " ++ arch systemInfo ++ " " ++
-                       compilerName systemInfo ++ " " ++
-                       showVersion (compilerVersion systemInfo) ++
+versionInfo :: SystemInfo -> T.Text
+versionInfo sysInfo = T.pack ("hledger-flow " ++ showVersion version ++ " " ++
+                       os sysInfo ++ " " ++ arch sysInfo ++ " " ++
+                       compilerName sysInfo ++ " " ++
+                       showVersion (compilerVersion sysInfo) ++
                        " " ++ $(gitHash))
 
-systemInfo :: SystemInfo
-systemInfo = SystemInfo { os = Sys.os
-                        , arch = Sys.arch
-                        , compilerName = Sys.compilerName
-                        , compilerVersion = Sys.compilerVersion
-                        }
+systemInfo :: IO SystemInfo
+systemInfo = do
+    processors <- getNumProcessors
+    available <- getNumCapabilities
+    return SystemInfo {
+        os = Sys.os,
+        arch = Sys.arch,
+        compilerName = Sys.compilerName,
+        compilerVersion = Sys.compilerVersion,
+        cores = processors,
+        availableCores = available
+        }

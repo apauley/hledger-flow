@@ -16,17 +16,21 @@ data RuntimeOptions = RuntimeOptions { baseDir :: BaseDir
                                      , verbose :: Bool
                                      , showOptions :: Bool
                                      , sequential :: Bool
+                                     , batchSize :: Int
                                      }
   deriving (Show)
 
 instance HasVerbosity RuntimeOptions where
-  verbose (RuntimeOptions _ _ _ _ _ _ _ v _ _) = v
+  verbose (RuntimeOptions _ _ _ _ _ _ _ v _ _ _) = v
 
 instance HasSequential RuntimeOptions where
-  sequential (RuntimeOptions _ _ _ _ _ _ _ _ _ sq) = sq
+  sequential (RuntimeOptions _ _ _ _ _ _ _ _ _ sq _) = sq
+
+instance HasBatchSize RuntimeOptions where
+  batchSize (RuntimeOptions _ _ _ _ _ _ _ _ _ _ bs) = bs
 
 instance HasBaseDir RuntimeOptions where
-  baseDir (RuntimeOptions bd _ _ _ _ _ _ _ _ _) = bd
+  baseDir (RuntimeOptions bd _ _ _ _ _ _ _ _ _ _) = bd
 
 instance HasRunDir RuntimeOptions where
-  importRunDir (RuntimeOptions _ rd _ _ _ _ _ _ _ _) = rd
+  importRunDir (RuntimeOptions _ rd _ _ _ _ _ _ _ _ _) = rd
