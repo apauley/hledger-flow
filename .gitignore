@@ -4,6 +4,7 @@ dist-newstyle/
 hledger-flow.cabal
 *~
 scratch
+scratch.org
 docs/my-finances
 releases/
 *.c.*
