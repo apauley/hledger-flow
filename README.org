@@ -7,7 +7,7 @@
 
 | TravisCI                                                     | CircleCI                                                   |
 |--------------------------------------------------------------+------------------------------------------------------------|
-| [[https://travis-ci.org/apauley/hledger-flow][https://travis-ci.org/apauley/hledger-flow.svg?branch=master]] | [[https://circleci.com/gh/apauley/hledger-flow][https://circleci.com/gh/apauley/hledger-flow.svg?style=svg]] |
+| [[https://travis-ci.com/apauley/hledger-flow][https://travis-ci.com/apauley/hledger-flow.svg?branch=master]] | [[https://circleci.com/gh/apauley/hledger-flow][https://circleci.com/gh/apauley/hledger-flow.svg?style=svg]] |
 
 * What is it?
   :PROPERTIES:
