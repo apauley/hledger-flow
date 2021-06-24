@@ -1,5 +1,17 @@
 # Changelog for [hledger-flow](https://github.com/apauley/hledger-flow)
 
+## 0.14.4
+
+Add an option to process files in batches.
+
+If the number of input files processed by `hledger-flow` grows large, and you have resource-intensive processing scripts, your system resources can be overwhelmed.
+
+With this change the input files will be processed in batches, by default 200 at a time. The batch size can be set from the command-line.
+
+https://github.com/apauley/hledger-flow/issues/93
+
+https://github.com/apauley/hledger-flow/pull/94
+
 ## 0.14.3
 
 Ensure that generated include files only contain files ending with .journal
