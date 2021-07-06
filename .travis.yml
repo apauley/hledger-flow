@@ -1,6 +1,6 @@
 sudo: true
 language: generic
-dist: xenial
+dist: focal
 
 git:
   depth: 5
