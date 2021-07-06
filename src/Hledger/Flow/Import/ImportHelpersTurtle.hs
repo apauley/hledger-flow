@@ -101,7 +101,7 @@ addPreamble :: Map.Map TurtlePath T.Text -> Map.Map TurtlePath T.Text
 addPreamble = Map.map (\txt -> includePreamble <> "\n" <> txt)
 
 toIncludeLine :: TurtlePath -> TurtlePath -> T.Text
-toIncludeLine base file = Turtle.format ("!include "%Turtle.fp) $ relativeToBase' base file
+toIncludeLine base file = Turtle.format ("include "%Turtle.fp) $ relativeToBase' base file
 
 generatedIncludeText :: TurtleFileBundle -> TurtleFileBundle -> TurtlePath -> [TurtlePath] -> T.Text
 generatedIncludeText preMap postMap outputFile fs = do

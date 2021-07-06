@@ -99,10 +99,10 @@ testIncludesPrePost = TestCase (
         ch <- liftIO newTChanIO
         fileMap <- liftIO $ toIncludeFiles (defaultOpts tmpdirAbsPath) ch includeMap
         let expectedText = includePreamble <> "\n"
-              <> "!include _manual_/2019/pre-import.journal\n"
-              <> "!include bank1/2019-include.journal\n"
-              <> "!include bank2/2019-include.journal\n"
-              <> "!include _manual_/2019/post-import.journal\n"
+              <> "include _manual_/2019/pre-import.journal\n"
+              <> "include bank1/2019-include.journal\n"
+              <> "include bank2/2019-include.journal\n"
+              <> "include _manual_/2019/post-import.journal\n"
         let expectedMap = Map.singleton includeFile expectedText
         liftIO $ assertEqual "All pre/post files on disk should be included" expectedMap fileMap
      ))
@@ -127,9 +127,9 @@ testIncludesOpeningClosing = TestCase (
         ch <- liftIO newTChanIO
         fileMap <- liftIO $ toIncludeFiles (defaultOpts tmpdirAbsPath) ch includeMap
         let expectedText = includePreamble <> "\n"
-              <> "!include 2019-opening.journal\n"
-              <> "!include 3-journal/2019/2019-01-30.journal\n"
-              <> "!include 2019-closing.journal\n"
+              <> "include 2019-opening.journal\n"
+              <> "include 3-journal/2019/2019-01-30.journal\n"
+              <> "include 2019-closing.journal\n"
         let expectedMap = Map.singleton includeFile expectedText
         liftIO $ assertEqual "All opening/closing files on disk should be included" expectedMap fileMap
      ))
@@ -154,10 +154,10 @@ testIncludesPrices = TestCase (
         ch <- liftIO newTChanIO
         fileMap <- liftIO $ toIncludeFiles (defaultOpts tmpdirAbsPath) ch includeMap
         let expectedText = includePreamble <> "\n"
-              <> "!include _manual_/2020/pre-import.journal\n"
-              <> "!include john/2020-include.journal\n"
-              <> "!include ../prices/2020/prices.journal\n"
-              <> "!include _manual_/2020/post-import.journal\n"
+              <> "include _manual_/2020/pre-import.journal\n"
+              <> "include john/2020-include.journal\n"
+              <> "include ../prices/2020/prices.journal\n"
+              <> "include _manual_/2020/post-import.journal\n"
         let expectedMap = Map.singleton includeFile expectedText
         liftIO $ assertEqual "The price file should be included together with any pre/post files" expectedMap fileMap
      ))
@@ -212,33 +212,33 @@ testWriteIncludeFiles = TestCase (
         liftIO $ assertEqual "The actual files on disk should match what groupAndWriteIncludeFiles reported" expectedOnDisk allFilesOnDisk
 
         let expectedJohn1Contents = includePreamble <> "\n"
-              <> "!include 3-journal/2018/2018-10-30.journal\n"
-              <> "!include 3-journal/2018/2018-11-30.journal\n"
-              <> "!include 3-journal/2018/2018-12-30.journal\n"
+              <> "include 3-journal/2018/2018-10-30.journal\n"
+              <> "include 3-journal/2018/2018-11-30.journal\n"
+              <> "include 3-journal/2018/2018-12-30.journal\n"
         actualJohn1Contents <- liftIO $ readTextFile john1
         liftIO $ assertEqual "John1: The include file contents should be the journal files" expectedJohn1Contents actualJohn1Contents
 
         let expectedJohn2Contents = includePreamble <> "\n"
-              <> "!include 3-journal/2019/2019-01-30.journal\n"
-              <> "!include 3-journal/2019/2019-02-30.journal\n"
+              <> "include 3-journal/2019/2019-01-30.journal\n"
+              <> "include 3-journal/2019/2019-02-30.journal\n"
         actualJohn2Contents <- liftIO $ readTextFile john2
         liftIO $ assertEqual "John2: The include file contents should be the journal files" expectedJohn2Contents actualJohn2Contents
 
         let expectedJohn3Contents = includePreamble <> "\n"
-              <> "!include 2017-opening.journal\n"
-              <> "!include 3-journal/2017/2017-11-30.journal\n"
-              <> "!include 3-journal/2017/2017-12-30.journal\n"
+              <> "include 2017-opening.journal\n"
+              <> "include 3-journal/2017/2017-11-30.journal\n"
+              <> "include 3-journal/2017/2017-12-30.journal\n"
         actualJohn3Contents <- liftIO $ readTextFile john3
         liftIO $ assertEqual "John3: The include file contents should be the journal files" expectedJohn3Contents actualJohn3Contents
 
         let expectedJohn4Contents = includePreamble <> "\n"
-              <> "!include 3-journal/2018/2018-01-30.journal\n"
-              <> "!include 3-journal/2018/2018-02-30.journal\n"
+              <> "include 3-journal/2018/2018-01-30.journal\n"
+              <> "include 3-journal/2018/2018-02-30.journal\n"
         actualJohn4Contents <- liftIO $ readTextFile john4
         liftIO $ assertEqual "John4: The include file contents should be the journal files" expectedJohn4Contents actualJohn4Contents
 
         let expectedJane7Contents = includePreamble <> "\n"
-              <> "!include 3-journal/2018/2018-12-30.journal\n"
+              <> "include 3-journal/2018/2018-12-30.journal\n"
         actualJane7Contents <- liftIO $ readTextFile jane7
         liftIO $ assertEqual "Jane7: The include file contents should be the journal files" expectedJane7Contents actualJane7Contents
      )
