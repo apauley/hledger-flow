@@ -66,15 +66,26 @@ hledger-flow
 An hledger workflow focusing on automated statement import and classification:
 https://github.com/apauley/hledger-flow#readme
 
-Usage: hledger-flow (import | report | version)
+Usage: hledger-flow ([-v|--verbose] [-H|--hledger-path HLEDGER-PATH] 
+                      [--show-options] [--batch-size SIZE] [--sequential] 
+                      (import | report) |
+                      (-V|--version))
 
 Available options:
   -h,--help                Show this help text
+  -v,--verbose             Print more verbose output
+  -H,--hledger-path HLEDGER-PATH
+                           The full path to an hledger executable
+  --show-options           Print the options this program will run with
+  --batch-size SIZE        Parallel processing of files are done in batches of
+                           the specified size. Default: 200. Ignored during
+                           sequential processing.
+  --sequential             Disable parallel processing
+  -V,--version             Display version information
 
 Available commands:
-  import                   Converts CSV transactions into categorised journal files
+  import                   Uses hledger with your own rules and/or scripts to convert electronic statements into categorised journal files
   report                   Generate Reports
-  version                  Display version information
 
 #+end_example
 
@@ -93,17 +104,22 @@ hledger-flow import --help
 
 #+RESULTS: hm-import-help
 #+begin_src org
-Usage: hledger-flow import [BASEDIR] [-H|--hledger-path HLEDGER-PATH]
-                           [-v|--verbose] [--show-options] [--sequential]
-  Converts CSV transactions into categorised journal files
+Usage: hledger-flow import [DIR] [--start-year YEAR] [--new-files-only]
+  Uses hledger with your own rules and/or scripts to convert electronic statements into categorised journal files
 
 Available options:
-  BASEDIR                  The hledger-flow base directory
-  -H,--hledger-path HLEDGER-PATH
-                           The full path to an hledger executable
-  -v,--verbose             Print more verbose output
-  --show-options           Print the options this program will run with
-  --sequential             Disable parallel processing
+  DIR                      The directory to import. Use the base directory for a
+                           full import or a sub-directory for a partial import.
+                           Defaults to the current directory. This behaviour is
+                           changing: see --enable-future-rundir
+  --start-year YEAR        Import only from the specified year and onwards,
+                           ignoring previous years. By default all available
+                           years are imported. Valid values include a 4-digit
+                           year or 'current' for the current year
+  --new-files-only         Don't regenerate transaction files if they are
+                           already present. This applies to hledger journal
+                           files as well as files produced by the preprocess and
+                           construct scripts.
   -h,--help                Show this help text
 
 #+end_src
@@ -133,13 +149,10 @@ hledger-flow import ./my-finances
 Hmmm, an error:
 #+RESULTS: import1
 #+begin_src org
-I couldn't find any input files underneath my-finances/import/
+hledger-flow: Unable to find an import directory at "./my-finances/" (or in any of its parent directories).
 
-hledger-flow expects to find its input files in specifically
-named directories.
-
-Have a look at the documentation for a detailed explanation:
-https://github.com/apauley/hledger-flow#input-files
+Have a look at the documentation for more information:
+https://github.com/apauley/hledger-flow#getting-started
 
 #+end_src
 
@@ -174,13 +187,13 @@ tree my-finances/
 #+RESULTS: tree-after-1st-file
 #+begin_src org
 my-finances/
-└── import
-    └── gawie
-        └── bogart
-            └── cheque
-                └── 1-in
-                    └── 2016
-                        └── 123456789_2016-03-30.csv
+`-- import
+    `-- gawie
+        `-- bogart
+            `-- cheque
+                `-- 1-in
+                    `-- 2016
+                        `-- 123456789_2016-03-30.csv
 
 6 directories, 1 file
 
@@ -369,37 +382,36 @@ tree my-finances
 
 #+RESULTS: import4
 #+begin_src org
-Collecting input files...
-Found 1 input files in 0.011479186s. Proceeding with import...
-Imported 1 journals in 0.208365781s
+Wrote include files for 1 journals in 0.003716s
+Imported 1/1 journals in 0.101596s
 my-finances
-├── all-years.journal
-├── fnb-csv-demoronizer
-│   ├── fnb-csv-demoronizer
-│   └── README.org
-└── import
-    ├── 2016-include.journal
-    ├── all-years.journal
-    └── gawie
-        ├── 2016-include.journal
-        ├── all-years.journal
-        └── bogart
-            ├── 2016-include.journal
-            ├── all-years.journal
-            └── cheque
-                ├── 1-in
-                │   └── 2016
-                │       └── 123456789_2016-03-30.csv
-                ├── 2016-include.journal
-                ├── 2-preprocessed
-                │   └── 2016
-                │       └── 123456789_2016-03-30.csv
-                ├── 3-journal
-                │   └── 2016
-                │       └── 123456789_2016-03-30.journal
-                ├── all-years.journal
-                ├── bogart-cheque.rules
-                └── preprocess -> ../../../../fnb-csv-demoronizer/fnb-csv-demoronizer
+|-- all-years.journal
+|-- fnb-csv-demoronizer
+|   |-- README.org
+|   `-- fnb-csv-demoronizer
+`-- import
+    |-- 2016-include.journal
+    |-- all-years.journal
+    `-- gawie
+        |-- 2016-include.journal
+        |-- all-years.journal
+        `-- bogart
+            |-- 2016-include.journal
+            |-- all-years.journal
+            `-- cheque
+                |-- 1-in
+                |   `-- 2016
+                |       `-- 123456789_2016-03-30.csv
+                |-- 2-preprocessed
+                |   `-- 2016
+                |       `-- 123456789_2016-03-30.csv
+                |-- 2016-include.journal
+                |-- 3-journal
+                |   `-- 2016
+                |       `-- 123456789_2016-03-30.journal
+                |-- all-years.journal
+                |-- bogart-cheque.rules
+                `-- preprocess -> ../../../../fnb-csv-demoronizer/fnb-csv-demoronizer
 
 11 directories, 16 files
 
@@ -417,7 +429,7 @@ head -n 3 my-finances/import/gawie/bogart/cheque/3-journal/2016/123456789_2016-0
 
 #+RESULTS: head-1st-journal
 #+begin_src org
-2016/03/01 * #Monthly Bank Fee//
+2016-03-01 * #Monthly Bank Fee//
     Assets:Current:Gawie:Bogart:Cheque        R-500.00 = R40000.00
     expenses:unknown                           R500.00
 
