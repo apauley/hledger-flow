@@ -128,7 +128,7 @@ verboseParser = MainParams
 
 subcommandParserImport :: Parser ImportParams
 subcommandParserImport = ImportParams
-  <$> optional (Turtle.argPath "dir" "The directory to import. Use the base directory for a full import or a sub-directory for a partial import. Defaults to the current directory. This behaviour is changing: see --enable-future-rundir")
+  <$> optional (Turtle.argPath "dir" "The directory to import. Use the base directory for a full import or a sub-directory for a partial import. Defaults to the current directory.")
   <*> optional (option str (long "start-year" <> metavar "YEAR" <> help "Import only from the specified year and onwards, ignoring previous years. By default all available years are imported. Valid values include a 4-digit year or 'current' for the current year"))
   <*> switch (long "new-files-only" <> help "Don't regenerate transaction files if they are already present. This applies to hledger journal files as well as files produced by the preprocess and construct scripts.")
 
