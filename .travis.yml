@@ -27,6 +27,8 @@ before_install:
   - if [[ ! -x ~/.local/bin/stack ]]; then travis_retry curl -L ${STACK_URL} | tar -xz; mv stack-*-x86_64/stack ~/.local/bin/; fi
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sed -i 's/- -dynamic /- -static  /g' $TRAVIS_BUILD_DIR/package.yaml; fi
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get install cabal-install; fi
+  - ./bin/fetch-latest-hledger ${TRAVIS_OS_NAME} ~/.local/bin/
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then cp ~/.local/bin/hledger-static-linux-x64 ~/.local/bin/hledger; fi
 
 install:
 

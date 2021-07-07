@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+
+set -eu
+
+USAGE="${0} [OS] [TARGETDIR]"
+
+if [ "$#" -ne 2 ]
+then
+    echo ${USAGE} > /dev/stderr
+    exit 1
+fi
+
+OS=${1}
+TARGETDIR=${2}
+
+# OS should work with whatever `uname -s` returns, or in Travis-CI which has ${TRAVIS_OS_NAME}
+case ${OS} in
+    "linux" | "Linux")
+        FILENAME="hledger-linux-static-x64.zip"
+        ;;
+    "osx" | "Darwin")
+        FILENAME="hledger-macos.zip"
+        ;;
+    "windows")
+        FILENAME="hledger-windows.zip"
+        ;;
+    *)
+        echo "Unknown OS ${OS}. Valid values: linux/osx/windows (or `uname -s`)" > /dev/stderr
+        exit 1
+        ;;
+esac
+
+if [ -d ${TARGETDIR} ]
+then
+    echo "Downloading and extracting ${FILENAME} to ${TARGETDIR} (os: ${OS})"
+    URL=$(curl --silent "https://api.github.com/repos/simonmichael/hledger/releases/latest" | grep "browser_download_url.*${FILENAME}" | awk '{print $2}'| sed 's/"//g')
+    echo "Fetching '${URL}'"
+    curl -L ${URL} > /tmp/${FILENAME}
+
+    EXTRACTDIR=$(mktemp -d)
+    unzip -o -d ${EXTRACTDIR} /tmp/${FILENAME}
+    chmod 755 ${EXTRACTDIR}/*
+
+    echo "Moving files to ${TARGETDIR}"
+    mv ${EXTRACTDIR}/* ${TARGETDIR}
+
+    rmdir ${EXTRACTDIR}
+else
+    echo "Specified target directory is not a directory: ${TARGETDIR}" > /dev/stderr
+    echo ${USAGE} > /dev/stderr
+    exit 1
+fi
