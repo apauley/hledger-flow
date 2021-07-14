@@ -1,5 +1,19 @@
 # Changelog for [hledger-flow](https://github.com/apauley/hledger-flow)
 
+## 0.15.0
+
+Made some changes that will result in formatting changes of generated files:
+
+ - Removed the obsolete exclamation mark from the `include` directive
+ - Switched from `hledger print` to `hledger import` during statement import.
+
+   `hledger import` uses your preferred commodity styles from your 
+   [directives.journal](https://github.com/apauley/hledger-flow#hledger-directives) to generate journals.
+
+Other changes:
+
+ - Switched to GHC 9.0.1
+
 ## 0.14.4
 
 Add an option to process files in batches.
