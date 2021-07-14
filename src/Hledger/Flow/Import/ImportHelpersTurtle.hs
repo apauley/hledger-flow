@@ -18,7 +18,7 @@ module Hledger.Flow.Import.ImportHelpersTurtle (
 
 import Hledger.Flow.PathHelpers (TurtlePath)
 import Hledger.Flow.DocHelpers (docURL)
-import Hledger.Flow.Common (allYearsFileName, filterPaths, groupValuesBy, writeFiles, writeFiles')
+import Hledger.Flow.Common (allYearsFileName, directivesFile, filterPaths, groupValuesBy, writeFiles, writeFiles')
 import Hledger.Flow.BaseDir (relativeToBase, relativeToBase', turtleBaseDir)
 import Hledger.Flow.Logging (logVerbose)
 
@@ -134,9 +134,8 @@ writeIncludesUpTo opts ch stopAt journalFiles = do
 
 writeToplevelAllYearsInclude :: (HasBaseDir o, HasVerbosity o) => o -> IO [TurtlePath]
 writeToplevelAllYearsInclude opts = do
-  let directivesFile = turtleBaseDir opts </> "directives" <.> "journal"
-  directivesExists <- Turtle.testfile directivesFile
-  let preMap = if directivesExists then Map.singleton (turtleBaseDir opts </> allYearsFileName) [directivesFile] else Map.empty
+  directivesExists <- Turtle.testfile (directivesFile opts)
+  let preMap = if directivesExists then Map.singleton (turtleBaseDir opts </> allYearsFileName) [directivesFile opts] else Map.empty
   let allTop = Map.singleton (turtleBaseDir opts </> allYearsFileName) ["import" </> allYearsFileName]
   writeFiles' $ (addPreamble . toIncludeFiles' preMap Map.empty) allTop
 

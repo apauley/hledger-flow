@@ -174,6 +174,9 @@ groupValuesBy keyFun = groupPairs . pairBy keyFun
 allYearsFileName :: TurtlePath
 allYearsFileName = "all-years" <.> "journal"
 
+directivesFile :: HasBaseDir o => o -> TurtlePath
+directivesFile opts = turtleBaseDir opts </> "directives" <.> "journal"
+
 lsDirs :: TurtlePath -> Turtle.Shell TurtlePath
 lsDirs = onlyDirs . Turtle.ls
 

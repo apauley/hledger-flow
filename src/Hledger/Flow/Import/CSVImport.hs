@@ -156,14 +156,16 @@ hledgerImport' opts ch importDirs csvSrc journalOut = do
       let relRules = relativeToBase opts rf
       let hledger = Turtle.format Turtle.fp $ pathToTurtle . FlowTypes.hlPath . hledgerInfo $ opts :: T.Text
       let args = [
-            "print",
-            "--rules-file", Turtle.format Turtle.fp rf,
-            "--file", Turtle.format Turtle.fp csvSrc,
-            "--output-file", Turtle.format Turtle.fp journalOut
+            "import", "--dry-run",
+            "--file", Turtle.format Turtle.fp (directivesFile opts),
+            Turtle.format Turtle.fp csvSrc,
+            "--rules-file", Turtle.format Turtle.fp rf
             ]
 
       let cmdLabel = Turtle.format ("importing '"%Turtle.fp%"' using rules file '"%Turtle.fp%"'") relCSV relRules
-      _ <- timeAndExitOnErr opts ch cmdLabel channelOut channelErr (parAwareProc opts) (hledger, args, Turtle.empty)
+      ((_, stdOut, _), _) <- timeAndExitOnErr opts ch cmdLabel dummyLogger channelErr (parAwareProc opts) (hledger, args, Turtle.empty)
+      let withoutDryRunText = T.unlines $ drop 2 $ T.lines stdOut
+      _ <- Turtle.writeTextFile journalOut withoutDryRunText
       return journalOut
     Nothing ->
       do
