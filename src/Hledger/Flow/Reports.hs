@@ -45,10 +45,8 @@ generateReports opts = Turtle.sh (
 
 generateReports' :: RuntimeOptions -> TChan FlowTypes.LogMessage -> IO [Either TurtlePath TurtlePath]
 generateReports' opts ch = do
-  let wipMsg = "Report generation is still a work-in-progress - please let me know how this can be more useful.\n\n"
-               <> "Keep an eye out for report-related pull requests and issues, and feel free to submit some of your own:\n"
-               <> "https://github.com/apauley/hledger-flow/pulls\n"
-               <> "https://github.com/apauley/hledger-flow/issues\n"
+  let wipMsg = "These reports can be used as a starting point for more tailored reports.\n"
+               <> "The first line of each report contains the command used - change the parameters and use it in your own reports.\n"
   channelOutLn ch wipMsg
   owners <- Turtle.single $ shellToList $ listOwners opts
   ledgerEnvValue <- Turtle.need "LEDGER_FILE" :: IO (Maybe T.Text)
