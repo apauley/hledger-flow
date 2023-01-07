@@ -5,7 +5,7 @@ category:            Finance, Console
 license:             GPL-3
 author:              "Andreas Pauley <hledger-flow@pauley.org.za>"
 maintainer:          "Andreas Pauley <hledger-flow@pauley.org.za>"
-copyright:           "2020 Andreas Pauley"
+copyright:           "2023 Andreas Pauley"
 github:              "apauley/hledger-flow"
 bug-reports:         https://github.com/apauley/hledger-flow/issues
 
