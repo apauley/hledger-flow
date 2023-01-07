@@ -111,12 +111,12 @@ timeAndExitOnErr' opts ch cmdLabel extraCmdLabels stdoutLogger stderrLogger proc
   timed@((ec, stdOut, stdErr), _) <- logTimedAction opts ch cmdLabel extraCmdLabels stdoutLogger stderrLogger action
   case ec of
     Turtle.ExitFailure i -> do
-      let cmdText = Turtle.format (Turtle.s%" "%Turtle.s) cmd $ showCmdArgs args
+      let cmdText = Turtle.format (Turtle.s % " " % Turtle.s) cmd $ showCmdArgs args
       let msgOut = descriptiveOutput "Standard output" stdOut
       let msgErr = descriptiveOutput "Error output" stdErr
 
-      let exitMsg = Turtle.format ("\n=== Begin Error: "%Turtle.s%" ===\nExternal command:\n"%Turtle.s%"\nExit code "%Turtle.d%"\n"
-                            %Turtle.s%Turtle.s%"=== End Error: "%Turtle.s%" ===\n") cmdLabel cmdText i msgOut msgErr cmdLabel
+      let exitMsg = Turtle.format ("\n=== Begin Error: " % Turtle.s % " ===\nExternal command:\n" % Turtle.s % "\nExit code " % Turtle.d % "\n"
+                            % Turtle.s % Turtle.s % "=== End Error: " % Turtle.s % " ===\n") cmdLabel cmdText i msgOut msgErr cmdLabel
       errExit i ch exitMsg timed
     Turtle.ExitSuccess -> return timed
 

@@ -40,10 +40,10 @@ extractImportDirs inputFile = do
   case importDirBreakdown inputFile of
     [bd,owner,bank,account,filestate,year] -> Right $ ImportDirs bd owner bank account filestate year
     _ -> do
-      Left $ Turtle.format ("I couldn't find the right number of directories between \"import\" and the input file:\n"%Turtle.fp
-                      %"\n\nhledger-flow expects to find input files in this structure:\n"%
-                      "import/owner/bank/account/filestate/year/trxfile\n\n"%
-                      "Have a look at the documentation for a detailed explanation:\n"%Turtle.s) inputFile (docURL "input-files")
+      Left $ Turtle.format ("I couldn't find the right number of directories between \"import\" and the input file:\n" % Turtle.fp
+                      % "\n\nhledger-flow expects to find input files in this structure:\n" %
+                      "import/owner/bank/account/filestate/year/trxfile\n\n" %
+                      "Have a look at the documentation for a detailed explanation:\n" % Turtle.s) inputFile (docURL "input-files")
 
 importDirBreakdown ::  TurtlePath -> [TurtlePath]
 importDirBreakdown = importDirBreakdown' []
