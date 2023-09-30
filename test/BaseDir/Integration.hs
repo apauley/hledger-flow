@@ -4,6 +4,8 @@
 
 module BaseDir.Integration (tests) where
 
+import Prelude hiding (writeFile, readFile)
+
 import Control.Exception (try)
 import Test.HUnit
 
@@ -12,6 +14,7 @@ import Path.IO
 
 import qualified Turtle
 import qualified Data.Text as T
+import qualified Data.Text.IO as T
 
 import Hledger.Flow.Common
 import Hledger.Flow.Types (BaseDir, RunDir)
@@ -47,7 +50,7 @@ assertFindTestFileUsingRundir baseDir runDir = do
   let absRunDir = baseDir </> runDir
 
   found <- Turtle.single $ fmap head $ shellToList $ Turtle.find (Turtle.has "test-file.txt") $ pathToTurtle absRunDir
-  fileContents <- Turtle.readTextFile found
+  fileContents <- T.readFile found
   assertEqual "We should find our test file by searching from the returned runDir" (T.pack $ "The expected base dir is " ++ show baseDir) fileContents
 
 assertCurrentDirVariations :: AbsDir -> RelDir -> IO ()
@@ -98,7 +101,7 @@ testBaseDirWithTempDir initialPwd absoluteTempDir = do
 
   let absoluteBaseDir = absoluteTempDir </> baseDir
 
-  Turtle.writeTextFile (pathToTurtle $ absoluteTempDir </> yearDir </> [relfile|test-file.txt|]) (T.pack $ "The expected base dir is " ++ show absoluteBaseDir)
+  T.writeFile (pathToTurtle $ absoluteTempDir </> yearDir </> [relfile|test-file.txt|]) (T.pack $ "The expected base dir is " ++ show absoluteBaseDir)
 
   assertSubDirsForDetermineBaseDir absoluteTempDir absoluteBaseDir subDirs
   assertSubDirsForDetermineBaseDir absoluteTempDir absoluteBaseDir absoluteSubDirs

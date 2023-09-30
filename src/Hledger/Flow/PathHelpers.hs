@@ -29,31 +29,31 @@ instance Show PathException where
     " (or in any of its parent directories).\n\n" ++
     "Have a look at the documentation for more information:\n" ++
     T.unpack (docURL "getting-started")
-  show (InvalidTurtleDir d) = "Expected a directory but got this instead: " ++ Turtle.encodeString d
+  show (InvalidTurtleDir d) = "Expected a directory but got this instead: " ++ d
 
 instance Exception PathException
 
 fromTurtleAbsFile :: MonadThrow m => TurtlePath -> m AbsFile
-fromTurtleAbsFile turtlePath = Path.parseAbsFile $ Turtle.encodeString turtlePath
+fromTurtleAbsFile turtlePath = Path.parseAbsFile turtlePath
 
 fromTurtleRelFile :: MonadThrow m => TurtlePath -> m RelFile
-fromTurtleRelFile turtlePath = Path.parseRelFile $ Turtle.encodeString turtlePath
+fromTurtleRelFile turtlePath = Path.parseRelFile turtlePath
 
 fromTurtleAbsDir :: MonadThrow m => TurtlePath -> m AbsDir
-fromTurtleAbsDir turtlePath = Path.parseAbsDir $ Turtle.encodeString turtlePath
+fromTurtleAbsDir turtlePath = Path.parseAbsDir turtlePath
 
 fromTurtleRelDir :: MonadThrow m => TurtlePath -> m RelDir
-fromTurtleRelDir turtlePath = Path.parseRelDir $ Turtle.encodeString turtlePath
+fromTurtleRelDir turtlePath = Path.parseRelDir turtlePath
 
 turtleToAbsDir :: (MonadIO m, MonadThrow m) => AbsDir -> TurtlePath -> m AbsDir
 turtleToAbsDir baseDir p = do
   isDir <- Turtle.testdir p
   if isDir
-    then Path.resolveDir baseDir $ Turtle.encodeString p
+    then Path.resolveDir baseDir p
     else throwM $ InvalidTurtleDir p
 
 pathToTurtle :: Path.Path b t -> TurtlePath
-pathToTurtle = Turtle.decodeString . Path.toFilePath
+pathToTurtle = Path.toFilePath
 
 forceTrailingSlash :: TurtlePath -> TurtlePath
 forceTrailingSlash p = Turtle.directory (p Turtle.</> "temp")

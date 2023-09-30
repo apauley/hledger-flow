@@ -6,8 +6,9 @@ module Hledger.Flow.Import.CSVImport
 
 import qualified Turtle hiding (stdout, stderr, proc, procStrictWithErr)
 import Turtle ((%), (</>), (<.>))
-import Prelude hiding (putStrLn, take)
+import Prelude hiding (putStrLn, take, writeFile)
 import qualified Data.Text as T
+import qualified Data.Text.IO as T
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Hledger.Flow.Types as FlowTypes
 import Hledger.Flow.Import.Types
@@ -80,7 +81,7 @@ importCSV opts ch importDirs srcFile = do
   let accountName = importDirLine accountDir importDirs
   let ownerName = importDirLine ownerDir importDirs
   (csvFile, preprocessHappened) <- preprocessIfNeeded opts ch preprocessScript bankName accountName ownerName srcFile
-  let journalOut = changePathAndExtension "3-journal" "journal" csvFile
+  let journalOut = changePathAndExtension "3-journal/" "journal" csvFile
   shouldImport <- if onlyNewFiles opts && not preprocessHappened
     then not <$> verboseTestFile opts ch journalOut
     else return True
@@ -103,7 +104,7 @@ constructOrImport opts ch constructScript bankName accountName ownerName = do
 
 preprocessIfNeeded :: RuntimeOptions -> TChan FlowTypes.LogMessage -> TurtlePath -> Turtle.Line -> Turtle.Line -> Turtle.Line -> TurtlePath -> IO (TurtlePath, Bool)
 preprocessIfNeeded opts ch script bank account owner src = do
-  let csvOut = changePathAndExtension "2-preprocessed" "csv" src
+  let csvOut = changePathAndExtension "2-preprocessed/" "csv" src
   scriptExists <- verboseTestFile opts ch script
   shouldProceed <- if onlyNewFiles opts 
     then do
@@ -165,7 +166,7 @@ hledgerImport' opts ch importDirs csvSrc journalOut = do
       let cmdLabel = Turtle.format ("importing '" % Turtle.fp % "' using rules file '" % Turtle.fp % "'") relCSV relRules
       ((_, stdOut, _), _) <- timeAndExitOnErr opts ch cmdLabel dummyLogger channelErr (parAwareProc opts) (hledger, args, Turtle.empty)
       let withoutDryRunText = T.unlines $ drop 2 $ T.lines stdOut
-      _ <- Turtle.writeTextFile journalOut withoutDryRunText
+      _ <- T.writeFile journalOut withoutDryRunText
       return journalOut
     Nothing ->
       do
@@ -202,7 +203,7 @@ statementSpecificRulesFiles csvSrc importDirs = do
   if ((T.take 3 srcSuffix) == "rfo")
     then
     do
-      let srcSpecificFilename = Turtle.fromText srcSuffix <.> "rules"
+      let srcSpecificFilename = T.unpack srcSuffix <.> "rules"
       map (</> srcSpecificFilename) [accountDir importDirs, bankDir importDirs, importDir importDirs]
     else []
 

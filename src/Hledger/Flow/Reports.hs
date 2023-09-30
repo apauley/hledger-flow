@@ -6,7 +6,7 @@ module Hledger.Flow.Reports
 
 import qualified Turtle as Turtle hiding (stdout, stderr, proc)
 import Turtle ((%), (</>), (<.>))
-import Prelude hiding (putStrLn, writeFile)
+import Prelude hiding (putStrLn, writeFile, readFile)
 
 import Hledger.Flow.RuntimeOptions
 import Hledger.Flow.Common
@@ -17,6 +17,7 @@ import Data.Either
 import Data.Maybe
 
 import qualified Data.Text as T
+import qualified Data.Text.IO as T
 import qualified Hledger.Flow.Types as FlowTypes
 import Hledger.Flow.PathHelpers (TurtlePath, pathToTurtle)
 import Hledger.Flow.Logging
@@ -50,7 +51,7 @@ generateReports' opts ch = do
   channelOutLn ch wipMsg
   owners <- Turtle.single $ shellToList $ listOwners opts
   ledgerEnvValue <- Turtle.need "LEDGER_FILE" :: IO (Maybe T.Text)
-  let hledgerJournal = fromMaybe (turtleBaseDir opts </> allYearsFileName) $ fmap Turtle.fromText ledgerEnvValue
+  let hledgerJournal = fromMaybe (turtleBaseDir opts </> allYearsFileName) $ fmap T.unpack ledgerEnvValue
   hledgerJournalExists <- Turtle.testfile hledgerJournal
   _ <- if not hledgerJournalExists then Turtle.die $ Turtle.format ("Unable to find journal file: "%Turtle.fp%"\nIs your LEDGER_FILE environment variable set correctly?") hledgerJournal else return ()
   let journalWithYears = journalFile opts []
@@ -116,7 +117,7 @@ generateReport opts ch journal year reportsDir fileName args successCheck = do
   if (successCheck stdOut)
     then
     do
-      Turtle.writeTextFile outputFile (cmdLabel <> "\n\n"<> stdOut)
+      T.writeFile outputFile (cmdLabel <> "\n\n"<> stdOut)
       logVerbose opts ch $ Turtle.format ("Wrote "%Turtle.fp) $ relativeOutputFile
       return $ Right outputFile
     else
