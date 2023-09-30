@@ -60,7 +60,7 @@ hiddenFiles = [".hiddenfile",
                "import/john/bogartbank/checking/3-journal/2018/.hidden"]
 
 toJournals :: [TurtlePath] -> [TurtlePath]
-toJournals = map (changePathAndExtension "3-journal" "journal")
+toJournals = map (changePathAndExtension "3-journal/" "journal")
 
 touchAll :: [TurtlePath] -> Shell ()
 touchAll = foldl (\acc file -> acc <> superTouch file) (return ())

@@ -74,7 +74,7 @@ allYearsPath' :: (TurtlePath -> TurtlePath) -> TurtlePath -> TurtlePath
 allYearsPath' dir p = dir p </> allYearsFileName
 
 includeFileName :: TurtlePath -> TurtlePath
-includeFileName = (<.> "journal") . Turtle.fromText . (Turtle.format (Turtle.fp%"-include")) . Turtle.dirname
+includeFileName = (<.> "journal") . T.unpack . (Turtle.format (Turtle.fp%"-include")) . Turtle.dirname
 
 groupIncludeFilesPerYear :: [TurtlePath] -> TurtleFileBundle
 groupIncludeFilesPerYear [] = Map.empty
@@ -150,11 +150,11 @@ extraIncludes' opts ch acc (file:files) extraSuffixes manualFiles prices = do
 
 extraIncludesForFile :: (HasVerbosity o, HasBaseDir o) => o -> TChan LogMessage -> TurtlePath -> [T.Text] -> [TurtlePath] -> [TurtlePath] -> IO TurtleFileBundle
 extraIncludesForFile opts ch file extraSuffixes manualFiles prices = do
-  let dirprefix = Turtle.fromText $ fst $ T.breakOn "-" $ Turtle.format Turtle.fp $ Turtle.basename file
-  let fileNames = map (Turtle.fromText . Turtle.format (Turtle.fp % "-" % Turtle.s) dirprefix) extraSuffixes
+  let dirprefix = T.unpack $ fst $ T.breakOn "-" $ Turtle.format Turtle.fp $ Turtle.basename file
+  let fileNames = map (T.unpack . Turtle.format (Turtle.fp % "-" % Turtle.s) dirprefix) extraSuffixes
   let suffixFiles = map (Turtle.directory file </>) fileNames
-  let suffixDirFiles = map (Turtle.directory file </> "_manual_" </> dirprefix </>) manualFiles
-  let priceFiles = map (Turtle.directory file </> ".." </> "prices" </> dirprefix </>) prices
+  let suffixDirFiles = map (((Turtle.directory file </> "_manual_") </> dirprefix) </>) manualFiles
+  let priceFiles = map ((((Turtle.directory file </> "..") </> "prices") </> dirprefix) </>) prices
   let extraFiles = suffixFiles ++ suffixDirFiles ++ priceFiles
   filtered <- Turtle.single $ filterPaths Turtle.testfile extraFiles
   let logMsg = Turtle.format ("Looking for possible extra include files for '"%Turtle.fp%"' among these "%Turtle.d%" options: "%Turtle.s%". Found "%Turtle.d%": "%Turtle.s)

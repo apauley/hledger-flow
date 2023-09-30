@@ -3,10 +3,14 @@
 
 module CSVImport.Integration (tests) where
 
+import Prelude hiding (writeFile, readFile)
+
+
 import Test.HUnit
 import Turtle
 import qualified Data.Map.Strict as Map
 import qualified Data.List as List (sort)
+import qualified Data.Text.IO as T
 
 import TestHelpers (defaultOpts)
 import TestHelpersTurtle (journalFiles, hiddenFiles, touchAll, extraFiles)
@@ -215,31 +219,31 @@ testWriteIncludeFiles = TestCase (
               <> "include 3-journal/2018/2018-10-30.journal\n"
               <> "include 3-journal/2018/2018-11-30.journal\n"
               <> "include 3-journal/2018/2018-12-30.journal\n"
-        actualJohn1Contents <- liftIO $ readTextFile john1
+        actualJohn1Contents <- liftIO $ T.readFile john1
         liftIO $ assertEqual "John1: The include file contents should be the journal files" expectedJohn1Contents actualJohn1Contents
 
         let expectedJohn2Contents = includePreamble <> "\n"
               <> "include 3-journal/2019/2019-01-30.journal\n"
               <> "include 3-journal/2019/2019-02-30.journal\n"
-        actualJohn2Contents <- liftIO $ readTextFile john2
+        actualJohn2Contents <- liftIO $ T.readFile john2
         liftIO $ assertEqual "John2: The include file contents should be the journal files" expectedJohn2Contents actualJohn2Contents
 
         let expectedJohn3Contents = includePreamble <> "\n"
               <> "include 2017-opening.journal\n"
               <> "include 3-journal/2017/2017-11-30.journal\n"
               <> "include 3-journal/2017/2017-12-30.journal\n"
-        actualJohn3Contents <- liftIO $ readTextFile john3
+        actualJohn3Contents <- liftIO $ T.readFile john3
         liftIO $ assertEqual "John3: The include file contents should be the journal files" expectedJohn3Contents actualJohn3Contents
 
         let expectedJohn4Contents = includePreamble <> "\n"
               <> "include 3-journal/2018/2018-01-30.journal\n"
               <> "include 3-journal/2018/2018-02-30.journal\n"
-        actualJohn4Contents <- liftIO $ readTextFile john4
+        actualJohn4Contents <- liftIO $ T.readFile john4
         liftIO $ assertEqual "John4: The include file contents should be the journal files" expectedJohn4Contents actualJohn4Contents
 
         let expectedJane7Contents = includePreamble <> "\n"
               <> "include 3-journal/2018/2018-12-30.journal\n"
-        actualJane7Contents <- liftIO $ readTextFile jane7
+        actualJane7Contents <- liftIO $ T.readFile jane7
         liftIO $ assertEqual "Jane7: The include file contents should be the journal files" expectedJane7Contents actualJane7Contents
      )
   )
