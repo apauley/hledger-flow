@@ -63,7 +63,7 @@ generateReports' opts ch = do
   let aggregateOnlyReports = reportActions opts ch [transferBalance] aggregateParams
   ownerParams <- ownerParameters opts ch owners
   let ownerWithAggregateParams = (if length owners > 1 then [aggregateParams] else []) ++ ownerParams
-  let sharedOptions = ["--pretty-tables", "--depth", "2"]
+  let sharedOptions = (if prettyReports opts then ["--pretty-tables"] else []) ++ ["--depth", "2"]
   let ownerWithAggregateReports = List.concat $ fmap (reportActions opts ch [incomeStatement sharedOptions, incomeMonthlyStatement sharedOptions, balanceSheet sharedOptions]) ownerWithAggregateParams
   let ownerOnlyReports = List.concat $ fmap (reportActions opts ch [accountList, unknownTransactions]) ownerParams
   parAwareActions opts (aggregateOnlyReports ++ ownerWithAggregateReports ++ ownerOnlyReports)
@@ -100,7 +100,7 @@ balanceSheet sharedOptions opts ch journal baseOutDir year = do
 
 transferBalance :: ReportGenerator
 transferBalance opts ch journal baseOutDir year = do
-  let reportArgs = ["balance", "--pretty-tables", "--quarterly", "--flat", "--no-total", "transfer"]
+  let reportArgs = ["balance"] ++ (if prettyReports opts then ["--pretty-tables"] else []) ++ ["--quarterly", "--flat", "--no-total", "transfer"]
   generateReport opts ch journal year (baseOutDir </> intPath year) ("transfer-balance" <.> "txt") reportArgs (\txt -> (length $ T.lines txt) > 4)
 
 generateReport :: RuntimeOptions -> TChan FlowTypes.LogMessage -> TurtlePath -> Integer -> TurtlePath -> TurtlePath -> [T.Text] -> (T.Text -> Bool) -> IO (Either TurtlePath TurtlePath)

@@ -36,3 +36,6 @@ class HasSequential a where
 
 class HasBatchSize a where
   batchSize :: a -> Int
+
+class HasPrettyReports a where
+  prettyReports :: a -> Bool

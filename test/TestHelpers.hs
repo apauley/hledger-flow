@@ -40,6 +40,7 @@ defaultOpts bd = RuntimeOptions {
   , showOptions = False
   , sequential = False
   , batchSize = 1
+  , prettyReports = True
 }
 
 toJournal :: RelFile -> RelFile
