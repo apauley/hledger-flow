@@ -38,7 +38,9 @@ data ImportParams = ImportParams { maybeImportBaseDir :: Maybe TurtlePath
                                  , onlyNewFiles :: Bool
                                  } deriving (Show)
 
-newtype ReportParams = ReportParams {maybeReportBaseDir :: Maybe TurtlePath} deriving Show
+data ReportParams = ReportParams { maybeReportBaseDir :: Maybe TurtlePath
+                                 , asciiReports :: Bool
+                                 } deriving (Show)
 
 data Command = Import ImportParams | Report ReportParams deriving (Show)
 
@@ -88,6 +90,7 @@ toRuntimeOptionsImport mainParams' subParams' = do
                            , RT.showOptions = showOpts mainParams'
                            , RT.sequential = sequential mainParams'
                            , RT.batchSize = size
+                           , RT.prettyReports = True
                            }
 
 toRuntimeOptionsReport :: MainParams -> ReportParams -> IO RT.RuntimeOptions
@@ -108,6 +111,7 @@ toRuntimeOptionsReport mainParams' subParams' = do
                            , RT.showOptions = showOpts mainParams'
                            , RT.sequential = sequential mainParams'
                            , RT.batchSize = size
+                           , RT.prettyReports = not(asciiReports subParams')
                            }
 
 baseCommandParser :: Parser BaseCommand
@@ -135,3 +139,4 @@ subcommandParserImport = ImportParams
 subcommandParserReport :: Parser ReportParams
 subcommandParserReport = ReportParams
   <$> optional (Turtle.argPath "basedir" "The hledger-flow base directory")
+  <*> switch (long "ascii-reports" <> help "If to avoid using hledger --pretty-tables flag when generating reports.")
