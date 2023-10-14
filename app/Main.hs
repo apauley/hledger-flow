@@ -63,7 +63,7 @@ main = do
     Command mainParams' (Report subParams) -> toRuntimeOptionsReport mainParams' subParams >>= generateReports
 
 defaultBatchSize :: Int
-defaultBatchSize = 200
+defaultBatchSize = 20
 
 determineBatchSize :: MainParams -> IO Int
 determineBatchSize mainParams' =
