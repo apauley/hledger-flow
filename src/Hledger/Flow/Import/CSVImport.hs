@@ -200,13 +200,13 @@ generalRulesFiles importDirs = do
 statementSpecificRulesFiles :: TurtlePath -> ImportDirs -> [TurtlePath]
 statementSpecificRulesFiles csvSrc importDirs = do
   let srcSuffix = snd $ T.breakOnEnd "_" (Turtle.format Turtle.fp (Turtle.basename csvSrc))
-
   if ((T.take 3 srcSuffix) == "rfo")
-    then
-    do
+    then do
       let srcSpecificFilename = T.unpack srcSuffix <.> "rules"
       map (</> srcSpecificFilename) [accountDir importDirs, bankDir importDirs, importDir importDirs]
-    else []
+    else do
+      let srcSpecificFilename = T.unpack (Turtle.format Turtle.fp (Turtle.basename csvSrc)) <.> "rules"
+      map (</> "rules" </> srcSpecificFilename) [accountDir importDirs, bankDir importDirs, importDir importDirs]
 
 customConstruct :: RuntimeOptions -> TChan FlowTypes.LogMessage -> TurtlePath -> Turtle.Line -> Turtle.Line -> Turtle.Line -> TurtlePath -> TurtlePath -> IO TurtlePath
 customConstruct opts ch constructScript bank account owner csvSrc journalOut = do
