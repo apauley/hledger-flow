@@ -117,7 +117,9 @@ preprocessIfNeeded opts ch script bank account owner src = do
      return (out, True)
     else do
       _ <- logNewFileSkip opts ch "preprocess" csvOut
-      return (src, False)
+      if scriptExists
+        then return (csvOut, True)
+        else return (src, False)
 
 logNewFileSkip :: RuntimeOptions -> TChan FlowTypes.LogMessage -> T.Text -> TurtlePath -> IO ()
 logNewFileSkip opts ch logIdentifier absTarget =
