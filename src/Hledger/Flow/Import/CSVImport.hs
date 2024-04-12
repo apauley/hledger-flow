@@ -106,10 +106,9 @@ preprocessIfNeeded :: RuntimeOptions -> TChan FlowTypes.LogMessage -> TurtlePath
 preprocessIfNeeded opts ch script bank account owner src = do
   let csvOut = changePathAndExtension "2-preprocessed/" "csv" src
   scriptExists <- verboseTestFile opts ch script
+  targetExists <- verboseTestFile opts ch csvOut
   shouldProceed <- if onlyNewFiles opts 
-    then do
-      targetExists <- verboseTestFile opts ch csvOut
-      return $ scriptExists && not targetExists
+    then return $ scriptExists && not targetExists
     else return scriptExists
   if shouldProceed
     then do
@@ -117,8 +116,8 @@ preprocessIfNeeded opts ch script bank account owner src = do
      return (out, True)
     else do
       _ <- logNewFileSkip opts ch "preprocess" csvOut
-      if scriptExists
-        then return (csvOut, True)
+      if targetExists
+        then return (csvOut, False)
         else return (src, False)
 
 logNewFileSkip :: RuntimeOptions -> TChan FlowTypes.LogMessage -> T.Text -> TurtlePath -> IO ()
