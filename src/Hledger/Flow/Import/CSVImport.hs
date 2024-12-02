@@ -23,6 +23,7 @@ import Hledger.Flow.RuntimeOptions
 import Control.Concurrent.STM
 import Control.Monad
 import Data.Maybe (fromMaybe, isNothing)
+import Turtle (format, procStrict, empty, fp, s)
 
 type FileWasGenerated = Bool
 
@@ -76,11 +77,14 @@ extractAndImport opts ch inputFile = do
 importCSV :: RuntimeOptions -> TChan FlowTypes.LogMessage -> ImportDirs -> TurtlePath -> IO (TurtlePath, FileWasGenerated)
 importCSV opts ch importDirs srcFile = do
   let preprocessScript = accountDir importDirs </> "preprocess"
+  let createRulesScript = accountDir importDirs </> "createRules"
   let constructScript = accountDir importDirs </> "construct"
   let bankName = importDirLine bankDir importDirs
   let accountName = importDirLine accountDir importDirs
   let ownerName = importDirLine ownerDir importDirs
-  (csvFile, preprocessHappened) <- preprocessIfNeeded opts ch preprocessScript bankName accountName ownerName srcFile
+
+  (csvFile, preprocessHappened) <- preprocessIfNeeded opts ch preprocessScript createRulesScript bankName accountName ownerName srcFile
+
   let journalOut = changePathAndExtension "3-journal/" "journal" csvFile
   shouldImport <- if onlyNewFiles opts && not preprocessHappened
     then not <$> verboseTestFile opts ch journalOut
@@ -102,18 +106,22 @@ constructOrImport opts ch constructScript bankName accountName ownerName = do
     then return $ customConstruct opts ch constructScript bankName accountName ownerName
     else return $ hledgerImport opts ch
 
-preprocessIfNeeded :: RuntimeOptions -> TChan FlowTypes.LogMessage -> TurtlePath -> Turtle.Line -> Turtle.Line -> Turtle.Line -> TurtlePath -> IO (TurtlePath, Bool)
-preprocessIfNeeded opts ch script bank account owner src = do
+preprocessIfNeeded :: RuntimeOptions -> TChan FlowTypes.LogMessage -> TurtlePath -> TurtlePath -> Turtle.Line -> Turtle.Line -> Turtle.Line -> TurtlePath -> IO (TurtlePath, Bool)
+preprocessIfNeeded opts ch preprocessScript createRulesScript bank account owner src = do
   let csvOut = changePathAndExtension "2-preprocessed/" "csv" src
-  scriptExists <- verboseTestFile opts ch script
+
+  scriptExists <- verboseTestFile opts ch preprocessScript
+  rulesCreated <- createRules opts ch createRulesScript bank account owner src
   targetExists <- verboseTestFile opts ch csvOut
+
   shouldProceed <- if onlyNewFiles opts 
-    then return $ scriptExists && not targetExists
-    else return scriptExists
+    then return $ scriptExists && rulesCreated && not targetExists
+    else return $ scriptExists && rulesCreated
+
   if shouldProceed
     then do
-     out <- preprocess opts ch script bank account owner src csvOut
-     return (out, True)
+      out <- preprocess opts ch preprocessScript bank account owner src csvOut
+      return (out, True)
     else do
       _ <- logNewFileSkip opts ch "preprocess" csvOut
       if targetExists
@@ -130,6 +138,29 @@ logNewFileSkip opts ch logIdentifier absTarget =
          % " - only creating new files and this output file already exists: '"
          % Turtle.fp
          % "'") logIdentifier relativeTarget
+
+createRules :: RuntimeOptions -> TChan FlowTypes.LogMessage -> TurtlePath -> Turtle.Line -> Turtle.Line -> Turtle.Line -> TurtlePath -> IO Bool
+createRules opts ch createRulesScript bank account owner src = do
+
+  scriptExists <- verboseTestFile opts ch createRulesScript
+  if scriptExists
+    then do
+      channelOutLn ch $ format ("Creating rules using: "%fp%".") (createRulesScript)
+      _ <- runCreateRulesScript opts ch createRulesScript bank account owner src
+      return True
+    else do
+      channelOutLn ch $ format ("Not creating rules, because createRulescript: "%fp%" was not found,") (createRulesScript)
+      return False
+
+runCreateRulesScript :: RuntimeOptions -> TChan FlowTypes.LogMessage -> TurtlePath -> Turtle.Line -> Turtle.Line -> Turtle.Line -> TurtlePath -> IO ()
+runCreateRulesScript _ _ createRulesScript bank account owner src = do
+  let args = [ Turtle.format Turtle.fp src
+             , Turtle.lineToText bank
+             , Turtle.lineToText account
+             , Turtle.lineToText owner ]
+
+  -- Run the script with the formatted arguments
+  void $ procStrict (format fp createRulesScript) args empty
 
 preprocess :: RuntimeOptions -> TChan FlowTypes.LogMessage -> TurtlePath -> Turtle.Line -> Turtle.Line -> Turtle.Line -> TurtlePath -> TurtlePath -> IO TurtlePath
 preprocess opts ch script bank account owner src csvOut = do
