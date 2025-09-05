@@ -1,252 +1,297 @@
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE OverloadedLists #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module CSVImport.Integration (tests) where
 
-import Prelude hiding (writeFile, readFile)
-
-
-import Test.HUnit
-import Turtle
-import qualified Data.Map.Strict as Map
+import Control.Concurrent.STM
 import qualified Data.List as List (sort)
+import qualified Data.Map.Strict as Map
 import qualified Data.Text.IO as T
-
-import TestHelpers (defaultOpts)
-import TestHelpersTurtle (journalFiles, hiddenFiles, touchAll, extraFiles)
 import Hledger.Flow.Common
 import Hledger.Flow.Import.ImportHelpersTurtle (extraIncludesForFile, groupAndWriteIncludeFiles, includePreamble, toIncludeFiles)
 import Hledger.Flow.PathHelpers
-
-import Control.Concurrent.STM
+import Test.HUnit
+import TestHelpers (defaultOpts)
+import TestHelpersTurtle (extraFiles, hiddenFiles, journalFiles, touchAll)
+import Turtle
+import Prelude hiding (readFile, writeFile)
 
 testExtraIncludesForFile :: Test
-testExtraIncludesForFile = TestCase (
-  sh (
-      do
-        currentDir <- pwd
-        tmpdir <- using (mktempdir currentDir "hlflow")
-        tmpdirAbsPath <- fromTurtleAbsDir tmpdir
+testExtraIncludesForFile =
+  TestCase
+    ( sh
+        ( do
+            currentDir <- pwd
+            tmpdir <- using (mktempdir currentDir "hlflow")
+            tmpdirAbsPath <- fromTurtleAbsDir tmpdir
 
-        let importedJournals = map (tmpdir </>) journalFiles :: [TurtlePath]
-        let accountDir = "import/john/bogartbank/savings"
-        let opening = tmpdir </> accountDir </> "2017-opening.journal"
-        let closing = tmpdir </> accountDir </> "2017-closing.journal"
-        let hidden = map (tmpdir </>) hiddenFiles :: [TurtlePath]
-        touchAll $ importedJournals ++ hidden
+            let importedJournals = map (tmpdir </>) journalFiles :: [TurtlePath]
+            let accountDir = "import/john/bogartbank/savings"
+            let opening = tmpdir </> accountDir </> "2017-opening.journal"
+            let closing = tmpdir </> accountDir </> "2017-closing.journal"
+            let hidden = map (tmpdir </>) hiddenFiles :: [TurtlePath]
+            touchAll $ importedJournals ++ hidden
 
-        let accountInclude = tmpdir </> accountDir </> "2017-include.journal"
-        let expectedEmpty = [(accountInclude, [])]
+            let accountInclude = tmpdir </> accountDir </> "2017-include.journal"
+            let expectedEmpty = [(accountInclude, [])]
 
-        ch <- liftIO newTChanIO
+            ch <- liftIO newTChanIO
 
-        extraOpening1 <- liftIO $ extraIncludesForFile (defaultOpts tmpdirAbsPath) ch accountInclude ["opening.journal"] [] []
-        liftIO $ assertEqual "The opening journal should not be included when it is not on disk" expectedEmpty extraOpening1
+            extraOpening1 <- liftIO $ extraIncludesForFile (defaultOpts tmpdirAbsPath) ch accountInclude ["opening.journal"] [] []
+            liftIO $ assertEqual "The opening journal should not be included when it is not on disk" expectedEmpty extraOpening1
 
-        extraClosing1 <- liftIO $ extraIncludesForFile (defaultOpts tmpdirAbsPath) ch accountInclude ["closing.journal"] [] []
-        liftIO $ assertEqual "The closing journal should not be included when it is not on disk" expectedEmpty extraClosing1
+            extraClosing1 <- liftIO $ extraIncludesForFile (defaultOpts tmpdirAbsPath) ch accountInclude ["closing.journal"] [] []
+            liftIO $ assertEqual "The closing journal should not be included when it is not on disk" expectedEmpty extraClosing1
 
-        touchAll [opening, closing]
+            touchAll [opening, closing]
 
-        extraOpening2 <- liftIO $ extraIncludesForFile (defaultOpts tmpdirAbsPath) ch accountInclude ["opening.journal"] [] []
-        liftIO $ assertEqual "The opening journal should be included when it is on disk" [(accountInclude, [opening])] extraOpening2
+            extraOpening2 <- liftIO $ extraIncludesForFile (defaultOpts tmpdirAbsPath) ch accountInclude ["opening.journal"] [] []
+            liftIO $ assertEqual "The opening journal should be included when it is on disk" [(accountInclude, [opening])] extraOpening2
 
-        extraClosing2 <- liftIO $ extraIncludesForFile (defaultOpts tmpdirAbsPath) ch accountInclude ["closing.journal"] [] []
-        liftIO $ assertEqual "The closing journal should be included when it is on disk" [(accountInclude, [closing])] extraClosing2
-     ))
+            extraClosing2 <- liftIO $ extraIncludesForFile (defaultOpts tmpdirAbsPath) ch accountInclude ["closing.journal"] [] []
+            liftIO $ assertEqual "The closing journal should be included when it is on disk" [(accountInclude, [closing])] extraClosing2
+        )
+    )
 
 testExtraIncludesPrices :: Test
-testExtraIncludesPrices = TestCase (
-  sh (
-      do
-        currentDir <- pwd
-        tmpdir <- using (mktempdir currentDir "hlflow")
-        tmpdirAbsPath <- fromTurtleAbsDir tmpdir
+testExtraIncludesPrices =
+  TestCase
+    ( sh
+        ( do
+            currentDir <- pwd
+            tmpdir <- using (mktempdir currentDir "hlflow")
+            tmpdirAbsPath <- fromTurtleAbsDir tmpdir
 
-        let importedJournals = map (tmpdir </>) journalFiles :: [TurtlePath]
-        touchAll $ importedJournals
+            let importedJournals = map (tmpdir </>) journalFiles :: [TurtlePath]
+            touchAll $ importedJournals
 
-        let priceFile = "prices" </> "2020" </> "prices.journal"
+            let priceFile = "prices" </> "2020" </> "prices.journal"
 
-        let includeFile = tmpdir </> "import" </> "2020-include.journal"
-        let expectedEmpty = [(includeFile, [])]
+            let includeFile = tmpdir </> "import" </> "2020-include.journal"
+            let expectedEmpty = [(includeFile, [])]
 
-        ch <- liftIO newTChanIO
+            ch <- liftIO newTChanIO
 
-        price1 <- liftIO $ extraIncludesForFile (defaultOpts tmpdirAbsPath) ch includeFile [] [] ["prices.journal"]
-        liftIO $ assertEqual "The price file should not be included when it is not on disk" expectedEmpty price1
+            price1 <- liftIO $ extraIncludesForFile (defaultOpts tmpdirAbsPath) ch includeFile [] [] ["prices.journal"]
+            liftIO $ assertEqual "The price file should not be included when it is not on disk" expectedEmpty price1
 
-        touchAll [tmpdir </> priceFile]
-        let expectedPricePath = tmpdir </> "import" </> ".." </> priceFile
+            touchAll [tmpdir </> priceFile]
+            let expectedPricePath = tmpdir </> "import" </> ".." </> priceFile
 
-        price2 <- liftIO $ extraIncludesForFile (defaultOpts tmpdirAbsPath) ch includeFile [] [] ["prices.journal"]
-        liftIO $ assertEqual "The price file should be included when it is on disk" [(includeFile, [expectedPricePath])] price2
-     ))
+            price2 <- liftIO $ extraIncludesForFile (defaultOpts tmpdirAbsPath) ch includeFile [] [] ["prices.journal"]
+            liftIO $ assertEqual "The price file should be included when it is on disk" [(includeFile, [expectedPricePath])] price2
+        )
+    )
 
 testIncludesPrePost :: Test
-testIncludesPrePost = TestCase (
-  sh (
-      do
-        currentDir <- pwd
-        tmpdir <- using (mktempdir currentDir "hlflow")
-        tmpdirAbsPath <- fromTurtleAbsDir tmpdir
+testIncludesPrePost =
+  TestCase
+    ( sh
+        ( do
+            currentDir <- pwd
+            tmpdir <- using (mktempdir currentDir "hlflow")
+            tmpdirAbsPath <- fromTurtleAbsDir tmpdir
 
-        let ownerDir = tmpdir </> "import" </> "john"
-        let includeFile = ownerDir </> "2019-include.journal"
-        let pre  = ownerDir </> "_manual_" </> "2019" </> "pre-import.journal"
-        let post = ownerDir </> "_manual_" </> "2019" </> "post-import.journal"
-        touchAll [pre, post]
+            let ownerDir = tmpdir </> "import" </> "john"
+            let includeFile = ownerDir </> "2019-include.journal"
+            let pre = ownerDir </> "_manual_" </> "2019" </> "pre-import.journal"
+            let post = ownerDir </> "_manual_" </> "2019" </> "post-import.journal"
+            touchAll [pre, post]
 
-        let includeMap = Map.singleton includeFile [ownerDir </> "bank1" </> "2019-include.journal",
-                                                    ownerDir </> "bank2" </> "2019-include.journal"]
+            let includeMap =
+                  Map.singleton
+                    includeFile
+                    [ ownerDir </> "bank1" </> "2019-include.journal",
+                      ownerDir </> "bank2" </> "2019-include.journal"
+                    ]
 
-        ch <- liftIO newTChanIO
-        fileMap <- liftIO $ toIncludeFiles (defaultOpts tmpdirAbsPath) ch includeMap
-        let expectedText = includePreamble <> "\n"
-              <> "include _manual_/2019/pre-import.journal\n"
-              <> "include bank1/2019-include.journal\n"
-              <> "include bank2/2019-include.journal\n"
-              <> "include _manual_/2019/post-import.journal\n"
-        let expectedMap = Map.singleton includeFile expectedText
-        liftIO $ assertEqual "All pre/post files on disk should be included" expectedMap fileMap
-     ))
+            ch <- liftIO newTChanIO
+            fileMap <- liftIO $ toIncludeFiles (defaultOpts tmpdirAbsPath) ch includeMap
+            let expectedText =
+                  includePreamble
+                    <> "\n"
+                    <> "include _manual_/2019/pre-import.journal\n"
+                    <> "include bank1/2019-include.journal\n"
+                    <> "include bank2/2019-include.journal\n"
+                    <> "include _manual_/2019/post-import.journal\n"
+            let expectedMap = Map.singleton includeFile expectedText
+            liftIO $ assertEqual "All pre/post files on disk should be included" expectedMap fileMap
+        )
+    )
 
 testIncludesOpeningClosing :: Test
-testIncludesOpeningClosing = TestCase (
-  sh (
-      do
-        currentDir <- pwd
-        tmpdir <- using (mktempdir currentDir "hlflow")
-        tmpdirAbsPath <- fromTurtleAbsDir tmpdir
+testIncludesOpeningClosing =
+  TestCase
+    ( sh
+        ( do
+            currentDir <- pwd
+            tmpdir <- using (mktempdir currentDir "hlflow")
+            tmpdirAbsPath <- fromTurtleAbsDir tmpdir
 
-        let ownerDir = tmpdir </> "import/john"
-        let accountDir = ownerDir </> "bank1" </> "savings"
-        let includeFile = accountDir </> "2019-include.journal"
-        let opening = accountDir </> "2019-opening.journal"
-        let closing = accountDir </> "2019-closing.journal"
-        touchAll [opening, closing]
+            let ownerDir = tmpdir </> "import/john"
+            let accountDir = ownerDir </> "bank1" </> "savings"
+            let includeFile = accountDir </> "2019-include.journal"
+            let opening = accountDir </> "2019-opening.journal"
+            let closing = accountDir </> "2019-closing.journal"
+            touchAll [opening, closing]
 
-        let includeMap = Map.singleton includeFile [accountDir </> "3-journal" </> "2019" </> "2019-01-30.journal"]
+            let includeMap = Map.singleton includeFile [accountDir </> "3-journal" </> "2019" </> "2019-01-30.journal"]
 
-        ch <- liftIO newTChanIO
-        fileMap <- liftIO $ toIncludeFiles (defaultOpts tmpdirAbsPath) ch includeMap
-        let expectedText = includePreamble <> "\n"
-              <> "include 2019-opening.journal\n"
-              <> "include 3-journal/2019/2019-01-30.journal\n"
-              <> "include 2019-closing.journal\n"
-        let expectedMap = Map.singleton includeFile expectedText
-        liftIO $ assertEqual "All opening/closing files on disk should be included" expectedMap fileMap
-     ))
+            ch <- liftIO newTChanIO
+            fileMap <- liftIO $ toIncludeFiles (defaultOpts tmpdirAbsPath) ch includeMap
+            let expectedText =
+                  includePreamble
+                    <> "\n"
+                    <> "include 2019-opening.journal\n"
+                    <> "include 3-journal/2019/2019-01-30.journal\n"
+                    <> "include 2019-closing.journal\n"
+            let expectedMap = Map.singleton includeFile expectedText
+            liftIO $ assertEqual "All opening/closing files on disk should be included" expectedMap fileMap
+        )
+    )
 
 testIncludesPrices :: Test
-testIncludesPrices = TestCase (
-  sh (
-      do
-        currentDir <- pwd
-        tmpdir <- using (mktempdir currentDir "hlflow")
-        tmpdirAbsPath <- fromTurtleAbsDir tmpdir
+testIncludesPrices =
+  TestCase
+    ( sh
+        ( do
+            currentDir <- pwd
+            tmpdir <- using (mktempdir currentDir "hlflow")
+            tmpdirAbsPath <- fromTurtleAbsDir tmpdir
 
-        let importDir = tmpdir </> "import"
-        let includeFile = importDir </> "2020-include.journal"
-        let prices = tmpdir </> "prices" </> "2020" </> "prices.journal"
-        let pre  = importDir </> "_manual_" </> "2020" </> "pre-import.journal"
-        let post = importDir </> "_manual_" </> "2020" </> "post-import.journal"
-        touchAll [prices, pre, post]
+            let importDir = tmpdir </> "import"
+            let includeFile = importDir </> "2020-include.journal"
+            let prices = tmpdir </> "prices" </> "2020" </> "prices.journal"
+            let pre = importDir </> "_manual_" </> "2020" </> "pre-import.journal"
+            let post = importDir </> "_manual_" </> "2020" </> "post-import.journal"
+            touchAll [prices, pre, post]
 
-        let includeMap = Map.singleton includeFile [importDir </> "john" </> "2020-include.journal"]
+            let includeMap = Map.singleton includeFile [importDir </> "john" </> "2020-include.journal"]
 
-        ch <- liftIO newTChanIO
-        fileMap <- liftIO $ toIncludeFiles (defaultOpts tmpdirAbsPath) ch includeMap
-        let expectedText = includePreamble <> "\n"
-              <> "include _manual_/2020/pre-import.journal\n"
-              <> "include john/2020-include.journal\n"
-              <> "include ../prices/2020/prices.journal\n"
-              <> "include _manual_/2020/post-import.journal\n"
-        let expectedMap = Map.singleton includeFile expectedText
-        liftIO $ assertEqual "The price file should be included together with any pre/post files" expectedMap fileMap
-     ))
+            ch <- liftIO newTChanIO
+            fileMap <- liftIO $ toIncludeFiles (defaultOpts tmpdirAbsPath) ch includeMap
+            let expectedText =
+                  includePreamble
+                    <> "\n"
+                    <> "include _manual_/2020/pre-import.journal\n"
+                    <> "include john/2020-include.journal\n"
+                    <> "include ../prices/2020/prices.journal\n"
+                    <> "include _manual_/2020/post-import.journal\n"
+            let expectedMap = Map.singleton includeFile expectedText
+            liftIO $ assertEqual "The price file should be included together with any pre/post files" expectedMap fileMap
+        )
+    )
 
 testWriteIncludeFiles :: Test
-testWriteIncludeFiles = TestCase (
-  sh (
-      do
-        currentDir <- pwd
-        tmpdir <- using (mktempdir currentDir "hlflow")
-        tmpdirAbsPath <- fromTurtleAbsDir tmpdir
+testWriteIncludeFiles =
+  TestCase
+    ( sh
+        ( do
+            currentDir <- pwd
+            tmpdir <- using (mktempdir currentDir "hlflow")
+            tmpdirAbsPath <- fromTurtleAbsDir tmpdir
 
-        let importedJournals = map (tmpdir </>) journalFiles :: [TurtlePath]
-        let extras = map (tmpdir </>) extraFiles :: [TurtlePath]
-        let hidden = map (tmpdir </>) hiddenFiles :: [TurtlePath]
-        touchAll $ importedJournals ++ extras ++ hidden
+            let importedJournals = map (tmpdir </>) journalFiles :: [TurtlePath]
+            let extras = map (tmpdir </>) extraFiles :: [TurtlePath]
+            let hidden = map (tmpdir </>) hiddenFiles :: [TurtlePath]
+            touchAll $ importedJournals ++ extras ++ hidden
 
-        let jane1 = tmpdir </> "import/jane/bogartbank/checking/2018-include.journal"
-        let jane2 = tmpdir </> "import/jane/bogartbank/checking/2019-include.journal"
-        let jane3 = tmpdir </> "import/jane/bogartbank/savings/2017-include.journal"
-        let jane4 = tmpdir </> "import/jane/bogartbank/savings/2018-include.journal"
-        let jane5 = tmpdir </> "import/jane/otherbank/creditcard/2017-include.journal"
-        let jane6 = tmpdir </> "import/jane/otherbank/creditcard/2018-include.journal"
-        let jane7 = tmpdir </> "import/jane/otherbank/investments/2018-include.journal"
-        let jane8 = tmpdir </> "import/jane/otherbank/investments/2019-include.journal"
+            let jane1 = tmpdir </> "import/jane/bogartbank/checking/2018-include.journal"
+            let jane2 = tmpdir </> "import/jane/bogartbank/checking/2019-include.journal"
+            let jane3 = tmpdir </> "import/jane/bogartbank/savings/2017-include.journal"
+            let jane4 = tmpdir </> "import/jane/bogartbank/savings/2018-include.journal"
+            let jane5 = tmpdir </> "import/jane/otherbank/creditcard/2017-include.journal"
+            let jane6 = tmpdir </> "import/jane/otherbank/creditcard/2018-include.journal"
+            let jane7 = tmpdir </> "import/jane/otherbank/investments/2018-include.journal"
+            let jane8 = tmpdir </> "import/jane/otherbank/investments/2019-include.journal"
 
-        let john1 = tmpdir </> "import/john/bogartbank/checking/2018-include.journal"
-        let john2 = tmpdir </> "import/john/bogartbank/checking/2019-include.journal"
-        let john3 = tmpdir </> "import/john/bogartbank/savings/2017-include.journal"
-        let john4 = tmpdir </> "import/john/bogartbank/savings/2018-include.journal"
-        let john5 = tmpdir </> "import/john/otherbank/creditcard/2017-include.journal"
-        let john6 = tmpdir </> "import/john/otherbank/creditcard/2018-include.journal"
-        let john7 = tmpdir </> "import/john/otherbank/investments/2018-include.journal"
-        let john8 = tmpdir </> "import/john/otherbank/investments/2019-include.journal"
-        let expectedIncludes = [jane1, jane2, jane3, jane4, jane5, jane6, jane7, jane8,
-                                john1, john2, john3, john4, john5, john6, john7, john8]
+            let john1 = tmpdir </> "import/john/bogartbank/checking/2018-include.journal"
+            let john2 = tmpdir </> "import/john/bogartbank/checking/2019-include.journal"
+            let john3 = tmpdir </> "import/john/bogartbank/savings/2017-include.journal"
+            let john4 = tmpdir </> "import/john/bogartbank/savings/2018-include.journal"
+            let john5 = tmpdir </> "import/john/otherbank/creditcard/2017-include.journal"
+            let john6 = tmpdir </> "import/john/otherbank/creditcard/2018-include.journal"
+            let john7 = tmpdir </> "import/john/otherbank/investments/2018-include.journal"
+            let john8 = tmpdir </> "import/john/otherbank/investments/2019-include.journal"
+            let expectedIncludes =
+                  [ jane1,
+                    jane2,
+                    jane3,
+                    jane4,
+                    jane5,
+                    jane6,
+                    jane7,
+                    jane8,
+                    john1,
+                    john2,
+                    john3,
+                    john4,
+                    john5,
+                    john6,
+                    john7,
+                    john8
+                  ]
 
-        ch <- liftIO newTChanIO
-        reportedAsWritten <- liftIO $ groupAndWriteIncludeFiles (defaultOpts tmpdirAbsPath) ch importedJournals
-        liftIO $ assertEqual "groupAndWriteIncludeFiles should return which files it wrote" expectedIncludes reportedAsWritten
+            ch <- liftIO newTChanIO
+            reportedAsWritten <- liftIO $ groupAndWriteIncludeFiles (defaultOpts tmpdirAbsPath) ch importedJournals
+            liftIO $ assertEqual "groupAndWriteIncludeFiles should return which files it wrote" expectedIncludes reportedAsWritten
 
-        let allYears = [tmpdir </> "import/jane/bogartbank/checking/all-years.journal",
-                        tmpdir </> "import/jane/bogartbank/savings/all-years.journal",
-                        tmpdir </> "import/jane/otherbank/creditcard/all-years.journal",
-                        tmpdir </> "import/jane/otherbank/investments/all-years.journal",
-                        tmpdir </> "import/john/bogartbank/checking/all-years.journal",
-                        tmpdir </> "import/john/bogartbank/savings/all-years.journal",
-                        tmpdir </> "import/john/otherbank/creditcard/all-years.journal",
-                        tmpdir </> "import/john/otherbank/investments/all-years.journal"]
-        let expectedOnDisk = List.sort $ reportedAsWritten ++ extras ++ importedJournals ++ allYears
-        allFilesOnDisk <- single $ sort $ onlyFiles $ lstree tmpdir
-        liftIO $ assertEqual "The actual files on disk should match what groupAndWriteIncludeFiles reported" expectedOnDisk allFilesOnDisk
+            let allYears =
+                  [ tmpdir </> "import/jane/bogartbank/checking/all-years.journal",
+                    tmpdir </> "import/jane/bogartbank/savings/all-years.journal",
+                    tmpdir </> "import/jane/otherbank/creditcard/all-years.journal",
+                    tmpdir </> "import/jane/otherbank/investments/all-years.journal",
+                    tmpdir </> "import/john/bogartbank/checking/all-years.journal",
+                    tmpdir </> "import/john/bogartbank/savings/all-years.journal",
+                    tmpdir </> "import/john/otherbank/creditcard/all-years.journal",
+                    tmpdir </> "import/john/otherbank/investments/all-years.journal"
+                  ]
+            let expectedOnDisk = List.sort $ reportedAsWritten ++ extras ++ importedJournals ++ allYears
+            allFilesOnDisk <- single $ sort $ onlyFiles $ lstree tmpdir
+            liftIO $ assertEqual "The actual files on disk should match what groupAndWriteIncludeFiles reported" expectedOnDisk allFilesOnDisk
 
-        let expectedJohn1Contents = includePreamble <> "\n"
-              <> "include 3-journal/2018/2018-10-30.journal\n"
-              <> "include 3-journal/2018/2018-11-30.journal\n"
-              <> "include 3-journal/2018/2018-12-30.journal\n"
-        actualJohn1Contents <- liftIO $ T.readFile john1
-        liftIO $ assertEqual "John1: The include file contents should be the journal files" expectedJohn1Contents actualJohn1Contents
+            let expectedJohn1Contents =
+                  includePreamble
+                    <> "\n"
+                    <> "include 3-journal/2018/2018-10-30.journal\n"
+                    <> "include 3-journal/2018/2018-11-30.journal\n"
+                    <> "include 3-journal/2018/2018-12-30.journal\n"
+            actualJohn1Contents <- liftIO $ T.readFile john1
+            liftIO $ assertEqual "John1: The include file contents should be the journal files" expectedJohn1Contents actualJohn1Contents
 
-        let expectedJohn2Contents = includePreamble <> "\n"
-              <> "include 3-journal/2019/2019-01-30.journal\n"
-              <> "include 3-journal/2019/2019-02-30.journal\n"
-        actualJohn2Contents <- liftIO $ T.readFile john2
-        liftIO $ assertEqual "John2: The include file contents should be the journal files" expectedJohn2Contents actualJohn2Contents
+            let expectedJohn2Contents =
+                  includePreamble
+                    <> "\n"
+                    <> "include 3-journal/2019/2019-01-30.journal\n"
+                    <> "include 3-journal/2019/2019-02-30.journal\n"
+            actualJohn2Contents <- liftIO $ T.readFile john2
+            liftIO $ assertEqual "John2: The include file contents should be the journal files" expectedJohn2Contents actualJohn2Contents
 
-        let expectedJohn3Contents = includePreamble <> "\n"
-              <> "include 2017-opening.journal\n"
-              <> "include 3-journal/2017/2017-11-30.journal\n"
-              <> "include 3-journal/2017/2017-12-30.journal\n"
-        actualJohn3Contents <- liftIO $ T.readFile john3
-        liftIO $ assertEqual "John3: The include file contents should be the journal files" expectedJohn3Contents actualJohn3Contents
+            let expectedJohn3Contents =
+                  includePreamble
+                    <> "\n"
+                    <> "include 2017-opening.journal\n"
+                    <> "include 3-journal/2017/2017-11-30.journal\n"
+                    <> "include 3-journal/2017/2017-12-30.journal\n"
+            actualJohn3Contents <- liftIO $ T.readFile john3
+            liftIO $ assertEqual "John3: The include file contents should be the journal files" expectedJohn3Contents actualJohn3Contents
 
-        let expectedJohn4Contents = includePreamble <> "\n"
-              <> "include 3-journal/2018/2018-01-30.journal\n"
-              <> "include 3-journal/2018/2018-02-30.journal\n"
-        actualJohn4Contents <- liftIO $ T.readFile john4
-        liftIO $ assertEqual "John4: The include file contents should be the journal files" expectedJohn4Contents actualJohn4Contents
+            let expectedJohn4Contents =
+                  includePreamble
+                    <> "\n"
+                    <> "include 3-journal/2018/2018-01-30.journal\n"
+                    <> "include 3-journal/2018/2018-02-30.journal\n"
+            actualJohn4Contents <- liftIO $ T.readFile john4
+            liftIO $ assertEqual "John4: The include file contents should be the journal files" expectedJohn4Contents actualJohn4Contents
 
-        let expectedJane7Contents = includePreamble <> "\n"
-              <> "include 3-journal/2018/2018-12-30.journal\n"
-        actualJane7Contents <- liftIO $ T.readFile jane7
-        liftIO $ assertEqual "Jane7: The include file contents should be the journal files" expectedJane7Contents actualJane7Contents
-     )
-  )
+            let expectedJane7Contents =
+                  includePreamble
+                    <> "\n"
+                    <> "include 3-journal/2018/2018-12-30.journal\n"
+            actualJane7Contents <- liftIO $ T.readFile jane7
+            liftIO $ assertEqual "Jane7: The include file contents should be the journal files" expectedJane7Contents actualJane7Contents
+        )
+    )
 
 tests :: Test
 tests = TestList [testExtraIncludesForFile, testExtraIncludesPrices, testIncludesPrePost, testIncludesOpeningClosing, testIncludesPrices, testWriteIncludeFiles]

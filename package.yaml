@@ -1,17 +1,17 @@
-name:                hledger-flow
-version:             0.15.0
-synopsis:            An hledger workflow focusing on automated statement import and classification.
-category:            Finance, Console
-license:             GPL-3
-author:              "Andreas Pauley <hledger-flow@pauley.org.za>"
-maintainer:          "Andreas Pauley <hledger-flow@pauley.org.za>"
-copyright:           "2023 Andreas Pauley"
-github:              "apauley/hledger-flow"
-bug-reports:         https://github.com/apauley/hledger-flow/issues
+name: hledger-flow
+version: 0.15.0
+synopsis: An hledger workflow focusing on automated statement import and classification.
+category: Finance, Console
+license: GPL-3
+author: "Andreas Pauley <hledger-flow@pauley.org.za>"
+maintainer: "Andreas Pauley <hledger-flow@pauley.org.za>"
+copyright: "2023 Andreas Pauley"
+github: "apauley/hledger-flow"
+bug-reports: https://github.com/apauley/hledger-flow/issues
 
 extra-source-files:
-- README.org
-- ChangeLog.md
+  - README.org
+  - ChangeLog.md
 
 # Metadata used when publishing your package
 # synopsis:            Short description of your package
@@ -20,63 +20,63 @@ extra-source-files:
 # To avoid duplicated efforts in documentation and dealing with the
 # complications of embedding Haddock markup inside cabal files, it is
 # common to point users to the README file.
-description:         Please see the README on GitHub at <https://github.com/apauley/hledger-flow#readme>
+description: Please see the README on GitHub at <https://github.com/apauley/hledger-flow#readme>
 
 dependencies:
-- base >= 4.7 && < 5
+  - base >= 4.7 && < 5
 
 library:
   source-dirs: src
   ghc-options:
-  - -Wall
+    - -Wall
   dependencies:
-  - turtle
-  - path
-  - path-io
-  - filepath
-  - exceptions
-  - text
-  - foldl
-  - containers
-  - time
-  - stm
-  - gitrev
+    - turtle
+    - path
+    - path-io
+    - filepath
+    - exceptions
+    - text
+    - foldl
+    - containers
+    - time
+    - stm
+    - gitrev
 
 executables:
   hledger-flow:
-    main:                Main.hs
-    source-dirs:         app
+    main: Main.hs
+    source-dirs: app
     ghc-options:
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
-    - -Wall
-    - -fPIC
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
+      - -Wall
+      - -fPIC
     ld-options:
-    - -dynamic # change to -static for a statically linked executable. Does not work on osx
+      - -dynamic # change to -static for a statically linked executable. Does not work on osx
 
     dependencies:
-    - hledger-flow
-    - path
-    - turtle
-    - text
-    - optparse-applicative
+      - hledger-flow
+      - path
+      - turtle
+      - text
+      - optparse-applicative
 
 tests:
   hledger-flow-test:
-    main:                Spec.hs
-    source-dirs:         test
+    main: Spec.hs
+    source-dirs: test
     ghc-options:
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
     dependencies:
-    - hledger-flow
-    - path
-    - path-io
-    - turtle
-    - HUnit
-    - containers
-    - foldl
-    - text
-    - stm
+      - hledger-flow
+      - path
+      - path-io
+      - turtle
+      - HUnit
+      - containers
+      - foldl
+      - text
+      - stm

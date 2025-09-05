@@ -3,45 +3,44 @@
 
 module TestHelpers where
 
-import Path
-
 import Data.Maybe (fromMaybe)
-
-import Hledger.Flow.Internals ( versionInfo, SystemInfo(..) )
+import Hledger.Flow.Internals (SystemInfo (..), versionInfo)
 import Hledger.Flow.PathHelpers (RelFile)
-
-import qualified Hledger.Flow.Types as FlowTypes
 import Hledger.Flow.RuntimeOptions
+import qualified Hledger.Flow.Types as FlowTypes
+import Path
 import qualified System.Info as Sys
 
 defaultHlInfo :: FlowTypes.HledgerInfo
 defaultHlInfo = FlowTypes.HledgerInfo [absfile|/path/to/hledger|] "1.2.3"
 
 testSystemInfo :: SystemInfo
-testSystemInfo = SystemInfo {
-        os = Sys.os,
-        arch = Sys.arch,
-        compilerName = Sys.compilerName,
-        compilerVersion = Sys.compilerVersion,
-        cores = 1,
-        availableCores = 1
-        }
+testSystemInfo =
+  SystemInfo
+    { os = Sys.os,
+      arch = Sys.arch,
+      compilerName = Sys.compilerName,
+      compilerVersion = Sys.compilerVersion,
+      cores = 1,
+      availableCores = 1
+    }
 
 defaultOpts :: FlowTypes.BaseDir -> RuntimeOptions
-defaultOpts bd = RuntimeOptions {
-    baseDir = bd
-  , importRunDir = [reldir|./|]
-  , importStartYear = Nothing
-  , onlyNewFiles = False
-  , hfVersion = versionInfo testSystemInfo
-  , hledgerInfo = defaultHlInfo
-  , sysInfo = testSystemInfo
-  , verbose = False
-  , showOptions = False
-  , sequential = False
-  , batchSize = 1
-  , prettyReports = True
-}
+defaultOpts bd =
+  RuntimeOptions
+    { baseDir = bd,
+      importRunDir = [reldir|./|],
+      importStartYear = Nothing,
+      onlyNewFiles = False,
+      hfVersion = versionInfo testSystemInfo,
+      hledgerInfo = defaultHlInfo,
+      sysInfo = testSystemInfo,
+      verbose = False,
+      showOptions = False,
+      sequential = False,
+      batchSize = 1,
+      prettyReports = True
+    }
 
 toJournal :: RelFile -> RelFile
 toJournal inFile = do
@@ -51,37 +50,37 @@ toJournal inFile = do
   (parent . parent . parent) inFile </> [reldir|3-journal|] </> yearDir </> journalName
 
 inputJohnSavings2017 :: [RelFile]
-inputJohnSavings2017 = [
-  [relfile|import/john/bogartbank/savings/1-in/2017/2017-11-30.csv|],
-  [relfile|import/john/bogartbank/savings/1-in/2017/2017-12-30.csv|]
+inputJohnSavings2017 =
+  [ [relfile|import/john/bogartbank/savings/1-in/2017/2017-11-30.csv|],
+    [relfile|import/john/bogartbank/savings/1-in/2017/2017-12-30.csv|]
   ]
 
 johnSavingsJournals2017 :: [RelFile]
 johnSavingsJournals2017 = map toJournal inputJohnSavings2017
 
 inputJohnSavings2018 :: [RelFile]
-inputJohnSavings2018 = [
-  [relfile|import/john/bogartbank/savings/1-in/2018/2018-02-30.csv|],
-  [relfile|import/john/bogartbank/savings/1-in/2018/2018-01-30.csv|]
+inputJohnSavings2018 =
+  [ [relfile|import/john/bogartbank/savings/1-in/2018/2018-02-30.csv|],
+    [relfile|import/john/bogartbank/savings/1-in/2018/2018-01-30.csv|]
   ]
 
 johnSavingsJournals2018 :: [RelFile]
 johnSavingsJournals2018 = map toJournal inputJohnSavings2018
 
 inputJohnChecking2018 :: [RelFile]
-inputJohnChecking2018 = [
-  [relfile|import/john/bogartbank/checking/1-in/2018/2018-11-30.csv|],
-  [relfile|import/john/bogartbank/checking/1-in/2018/2018-10-30.csv|],
-  [relfile|import/john/bogartbank/checking/1-in/2018/2018-12-30.csv|]
+inputJohnChecking2018 =
+  [ [relfile|import/john/bogartbank/checking/1-in/2018/2018-11-30.csv|],
+    [relfile|import/john/bogartbank/checking/1-in/2018/2018-10-30.csv|],
+    [relfile|import/john/bogartbank/checking/1-in/2018/2018-12-30.csv|]
   ]
 
 johnCheckingJournals2018 :: [RelFile]
 johnCheckingJournals2018 = map toJournal inputJohnChecking2018
 
 inputJohnChecking2019 :: [RelFile]
-inputJohnChecking2019 = [
-  [relfile|import/john/bogartbank/checking/1-in/2019/2019-01-30.csv|],
-  [relfile|import/john/bogartbank/checking/1-in/2019/2019-02-30.csv|]
+inputJohnChecking2019 =
+  [ [relfile|import/john/bogartbank/checking/1-in/2019/2019-01-30.csv|],
+    [relfile|import/john/bogartbank/checking/1-in/2019/2019-02-30.csv|]
   ]
 
 johnCheckingJournals2019 :: [RelFile]
@@ -121,20 +120,20 @@ janeSavings2017 :: RelFile
 janeSavings2017 = [relfile|import/jane/bogartbank/savings/1-in/2017/2017-12-30.csv|]
 
 janeSavings2018 :: [RelFile]
-janeSavings2018 = [
-    [relfile|import/jane/bogartbank/savings/1-in/2018/2018-01-30.csv|]
-  , [relfile|import/jane/bogartbank/savings/1-in/2018/2018-12-30.csv|]
+janeSavings2018 =
+  [ [relfile|import/jane/bogartbank/savings/1-in/2018/2018-01-30.csv|],
+    [relfile|import/jane/bogartbank/savings/1-in/2018/2018-12-30.csv|]
   ]
 
 janeSavings2019 :: RelFile
 janeSavings2019 = [relfile|import/jane/bogartbank/savings/1-in/2019/2019-01-30.csv|]
 
 inputJaneBogart :: [RelFile]
-inputJaneBogart = [
-  janeSavings2017
-  , [relfile|import/jane/bogartbank/savings/3-journals/2018/2018-01-30.journal|]
-  , [relfile|import/jane/bogartbank/savings/3-journals/2018/2018-12-30.journal|]
-  , janeSavings2019
+inputJaneBogart =
+  [ janeSavings2017,
+    [relfile|import/jane/bogartbank/savings/3-journals/2018/2018-01-30.journal|],
+    [relfile|import/jane/bogartbank/savings/3-journals/2018/2018-12-30.journal|],
+    janeSavings2019
   ]
 
 janeSavingsJournal2017 :: RelFile

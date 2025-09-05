@@ -2,16 +2,14 @@
 
 module Hledger.Flow.Import.ImportHelpers (findInputFiles, findJournalFiles, groupIncludesUpTo, includeFileName) where
 
-import Path
 import Data.Char (isDigit)
-import Data.Maybe (fromMaybe)
-import System.FilePath (dropTrailingPathSeparator)
-
-import Hledger.Flow.Common (groupValuesBy)
-import Hledger.Flow.PathHelpers (AbsDir, AbsFile, RelDir, RelFile, findFilesIn, pathSize)
-import Hledger.Flow.Import.Types (InputFileBundle)
-
 import qualified Data.Map.Strict as Map
+import Data.Maybe (fromMaybe)
+import Hledger.Flow.Common (groupValuesBy)
+import Hledger.Flow.Import.Types (InputFileBundle)
+import Hledger.Flow.PathHelpers (AbsDir, AbsFile, RelDir, RelFile, findFilesIn, pathSize)
+import Path
+import System.FilePath (dropTrailingPathSeparator)
 
 findInputFiles :: Integer -> AbsDir -> IO [AbsFile]
 findInputFiles startYear = do
@@ -25,11 +23,13 @@ findJournalFiles = do
 
 -- | Include only files directly underneath parentDir/yearDir, e.g. 1-in/2020/* or 3-journal/2020/*
 includeYearFilesForParent :: RelDir -> Integer -> AbsDir -> Bool
-includeYearFilesForParent parentDir startYear d = (dirname . parent) d == parentDir
-  && length shortDirName == 4
-  && all isDigit shortDirName
-  && read shortDirName >= startYear
-    where shortDirName = dirToStringNoSlash d
+includeYearFilesForParent parentDir startYear d =
+  (dirname . parent) d == parentDir
+    && length shortDirName == 4
+    && all isDigit shortDirName
+    && read shortDirName >= startYear
+  where
+    shortDirName = dirToStringNoSlash d
 
 dirToStringNoSlash :: AbsDir -> String
 dirToStringNoSlash = init . Path.toFilePath . Path.dirname
@@ -45,15 +45,18 @@ groupIncludesUpTo' acc _ [] = acc
 groupIncludesUpTo' acc stopAt journals = do
   let dirs = map parent journals :: [RelDir]
   let shouldStop = stopAt `elem` dirs
-  if shouldStop then acc else do
-    let grouped = groupIncludeFilesPerYear journals
-    groupIncludesUpTo' (acc <> grouped) stopAt (Map.keys grouped)
+  if shouldStop
+    then acc
+    else do
+      let grouped = groupIncludeFilesPerYear journals
+      groupIncludesUpTo' (acc <> grouped) stopAt (Map.keys grouped)
 
 groupIncludeFilesPerYear :: [RelFile] -> InputFileBundle
 groupIncludeFilesPerYear [] = Map.empty
-groupIncludeFilesPerYear ps@(p:_) = if pathSize (parent p) == 6
-  then groupValuesBy initialIncludeFilePath ps
-  else groupValuesBy parentIncludeFilePath ps
+groupIncludeFilesPerYear ps@(p : _) =
+  if pathSize (parent p) == 6
+    then groupValuesBy initialIncludeFilePath ps
+    else groupValuesBy parentIncludeFilePath ps
 
 initialIncludeFilePath :: RelFile -> RelFile
 initialIncludeFilePath p = (parent . parent . parent) p </> includeFileName p

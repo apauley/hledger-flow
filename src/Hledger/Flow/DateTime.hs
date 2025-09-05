@@ -1,9 +1,9 @@
 module Hledger.Flow.DateTime where
 
-import Data.Time.Clock
 import Data.Time.Calendar
+import Data.Time.Clock
 
-currentDate :: IO (Integer,Int,Int) -- :: (year,month,day)
+currentDate :: IO (Integer, Int, Int) -- :: (year,month,day)
 currentDate = toGregorian . utctDay <$> getCurrentTime
 
 currentYear :: IO Integer

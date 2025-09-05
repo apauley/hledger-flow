@@ -1,65 +1,70 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Hledger.Flow.Reports
-    ( generateReports
-    ) where
-
-import qualified Turtle as Turtle hiding (stdout, stderr, proc)
-import Turtle ((%), (</>), (<.>))
-import Prelude hiding (putStrLn, writeFile, readFile)
-
-import Hledger.Flow.RuntimeOptions
-import Hledger.Flow.Common
-import Hledger.Flow.BaseDir (turtleBaseDir, relativeToBase)
+  ( generateReports,
+  )
+where
 
 import Control.Concurrent.STM
 import Data.Either
+import qualified Data.List as List
 import Data.Maybe
-
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
-import qualified Hledger.Flow.Types as FlowTypes
-import Hledger.Flow.PathHelpers (TurtlePath, pathToTurtle)
+import Hledger.Flow.BaseDir (relativeToBase, turtleBaseDir)
+import Hledger.Flow.Common
 import Hledger.Flow.Logging
-import qualified Data.List as List
+import Hledger.Flow.PathHelpers (TurtlePath, pathToTurtle)
+import Hledger.Flow.RuntimeOptions
+import qualified Hledger.Flow.Types as FlowTypes
+import Turtle ((%), (<.>), (</>))
+import qualified Turtle as Turtle hiding (proc, stderr, stdout)
+import Prelude hiding (putStrLn, readFile, writeFile)
 
-data ReportParams = ReportParams { ledgerFile :: TurtlePath
-                                 , reportYears :: [Integer]
-                                 , outputDir :: TurtlePath
-                                 }
-                  deriving (Show)
+data ReportParams = ReportParams
+  { ledgerFile :: TurtlePath,
+    reportYears :: [Integer],
+    outputDir :: TurtlePath
+  }
+  deriving (Show)
+
 type ReportGenerator = RuntimeOptions -> TChan FlowTypes.LogMessage -> TurtlePath -> TurtlePath -> Integer -> IO (Either TurtlePath TurtlePath)
 
 generateReports :: RuntimeOptions -> IO ()
-generateReports opts = Turtle.sh (
-  do
-    ch <- Turtle.liftIO newTChanIO
-    logHandle <- Turtle.fork $ consoleChannelLoop ch
-    Turtle.liftIO $ if (showOptions opts) then channelOutLn ch (Turtle.repr opts) else return ()
-    (reports, diff) <- Turtle.time $ Turtle.liftIO $ generateReports' opts ch
-    let failedAttempts = lefts reports
-    let failedText = if List.null failedAttempts then "" else Turtle.format ("(and attempted to write "%Turtle.d%" more) ") $ length failedAttempts
-    Turtle.liftIO $ channelOutLn ch $ Turtle.format ("Generated "%Turtle.d%" reports "%Turtle.s%"in "%Turtle.s) (length (rights reports)) failedText $ Turtle.repr diff
-    Turtle.liftIO $ terminateChannelLoop ch
-    Turtle.wait logHandle
-  )
+generateReports opts =
+  Turtle.sh
+    ( do
+        ch <- Turtle.liftIO newTChanIO
+        logHandle <- Turtle.fork $ consoleChannelLoop ch
+        Turtle.liftIO $ if (showOptions opts) then channelOutLn ch (Turtle.repr opts) else return ()
+        (reports, diff) <- Turtle.time $ Turtle.liftIO $ generateReports' opts ch
+        let failedAttempts = lefts reports
+        let failedText = if List.null failedAttempts then "" else Turtle.format ("(and attempted to write " % Turtle.d % " more) ") $ length failedAttempts
+        Turtle.liftIO $ channelOutLn ch $ Turtle.format ("Generated " % Turtle.d % " reports " % Turtle.s % "in " % Turtle.s) (length (rights reports)) failedText $ Turtle.repr diff
+        Turtle.liftIO $ terminateChannelLoop ch
+        Turtle.wait logHandle
+    )
 
 generateReports' :: RuntimeOptions -> TChan FlowTypes.LogMessage -> IO [Either TurtlePath TurtlePath]
 generateReports' opts ch = do
-  let wipMsg = "These reports can be used as a starting point for more tailored reports.\n"
-               <> "The first line of each report contains the command used - change the parameters and use it in your own reports.\n"
+  let wipMsg =
+        "These reports can be used as a starting point for more tailored reports.\n"
+          <> "The first line of each report contains the command used - change the parameters and use it in your own reports.\n"
   channelOutLn ch wipMsg
   owners <- Turtle.single $ shellToList $ listOwners opts
   ledgerEnvValue <- Turtle.need "LEDGER_FILE" :: IO (Maybe T.Text)
   let hledgerJournal = fromMaybe (turtleBaseDir opts </> allYearsFileName) $ fmap T.unpack ledgerEnvValue
   hledgerJournalExists <- Turtle.testfile hledgerJournal
-  _ <- if not hledgerJournalExists then Turtle.die $ Turtle.format ("Unable to find journal file: "%Turtle.fp%"\nIs your LEDGER_FILE environment variable set correctly?") hledgerJournal else return ()
+  _ <- if not hledgerJournalExists then Turtle.die $ Turtle.format ("Unable to find journal file: " % Turtle.fp % "\nIs your LEDGER_FILE environment variable set correctly?") hledgerJournal else return ()
   let journalWithYears = journalFile opts []
   let aggregateReportDir = outputReportDir opts ["all"]
   aggregateYears <- includeYears ch journalWithYears
-  let aggregateParams = ReportParams { ledgerFile = hledgerJournal
-                                     , reportYears = aggregateYears
-                                     , outputDir = aggregateReportDir}
+  let aggregateParams =
+        ReportParams
+          { ledgerFile = hledgerJournal,
+            reportYears = aggregateYears,
+            outputDir = aggregateReportDir
+          }
   let aggregateOnlyReports = reportActions opts ch [transferBalance] aggregateParams
   ownerParams <- ownerParameters opts ch owners
   let ownerWithAggregateParams = (if length owners > 1 then [aggregateParams] else []) ++ ownerParams
@@ -112,33 +117,31 @@ generateReport opts ch journal year reportsDir fileName args successCheck = do
   let reportArgs = ["--file", Turtle.format Turtle.fp journal, "--period", Turtle.repr year] ++ args
   let reportDisplayArgs = ["--file", Turtle.format Turtle.fp relativeJournal, "--period", Turtle.repr year] ++ args
   let hledger = Turtle.format Turtle.fp $ pathToTurtle . FlowTypes.hlPath . hledgerInfo $ opts :: T.Text
-  let cmdLabel = Turtle.format ("hledger "%Turtle.s) $ showCmdArgs reportDisplayArgs
+  let cmdLabel = Turtle.format ("hledger " % Turtle.s) $ showCmdArgs reportDisplayArgs
   ((exitCode, stdOut, _), _) <- timeAndExitOnErr opts ch cmdLabel dummyLogger channelErr Turtle.procStrictWithErr (hledger, reportArgs, mempty)
   if (successCheck stdOut)
-    then
-    do
-      T.writeFile outputFile (cmdLabel <> "\n\n"<> stdOut)
-      logVerbose opts ch $ Turtle.format ("Wrote "%Turtle.fp) $ relativeOutputFile
+    then do
+      T.writeFile outputFile (cmdLabel <> "\n\n" <> stdOut)
+      logVerbose opts ch $ Turtle.format ("Wrote " % Turtle.fp) $ relativeOutputFile
       return $ Right outputFile
-    else
-    do
-      channelErrLn ch $ Turtle.format ("Did not write '"%Turtle.fp%"' ("%Turtle.s%") "%Turtle.s) relativeOutputFile cmdLabel (Turtle.repr exitCode)
+    else do
+      channelErrLn ch $ Turtle.format ("Did not write '" % Turtle.fp % "' (" % Turtle.s % ") " % Turtle.s) relativeOutputFile cmdLabel (Turtle.repr exitCode)
       exists <- Turtle.testfile outputFile
       if exists then Turtle.rm outputFile else return ()
       return $ Left outputFile
 
 journalFile :: RuntimeOptions -> [TurtlePath] -> TurtlePath
-journalFile opts dirs = (foldl (</>) (turtleBaseDir opts) ("import":dirs)) </> allYearsFileName
+journalFile opts dirs = (foldl (</>) (turtleBaseDir opts) ("import" : dirs)) </> allYearsFileName
 
 outputReportDir :: RuntimeOptions -> [TurtlePath] -> TurtlePath
-outputReportDir opts dirs = foldl (</>) (turtleBaseDir opts) ("reports":dirs)
+outputReportDir opts dirs = foldl (</>) (turtleBaseDir opts) ("reports" : dirs)
 
 ownerParameters :: RuntimeOptions -> TChan FlowTypes.LogMessage -> [TurtlePath] -> IO [ReportParams]
 ownerParameters opts ch owners = do
   let actions = map (ownerParameters' opts ch) owners
   parAwareActions opts actions
 
-ownerParameters' :: RuntimeOptions -> TChan FlowTypes.LogMessage -> TurtlePath-> IO ReportParams
+ownerParameters' :: RuntimeOptions -> TChan FlowTypes.LogMessage -> TurtlePath -> IO ReportParams
 ownerParameters' opts ch owner = do
   let ownerJournal = journalFile opts [owner]
   years <- includeYears ch ownerJournal

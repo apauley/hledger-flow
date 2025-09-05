@@ -1,25 +1,21 @@
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE OverloadedLists #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes #-}
 
 module BaseDir.Integration (tests) where
 
-import Prelude hiding (writeFile, readFile)
-
 import Control.Exception (try)
-import Test.HUnit
-
-import Path
-import Path.IO
-
-import qualified Turtle
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
-
-import Hledger.Flow.Common
-import Hledger.Flow.Types (BaseDir, RunDir)
 import Hledger.Flow.BaseDir (determineBaseDir)
+import Hledger.Flow.Common
 import Hledger.Flow.PathHelpers
+import Hledger.Flow.Types (BaseDir, RunDir)
+import Path
+import Path.IO
+import Test.HUnit
+import qualified Turtle
+import Prelude hiding (readFile, writeFile)
 
 assertSubDirsForDetermineBaseDir :: AbsDir -> BaseDir -> [Path.Path b Dir] -> IO ()
 assertSubDirsForDetermineBaseDir initialPwd expectedBaseDir importDirs = do
@@ -43,7 +39,7 @@ assertDetermineBaseDir initialPwd expectedBaseDir subDir = do
 
   setCurrentDir initialPwd
   let msg dir = "determineBaseDir searches from pwd upwards until it finds a dir containing 'import' - " ++ show dir
-  sequence_ $ map (\ dir -> assertEqual (msg dir) expectedBaseDir dir) [bd1, bd2, bd3, bd4]
+  sequence_ $ map (\dir -> assertEqual (msg dir) expectedBaseDir dir) [bd1, bd2, bd3, bd4]
 
 assertFindTestFileUsingRundir :: BaseDir -> RunDir -> IO ()
 assertFindTestFileUsingRundir baseDir runDir = do
@@ -64,7 +60,7 @@ assertCurrentDirVariations absoluteTempDir bdRelativeToTempDir = do
   (bd4, runDir4) <- determineBaseDir $ Just $ pathToTurtle absBaseDir
 
   let msg label dir = "When pwd is the base dir, determineBaseDir returns the same " ++ label ++ ", regardless of the input variation. " ++ show dir
-  sequence_ $ map (\ dir -> assertEqual (msg "baseDir" dir) absBaseDir dir) [bd1, bd2, bd3, bd4]
+  sequence_ $ map (\dir -> assertEqual (msg "baseDir" dir) absBaseDir dir) [bd1, bd2, bd3, bd4]
   sequence_ $ map (\dir -> assertEqual (msg "runDir" dir) [reldir|.|] dir) [runDir1, runDir2, runDir3, runDir4]
 
 testBaseDirWithTempDir :: AbsDir -> AbsDir -> IO ()
@@ -134,21 +130,23 @@ testRunDirsWithTempDir absoluteTempDir = do
   withCurrentDir baseDir $ assertRunDirs accDir [accDir, bankDir, ownerDir, importDir] [yearDir, inDir]
 
 testRunDirs :: Test
-testRunDirs = TestCase (
-  do
-    initialPwd <- getCurrentDir
-    let tmpbase = initialPwd </> [reldir|test|] </> [reldir|tmp|]
-    withTempDir tmpbase "hlflowtest" testRunDirsWithTempDir
-  )
+testRunDirs =
+  TestCase
+    ( do
+        initialPwd <- getCurrentDir
+        let tmpbase = initialPwd </> [reldir|test|] </> [reldir|tmp|]
+        withTempDir tmpbase "hlflowtest" testRunDirsWithTempDir
+    )
 
 testDetermineBaseDir :: Test
-testDetermineBaseDir = TestCase (
-  do
-    initialPwd <- getCurrentDir
-    let tmpbase = initialPwd </> [reldir|test|] </> [reldir|tmp|]
-    createDirIfMissing True tmpbase
-    withTempDir tmpbase "hlflowtest" $ testBaseDirWithTempDir initialPwd
-  )
+testDetermineBaseDir =
+  TestCase
+    ( do
+        initialPwd <- getCurrentDir
+        let tmpbase = initialPwd </> [reldir|test|] </> [reldir|tmp|]
+        createDirIfMissing True tmpbase
+        withTempDir tmpbase "hlflowtest" $ testBaseDirWithTempDir initialPwd
+    )
 
 tests :: Test
 tests = TestList [testDetermineBaseDir, testRunDirs]

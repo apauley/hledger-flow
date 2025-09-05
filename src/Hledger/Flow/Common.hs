@@ -3,54 +3,48 @@
 
 module Hledger.Flow.Common where
 
-import Path (absfile, relfile)
-import qualified Path.IO as Path
-
-import qualified Turtle
-import Turtle ((%), (</>), (<.>))
-
-import Prelude hiding (putStrLn, writeFile, readFile)
-
+import Control.Concurrent.STM
+import qualified Control.Foldl as Fold
+import Data.Char (isDigit)
+import Data.Either
+import Data.Function (on)
+import qualified Data.List as List (groupBy, null, sortBy)
+import qualified Data.Map.Strict as Map
+import Data.Ord (comparing)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import qualified Data.Text.Read as T
 import qualified GHC.IO.Handle.FD as H
-
-import Data.Char (isDigit)
-import Data.Either
-
-import qualified Control.Foldl as Fold
-import qualified Data.Map.Strict as Map
-
-import Data.Function (on)
-import qualified Data.List as List (null, sortBy, groupBy)
-import Data.Ord (comparing)
-
-import Hledger.Flow.Types
-
+import Hledger.Flow.BaseDir (relativeToBase, turtleBaseDir)
 import Hledger.Flow.Logging
 import Hledger.Flow.PathHelpers (AbsFile, TurtlePath, fromTurtleAbsFile, pathToTurtle)
-import Hledger.Flow.BaseDir (turtleBaseDir, relativeToBase)
-
-import Control.Concurrent.STM
+import Hledger.Flow.Types
+import Path (absfile, relfile)
+import qualified Path.IO as Path
+import Turtle ((%), (<.>), (</>))
+import qualified Turtle
+import Prelude hiding (putStrLn, readFile, writeFile)
 
 hledgerPathFromOption :: Maybe TurtlePath -> IO AbsFile
 hledgerPathFromOption pathOption = do
   case pathOption of
-    Just h  -> do
+    Just h -> do
       hlAbs <- fromTurtleAbsFile h
       isOnDisk <- Path.doesFileExist hlAbs
-      if isOnDisk then return hlAbs else do
-        let msg = Turtle.format ("Unable to find hledger at "%Turtle.fp) h
-        errExit' 1 (T.hPutStrLn H.stderr) msg hlAbs
+      if isOnDisk
+        then return hlAbs
+        else do
+          let msg = Turtle.format ("Unable to find hledger at " % Turtle.fp) h
+          errExit' 1 (T.hPutStrLn H.stderr) msg hlAbs
     Nothing -> do
       maybeH <- Path.findExecutable [relfile|hledger|]
       case maybeH of
-        Just h  -> return h
+        Just h -> return h
         Nothing -> do
-          let msg = "Unable to find hledger in your path.\n"
-                <> "You need to either install hledger, or add it to your PATH, or provide the path to an hledger executable.\n\n"
-                <> "There are a number of installation options on the hledger website: https://hledger.org/download.html"
+          let msg =
+                "Unable to find hledger in your path.\n"
+                  <> "You need to either install hledger, or add it to your PATH, or provide the path to an hledger executable.\n\n"
+                  <> "There are a number of installation options on the hledger website: https://hledger.org/download.html"
           errExit' 1 (T.hPutStrLn H.stderr) msg [absfile|/hledger|]
 
 hledgerVersionFromPath :: TurtlePath -> IO T.Text
@@ -81,32 +75,51 @@ errExit' exitStatus logFun errorMessage dummyReturnValue = do
 descriptiveOutput :: T.Text -> T.Text -> T.Text
 descriptiveOutput outputLabel outTxt = do
   if not (T.null outTxt)
-    then Turtle.format (Turtle.s%":\n"%Turtle.s%"\n") outputLabel outTxt
+    then Turtle.format (Turtle.s % ":\n" % Turtle.s % "\n") outputLabel outTxt
     else ""
 
-logTimedAction :: HasVerbosity o => o -> TChan LogMessage -> T.Text -> [T.Text]
-  -> (TChan LogMessage -> T.Text -> IO ()) -> (TChan LogMessage -> T.Text -> IO ())
-  -> IO FullOutput
-  -> IO FullTimedOutput
+logTimedAction ::
+  (HasVerbosity o) =>
+  o ->
+  TChan LogMessage ->
+  T.Text ->
+  [T.Text] ->
+  (TChan LogMessage -> T.Text -> IO ()) ->
+  (TChan LogMessage -> T.Text -> IO ()) ->
+  IO FullOutput ->
+  IO FullTimedOutput
 logTimedAction opts ch cmdLabel extraCmdLabels stdoutLogger stderrLogger action = do
-  logVerbose opts ch $ Turtle.format ("Begin: "%Turtle.s) cmdLabel
+  logVerbose opts ch $ Turtle.format ("Begin: " % Turtle.s) cmdLabel
   if (List.null extraCmdLabels) then return () else logVerbose opts ch $ T.intercalate "\n" extraCmdLabels
   timed@((ec, stdOut, stdErr), diff) <- Turtle.time action
   stdoutLogger ch stdOut
   stderrLogger ch stdErr
-  logVerbose opts ch $ Turtle.format ("End:   "%Turtle.s%" "%Turtle.s%" ("%Turtle.s%")") cmdLabel (Turtle.repr ec) (Turtle.repr diff)
+  logVerbose opts ch $ Turtle.format ("End:   " % Turtle.s % " " % Turtle.s % " (" % Turtle.s % ")") cmdLabel (Turtle.repr ec) (Turtle.repr diff)
   return timed
 
-timeAndExitOnErr :: (HasSequential o, HasVerbosity o) => o -> TChan LogMessage -> T.Text
-  -> (TChan LogMessage -> T.Text -> IO ()) -> (TChan LogMessage -> T.Text -> IO ())
-  -> ProcFun -> ProcInput
-  -> IO FullTimedOutput
+timeAndExitOnErr ::
+  (HasSequential o, HasVerbosity o) =>
+  o ->
+  TChan LogMessage ->
+  T.Text ->
+  (TChan LogMessage -> T.Text -> IO ()) ->
+  (TChan LogMessage -> T.Text -> IO ()) ->
+  ProcFun ->
+  ProcInput ->
+  IO FullTimedOutput
 timeAndExitOnErr opts ch cmdLabel = timeAndExitOnErr' opts ch cmdLabel []
 
-timeAndExitOnErr' :: (HasSequential o, HasVerbosity o) => o -> TChan LogMessage -> T.Text -> [T.Text]
-  -> (TChan LogMessage -> T.Text -> IO ()) -> (TChan LogMessage -> T.Text -> IO ())
-  -> ProcFun -> ProcInput
-  -> IO FullTimedOutput
+timeAndExitOnErr' ::
+  (HasSequential o, HasVerbosity o) =>
+  o ->
+  TChan LogMessage ->
+  T.Text ->
+  [T.Text] ->
+  (TChan LogMessage -> T.Text -> IO ()) ->
+  (TChan LogMessage -> T.Text -> IO ()) ->
+  ProcFun ->
+  ProcInput ->
+  IO FullTimedOutput
 timeAndExitOnErr' opts ch cmdLabel extraCmdLabels stdoutLogger stderrLogger procFun (cmd, args, stdInput) = do
   let action = procFun cmd args stdInput
   timed@((ec, stdOut, stdErr), _) <- logTimedAction opts ch cmdLabel extraCmdLabels stdoutLogger stderrLogger action
@@ -116,8 +129,27 @@ timeAndExitOnErr' opts ch cmdLabel extraCmdLabels stdoutLogger stderrLogger proc
       let msgOut = descriptiveOutput "Standard output" stdOut
       let msgErr = descriptiveOutput "Error output" stdErr
 
-      let exitMsg = Turtle.format ("\n=== Begin Error: " % Turtle.s % " ===\nExternal command:\n" % Turtle.s % "\nExit code " % Turtle.d % "\n"
-                            % Turtle.s % Turtle.s % "=== End Error: " % Turtle.s % " ===\n") cmdLabel cmdText i msgOut msgErr cmdLabel
+      let exitMsg =
+            Turtle.format
+              ( "\n=== Begin Error: "
+                  % Turtle.s
+                  % " ===\nExternal command:\n"
+                  % Turtle.s
+                  % "\nExit code "
+                  % Turtle.d
+                  % "\n"
+                  % Turtle.s
+                  % Turtle.s
+                  % "=== End Error: "
+                  % Turtle.s
+                  % " ===\n"
+              )
+              cmdLabel
+              cmdText
+              i
+              msgOut
+              msgErr
+              cmdLabel
       errExit i ch exitMsg timed
     Turtle.ExitSuccess -> return timed
 
@@ -126,7 +158,7 @@ procWithEmptyOutput cmd args stdinput = do
   ec <- Turtle.proc cmd args stdinput
   return (ec, T.empty, T.empty)
 
-parAwareProc :: HasSequential o => o -> ProcFun
+parAwareProc :: (HasSequential o) => o -> ProcFun
 parAwareProc opts = if (sequential opts) then procWithEmptyOutput else Turtle.procStrictWithErr
 
 parAwareActions :: (HasSequential o, HasBatchSize o) => o -> [IO a] -> IO [a]
@@ -140,13 +172,12 @@ parBatchedActions batch done todo = do
   doneNow <- (Turtle.single . shellToList . Turtle.parallel) doNow
   parBatchedActions batch (done ++ doneNow) remaining
 
-
 inprocWithErrFun :: (T.Text -> IO ()) -> ProcInput -> Turtle.Shell Turtle.Line
 inprocWithErrFun errFun (cmd, args, standardInput) = do
   result <- Turtle.inprocWithErr cmd args standardInput
   case result of
     Right ln -> return ln
-    Left  ln -> do
+    Left ln -> do
       (Turtle.liftIO . errFun . Turtle.lineToText) ln
       Turtle.empty
 
@@ -155,13 +186,15 @@ verboseTestFile opts ch p = do
   fileExists <- Turtle.testfile p
   let rel = relativeToBase opts p
   if fileExists
-    then logVerbose opts ch $ Turtle.format ("Found '"%Turtle.fp%"'") rel
-    else logVerbose opts ch $ Turtle.format ("Looked for but did not find '"%Turtle.fp%"'") rel
+    then logVerbose opts ch $ Turtle.format ("Found '" % Turtle.fp % "'") rel
+    else logVerbose opts ch $ Turtle.format ("Looked for but did not find '" % Turtle.fp % "'") rel
   return fileExists
 
 groupPairs' :: (Eq a, Ord a) => [(a, b)] -> [(a, [b])]
-groupPairs' = map (\ll -> (fst . head $ ll, map snd ll)) . List.groupBy ((==) `on` fst)
-              . List.sortBy (comparing fst)
+groupPairs' =
+  map (\ll -> (fst . head $ ll, map snd ll))
+    . List.groupBy ((==) `on` fst)
+    . List.sortBy (comparing fst)
 
 groupPairs :: (Eq a, Ord a) => [(a, b)] -> Map.Map a [b]
 groupPairs = Map.fromList . groupPairs'
@@ -175,7 +208,7 @@ groupValuesBy keyFun = groupPairs . pairBy keyFun
 allYearsFileName :: TurtlePath
 allYearsFileName = "all-years" <.> "journal"
 
-directivesFile :: HasBaseDir o => o -> TurtlePath
+directivesFile :: (HasBaseDir o) => o -> TurtlePath
 directivesFile opts = turtleBaseDir opts </> "directives" <.> "journal"
 
 lsDirs :: TurtlePath -> Turtle.Shell TurtlePath
@@ -195,9 +228,9 @@ filterPathsByFileStatus filepred files = do
 
 filterPathsByFileStatus' :: (Turtle.FileStatus -> Bool) -> [TurtlePath] -> [TurtlePath] -> Turtle.Shell [TurtlePath]
 filterPathsByFileStatus' _ acc [] = return acc
-filterPathsByFileStatus' filepred acc (file:files) = do
+filterPathsByFileStatus' filepred acc (file : files) = do
   filestat <- Turtle.stat file
-  let filtered = if (filepred filestat) then file:acc else acc
+  let filtered = if (filepred filestat) then file : acc else acc
   filterPathsByFileStatus' filepred filtered files
 
 filterPaths :: (TurtlePath -> IO Bool) -> [TurtlePath] -> Turtle.Shell [TurtlePath]
@@ -205,9 +238,9 @@ filterPaths = filterPaths' []
 
 filterPaths' :: [TurtlePath] -> (TurtlePath -> IO Bool) -> [TurtlePath] -> Turtle.Shell [TurtlePath]
 filterPaths' acc _ [] = return acc
-filterPaths' acc filepred (file:files) = do
+filterPaths' acc filepred (file : files) = do
   shouldInclude <- Turtle.liftIO $ filepred file
-  let filtered = if shouldInclude then file:acc else acc
+  let filtered = if shouldInclude then file : acc else acc
   filterPaths' filtered filepred files
 
 excludeHiddenFiles :: Turtle.Shell TurtlePath -> Turtle.Shell TurtlePath
@@ -215,7 +248,7 @@ excludeHiddenFiles paths = do
   p <- paths
   case (Turtle.match (Turtle.prefix ".") $ Turtle.format Turtle.fp $ Turtle.filename p) of
     [] -> Turtle.select [p]
-    _  -> Turtle.select []
+    _ -> Turtle.select []
 
 excludeWeirdPaths :: Turtle.Shell TurtlePath -> Turtle.Shell TurtlePath
 excludeWeirdPaths = Turtle.findtree (Turtle.suffix $ Turtle.noneOf "_")
@@ -223,14 +256,14 @@ excludeWeirdPaths = Turtle.findtree (Turtle.suffix $ Turtle.noneOf "_")
 firstExistingFile :: [TurtlePath] -> IO (Maybe TurtlePath)
 firstExistingFile files = do
   case files of
-    []   -> return Nothing
-    file:fs -> do
+    [] -> return Nothing
+    file : fs -> do
       exists <- Turtle.testfile file
       if exists then return (Just file) else firstExistingFile fs
 
 basenameLine :: TurtlePath -> Turtle.Shell Turtle.Line
 basenameLine path = case (Turtle.textToLine $ Turtle.format Turtle.fp $ Turtle.basename path) of
-  Nothing -> Turtle.die $ Turtle.format ("Unable to determine basename from path: "%Turtle.fp%"\n") path
+  Nothing -> Turtle.die $ Turtle.format ("Unable to determine basename from path: " % Turtle.fp % "\n") path
   Just bn -> return bn
 
 buildFilename :: [Turtle.Line] -> T.Text -> TurtlePath
@@ -260,9 +293,10 @@ changePathAndExtension newOutputLocation newExt = (changeOutputPath newOutputLoc
 
 changeOutputPath :: TurtlePath -> TurtlePath -> TurtlePath
 changeOutputPath newOutputLocation srcFile = mconcat $ map changeSrcDir $ Turtle.splitDirectories srcFile
-  where changeSrcDir file = if file == "1-in/" || file == "2-preprocessed/" then newOutputLocation else file
+  where
+    changeSrcDir file = if file == "1-in/" || file == "2-preprocessed/" then newOutputLocation else file
 
-listOwners :: HasBaseDir o => o -> Turtle.Shell TurtlePath
+listOwners :: (HasBaseDir o) => o -> Turtle.Shell TurtlePath
 listOwners opts = fmap Turtle.basename $ lsDirs $ (turtleBaseDir opts) </> "import"
 
 intPath :: Integer -> TurtlePath
@@ -272,7 +306,7 @@ includeYears :: TChan LogMessage -> TurtlePath -> IO [Integer]
 includeYears ch includeFile = do
   txt <- T.readFile includeFile
   case includeYears' txt of
-    Left  msg   -> do
+    Left msg -> do
       channelErrLn ch msg
       return []
     Right years -> return years
@@ -280,7 +314,7 @@ includeYears ch includeFile = do
 includeYears' :: T.Text -> Either T.Text [Integer]
 includeYears' txt = case partitionEithers (includeYears'' txt) of
   (errors, []) -> do
-    let msg = Turtle.format ("Unable to extract years from the following text:\n"%Turtle.s%"\nErrors:\n"%Turtle.s) txt (T.intercalate "\n" $ map T.pack errors)
+    let msg = Turtle.format ("Unable to extract years from the following text:\n" % Turtle.s % "\nErrors:\n" % Turtle.s) txt (T.intercalate "\n" $ map T.pack errors)
     Left msg
   (_, years) -> Right years
 

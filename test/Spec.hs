@@ -1,17 +1,16 @@
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE OverloadedLists #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Main where
 
-import Test.HUnit
-import Turtle
-
+import qualified BaseDir.Integration
+import qualified CSVImport.Integration
+import qualified CSVImport.Unit
+import qualified Common.Integration
 import qualified Common.Unit
 import qualified PathHelpers.Unit
-import qualified Common.Integration
-import qualified BaseDir.Integration
-import qualified CSVImport.Unit
-import qualified CSVImport.Integration
+import Test.HUnit
+import Turtle
 
 tests :: Test
 tests = TestList [Common.Unit.tests, Common.Integration.tests, PathHelpers.Unit.tests, BaseDir.Integration.tests, CSVImport.Unit.tests, CSVImport.Integration.tests]

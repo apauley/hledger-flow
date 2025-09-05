@@ -2,25 +2,29 @@
 
 module Hledger.Flow.Types where
 
-import qualified Turtle (ExitCode, NominalDiffTime, Shell, Line)
 import qualified Data.Text as T
-
 import Hledger.Flow.PathHelpers
+import qualified Turtle (ExitCode, Line, NominalDiffTime, Shell)
 
 type BaseDir = AbsDir
+
 type RunDir = RelDir
 
 data LogMessage = StdOut T.Text | StdErr T.Text | Terminate deriving (Show)
+
 type FullOutput = (Turtle.ExitCode, T.Text, T.Text)
+
 type FullTimedOutput = (FullOutput, Turtle.NominalDiffTime)
 
 type ProcFun = T.Text -> [T.Text] -> Turtle.Shell Turtle.Line -> IO FullOutput
+
 type ProcInput = (T.Text, [T.Text], Turtle.Shell Turtle.Line)
 
-data HledgerInfo = HledgerInfo { hlPath :: AbsFile
-                               , hlVersion :: T.Text
-                               }
-                 deriving (Show)
+data HledgerInfo = HledgerInfo
+  { hlPath :: AbsFile,
+    hlVersion :: T.Text
+  }
+  deriving (Show)
 
 class HasVerbosity a where
   verbose :: a -> Bool

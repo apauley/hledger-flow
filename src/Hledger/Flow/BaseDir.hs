@@ -1,28 +1,26 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes #-}
 
-module Hledger.Flow.BaseDir (
-    determineBaseDir
-  , relativeToBase
-  , relativeToBase'
-  , turtleBaseDir
-  , effectiveRunDir
-) where
+module Hledger.Flow.BaseDir
+  ( determineBaseDir,
+    relativeToBase,
+    relativeToBase',
+    turtleBaseDir,
+    effectiveRunDir,
+  )
+where
 
-import Path
-import Path.IO
-import Hledger.Flow.Types (HasBaseDir, BaseDir, RunDir, baseDir)
-import Hledger.Flow.PathHelpers
-
-import Data.Maybe
-
+import Control.Monad (when)
 import Control.Monad.Catch (MonadThrow, throwM)
 import Control.Monad.IO.Class (MonadIO)
-import Control.Monad (when)
-
-import qualified Turtle (liftIO, repr, stripPrefix)
+import Data.Maybe
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
+import Hledger.Flow.PathHelpers
+import Hledger.Flow.Types (BaseDir, HasBaseDir, RunDir, baseDir)
+import Path
+import Path.IO
+import qualified Turtle (liftIO, repr, stripPrefix)
 
 determineBaseDir :: Maybe TurtlePath -> IO (BaseDir, RunDir)
 determineBaseDir suppliedDir = do
@@ -35,15 +33,15 @@ determineBaseDir' pwd (Just suppliedDir) = do
   determineBaseDirFromStartDir absDir
 determineBaseDir' pwd Nothing = determineBaseDirFromStartDir pwd
 
-determineBaseDirFromStartDir ::  AbsDir -> IO (BaseDir, RunDir)
+determineBaseDirFromStartDir :: AbsDir -> IO (BaseDir, RunDir)
 determineBaseDirFromStartDir startDir = determineBaseDirFromStartDir' startDir startDir
 
 determineBaseDirFromStartDir' :: (MonadIO m, MonadThrow m) => AbsDir -> AbsDir -> m (BaseDir, RunDir)
 determineBaseDirFromStartDir' startDir possibleBaseDir = do
   Control.Monad.when (parent possibleBaseDir == possibleBaseDir) $ throwM (MissingBaseDir startDir)
   foundBaseDir <- doesDirExist $ possibleBaseDir </> [reldir|import|]
-  if foundBaseDir then
-    do
+  if foundBaseDir
+    then do
       runDir <- limitRunDir possibleBaseDir startDir
       return (possibleBaseDir, runDir)
     else determineBaseDirFromStartDir' startDir $ parent possibleBaseDir
@@ -64,18 +62,22 @@ limitRunDir bd absRunDir = do
   return newRunDir
 
 composeN :: Int -> (a -> a) -> (a -> a)
-composeN n f | n < 1      = id
-             | n == 1     = f
-             | otherwise = composeN (n-1) (f . f)
+composeN n f
+  | n < 1 = id
+  | n == 1 = f
+  | otherwise = composeN (n - 1) (f . f)
 
-relativeToBase :: HasBaseDir o => o -> TurtlePath -> TurtlePath
+relativeToBase :: (HasBaseDir o) => o -> TurtlePath -> TurtlePath
 relativeToBase opts = relativeToBase' $ pathToTurtle (baseDir opts)
 
 relativeToBase' :: TurtlePath -> TurtlePath -> TurtlePath
-relativeToBase' bd p = if forceTrailingSlash bd == forceTrailingSlash p then "./" else
-  fromMaybe p $ Turtle.stripPrefix (forceTrailingSlash bd) p
+relativeToBase' bd p =
+  if forceTrailingSlash bd == forceTrailingSlash p
+    then "./"
+    else
+      fromMaybe p $ Turtle.stripPrefix (forceTrailingSlash bd) p
 
-turtleBaseDir :: HasBaseDir o => o -> TurtlePath
+turtleBaseDir :: (HasBaseDir o) => o -> TurtlePath
 turtleBaseDir opts = pathToTurtle $ baseDir opts
 
 effectiveRunDir :: BaseDir -> RunDir -> AbsDir

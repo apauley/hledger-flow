@@ -1,24 +1,24 @@
-module Hledger.Flow.RuntimeOptions
-where
+module Hledger.Flow.RuntimeOptions where
 
 import qualified Data.Text as T
-import Prelude hiding (putStrLn)
-import Hledger.Flow.Types
 import Hledger.Flow.Internals (SystemInfo)
+import Hledger.Flow.Types
+import Prelude hiding (putStrLn)
 
-data RuntimeOptions = RuntimeOptions { baseDir :: BaseDir
-                                     , importRunDir :: RunDir
-                                     , importStartYear :: Maybe Integer
-                                     , onlyNewFiles :: Bool
-                                     , hfVersion :: T.Text
-                                     , hledgerInfo :: HledgerInfo
-                                     , sysInfo :: SystemInfo
-                                     , verbose :: Bool
-                                     , showOptions :: Bool
-                                     , sequential :: Bool
-                                     , batchSize :: Int
-                                     , prettyReports :: Bool
-                                     }
+data RuntimeOptions = RuntimeOptions
+  { baseDir :: BaseDir,
+    importRunDir :: RunDir,
+    importStartYear :: Maybe Integer,
+    onlyNewFiles :: Bool,
+    hfVersion :: T.Text,
+    hledgerInfo :: HledgerInfo,
+    sysInfo :: SystemInfo,
+    verbose :: Bool,
+    showOptions :: Bool,
+    sequential :: Bool,
+    batchSize :: Int,
+    prettyReports :: Bool
+  }
   deriving (Show)
 
 instance HasVerbosity RuntimeOptions where
@@ -38,4 +38,3 @@ instance HasRunDir RuntimeOptions where
 
 instance HasPrettyReports RuntimeOptions where
   prettyReports (RuntimeOptions _ _ _ _ _ _ _ _ _ _ _ pr) = pr
-
