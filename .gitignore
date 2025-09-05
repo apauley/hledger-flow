@@ -10,3 +10,4 @@ releases/
 *.c.*
 .idea
 *.iml
+.DS_Store
