@@ -184,7 +184,7 @@ hledgerImport' opts ch importDirs csvSrc journalOut = do
 
       let cmdLabel = Turtle.format ("importing '" % Turtle.fp % "' using rules file '" % Turtle.fp % "'") relCSV relRules
       ((_, stdOut, _), _) <- timeAndExitOnErr opts ch cmdLabel dummyLogger channelErr (parAwareProc opts) (hledger, args, Turtle.empty)
-      let withoutDryRunText = T.unlines $ drop 2 $ T.lines stdOut
+      let withoutDryRunText = if T.isPrefixOf "; would import" stdOut then T.unlines $ drop 2 $ T.lines stdOut else stdOut
       _ <- T.writeFile journalOut withoutDryRunText
       return journalOut
     Nothing ->
