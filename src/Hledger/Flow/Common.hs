@@ -84,12 +84,15 @@ logTimedAction ::
   TChan LogMessage ->
   T.Text ->
   [T.Text] ->
+  T.Text ->
+  [T.Text] ->
   (TChan LogMessage -> T.Text -> IO ()) ->
   (TChan LogMessage -> T.Text -> IO ()) ->
   IO FullOutput ->
   IO FullTimedOutput
-logTimedAction opts ch cmdLabel extraCmdLabels stdoutLogger stderrLogger action = do
+logTimedAction opts ch cmdLabel extraCmdLabels cmd args stdoutLogger stderrLogger action = do
   logVerbose opts ch $ Turtle.format ("Begin: " % Turtle.s) cmdLabel
+  logVerbose opts ch $ Turtle.format (Turtle.s % " " % Turtle.s) cmd (T.intercalate " " args)
   if (List.null extraCmdLabels) then return () else logVerbose opts ch $ T.intercalate "\n" extraCmdLabels
   timed@((ec, stdOut, stdErr), diff) <- Turtle.time action
   stdoutLogger ch stdOut
@@ -122,7 +125,7 @@ timeAndExitOnErr' ::
   IO FullTimedOutput
 timeAndExitOnErr' opts ch cmdLabel extraCmdLabels stdoutLogger stderrLogger procFun (cmd, args, stdInput) = do
   let action = procFun cmd args stdInput
-  timed@((ec, stdOut, stdErr), _) <- logTimedAction opts ch cmdLabel extraCmdLabels stdoutLogger stderrLogger action
+  timed@((ec, stdOut, stdErr), _) <- logTimedAction opts ch cmdLabel extraCmdLabels cmd args stdoutLogger stderrLogger action
   case ec of
     Turtle.ExitFailure i -> do
       let cmdText = Turtle.format (Turtle.s % " " % Turtle.s) cmd $ showCmdArgs args
