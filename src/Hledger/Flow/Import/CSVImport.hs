@@ -175,7 +175,7 @@ hledgerImport' opts ch importDirs csvSrc journalOut = do
       directivesExist <- Turtle.testfile $ directivesFile opts
       let directivesArgs = if directivesExist then ["--file", Turtle.format Turtle.fp (directivesFile opts)] else []
       let csvArgs = ["--file", Turtle.format Turtle.fp csvSrc, "--rules-file", Turtle.format Turtle.fp rf]
-      let args = ["print"] ++ directivesArgs ++ csvArgs
+      let args = ["print", "--explicit"] ++ directivesArgs ++ csvArgs
 
       let cmdLabel = Turtle.format ("importing '" % Turtle.fp % "' using rules file '" % Turtle.fp % "'") relCSV relRules
       ((_, stdOut, _), _) <- timeAndExitOnErr opts ch cmdLabel dummyLogger channelErr (parAwareProc opts) (hledger, args, Turtle.empty)
