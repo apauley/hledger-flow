@@ -1,5 +1,15 @@
 # Changelog for [hledger-flow](https://github.com/apauley/hledger-flow)
 
+## 0.16.0
+
+- Switched back to `hledger print` during statement import [#126](https://github.com/apauley/hledger-flow/issues/126)
+- Move feature reference to https://github.com/apauley/hledger-flow/docs
+- Fix preprocessing logic for CSV files [#123](https://github.com/apauley/hledger-flow/issues/123)
+- Add --ascii-reports flag[#115](https://github.com/apauley/hledger-flow/pull/115)
+
+Other changes:
+ - Switched to Stackage lts-24.8 (GHC 9.10.2)
+
 ## 0.15.0
 
 Made some changes that will result in formatting changes of generated files:
@@ -7,7 +17,7 @@ Made some changes that will result in formatting changes of generated files:
  - Removed the obsolete exclamation mark from the `include` directive
  - Switched from `hledger print` to `hledger import` during statement import.
 
-   `hledger import` uses your preferred commodity styles from your 
+   `hledger import` uses your preferred commodity styles from your
    [directives.journal](https://github.com/apauley/hledger-flow#hledger-directives) to generate journals.
 
 Other changes:
@@ -100,7 +110,7 @@ The experimental rundir is an attempt to restrict hledger-flow into processing j
 The use case has been described in [issue 64](https://github.com/apauley/hledger-flow/issues/64).
 
 It is experimental, because the only problem it currently solves is getting hledger-flow to fail fast.
-One of the current side effects of doing so is that the generated include files are then written to only 
+One of the current side effects of doing so is that the generated include files are then written to only
 include the subset of files that were processed.
 
 But as soon as you do a full run again, the include files will be correctly re-generated as before.
