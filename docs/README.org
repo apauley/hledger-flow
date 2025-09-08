@@ -1,0 +1,475 @@
+#+STARTUP: showall
+
+* Feature Reference
+  :PROPERTIES:
+  :CUSTOM_ID: feature-reference
+  :END:
+
+** Input Files
+   :PROPERTIES:
+   :CUSTOM_ID: input-files
+   :END:
+
+Your input files will probably be CSV files with a line for each
+transaction, although other file types will work fine if you use a
+=preprocess= or a =construct= script that can read them. These scripts
+are explained later.
+
+We mostly use conventions based on a predefined directory structure for
+your input statements.
+
+For example, assuming you have a =savings= account at =mybank=, you'll
+put your first CSV statement here:
+=import/john/mybank/savings/1-in/2018/123456789_2018-06-30.csv=.
+
+Some people may want to include accounts belonging to their spouse as
+part of the household finances:
+=import/spouse/otherbank/checking/1-in/2018/987654321_2018-06-30.csv=.
+
+*** More About Input Files
+    :PROPERTIES:
+    :CUSTOM_ID: more-about-input-files
+    :END:
+
+All files and directories under the =import= directory are related to the
+automatic importing and classification of transactions.
+
+The directory directly under =import= is meant to indicate the owner or
+custodian of the accounts below it. It mostly has an impact on
+reporting. You may want to have separate reports for =import/mycompany=
+and =import/personal=.
+
+Below the directory for the owner we can indicate where an account is
+held. For a bank account you may choose to name it =import/john/mybank=.
+
+If your underground bunker filled with gold has CSV statements linked to
+it, then you can absolutely create =import/john/secret-treasure-room=.
+
+Under the directory for the financial institution, you'll have a
+directory for each account at that institution, e.g.
+=import/mycompany/bigbankinc/customer-deposits= and
+=import/mycompany/bigbankinc/expense-account=.
+
+Next you'll create a directory named =1-in=. This is to distinguish it
+from =2-preprocessed= and =3-journal= which will be auto-generated
+later.
+
+Under =1-in= you'll create a directory for the year, e.g. =2018=, and
+within that you can copy the statements for that year:
+=import/john/mybank/savings/1-in/2018/123456789_2018-06-30.csv=
+
+*** Stability of this Feature
+    :PROPERTIES:
+    :CUSTOM_ID: stability-of-this-feature
+    :END:
+
+The basic owner/bank/account/year structure has been used and tested
+fairly extensively, I don't expect a need for it to change.
+
+I'm open to suggestions for improvement though.
+
+** Rules Files
+   :PROPERTIES:
+   :CUSTOM_ID: rules-files
+   :END:
+
+If your input file is in CSV format, or converted to CSV by your
+=preprocess= script, then you'll need an
+[[https://hledger.org/hledger.html#csv-format][hledger rules file]].
+
+=hledger-flow= will try to find a rules file for each statement in a few
+places. The same rules file is typically used for all statements of a
+specific account, or even for all accounts of the same specific bank.
+
+- A global rules file for any =mybank= statement can be saved here:
+  =import/mybank.rules=
+- A rules file for all statements of a specific account:
+  =import/spouse/bigbankinc/savings/bigbankinc-savings.rules=
+
+*** Statement-specific Rules Files
+    :PROPERTIES:
+    :CUSTOM_ID: statement-specific-rules-files
+    :END:
+
+What happens if some of the statements for an account has a different
+format than the others?
+
+This can happen if you normally get your statements directly from your
+bank, but some statements you had to download from somewhere else, like
+Mint, because your bank is being daft with older statements.
+
+In order to tell =hledger-flow= that you want to override the rules file
+for a specific statement, you need to add a suffix, separated by an
+underscore (=_=) and starting with the letters =rfo= (rules file
+override) to the filename of that statement.
+
+For example: assuming you've named your statement
+=99966633_20171223_1844_rfo-mint.csv=.
+
+=hledger-flow= will look for a rules file named =rfo-mint.rules= in the
+following places:
+
+- in the import directory, e.g. =import/rfo-mint.rules=
+- in the bank directory, e.g. =import/john/mybank/rfo-mint.rules=
+- in the account directory, e.g.
+  =import/john/mybank/savings/rfo-mint.rules=
+
+*** Example rules file usage
+    :PROPERTIES:
+    :CUSTOM_ID: example-rules-file-usage
+    :END:
+
+A common scenario is multiple accounts that share the same file format,
+but have different =account1= directives.
+
+One possible approach would be to include a shared rules file in your
+account-specific rules file.
+
+If you are lucky enough that all statements at =mybank= share a common
+format across all accounts, then you can =include= a rules file that
+just defines the parts that are shared across accounts.
+
+Two accounts at =mybank= may have rules files similar to these.
+
+A checking account at mybank:
+
+#+BEGIN_EXAMPLE
+# Saved as: import/john/mybank/checking/mybank-checking.rules
+include ../../../mybank-shared.rules
+account1 Assets:Current:John:MyBank:Checking
+#+END_EXAMPLE
+
+Another account at mybank:
+
+#+BEGIN_EXAMPLE
+# Saved as: import/alice/mybank/savings/mybank-savings.rules
+include ../../../mybank-shared.rules
+account1 Assets:Current:Alice:MyBank:Savings
+#+END_EXAMPLE
+
+Where =import/mybank-shared.rules= may define some shared attributes:
+
+#+BEGIN_EXAMPLE
+    skip 1
+
+    fields date, description, amount, balance
+
+    date-format %Y-%m-%d
+    currency $
+#+END_EXAMPLE
+
+Another possible approach could be to use your =preprocess= script to
+write out a CSV file that has extra fields for =account1= and
+=account2=.
+
+You could then create the above mentioned global =import/mybank.rules=
+with the fields defined more or less like this:
+
+#+BEGIN_EXAMPLE
+fields date, description, amount, balance, account1, account2
+#+END_EXAMPLE
+
+*** Stability of this Feature
+    :PROPERTIES:
+    :CUSTOM_ID: stability-of-this-feature-1
+    :END:
+
+Rules files are a stable feature within
+[[http://hledger.org/][hledger]], and we're just using the normal
+hledger rules files. The account, bank and statement-specific rules
+files have been used and tested fairly extensively, I don't expect this
+to change.
+
+Let me know if you think it should change.
+
+** Opening and Closing Balances
+   :PROPERTIES:
+   :CUSTOM_ID: opening-and-closing-balances
+   :END:
+
+*** Opening Balances
+    :PROPERTIES:
+    :CUSTOM_ID: opening-balances
+    :END:
+
+=hledger-flow= looks for a file named =YEAR-opening.journal= in each
+account directory, where =YEAR= corresponds to an actual year directory,
+eg. *1983* (if you have electronic statements
+[[https://en.wikipedia.org/wiki/Online_banking#First_online_banking_services_in_the_United_States][dating
+back to 1983]]). Example:
+=import/john/mybank/savings/1983-opening.journal=
+
+If it exists the file will automatically be included at the beginning of
+the generated journal include file for that year.
+
+You need to edit this file for each account to specify the opening
+balance at the date of the first available transaction.
+
+An opening balance may look something like this:
+
+#+BEGIN_EXAMPLE
+2018-06-01 Savings Account Opening Balance
+    assets:Current:MyBank:Savings               $102.01
+    equity:Opening Balances:MyBank:Savings
+#+END_EXAMPLE
+
+
+*** A Note of Caution Regarding Closing Balances
+
+When closing your balances it may result in some =hledger= queries showing zero-values, or there could be issues with balance assertions.
+
+Please have a look at the upstream =hledger= documentation on closing balances, e.g here:
+https://hledger.org/hledger.html#close-usage
+
+Some of the gotchas you may run into are also described in [[https://github.com/apauley/hledger-flow/issues/79][this hledger-flow issue]].
+
+*** Closing Balances
+    :PROPERTIES:
+    :CUSTOM_ID: closing-balances
+    :END:
+
+Similar to opening balances, =hledger-flow= looks for an optional file
+named =YEAR-closing.journal= in each account directory. Example:
+=import/john/mybank/savings/1983-closing.journal=
+
+If it exists the file will automatically be included at the end of the
+generated journal include file for that year.
+
+A closing balance may look something like this:
+
+#+BEGIN_EXAMPLE
+2018-06-01 Savings Account Closing Balance
+    assets:Current:MyBank:Savings               $-234.56 = $0.00
+    equity:Closing Balances:MyBank:Savings
+#+END_EXAMPLE
+
+*** Example Opening and Closing Journal Files
+    :PROPERTIES:
+    :CUSTOM_ID: example-opening-and-closing-journal-files
+    :END:
+
+As an example, assuming that the relevant year is =2019= and
+=hledger-flow= is about to generate
+=import/john/mybank/savings/2019-include.journal=, then one or both of
+the following files will be added to the include file if they exist:
+
+1. =import/john/mybank/savings/2019-opening.journal=
+2. =import/john/mybank/savings/2019-closing.journal=
+
+The =opening.journal= will be included just before the other included
+entries, while the =closing.journal= will be included just after the
+other entries in that include file.
+
+An include file may look like this:
+
+#+BEGIN_SRC sh
+    cat import/john/mybank/savings/2019-include.journal
+#+END_SRC
+
+#+BEGIN_EXAMPLE
+    ### Generated by hledger-flow - DO NOT EDIT ###
+
+    include 2019-opening.journal
+    include 3-journal/2019/123456789_2019-01-30
+    include 2019-closing.journal
+#+END_EXAMPLE
+
+*** Stability of this Feature
+    :PROPERTIES:
+    :CUSTOM_ID: stability-of-this-feature-2
+    :END:
+
+Closing balances sometimes result in [[https://github.com/apauley/hledger-flow/issues/79][unexpected query results]].
+In future we may change how/where the generated files include the closing journal.
+
+We may also need to suggest some naming conventions for opening and closing balances so that reports can exclude
+some of these transactions.
+
+It is also possible that we might want to change the name/location of the closing journal,
+but we'll try to avoid this if possible, because that would require users to rename their existing files.
+
+** Price Files
+   :PROPERTIES:
+   :CUSTOM_ID: price-files
+   :END:
+
+=hledger-flow= looks for [[https://hledger.org/journal.html#market-prices][price files]] to include in each yearly include file.
+
+For example, the presence of a file named =${BASE}/prices/2020/prices.journal= will result in some extra include file magic.
+
+The rest of this section assumes you'll have a file named =prices/2020/prices.journal= which contains price data for the year 2020.
+The =prices= directory should be right at the top of your =hledger-flow= base directory, next to the =import= directory.
+
+=hledger-flow= does not care how the price files got there, it only cares that you should have a separate file per year,
+and that it follows the above naming convention.
+
+Here is an example script which downloads prices and follows the naming convention:
+https://gist.github.com/apauley/398fa031c202733959af76b3b8ce8197
+
+After running an import with available price files you'll see a line has been added to =import/2020-include.journal=:
+
+#+BEGIN_EXAMPLE
+include ../prices/2020/prices.journal
+#+END_EXAMPLE
+
+** Hledger Directives
+   :PROPERTIES:
+   :CUSTOM_ID: hledger-directives
+   :END:
+
+Hledger allows you to specify some useful [[https://hledger.org/hledger.html#directives][directives]] which affect things such as number formatting.
+
+A convenient place to put these directives within =hledger-flow= is a file named =directives.journal= (in your hledger-flow base directory).
+
+If it exists =hledger-flow= will include it within the =all-years.journal=:
+
+#+BEGIN_SRC sh
+  cat all-years.journal
+#+END_SRC
+
+#+BEGIN_EXAMPLE
+### Generated by hledger-flow - DO NOT EDIT ###
+
+include directives.journal
+include import/all-years.journal
+#+END_EXAMPLE
+
+** The =preprocess= Script
+   :PROPERTIES:
+   :CUSTOM_ID: the-preprocess-script
+   :END:
+
+Sometimes the statements you get from your bank is
+[[https://github.com/apauley/fnb-csv-demoronizer][less than suitable]]
+for automatic processing. Or maybe you just want to make it easier for
+the hledger rules file to do its thing by adding some useful columns.
+
+If you put a script called =preprocess= in the account directory, e.g.
+=import/john/mybank/savings/preprocess=, then =hledger-flow= will call
+that script for each input statement.
+
+The =preprocess= script will be called with 4 positional parameters:
+
+1. The path to the input statement, e.g.
+   =import/john/mybank/savings/1-in/2018/123456789_2018-06-30.csv=
+2. The path to an output file that can be sent to =hledger=, e.g.
+   =import/john/mybank/savings/2-preprocessed/2018/123456789_2018-06-30.csv=
+3. The name of the bank, e.g. =mybank=
+4. The name of the account, e.g. =savings=
+5. The name of the owner, e.g. =john=
+
+Your =preprocess= script is expected to:
+
+- read the input file
+- write a new output file at the supplied path that works with your
+  rules file
+- be idempotent. Running =preprocess= multiple times on the same files
+  will produce the same result.
+
+*** Stability of this Feature
+    :PROPERTIES:
+    :CUSTOM_ID: stability-of-this-feature-3
+    :END:
+
+Stable and tested.
+
+** The =construct= Script
+   :PROPERTIES:
+   :CUSTOM_ID: the-construct-script
+   :END:
+
+If you need even more power and flexibility than what you can get from
+the =preprocess= script and =hledger='s [[https://hledger.org/csv.html][CSV import functionality]], then
+you can create your own custom script to =construct= transactions
+exactly as you need them.
+
+At the expense of more construction work for you, of course.
+
+The =construct= script can be used in addition to the =preprocess=
+script, or on it's own. But since the =construct= script is more
+powerful than the =preprocess= script, you could tell your =construct=
+script to do anything that the =preprocess= script would have done.
+
+Save your =construct= script in the account directory, e.g.
+=import/john/mybank/savings/construct=.
+
+=hledger-flow= will call your =construct= script with 5 positional
+parameters:
+
+1. The path to the input statement, e.g.
+   =import/john/mybank/savings/1-in/2018/123456789_2018-06-30.csv=
+2. A "-" (indicating that output should be sent to =stdout=)
+3. The name of the bank, e.g. =mybank=
+4. The name of the account, e.g. =savings=
+5. The name of the owner, e.g. =john=
+
+Your =construct= script is expected to:
+
+- read the input file
+- generate your own =hledger= journal transactions
+- be idempotent. Running =construct= multiple times on the same files
+  should produce the same result.
+- send all journals to =stdout=. =hledger-flow= will pipe your standard output into
+  =hledger= which will format it and save it to an output file.
+
+You can still use =stderr= in your construct script for any other output that you may want to see.
+
+*** Stability of this Feature
+    :PROPERTIES:
+    :CUSTOM_ID: stability-of-this-feature-4
+    :END:
+
+Stable and tested.
+
+** Manually Managed Journals
+   :PROPERTIES:
+   :CUSTOM_ID: manually-managed-journals
+   :END:
+
+Not every transaction in your life comes with CSV statements.
+
+Sometimes you just need to add a transaction for that time you loaned a
+friend some money.
+
+=hledger-flow= looks for =pre-import= and =post-import= files related to
+each generated include file as part of the import.
+
+You can enter your own transactions manually into these files.
+
+You can run =hledger-flow import --verbose= to see exactly which files
+are being looked for.
+
+As an example, assuming that the relevant year is =2019= and
+=hledger-flow= is about to generate =import/john/2019-include.journal=,
+then one or both of the following files will be added to the include
+file if they exist:
+
+1. =import/john/_manual_/2019/pre-import.journal=
+2. =import/john/_manual_/2019/post-import.journal=
+
+The =pre-import.journal= will be included just before the other included
+entries, while the =post-import.journal= will be included just after the
+other entries in that include file.
+
+An include file may look like this:
+
+#+BEGIN_SRC sh
+    cat import/john/2019-include.journal
+#+END_SRC
+
+#+BEGIN_EXAMPLE
+    ### Generated by hledger-flow - DO NOT EDIT ###
+
+    include _manual_/2019/pre-import.journal
+    include mybank/2019-include.journal
+    include otherbank/2019-include.journal
+    include _manual_/2019/post-import.journal
+#+END_EXAMPLE
+
+*** Stability of this Feature
+    :PROPERTIES:
+    :CUSTOM_ID: stability-of-this-feature-5
+    :END:
+
+It works, but the naming of =_manual_= looks a bit weird. Should it be
+changed?
