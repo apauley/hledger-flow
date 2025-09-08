@@ -2,7 +2,7 @@
 
 set -e
 
-USAGE="USAGE: ${0} FILE"
+USAGE="USAGE: ${0} hledger-flow-executable"
 
 if [ $# != 1 ]
 then
@@ -10,10 +10,10 @@ then
     exit 1
 fi
 
-FILE=${1}
-if [ ! -f ${FILE} ]
+EXECUTABLE=${1}
+if [ ! -f ${EXECUTABLE} ]
 then
-    >&2 echo "File does not exist: ${FILE}"
+    >&2 echo "File does not exist: ${EXECUTABLE}"
     exit 1
 fi
 
@@ -39,7 +39,7 @@ PACKAGE_VERSION="$(grep '^version:' ${BASEDIR}/package.yaml|awk '{print $2}')"
 VERSION="v${PACKAGE_VERSION}"
 STACK_RESOLVER="$(grep '^resolver:' ${STACK_YAML}|cut -d' ' -f2)"
 GHC_VERSION="$(stack exec -- ghc --version)"
-CLI_NAME="$(basename ${FILE})"
+CLI_NAME="$(basename ${EXECUTABLE})"
 PLATFORM=`uname -s`
 ARCH=`uname -m`
 
@@ -61,16 +61,16 @@ date > ${BUILDINFO}
 
 echo >> ${BUILDINFO}
 uname -a >> ${BUILDINFO}
-echo -e "\nhledger-flow version: $(${FILE} --version)" >> ${BUILDINFO}
+echo -e "\nhledger-flow version: $(${EXECUTABLE} --version)" >> ${BUILDINFO}
 echo -e "hledger-flow package.yaml version: ${PACKAGE_VERSION}\n" >> ${BUILDINFO}
-echo -e "${STACK_YAML} resolver: ${STACK_RESOLVER}" >> ${BUILDINFO}
+echo -e "stack.yaml resolver: ${STACK_RESOLVER}" >> ${BUILDINFO}
 echo -e "GHC Version: ${GHC_VERSION}\n" >> ${BUILDINFO}
 
-shasum --algorithm 256 ${FILE} >> ${BUILDINFO}
+shasum --algorithm 256 ${EXECUTABLE} >> ${BUILDINFO}
 echo >> ${BUILDINFO}
 git log -1 >> ${BUILDINFO}
 
-cp ${FILE} ${TARGET}
+cp ${EXECUTABLE} ${TARGET}
 cd ${TARGET}
 shasum --algorithm 256 * > sha256-${VNAME}.txt
 cd ${TARGETBASE}
