@@ -7,4 +7,4 @@ import Turtle ((%))
 import qualified Turtle as Turtle (Line, format, l)
 
 docURL :: Turtle.Line -> T.Text
-docURL = Turtle.format ("https://github.com/apauley/hledger-flow/docs#" % Turtle.l)
+docURL = Turtle.format ("https://github.com/apauley/hledger-flow/tree/master/docs#" % Turtle.l)

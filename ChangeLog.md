@@ -1,11 +1,15 @@
 # Changelog for [hledger-flow](https://github.com/apauley/hledger-flow)
 
+## 0.16.1
+
+- Fix documentation URL: https://github.com/apauley/hledger-flow/tree/master/docs#feature-reference
+
 ## 0.16.0
 
 - Switched back to `hledger print` during statement import [#126](https://github.com/apauley/hledger-flow/issues/126)
 - Move feature reference to https://github.com/apauley/hledger-flow/docs
 - Fix preprocessing logic for CSV files [#123](https://github.com/apauley/hledger-flow/issues/123)
-- Add --ascii-reports flag[#115](https://github.com/apauley/hledger-flow/pull/115)
+- Add --ascii-reports flag [#115](https://github.com/apauley/hledger-flow/pull/115)
 
 Other changes:
  - Switched to Stackage lts-24.8 (GHC 9.10.2)
