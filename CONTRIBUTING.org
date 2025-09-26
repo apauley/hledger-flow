@@ -97,14 +97,6 @@ Then run:
     ./bin/build-and-test
 #+END_SRC
 
-This script just runs:
-
-#+NAME: stack-build
-#+BEGIN_SRC sh
-    stack test --interleaved-output --pedantic
-    stack install
-#+END_SRC
-
 Which should end with this:
 
 #+BEGIN_SRC org
