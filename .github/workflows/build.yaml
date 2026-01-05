@@ -52,7 +52,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.ghcup
-          key: ${{ steps.global-variables.outputs.cache-prefix }}-ghcup-global-${{ hashFiles('**.ghcup') }}
+          key: ${{ steps.global-variables.outputs.cache-prefix }}-ghcup-global-${{ hashFiles('**.yaml') }}
           restore-keys: |
               ${{ steps.global-variables.outputs.cache-prefix }}-ghcup-global
 
