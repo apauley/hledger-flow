@@ -28,6 +28,7 @@ Miscellaneous contributors:
 - [[https://github.com/apauley/hledger-flow/issues?q=author%3Ajecaro][Jean-Charles Quillet]] (improved command-line parameters)
 - [[https://github.com/apauley/hledger-flow/issues?q=author%3Akain88-de][Max Linke]] (added a monthly version of the income statement in reports)
 - [[https://github.com/apauley/hledger-flow/issues?q=author%3Akepi][Kepi]] (doc fixes)
+- [[https://github.com/apauley/hledger-flow/issues?q=author%3Adesaiuditd][Udit Desai]] (Github Action for build, test and release)
 
 * Contributing
   :PROPERTIES:
