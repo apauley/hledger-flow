@@ -1,0 +1,186 @@
+name: Build & Release
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+    tags:
+      - v*.*.*
+  pull_request:
+    branches:
+      - master
+
+jobs:
+
+  build:
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest     # x64
+          - ubuntu-24.04-arm  # arm64
+          - macos-15-intel    # Intel
+          - macos-latest      # arm64
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get Stack version for the project
+        id: get-stack-version
+        run: |
+          echo "stack-version=$(cat stack.yaml | grep '^resolver:' | awk '{print $2}')" >> $GITHUB_OUTPUT
+
+      - name: Prepare global variables
+        id: global-variables
+        uses: actions/github-script@v6
+        env:
+          # bump this cache date when new caches are needed, while keeping the same stack version.
+          cache-date: 20260105
+        with:
+          script: |
+            const platform = `${'${{ runner.os }}'.toLowerCase()}-${'${{ runner.arch }}'.toLowerCase()}`;
+            core.setOutput('platform', platform);
+
+            const stackVersion = '${{ steps.get-stack-version.outputs.stack-version }}';
+            core.setOutput('stack-version', stackVersion);
+
+            core.setOutput('cache-prefix', `${platform}-stack-${stackVersion}-${{ env.cache-date }}`);
+
+      - name: Cache - ghcup global
+        id:  ghcup-global
+        uses: actions/cache@v4
+        with:
+          path: ~/.ghcup
+          key: ${{ steps.global-variables.outputs.cache-prefix }}-ghcup-global-${{ hashFiles('**.ghcup') }}
+          restore-keys: |
+              ${{ steps.global-variables.outputs.cache-prefix }}-ghcup-global
+
+      - name: Cache - stack global package db
+        id:   stack-global
+        uses: actions/cache@v4
+        with:
+          path: ~/.stack
+          # XXX if stack.yaml is a symlink, this fails with
+          #  Error: The template is not valid. .github/workflows/push.yml (Line: 103, Col: 14): hashFiles('**.yaml') failed.
+          #  Fail to hash files under directory '/home/runner/work/hledger/hledger'
+          key: ${{ steps.global-variables.outputs.cache-prefix }}-stack-global-${{ hashFiles('**.yaml') }}
+          restore-keys: |
+              ${{ steps.global-variables.outputs.cache-prefix }}-stack-global
+
+      - name: Cache - stack-installed programs in ~/.local/bin
+        id:   stack-programs
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/bin
+          key: ${{ steps.global-variables.outputs.cache-prefix }}-stack-programs-${{ hashFiles('**.yaml') }}
+          restore-keys: |
+              ${{ steps.global-variables.outputs.cache-prefix }}-stack-programs
+
+      - name: Cache - .stack-work
+        uses: actions/cache@v4
+        with:
+          path: .stack-work
+          key: ${{ steps.global-variables.outputs.cache-prefix }}-stack-work-${{ hashFiles('**.yaml') }}
+          restore-keys: |
+              ${{ steps.global-variables.outputs.cache-prefix }}-stack-work
+
+      - name: Install eget
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd /tmp && curl https://zyedidia.github.io/eget.sh | sh && \
+          mv ./eget /usr/local/bin/
+
+      - name: Install hledger
+        # hledger's releases are not available for linux-arm64
+        if: ${{ steps.global-variables.outputs.platform != 'linux-arm64' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          eget simonmichael/hledger --all --to /usr/local/bin/
+
+      - name: Show hledger version
+        # hledger's releases are not available for linux-arm64
+        if: ${{ steps.global-variables.outputs.platform != 'linux-arm64' }}
+        run: hledger --version
+
+      - uses: haskell/ghcup-setup@v1
+
+      - name: Setup ghcup
+        run: |
+          ghcup install stack
+
+      - name: Stack Setup
+        run: stack setup --interleaved-output
+
+      - name: Build and Test
+        run: stack test --interleaved-output && stack install
+
+      - name: Check hledger-flow info
+        run: |
+          ~/.local/bin/hledger-flow --help && \
+          ~/.local/bin/hledger-flow --version && \
+          # Check hledger-flow binary exists & its dynamically linked
+          file ~/.local/bin/hledger-flow && \
+          # List hledger-flow shared object dependencies - should be dynamic
+          ldd ~/.local/bin/hledger-flow || true
+
+      - name: Verify hledger-flow import & report scripts
+        # hledger's releases are not available for linux-arm64
+        if: ${{ steps.global-variables.outputs.platform != 'linux-arm64' }}
+        run: |
+          git clone --recurse-submodules https://github.com/apauley/hledger-flow-example.git $HOME/hledger-flow-example && \
+          ~/.local/bin/hledger-flow --verbose --show-options import $HOME/hledger-flow-example && \
+          ~/.local/bin/hledger-flow --verbose --show-options report $HOME/hledger-flow-example
+
+      - name: Gather binaries
+        run: |
+          mkdir tmp
+          cd tmp
+          cp -P ~/.local/bin/hledger-flow .
+          strip hledger-flow
+          tar cvf hledger-flow-${{ steps.global-variables.outputs.platform }}.tar hledger-flow
+
+      - name: Upload binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: hledger-flow-${{ steps.global-variables.outputs.platform }}
+          path: |
+            tmp/hledger-flow-${{ steps.global-variables.outputs.platform }}.tar
+
+  release:
+    if: github.event_name == 'push' && github.ref_type == 'tag'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download binaries
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      # The unix files were
+      # 1. tarred to protect their executable permissions,
+      # 2. mandatorily zipped by actions/upload-artifact,
+      # 3. unzipped by actions/download-artifact.
+      # Now we 4. gzip them - to be more unix-standard ?
+      # And 5. softprops/action-gh-release will mandatorily zip them again.
+      - name: Repack unix artifacts with gz
+        shell: bash
+        run: |
+          cd artifacts
+          mv */*.tar .
+          gzip *.tar
+
+      - name: Create GitHub Release with artifacts
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          files: |
+            artifacts/*.tar.gz
+          fail_on_unmatched_files: true
+          draft: true
