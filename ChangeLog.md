@@ -1,5 +1,10 @@
 # Changelog for [hledger-flow](https://github.com/apauley/hledger-flow)
 
+## 0.16.2
+
+ - Add a Github Actions workflow, contributed by [Udit Desai](https://github.com/apauley/hledger-flow/issues?q=author%3Adesaiuditd)
+ - Update Stack resolver to LTS Haskell 24.26 (ghc-9.10.3)
+
 ## 0.16.1
 
 - Fix documentation URL: https://github.com/apauley/hledger-flow/tree/master/docs#feature-reference
