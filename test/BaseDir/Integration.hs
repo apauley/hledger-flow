@@ -44,10 +44,12 @@ assertDetermineBaseDir initialPwd expectedBaseDir subDir = do
 assertFindTestFileUsingRundir :: BaseDir -> RunDir -> IO ()
 assertFindTestFileUsingRundir baseDir runDir = do
   let absRunDir = baseDir </> runDir
-
-  found <- Turtle.single $ fmap head $ shellToList $ Turtle.find (Turtle.has "test-file.txt") $ pathToTurtle absRunDir
-  fileContents <- T.readFile found
-  assertEqual "We should find our test file by searching from the returned runDir" (T.pack $ "The expected base dir is " ++ show baseDir) fileContents
+  foundFiles <- Turtle.single $ shellToList $ Turtle.find (Turtle.has "test-file.txt") $ pathToTurtle absRunDir
+  case foundFiles of
+    (found : _) -> do
+      fileContents <- T.readFile found
+      assertEqual "We should find our test file by searching from the returned runDir" (T.pack $ "The expected base dir is " ++ show baseDir) fileContents
+    [] -> assertFailure "Expected to find test-file.txt but search returned no results"
 
 assertCurrentDirVariations :: AbsDir -> RelDir -> IO ()
 assertCurrentDirVariations absoluteTempDir bdRelativeToTempDir = do

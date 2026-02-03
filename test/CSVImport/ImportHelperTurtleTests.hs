@@ -150,14 +150,18 @@ testGroupIncludeFilesTinySet =
         assertEqual "groupIncludeFiles small allYears 1" expectedAllYears1 allYears1
         assertEqual "groupIncludeFiles small set 1" expected1 group1
 
-        let journals2 = [(fst . head . Map.toList) expected1] :: [TurtlePath]
+        journals2 <- case Map.keys expected1 of
+          (k : _) -> return [k]
+          [] -> assertFailure "Expected non-empty include map for journals2"
         let expected2 = [("./import/jane/bogartbank/2017-include.journal", journals2)] :: TurtleFileBundle
         let expectedAllYears2 = [("./import/jane/bogartbank/all-years.journal", ["./import/jane/bogartbank/2017-include.journal"])]
         let (group2, allYears2) = groupIncludeFiles journals2
         assertEqual "groupIncludeFiles small allYears 2" expectedAllYears2 allYears2
         assertEqual "groupIncludeFiles small set 2" expected2 group2
 
-        let journals3 = [(fst . head . Map.toList) expected2] :: [TurtlePath]
+        journals3 <- case Map.keys expected2 of
+          (k : _) -> return [k]
+          [] -> assertFailure "Expected non-empty include map for journals3"
         let expected3 = [("./import/jane/2017-include.journal", journals3)] :: TurtleFileBundle
         let expectedAllYears3 = [("./import/jane/all-years.journal", ["./import/jane/2017-include.journal"])]
         let (group3, allYears3) = groupIncludeFiles journals3
@@ -512,7 +516,9 @@ testIncludeYears =
     ( do
         let txterr = "Some text without years"
         let expectederr = ["Unable to extract years from the following text:", txterr, "Errors:"]
-        let actualerr = (init . head) $ map T.lines $ lefts [includeYears' txterr] :: [Text]
+        let actualerr = case lefts [includeYears' txterr] of
+              (errTxt : _) -> (init . T.lines) errTxt
+              [] -> []
         assertEqual "Get a list of years from an include file - error case" expectederr actualerr
 
         let txt1 =

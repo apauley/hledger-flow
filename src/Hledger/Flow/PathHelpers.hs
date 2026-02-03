@@ -87,4 +87,8 @@ findFilesIn includePred excludeDirs = Path.walkDirAccum (Just excludeHandler) ac
         else return []
 
 excludeHiddenFiles :: [AbsFile] -> [AbsFile]
-excludeHiddenFiles = filter (\f -> head (Path.toFilePath (Path.filename f)) /= '.')
+excludeHiddenFiles = filter (not . isHiddenFile)
+  where
+    isHiddenFile f = case Path.toFilePath (Path.filename f) of
+      '.':_ -> True
+      _ -> False

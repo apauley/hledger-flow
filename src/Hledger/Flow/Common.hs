@@ -9,6 +9,7 @@ import Data.Char (isDigit)
 import Data.Either
 import Data.Function (on)
 import qualified Data.List as List (groupBy, null, sortBy)
+import Data.Maybe (mapMaybe)
 import qualified Data.Map.Strict as Map
 import Data.Ord (comparing)
 import qualified Data.Text as T
@@ -195,7 +196,11 @@ verboseTestFile opts ch p = do
 
 groupPairs' :: (Eq a, Ord a) => [(a, b)] -> [(a, [b])]
 groupPairs' =
-  map (\ll -> (fst . head $ ll, map snd ll))
+  mapMaybe
+    ( \ll -> case ll of
+        [] -> Nothing
+        ((k, _) : _) -> Just (k, map snd ll)
+    )
     . List.groupBy ((==) `on` fst)
     . List.sortBy (comparing fst)
 
