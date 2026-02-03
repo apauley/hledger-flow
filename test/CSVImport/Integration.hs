@@ -8,7 +8,7 @@ import qualified Data.List as List (sort)
 import qualified Data.Map.Strict as Map
 import qualified Data.Text.IO as T
 import Hledger.Flow.Common
-import Hledger.Flow.Import.ImportHelpersTurtle (extraIncludesForFile, groupAndWriteIncludeFiles, includePreamble, toIncludeFiles)
+import Hledger.Flow.Import.ImportHelpersTurtle (extraIncludesForFile, groupAndWriteIncludeFiles, includePreamble, toIncludeFiles, writeIncludesUpTo, writeToplevelAllYearsInclude)
 import Hledger.Flow.PathHelpers
 import Test.HUnit
 import TestHelpers (defaultOpts)
@@ -293,5 +293,80 @@ testWriteIncludeFiles =
         )
     )
 
+testWriteToplevelAllYearsInclude :: Test
+testWriteToplevelAllYearsInclude =
+  TestCase
+    ( sh
+        ( do
+            currentDir <- pwd
+            tmpdir <- using (mktempdir currentDir "hlflow")
+            tmpdirAbsPath <- fromTurtleAbsDir tmpdir
+
+            written1 <- liftIO $ writeToplevelAllYearsInclude (defaultOpts tmpdirAbsPath)
+            let expectedFile = tmpdir </> "all-years.journal"
+            liftIO $ assertEqual "Should write the top-level all-years include file" [expectedFile] written1
+            let expectedNoDirectives =
+                  includePreamble
+                    <> "\n"
+                    <> "include import/all-years.journal\n"
+            actualNoDirectives <- liftIO $ T.readFile expectedFile
+            liftIO $ assertEqual "Top-level include should not reference directives when missing" expectedNoDirectives actualNoDirectives
+
+            let directives = tmpdir </> "directives.journal"
+            touch directives
+            written2 <- liftIO $ writeToplevelAllYearsInclude (defaultOpts tmpdirAbsPath)
+            liftIO $ assertEqual "Should overwrite the top-level all-years include file" [expectedFile] written2
+            let expectedWithDirectives =
+                  includePreamble
+                    <> "\n"
+                    <> "include directives.journal\n"
+                    <> "include import/all-years.journal\n"
+            actualWithDirectives <- liftIO $ T.readFile expectedFile
+            liftIO $ assertEqual "Top-level include should reference directives when present" expectedWithDirectives actualWithDirectives
+        )
+    )
+
+testWriteIncludesUpTo :: Test
+testWriteIncludesUpTo =
+  TestCase
+    ( sh
+        ( do
+            currentDir <- pwd
+            tmpdir <- using (mktempdir currentDir "hlflow")
+            tmpdirAbsPath <- fromTurtleAbsDir tmpdir
+
+            let journal = tmpdir </> "import/john/mybank/checking/3-journal/2019/2019-01-01.journal"
+            touchAll [journal]
+
+            ch <- liftIO newTChanIO
+            let yearDir = Turtle.directory journal
+            let stateDir = Turtle.parent yearDir
+            let accountDir = Turtle.parent stateDir
+            let bankDir = Turtle.parent accountDir
+            let ownerDir = Turtle.parent bankDir
+            let stopAt = Turtle.parent ownerDir
+            written <- liftIO $ writeIncludesUpTo (defaultOpts tmpdirAbsPath) ch stopAt [journal]
+            let expectedFinal = tmpdir </> "import/2019-include.journal"
+            liftIO $ assertEqual "writeIncludesUpTo should stop at the requested directory" [expectedFinal] written
+
+            finalContents <- liftIO $ T.readFile expectedFinal
+            let expectedContents =
+                  includePreamble
+                    <> "\n"
+                    <> "include john/2019-include.journal\n"
+            liftIO $ assertEqual "Top-level year include should reference the owner include" expectedContents finalContents
+        )
+    )
+
 tests :: Test
-tests = TestList [testExtraIncludesForFile, testExtraIncludesPrices, testIncludesPrePost, testIncludesOpeningClosing, testIncludesPrices, testWriteIncludeFiles]
+tests =
+  TestList
+    [ testExtraIncludesForFile,
+      testExtraIncludesPrices,
+      testIncludesPrePost,
+      testIncludesOpeningClosing,
+      testIncludesPrices,
+      testWriteIncludeFiles,
+      testWriteToplevelAllYearsInclude,
+      testWriteIncludesUpTo
+    ]

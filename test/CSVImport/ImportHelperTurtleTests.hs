@@ -9,8 +9,8 @@ import Data.Either
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import Hledger.Flow.Common
-import Hledger.Flow.Import.ImportHelpersTurtle (allYearIncludeFiles, groupIncludeFiles, toIncludeFiles, toIncludeLine, yearsIncludeMap)
-import Hledger.Flow.Import.Types (TurtleFileBundle)
+import Hledger.Flow.Import.ImportHelpersTurtle (allYearIncludeFiles, extractImportDirs, groupIncludeFiles, toIncludeFiles, toIncludeLine, yearsIncludeMap)
+import Hledger.Flow.Import.Types (ImportDirs (..), TurtleFileBundle)
 import Hledger.Flow.PathHelpers (TurtlePath)
 import Path
 import Test.HUnit
@@ -586,5 +586,65 @@ testToIncludeFiles =
         assertEqual "Convert a grouped map of paths, to a map with text contents for each file" expected txt
     )
 
+testExtractImportDirsSuccess :: Test
+testExtractImportDirsSuccess =
+  TestCase
+    ( do
+        let file = "import/john/mybank/checking/1-in/2019/2019-01-01.csv"
+        case extractImportDirs file of
+          Left err -> assertFailure (T.unpack err)
+          Right dirs -> do
+            let expectedYear = Turtle.directory file
+            let expectedState = Turtle.parent expectedYear
+            let expectedAccount = Turtle.parent expectedState
+            let expectedBank = Turtle.parent expectedAccount
+            let expectedOwner = Turtle.parent expectedBank
+            let expectedImport = Turtle.parent expectedOwner
+            assertEqual "importDir" expectedImport (importDir dirs)
+            assertEqual "ownerDir" expectedOwner (ownerDir dirs)
+            assertEqual "bankDir" expectedBank (bankDir dirs)
+            assertEqual "accountDir" expectedAccount (accountDir dirs)
+            assertEqual "stateDir" expectedState (stateDir dirs)
+            assertEqual "yearDir" expectedYear (yearDir dirs)
+    )
+
+testExtractImportDirsFailure :: Test
+testExtractImportDirsFailure =
+  TestCase
+    ( do
+        let badFile = "import/john/mybank/checking/2019-01-01.csv"
+        case extractImportDirs badFile of
+          Left err ->
+            assertBool
+              "Error should explain expected structure"
+              ("expects to find input files in this structure" `T.isInfixOf` err)
+          Right _ -> assertFailure "Expected failure for malformed import path"
+    )
+
+testGroupIncludeFilesFiltersNonJournal :: Test
+testGroupIncludeFilesFiltersNonJournal =
+  TestCase
+    ( do
+        let journal = "import/john/mybank/checking/3-journal/2019/2019-01-01.journal"
+        let nonJournal = "import/john/mybank/checking/3-journal/2019/2019-01-01.csv"
+        let (grouped, _) = groupIncludeFiles [journal, nonJournal]
+        assertEqual "Only journal files should be grouped" 1 (Map.size grouped)
+        let files = concat (Map.elems grouped)
+        assertEqual "Non-journal files should be ignored" [journal] files
+    )
+
 tests :: Test
-tests = TestList [testYearsIncludeMap, testYearsIncludeGrouping, testGroupIncludeFilesTinySet, testGroupIncludeFilesSmallSet, testGroupIncludeFiles, testIncludeYears, testToIncludeLine, testToIncludeFiles]
+tests =
+  TestList
+    [ testYearsIncludeMap,
+      testYearsIncludeGrouping,
+      testGroupIncludeFilesTinySet,
+      testGroupIncludeFilesSmallSet,
+      testGroupIncludeFiles,
+      testIncludeYears,
+      testToIncludeLine,
+      testToIncludeFiles,
+      testExtractImportDirsSuccess,
+      testExtractImportDirsFailure,
+      testGroupIncludeFilesFiltersNonJournal
+    ]

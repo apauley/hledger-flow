@@ -51,5 +51,26 @@ testFilterPaths =
         )
     )
 
+testFirstExistingFile :: Test
+testFirstExistingFile =
+  TestCase
+    ( sh
+        ( do
+            let tmpbase = "." </> "test" </> "tmp"
+            mktree tmpbase
+            tmpdir <- using (mktempdir tmpbase "hlflowtest")
+            let missing = tmpdir </> "does-not-exist.txt"
+            let existing1 = tmpdir </> "first.txt"
+            let existing2 = tmpdir </> "second.txt"
+            touchAll [existing1, existing2]
+
+            found1 <- liftIO $ firstExistingFile [missing, existing1, existing2]
+            liftIO $ assertEqual "Should return the first existing file in the list" (Just existing1) found1
+
+            found2 <- liftIO $ firstExistingFile [missing]
+            liftIO $ assertEqual "Should return Nothing if no files exist" Nothing found2
+        )
+    )
+
 tests :: Test
-tests = TestList [testHiddenFiles, testFilterPaths]
+tests = TestList [testHiddenFiles, testFilterPaths, testFirstExistingFile]

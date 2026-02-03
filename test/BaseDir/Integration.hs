@@ -7,7 +7,7 @@ module BaseDir.Integration (tests) where
 import Control.Exception (try)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
-import Hledger.Flow.BaseDir (determineBaseDir)
+import Hledger.Flow.BaseDir (determineBaseDir, effectiveRunDir)
 import Hledger.Flow.Common
 import Hledger.Flow.PathHelpers
 import Hledger.Flow.Types (BaseDir, RunDir)
@@ -52,16 +52,15 @@ assertFindTestFileUsingRundir baseDir runDir = do
 assertCurrentDirVariations :: AbsDir -> RelDir -> IO ()
 assertCurrentDirVariations absoluteTempDir bdRelativeToTempDir = do
   let absBaseDir = absoluteTempDir </> bdRelativeToTempDir
+  withCurrentDir absBaseDir $ do
+    (bd1, runDir1) <- determineBaseDir Nothing
+    (bd2, runDir2) <- determineBaseDir $ Just "."
+    (bd3, runDir3) <- determineBaseDir $ Just "./"
+    (bd4, runDir4) <- determineBaseDir $ Just $ pathToTurtle absBaseDir
 
-  setCurrentDir absBaseDir
-  (bd1, runDir1) <- determineBaseDir Nothing
-  (bd2, runDir2) <- determineBaseDir $ Just "."
-  (bd3, runDir3) <- determineBaseDir $ Just "./"
-  (bd4, runDir4) <- determineBaseDir $ Just $ pathToTurtle absBaseDir
-
-  let msg label dir = "When pwd is the base dir, determineBaseDir returns the same " ++ label ++ ", regardless of the input variation. " ++ show dir
-  sequence_ $ map (\dir -> assertEqual (msg "baseDir" dir) absBaseDir dir) [bd1, bd2, bd3, bd4]
-  sequence_ $ map (\dir -> assertEqual (msg "runDir" dir) [reldir|.|] dir) [runDir1, runDir2, runDir3, runDir4]
+    let msg label dir = "When pwd is the base dir, determineBaseDir returns the same " ++ label ++ ", regardless of the input variation. " ++ show dir
+    sequence_ $ map (\dir -> assertEqual (msg "baseDir" dir) absBaseDir dir) [bd1, bd2, bd3, bd4]
+    sequence_ $ map (\dir -> assertEqual (msg "runDir" dir) [reldir|.|] dir) [runDir1, runDir2, runDir3, runDir4]
 
 testBaseDirWithTempDir :: AbsDir -> AbsDir -> IO ()
 testBaseDirWithTempDir initialPwd absoluteTempDir = do
@@ -148,5 +147,20 @@ testDetermineBaseDir =
         withTempDir tmpbase "hlflowtest" $ testBaseDirWithTempDir initialPwd
     )
 
+testEffectiveRunDir :: Test
+testEffectiveRunDir =
+  TestCase
+    ( do
+        let base = [absdir|/tmp/hlflow-base|]
+        let expectedBaseImport = base </> [reldir|import|]
+        assertEqual "A runDir of '.' should map to base/import" expectedBaseImport (effectiveRunDir base [reldir|.|])
+
+        let runImport = [reldir|import|]
+        assertEqual "A runDir under base should be preserved" (base </> runImport) (effectiveRunDir base runImport)
+
+        let runOwner = [reldir|import/john|]
+        assertEqual "A nested runDir should be preserved" (base </> runOwner) (effectiveRunDir base runOwner)
+    )
+
 tests :: Test
-tests = TestList [testDetermineBaseDir, testRunDirs]
+tests = TestList [testDetermineBaseDir, testRunDirs, testEffectiveRunDir]

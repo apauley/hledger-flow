@@ -8,12 +8,22 @@ import qualified CSVImport.Integration
 import qualified CSVImport.Unit
 import qualified Common.Integration
 import qualified Common.Unit
+import qualified ImportHelpers.Integration
 import qualified PathHelpers.Unit
 import Test.HUnit
 import Turtle
 
 tests :: Test
-tests = TestList [Common.Unit.tests, Common.Integration.tests, PathHelpers.Unit.tests, BaseDir.Integration.tests, CSVImport.Unit.tests, CSVImport.Integration.tests]
+tests =
+  TestList
+    [ Common.Unit.tests,
+      Common.Integration.tests,
+      PathHelpers.Unit.tests,
+      BaseDir.Integration.tests,
+      ImportHelpers.Integration.tests,
+      CSVImport.Unit.tests,
+      CSVImport.Integration.tests
+    ]
 
 main :: IO Counts
 main = do
