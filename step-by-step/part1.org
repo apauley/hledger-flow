@@ -117,8 +117,8 @@ Available options:
                            years are imported. Valid values include a 4-digit
                            year or 'current' for the current year
   --new-files-only         Skip regenerating output files that are at least as
-                           new as their source. This applies to preprocessed files,
-                           hledger journal files, and construct script outputs.
+                           new as their source. This applies to preprocessed files
+                           and hledger journal files.
   -h,--help                Show this help text
 
 #+end_src

@@ -1,5 +1,13 @@
 # Changelog for [hledger-flow](https://github.com/apauley/hledger-flow)
 
+## 0.16.3
+
+- Change `--new-files-only` to use modification time comparison instead of existence check.
+  Previously, this flag skipped regeneration only if output files existed.
+  Now it compares source and target modification times, allowing automatic
+  reprocessing when source files are updated. Note: changes to rules files
+  or construct/preprocess scripts are not tracked.
+
 ## 0.16.2
 
  - Add a Github Actions workflow, contributed by [Udit Desai](https://github.com/apauley/hledger-flow/issues?q=author%3Adesaiuditd)
