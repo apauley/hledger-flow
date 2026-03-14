@@ -116,10 +116,9 @@ Available options:
                            ignoring previous years. By default all available
                            years are imported. Valid values include a 4-digit
                            year or 'current' for the current year
-  --new-files-only         Don't regenerate transaction files if they are
-                           already present. This applies to hledger journal
-                           files as well as files produced by the preprocess and
-                           construct scripts.
+  --new-files-only         Skip regenerating output files that are at least as
+                           new as their source. This applies to preprocessed files,
+                           hledger journal files, and construct script outputs.
   -h,--help                Show this help text
 
 #+end_src

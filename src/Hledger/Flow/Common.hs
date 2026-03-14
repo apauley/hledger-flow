@@ -1,9 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Hledger.Flow.Common where
 
 import Control.Concurrent.STM
+import Control.Exception (IOException, try)
 import qualified Control.Foldl as Fold
 import Data.Char (isDigit)
 import Data.Either
@@ -200,11 +202,17 @@ needsRegeneration src target = do
   if not targetExists
     then return True
     else do
-      srcStat <- Turtle.stat src
-      targetStat <- Turtle.stat target
-      let srcMtime = Turtle.modificationTime srcStat
-      let targetMtime = Turtle.modificationTime targetStat
-      return (srcMtime > targetMtime)
+      -- Use try to handle race conditions where files may be modified/deleted
+      -- between existence check and stat. Treat any IO error as "needs regeneration".
+      result <- try $ do
+        srcStat <- Turtle.stat src
+        targetStat <- Turtle.stat target
+        let srcMtime = Turtle.modificationTime srcStat
+        let targetMtime = Turtle.modificationTime targetStat
+        return (srcMtime > targetMtime)
+      case result of
+        Right needsRegen -> return needsRegen
+        Left (_ :: IOException) -> return True
 
 groupPairs' :: (Eq a, Ord a) => [(a, b)] -> [(a, [b])]
 groupPairs' =

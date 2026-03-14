@@ -11,3 +11,6 @@ releases/
 .idea
 *.iml
 .DS_Store
+
+# ralphex progress logs
+.ralphex/progress/

@@ -134,7 +134,7 @@ subcommandParserImport :: Parser ImportParams
 subcommandParserImport = ImportParams
   <$> optional (Turtle.argPath "dir" "The directory to import. Use the base directory for a full import or a sub-directory for a partial import. Defaults to the current directory.")
   <*> optional (option str (long "start-year" <> metavar "YEAR" <> help "Import only from the specified year and onwards, ignoring previous years. By default all available years are imported. Valid values include a 4-digit year or 'current' for the current year"))
-  <*> switch (long "new-files-only" <> help "Skip regenerating output files that are newer than their source. This applies to preprocessed files, hledger journal files, and construct script outputs.")
+  <*> switch (long "new-files-only" <> help "Skip regenerating output files that are at least as new as their source. This applies to preprocessed files, hledger journal files, and construct script outputs.")
 
 subcommandParserReport :: Parser ReportParams
 subcommandParserReport = ReportParams

@@ -118,17 +118,17 @@ preprocessIfNeeded opts ch script bank account owner src = do
   scriptExists <- verboseTestFile opts ch script
   targetExists <- verboseTestFile opts ch csvOut
   shouldProceed <-
-    if onlyNewFiles opts
+    if onlyNewFiles opts && scriptExists
       then do
         needsRegen <- needsRegeneration src csvOut
-        return $ scriptExists && needsRegen
+        Control.Monad.unless needsRegen $ logNewFileSkip opts ch "preprocess" csvOut
+        return needsRegen
       else return scriptExists
   if shouldProceed
     then do
       out <- preprocess opts ch script bank account owner src csvOut
       return (out, True)
     else do
-      _ <- logNewFileSkip opts ch "preprocess" csvOut
       if targetExists
         then return (csvOut, False)
         else return (src, False)
@@ -141,7 +141,7 @@ logNewFileSkip opts ch logIdentifier absTarget =
       Turtle.format
         ( "Skipping "
             % Turtle.s
-            % " - only creating new files and this output file already exists: '"
+            % " - output file is at least as new as source: '"
             % Turtle.fp
             % "'"
         )

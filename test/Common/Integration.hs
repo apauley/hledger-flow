@@ -100,6 +100,23 @@ testNeedsRegeneration =
             touch target  -- Make target newer
             result3 <- liftIO $ needsRegeneration source target
             liftIO $ assertEqual "Should return False when target is newer than source" False result3
+
+            -- Test case 4: equal mtimes -> returns False (boundary condition)
+            -- Comparing a file to itself guarantees equal mtimes
+            let sourceEq = tmpdir </> "sourceEq.txt"
+            touch sourceEq
+            result4Eq <- liftIO $ needsRegeneration sourceEq sourceEq
+            liftIO $ assertEqual "Should return False when mtimes are equal" False result4Eq
+
+            -- Test case 5: target exists, target newer (via copy which gets current time) -> returns False
+            -- Turtle.cp does NOT preserve mtime - target gets current time (newer than source)
+            let source2 = tmpdir </> "source2.txt"
+            let target2 = tmpdir </> "target2.txt"
+            touch source2
+            sleep 1.1  -- Delay to ensure target gets later timestamp (consistent with other tests)
+            Turtle.cp source2 target2  -- target gets current time, not source mtime
+            result5 <- liftIO $ needsRegeneration source2 target2
+            liftIO $ assertEqual "Should return False when target is newer than source (via copy)" False result5
         )
     )
 
