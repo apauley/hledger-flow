@@ -92,7 +92,7 @@ importCSV opts ch importDirs srcFile = do
   let journalOut = changePathAndExtension "3-journal/" "journal" csvFile
   shouldImport <-
     if onlyNewFiles opts && not preprocessHappened
-      then not <$> verboseTestFile opts ch journalOut
+      then needsRegeneration csvFile journalOut
       else return True
 
   importFun <-

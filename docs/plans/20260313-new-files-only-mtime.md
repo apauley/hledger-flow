@@ -69,9 +69,9 @@
 **Files:**
 - Modify: `src/Hledger/Flow/Import/CSVImport.hs`
 
-- [ ] Replace `not <$> verboseTestFile opts ch journalOut` with `needsRegeneration csvFile journalOut`
-- [ ] Verify the `preprocessHappened` check is preserved (if we just preprocessed, always import)
-- [ ] Run `stack test` - all tests must pass before next task
+- [x] Replace `not <$> verboseTestFile opts ch journalOut` with `needsRegeneration csvFile journalOut`
+- [x] Verify the `preprocessHappened` check is preserved (if we just preprocessed, always import)
+- [x] Run `stack test` - all tests must pass before next task
 
 ### Task 4: Update help text
 
