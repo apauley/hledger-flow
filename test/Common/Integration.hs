@@ -4,8 +4,11 @@
 module Common.Integration (tests) where
 
 import qualified Data.List as List (sort)
+import Data.Time.Clock (UTCTime(..), secondsToDiffTime)
+import Data.Time.Calendar (fromGregorian)
 import Hledger.Flow.Common
 import Hledger.Flow.PathHelpers (TurtlePath)
+import qualified System.Directory as Dir
 import Test.HUnit
 import TestHelpersTurtle
 import Turtle
@@ -72,6 +75,17 @@ testFirstExistingFile =
         )
     )
 
+-- Helper to set mtime on a Turtle path
+setMtime :: TurtlePath -> UTCTime -> IO ()
+setMtime path time = Dir.setModificationTime path time
+
+-- Fixed timestamps for deterministic tests
+olderTime :: UTCTime
+olderTime = UTCTime (fromGregorian 2020 1 1) (secondsToDiffTime 0)
+
+newerTime :: UTCTime
+newerTime = UTCTime (fromGregorian 2025 1 1) (secondsToDiffTime 0)
+
 testNeedsRegeneration :: Test
 testNeedsRegeneration =
   TestCase
@@ -90,33 +104,22 @@ testNeedsRegeneration =
 
             -- Test case 2: target exists, source is newer -> returns True
             touch target
-            sleep 1.1  -- Ensure time difference (filesystem resolution can be 1 second)
-            touch source  -- Make source newer
+            liftIO $ setMtime target olderTime
+            liftIO $ setMtime source newerTime
             result2 <- liftIO $ needsRegeneration source target
             liftIO $ assertEqual "Should return True when source is newer than target" True result2
 
             -- Test case 3: target exists, target is newer -> returns False
-            sleep 1.1  -- Ensure time difference (filesystem resolution can be 1 second)
-            touch target  -- Make target newer
+            liftIO $ setMtime source olderTime
+            liftIO $ setMtime target newerTime
             result3 <- liftIO $ needsRegeneration source target
             liftIO $ assertEqual "Should return False when target is newer than source" False result3
 
             -- Test case 4: equal mtimes -> returns False (boundary condition)
-            -- Comparing a file to itself guarantees equal mtimes
-            let sourceEq = tmpdir </> "sourceEq.txt"
-            touch sourceEq
-            result4Eq <- liftIO $ needsRegeneration sourceEq sourceEq
-            liftIO $ assertEqual "Should return False when mtimes are equal" False result4Eq
-
-            -- Test case 5: target exists, target newer (via copy which gets current time) -> returns False
-            -- Turtle.cp does NOT preserve mtime - target gets current time (newer than source)
-            let source2 = tmpdir </> "source2.txt"
-            let target2 = tmpdir </> "target2.txt"
-            touch source2
-            sleep 1.1  -- Delay to ensure target gets later timestamp (consistent with other tests)
-            Turtle.cp source2 target2  -- target gets current time, not source mtime
-            result5 <- liftIO $ needsRegeneration source2 target2
-            liftIO $ assertEqual "Should return False when target is newer than source (via copy)" False result5
+            liftIO $ setMtime source olderTime
+            liftIO $ setMtime target olderTime
+            result4 <- liftIO $ needsRegeneration source target
+            liftIO $ assertEqual "Should return False when mtimes are equal" False result4
         )
     )
 
