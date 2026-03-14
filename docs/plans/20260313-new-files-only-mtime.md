@@ -59,10 +59,10 @@
 **Files:**
 - Modify: `src/Hledger/Flow/Import/CSVImport.hs`
 
-- [ ] Import `needsRegeneration` from Common module (if not already re-exported)
-- [ ] Replace `not targetExists` check with `needsRegeneration src csvOut` call
-- [ ] Update the `shouldProceed` logic to use the new helper
-- [ ] Run `stack test` - all tests must pass before next task
+- [x] Import `needsRegeneration` from Common module (if not already re-exported)
+- [x] Replace `not targetExists` check with `needsRegeneration src csvOut` call
+- [x] Update the `shouldProceed` logic to use the new helper
+- [x] Run `stack test` - all tests must pass before next task
 
 ### Task 3: Integrate needsRegeneration in importCSV
 

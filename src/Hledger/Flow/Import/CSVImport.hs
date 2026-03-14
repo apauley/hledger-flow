@@ -119,7 +119,9 @@ preprocessIfNeeded opts ch script bank account owner src = do
   targetExists <- verboseTestFile opts ch csvOut
   shouldProceed <-
     if onlyNewFiles opts
-      then return $ scriptExists && not targetExists
+      then do
+        needsRegen <- needsRegeneration src csvOut
+        return $ scriptExists && needsRegen
       else return scriptExists
   if shouldProceed
     then do
