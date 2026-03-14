@@ -84,10 +84,10 @@
 
 ### Task 5: Verify acceptance criteria
 
-- [ ] Verify `--new-files-only` skips files when target is newer than source
-- [ ] Verify `--new-files-only` reprocesses when source is newer than target
-- [ ] Verify preprocessing and import stages both respect mtime
-- [ ] Run full test suite: `stack test`
+- [x] Verify `--new-files-only` skips files when target is newer than source
+- [x] Verify `--new-files-only` reprocesses when source is newer than target
+- [x] Verify preprocessing and import stages both respect mtime
+- [x] Run full test suite: `stack test`
 
 ### Task 6: [Final] Cleanup
 
