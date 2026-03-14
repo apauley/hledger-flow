@@ -78,9 +78,9 @@
 **Files:**
 - Modify: `app/Main.hs`
 
-- [ ] Update `--new-files-only` help text from existence-based to mtime-based description
-- [ ] New text: "Skip regenerating output files that are newer than their source. This applies to preprocessed files, hledger journal files, and construct script outputs."
-- [ ] Run `stack test` - all tests must pass before next task
+- [x] Update `--new-files-only` help text from existence-based to mtime-based description
+- [x] New text: "Skip regenerating output files that are newer than their source. This applies to preprocessed files, hledger journal files, and construct script outputs."
+- [x] Run `stack test` - all tests must pass before next task
 
 ### Task 5: Verify acceptance criteria
 
