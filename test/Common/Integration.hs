@@ -72,5 +72,36 @@ testFirstExistingFile =
         )
     )
 
+testNeedsRegeneration :: Test
+testNeedsRegeneration =
+  TestCase
+    ( sh
+        ( do
+            let tmpbase = "." </> "test" </> "tmp"
+            mktree tmpbase
+            tmpdir <- using (mktempdir tmpbase "hlflowtest")
+            let source = tmpdir </> "source.txt"
+            let target = tmpdir </> "target.txt"
+
+            -- Test case 1: target doesn't exist -> returns True
+            touch source
+            result1 <- liftIO $ needsRegeneration source target
+            liftIO $ assertEqual "Should return True when target doesn't exist" True result1
+
+            -- Test case 2: target exists, source is newer -> returns True
+            touch target
+            sleep 1.1  -- Ensure time difference (filesystem resolution can be 1 second)
+            touch source  -- Make source newer
+            result2 <- liftIO $ needsRegeneration source target
+            liftIO $ assertEqual "Should return True when source is newer than target" True result2
+
+            -- Test case 3: target exists, target is newer -> returns False
+            sleep 1.1  -- Ensure time difference (filesystem resolution can be 1 second)
+            touch target  -- Make target newer
+            result3 <- liftIO $ needsRegeneration source target
+            liftIO $ assertEqual "Should return False when target is newer than source" False result3
+        )
+    )
+
 tests :: Test
-tests = TestList [testHiddenFiles, testFilterPaths, testFirstExistingFile]
+tests = TestList [testHiddenFiles, testFilterPaths, testFirstExistingFile, testNeedsRegeneration]

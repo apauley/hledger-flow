@@ -194,6 +194,18 @@ verboseTestFile opts ch p = do
     else logVerbose opts ch $ Turtle.format ("Looked for but did not find '" % Turtle.fp % "'") rel
   return fileExists
 
+needsRegeneration :: TurtlePath -> TurtlePath -> IO Bool
+needsRegeneration src target = do
+  targetExists <- Turtle.testfile target
+  if not targetExists
+    then return True
+    else do
+      srcStat <- Turtle.stat src
+      targetStat <- Turtle.stat target
+      let srcMtime = Turtle.modificationTime srcStat
+      let targetMtime = Turtle.modificationTime targetStat
+      return (srcMtime > targetMtime)
+
 groupPairs' :: (Eq a, Ord a) => [(a, b)] -> [(a, [b])]
 groupPairs' =
   mapMaybe

@@ -43,16 +43,16 @@
 - Modify: `src/Hledger/Flow/Common.hs`
 - Modify: `test/Common/Integration.hs`
 
-- [ ] Add `needsRegeneration :: TurtlePath -> TurtlePath -> IO Bool` function to Common.hs
-- [ ] Implement logic: return True if target doesn't exist OR source mtime > target mtime
-- [ ] Use `Turtle.testfile` for existence and `Turtle.modtime` for mtime comparison
-- [ ] Export the function from the module
-- [ ] Add `testNeedsRegeneration` test in `test/Common/Integration.hs` following `testFirstExistingFile` pattern
-- [ ] Write test case: target doesn't exist → returns True
-- [ ] Write test case: target exists, source newer → returns True (use sleep or touch with delay)
-- [ ] Write test case: target exists, target newer → returns False
-- [ ] Add test to the `tests` list in Integration.hs
-- [ ] Run `stack test` - all tests must pass before next task
+- [x] Add `needsRegeneration :: TurtlePath -> TurtlePath -> IO Bool` function to Common.hs
+- [x] Implement logic: return True if target doesn't exist OR source mtime > target mtime
+- [x] Use `Turtle.testfile` for existence and `Turtle.modtime` for mtime comparison
+- [x] Export the function from the module
+- [x] Add `testNeedsRegeneration` test in `test/Common/Integration.hs` following `testFirstExistingFile` pattern
+- [x] Write test case: target doesn't exist → returns True
+- [x] Write test case: target exists, source newer → returns True (use sleep or touch with delay)
+- [x] Write test case: target exists, target newer → returns False
+- [x] Add test to the `tests` list in Integration.hs
+- [x] Run `stack test` - all tests must pass before next task
 
 ### Task 2: Integrate needsRegeneration in preprocessIfNeeded
 
