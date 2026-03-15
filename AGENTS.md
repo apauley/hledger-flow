@@ -68,4 +68,4 @@
 - `fourmolu` or `ormolu` for formatting (pick one and document when adopted).
 
 **Release scripts (maintainers only)**
-- `bin/release-tarball`, `bin/tag-release`, `bin/show-latest-release-info`, etc. are used for release tasks.
+- `bin/tag-release`, `bin/show-latest-release-info`, etc. are used for release tasks.

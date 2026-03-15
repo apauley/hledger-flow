@@ -42,6 +42,7 @@ To begin contributing, please follow these steps:
 3. [[#find-an-issue][Find an Issue]]
 4. [[#create-a-pull-request][Create a Pull Request]]
 5. [[#get-your-pull-request-merged][Get Your Pull Request Merged]]
+6. [[#releases][Understand the Release Process]]
 
 ** Getting Started
    :PROPERTIES:
@@ -185,6 +186,158 @@ ready for merge!
 
 If you don't get a merge in a day after your review is successful, then
 please gently remind folks that your code is ready to be merged.
+
+* Releases
+  :PROPERTIES:
+  :CUSTOM_ID: releases
+  :END:
+
+This project has 2 release outputs:
+
+- GitHub releases with prebuilt binaries (using stack) for supported Linux and macOS platforms
+- A source package uploaded to [[https://hackage.haskell.org/package/hledger-flow][Hackage]]
+
+The current automation is tag-driven:
+
+- =bin/tag-release= creates the signed git tag from the version in =package.yaml=
+- when a version tag is pushed, the workflow builds release artifacts and creates a /draft/ GitHub release containing the packaged binaries
+
+Release metadata currently comes from =package.yaml= and =ChangeLog.md=.
+Before pushing a release tag, make sure those files agree on the version number.
+
+** For Contributors
+   :PROPERTIES:
+   :CUSTOM_ID: for-outside-contributors
+   :END:
+
+Contributors are not expected to publish releases, push release tags, or upload to Hackage.
+
+What is helpful in contributor pull requests:
+
+- keep changes releasable: tests passing, docs updated, and user-visible changes described in =ChangeLog.md=
+- see if it is possible to update the stack dependencies: update =resolver= in =stack.yaml= with a newer version from [[https://www.stackage.org/][Stackage]]
+- if you are preparing a release-related pull request, update =package.yaml= and =ChangeLog.md= together
+- if you want to help validate Hackage packaging, also verify that a source tarball can be produced locally:
+
+#+BEGIN_SRC sh
+    ./bin/build-and-test
+    cabal check
+    cabal sdist
+#+END_SRC
+
+This project keeps =package.yaml= in git and ignores the generated =hledger-flow.cabal= file.
+If =cabal check= or =cabal sdist= complains that the cabal file is missing or stale, regenerate it first by running =stack test= (or another =stack= command that refreshes the cabal file from =package.yaml=).
+
+** For Maintainers
+   :PROPERTIES:
+   :CUSTOM_ID: for-maintainers
+   :END:
+
+The release procedure for this project is:
+
+1. Prepare the release on =master=.
+
+   Update =package.yaml=, add the corresponding =ChangeLog.md= entry.
+
+2. Update project dependencies.
+
+   Update =resolver= in =stack.yaml= with a newer version from [[https://www.stackage.org/][Stackage]].
+
+3. Run the local pre-release checks.
+
+#+BEGIN_SRC sh
+    stack build --only-configure
+    ./bin/build-and-test
+    cabal check
+    cabal sdist
+#+END_SRC
+
+   Run =stack build --only-configure= first so that the generated =hledger-flow.cabal= file is refreshed from =package.yaml=. =cabal check= and =cabal sdist= read the cabal file, not =package.yaml= directly.
+
+   Update the cabal bounds as described below if =cabal check= reports any warnings.
+
+   =cabal sdist= (or the equivalent =cabal v2-sdist= alias) should produce a tarball under =dist-newstyle/sdist/=.
+   For this repository, that tarball is the source artifact intended for Hackage.
+
+4. Upload a Hackage candidate first.
+
+#+BEGIN_SRC sh
+    cabal upload dist-newstyle/sdist/hledger-flow-<version>.tar.gz
+#+END_SRC
+
+   By default, =cabal upload= uploads a candidate rather than publishing immediately. Review the candidate page on Hackage and confirm the package metadata and file contents look correct.
+
+5. Create the release tag locally.
+
+#+BEGIN_SRC sh
+    ./bin/tag-release
+#+END_SRC
+
+   This creates a signed annotated tag named =v<version>= using the version from =package.yaml=.
+
+6. Push the branch and tag.
+
+#+BEGIN_SRC sh
+    git push origin master
+    git push origin v<version>
+#+END_SRC
+
+   Pushing the tag triggers the GitHub Actions release workflow. The workflow rebuilds on all configured platforms and creates a draft GitHub release with binary artifacts attached.
+
+7. Review the draft GitHub release.
+
+   Confirm that all expected artifacts are present and that the build succeeded on every platform. You can inspect release details with =bin/show-latest-release-info= and download counts later with =bin/show-release-downloads=.
+
+8. Publish the Hackage release.
+
+#+BEGIN_SRC sh
+    cabal upload --publish dist-newstyle/sdist/hledger-flow-<version>.tar.gz
+#+END_SRC
+
+   Only do this after the candidate looked correct and the tagged build is in good shape. Hackage publishes source releases permanently.
+
+9. Publish the GitHub draft release.
+
+   Once the binaries and Hackage source release are both confirmed, publish the draft release on GitHub.
+
+** Updating Cabal Bounds For Release
+   :PROPERTIES:
+   :CUSTOM_ID: updating-cabal-bounds-for-release
+   :END:
+
+This project develops against the Stackage snapshot in =stack.yaml=,
+but the Hackage package metadata comes from the generated cabal file.
+Before a Hackage release, update the dependency bounds in =package.yaml= so that they reflect the
+versions currently selected by Stack.
+
+Use this process:
+
+1. Confirm the resolver in =stack.yaml=.
+2. Ask Stack for the direct dependency versions in the current snapshot:
+
+#+BEGIN_SRC sh
+    stack ls dependencies --depth 1
+#+END_SRC
+
+3. For each direct dependency in =package.yaml=, set a lower bound at the version reported by Stack and set an upper bound at the next PVP-compatible series.
+
+   Examples:
+
+   - =containers 0.7= becomes =containers >= 0.7 && < 0.8=
+   - =path 0.9.6= becomes =path >= 0.9.6 && < 0.10=
+   - =filepath 1.5.4.0= becomes =filepath >= 1.5.4.0 && < 1.6=
+
+4. Regenerate the cabal file and verify the metadata:
+
+#+BEGIN_SRC sh
+    stack build --only-configure
+    cabal check
+#+END_SRC
+
+5. If =cabal check= is clean, continue with =cabal sdist= and the Hackage upload steps.
+
+Keep the bounds broad enough to avoid unnecessary churn, but do not leave them unbounded when publishing to Hackage.
+The goal is to describe the dependency range that is known to work for the released source package, based on the Stack snapshot used for that release.
 
 
 * Hledger Flow Contributor Agreement
