@@ -77,6 +77,8 @@ tests:
       - turtle
       - HUnit
       - containers
+      - directory
       - foldl
       - text
+      - time
       - stm
