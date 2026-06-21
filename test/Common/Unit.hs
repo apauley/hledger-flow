@@ -1,13 +1,17 @@
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE QuasiQuotes #-}
 
 module Common.Unit where
 
 import Hledger.Flow.BaseDir (relativeToBase')
 import Hledger.Flow.Common
+import Hledger.Flow.RuntimeOptions (RuntimeOptions (hledgerConf))
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
+import Path (absdir)
 import Test.HUnit
+import TestHelpers (defaultOpts)
 
 testShowCmdArgs :: Test
 testShowCmdArgs =
@@ -17,6 +21,17 @@ testShowCmdArgs =
         let expected = "--number '/tmp/file with spaces'"
         let actual = showCmdArgs opts
         assertEqual "Convert command-line arguments to text" expected actual
+    )
+
+testHledgerConfArgs :: Test
+testHledgerConfArgs =
+  TestCase
+    ( do
+        let optsWithoutConf = defaultOpts [absdir|/base/|]
+        assertEqual "No hledger config should produce no hledger config args" [] (hledgerConfArgs optsWithoutConf)
+
+        let optsWithConf = optsWithoutConf {hledgerConf = Just "/tmp/hledger.conf"}
+        assertEqual "Configured hledger config should produce --conf args" ["--conf", "/tmp/hledger.conf"] (hledgerConfArgs optsWithConf)
     )
 
 testRelativeToBase :: Test
@@ -98,4 +113,4 @@ testGroupValuesBy =
     )
 
 tests :: Test
-tests = TestList [testShowCmdArgs, testRelativeToBase, testExtractDigits, testChangePathAndExtension, testGroupValuesBy]
+tests = TestList [testShowCmdArgs, testHledgerConfArgs, testRelativeToBase, testExtractDigits, testChangePathAndExtension, testGroupValuesBy]

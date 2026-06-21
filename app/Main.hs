@@ -46,6 +46,7 @@ data Command = Import ImportParams | Report ReportParams deriving (Show)
 
 data MainParams = MainParams { verbosity :: Int
                              , hledgerPathOpt :: Maybe TurtlePath
+                             , hledgerConfOpt :: Maybe TurtlePath
                              , showOpts :: Bool
                              , batchSize :: Maybe Int
                              , sequential :: Bool
@@ -85,6 +86,7 @@ toRuntimeOptionsImport mainParams' subParams' = do
                            , RT.onlyNewFiles = onlyNewFiles subParams'
                            , RT.hfVersion = versionInfo sysInfo
                            , RT.hledgerInfo = hli
+                           , RT.hledgerConf = hledgerConfOpt mainParams'
                            , RT.sysInfo = sysInfo
                            , RT.verbose = verbosity mainParams' > 0
                            , RT.showOptions = showOpts mainParams'
@@ -106,6 +108,7 @@ toRuntimeOptionsReport mainParams' subParams' = do
                            , RT.onlyNewFiles = False
                            , RT.hfVersion = versionInfo sysInfo
                            , RT.hledgerInfo = hli
+                           , RT.hledgerConf = hledgerConfOpt mainParams'
                            , RT.sysInfo = sysInfo
                            , RT.verbose = verbosity mainParams' > 0
                            , RT.showOptions = showOpts mainParams'
@@ -126,6 +129,7 @@ verboseParser :: Parser MainParams
 verboseParser = MainParams
   <$> (length <$> many (flag' () (long "verbose" <> short 'v' <> help "Print more verbose output")))
   <*> optional (Turtle.optPath "hledger-path" 'H' "The full path to an hledger executable")
+  <*> optional (option str (long "hledger-conf" <> metavar "PATH" <> help "The hledger config file to pass to hledger --conf"))
   <*> switch (long "show-options" <> help "Print the options this program will run with")
   <*> optional (option auto (long "batch-size" <> metavar "SIZE" <> help ("Parallel processing of files are done in batches of the specified size. Default: " <> show defaultBatchSize <> ". Ignored during sequential processing.")))
   <*> switch (long "sequential" <> help "Disable parallel processing")

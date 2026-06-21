@@ -2,6 +2,7 @@ module Hledger.Flow.RuntimeOptions where
 
 import qualified Data.Text as T
 import Hledger.Flow.Internals (SystemInfo)
+import Hledger.Flow.PathHelpers (TurtlePath)
 import Hledger.Flow.Types
 import Prelude hiding (putStrLn)
 
@@ -12,6 +13,7 @@ data RuntimeOptions = RuntimeOptions
     onlyNewFiles :: Bool,
     hfVersion :: T.Text,
     hledgerInfo :: HledgerInfo,
+    hledgerConf :: Maybe TurtlePath,
     sysInfo :: SystemInfo,
     verbose :: Bool,
     showOptions :: Bool,
@@ -22,19 +24,19 @@ data RuntimeOptions = RuntimeOptions
   deriving (Show)
 
 instance HasVerbosity RuntimeOptions where
-  verbose (RuntimeOptions _ _ _ _ _ _ _ v _ _ _ _) = v
+  verbose (RuntimeOptions _ _ _ _ _ _ _ _ v _ _ _ _) = v
 
 instance HasSequential RuntimeOptions where
-  sequential (RuntimeOptions _ _ _ _ _ _ _ _ _ sq _ _) = sq
+  sequential (RuntimeOptions _ _ _ _ _ _ _ _ _ _ sq _ _) = sq
 
 instance HasBatchSize RuntimeOptions where
-  batchSize (RuntimeOptions _ _ _ _ _ _ _ _ _ _ bs _) = bs
+  batchSize (RuntimeOptions _ _ _ _ _ _ _ _ _ _ _ bs _) = bs
 
 instance HasBaseDir RuntimeOptions where
-  baseDir (RuntimeOptions bd _ _ _ _ _ _ _ _ _ _ _) = bd
+  baseDir (RuntimeOptions bd _ _ _ _ _ _ _ _ _ _ _ _) = bd
 
 instance HasRunDir RuntimeOptions where
-  importRunDir (RuntimeOptions _ rd _ _ _ _ _ _ _ _ _ _) = rd
+  importRunDir (RuntimeOptions _ rd _ _ _ _ _ _ _ _ _ _ _) = rd
 
 instance HasPrettyReports RuntimeOptions where
-  prettyReports (RuntimeOptions _ _ _ _ _ _ _ _ _ _ _ pr) = pr
+  prettyReports (RuntimeOptions _ _ _ _ _ _ _ _ _ _ _ _ pr) = pr

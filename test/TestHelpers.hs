@@ -34,6 +34,7 @@ defaultOpts bd =
       onlyNewFiles = False,
       hfVersion = versionInfo testSystemInfo,
       hledgerInfo = defaultHlInfo,
+      hledgerConf = Nothing,
       sysInfo = testSystemInfo,
       verbose = False,
       showOptions = False,

@@ -21,6 +21,7 @@ import qualified GHC.IO.Handle.FD as H
 import Hledger.Flow.BaseDir (relativeToBase, turtleBaseDir)
 import Hledger.Flow.Logging
 import Hledger.Flow.PathHelpers (AbsFile, TurtlePath, fromTurtleAbsFile, pathToTurtle)
+import qualified Hledger.Flow.RuntimeOptions as RT
 import Hledger.Flow.Types
 import Path (absfile, relfile)
 import qualified Path.IO as Path
@@ -58,6 +59,12 @@ hledgerInfoFromPath pathOption = do
   hlp <- hledgerPathFromOption pathOption
   hlv <- hledgerVersionFromPath $ pathToTurtle hlp
   return $ HledgerInfo hlp hlv
+
+hledgerConfArgs :: RT.RuntimeOptions -> [T.Text]
+hledgerConfArgs opts =
+  case RT.hledgerConf opts of
+    Nothing -> []
+    Just conf -> ["--conf", Turtle.format Turtle.fp conf]
 
 showCmdArgs :: [T.Text] -> T.Text
 showCmdArgs args = T.intercalate " " (map escapeArg args)

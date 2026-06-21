@@ -114,8 +114,9 @@ generateReport opts ch journal year reportsDir fileName args successCheck = do
   let outputFile = reportsDir </> fileName
   let relativeJournal = relativeToBase opts journal
   let relativeOutputFile = relativeToBase opts outputFile
-  let reportArgs = ["--file", Turtle.format Turtle.fp journal, "--period", Turtle.repr year] ++ args
-  let reportDisplayArgs = ["--file", Turtle.format Turtle.fp relativeJournal, "--period", Turtle.repr year] ++ args
+  let confArgs = hledgerConfArgs opts
+  let reportArgs = confArgs ++ ["--file", Turtle.format Turtle.fp journal, "--period", Turtle.repr year] ++ args
+  let reportDisplayArgs = confArgs ++ ["--file", Turtle.format Turtle.fp relativeJournal, "--period", Turtle.repr year] ++ args
   let hledger = Turtle.format Turtle.fp $ pathToTurtle . FlowTypes.hlPath . hledgerInfo $ opts :: T.Text
   let cmdLabel = Turtle.format ("hledger " % Turtle.s) $ showCmdArgs reportDisplayArgs
   ((exitCode, stdOut, _), _) <- timeAndExitOnErr opts ch cmdLabel dummyLogger channelErr Turtle.procStrictWithErr (hledger, reportArgs, mempty)
