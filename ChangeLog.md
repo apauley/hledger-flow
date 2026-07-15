@@ -1,5 +1,11 @@
 # Changelog for [hledger-flow](https://github.com/apauley/hledger-flow)
 
+## 0.16.4
+
+- Add a new command-line option: `--hledger-conf /path/to/hledger/conf`.
+  This allows specifying a hledger config file, causing hledger-flow to pass
+  `--conf /path/to/hledger/conf` to any hledger command it invokes.
+
 ## 0.16.3
 
 - Change `--new-files-only` to use modification time comparison instead of existence check.
