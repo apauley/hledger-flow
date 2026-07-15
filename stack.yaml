@@ -1,5 +1,5 @@
 # Pick a resolver from https://www.stackage.org/
-resolver: lts-24.34
+resolver: lts-24.50
 
 packages:
 - .
