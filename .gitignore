@@ -14,3 +14,5 @@ releases/
 
 # ralphex progress logs
 .ralphex/progress/
+/.claude/
+/tmp/
