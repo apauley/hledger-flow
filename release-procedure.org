@@ -10,28 +10,28 @@ This project has 2 release outputs:
 - GitHub releases with prebuilt binaries (using stack) for supported Linux and macOS platforms
 - A source package uploaded to [[https://hackage.haskell.org/package/hledger-flow][Hackage]]
 
-The automation is tag-driven:
+The automation is tag-driven: pushing a version tag triggers a GitHub Actions workflow that builds release binaries and creates a /draft/ GitHub release.
 
-- =bin/tag-release= creates the signed git tag from the version in =package.yaml=
-- when a version tag is pushed, the workflow builds release artifacts and creates a /draft/ GitHub release with binaries attached
+Release metadata comes from =package.yaml= and =ChangeLog.md=. These files must agree on the version number before tagging.
 
-Release metadata comes from =package.yaml= and =ChangeLog.md=.
-Before pushing a release tag, make sure those files agree on the version number.
-
-** Steps
+** Phase 1: Update Dependencies
    :PROPERTIES:
-   :CUSTOM_ID: steps
+   :CUSTOM_ID: update-dependencies
    :END:
 
-1. Prepare the release on =master=.
+Start from a clean =master= with all tests passing.
 
-   Update =package.yaml=, add the corresponding =ChangeLog.md= entry.
+#+BEGIN_SRC sh
+    ./bin/build-and-test
+#+END_SRC
 
-2. Update project dependencies.
+If tests fail, fix them before proceeding.
 
-   Update =resolver= in =stack.yaml= with a newer version from [[https://www.stackage.org/][Stackage]].
+*** Update the Stackage resolver
 
-3. Run the local pre-release checks.
+Update =resolver= in =stack.yaml= with a newer version from [[https://www.stackage.org/][Stackage]].
+
+*** Regenerate the cabal file and run checks
 
 #+BEGIN_SRC sh
     stack build --only-configure
@@ -40,83 +40,126 @@ Before pushing a release tag, make sure those files agree on the version number.
     cabal sdist
 #+END_SRC
 
-   Run =stack build --only-configure= first so that the generated =hledger-flow.cabal= file is refreshed from =package.yaml=. =cabal check= and =cabal sdist= read the cabal file, not =package.yaml= directly.
+=stack build --only-configure= regenerates =hledger-flow.cabal= from =package.yaml=. The =cabal= commands read the cabal file, not =package.yaml= directly.
 
-   Update the cabal bounds as described [[#updating-cabal-bounds][below]] if =cabal check= reports any warnings.
+=cabal sdist= should produce a tarball under =dist-newstyle/sdist/=. This tarball is the source artifact intended for Hackage.
 
-   =cabal sdist= (or the equivalent =cabal v2-sdist= alias) should produce a tarball under =dist-newstyle/sdist/=.
-   For this repository, that tarball is the source artifact intended for Hackage.
+Fix any issues reported by =cabal check= or =cabal sdist= before continuing.
 
-4. Upload a Hackage candidate first.
+*** Update cabal bounds if needed
 
-#+BEGIN_SRC sh
-    cabal upload dist-newstyle/sdist/hledger-flow-<version>.tar.gz
-#+END_SRC
+This project develops against the Stackage snapshot, but Hackage reads dependency bounds from the generated cabal file. If the resolver changed, the bounds in =package.yaml= may need updating.
 
-   By default, =cabal upload= uploads a candidate rather than publishing immediately. Review the candidate page on Hackage and confirm the package metadata and file contents look correct.
-
-5. Create the release tag locally.
-
-#+BEGIN_SRC sh
-    ./bin/tag-release
-#+END_SRC
-
-   This creates a signed annotated tag named =v<version>= using the version from =package.yaml=.
-
-6. Push the branch and tag.
-
-#+BEGIN_SRC sh
-    git push origin master
-    git push origin v<version>
-#+END_SRC
-
-   Pushing the tag triggers the GitHub Actions release workflow. The workflow rebuilds on all configured platforms and creates a draft GitHub release with binary artifacts attached.
-
-7. Review the draft GitHub release.
-
-   Confirm that all expected artifacts are present and that the build succeeded on every platform. You can inspect release details with =bin/show-latest-release-info= and download counts later with =bin/show-release-downloads=.
-
-8. Publish the Hackage release.
-
-#+BEGIN_SRC sh
-    cabal upload --publish dist-newstyle/sdist/hledger-flow-<version>.tar.gz
-#+END_SRC
-
-   Only do this after the candidate looked correct and the tagged build is in good shape. Hackage publishes source releases permanently.
-
-9. Publish the GitHub draft release.
-
-   Once the binaries and Hackage source release are both confirmed, publish the draft release on GitHub.
-
-** Updating Cabal Bounds
-   :PROPERTIES:
-   :CUSTOM_ID: updating-cabal-bounds
-   :END:
-
-This project develops against the Stackage snapshot in =stack.yaml=, but the Hackage package metadata comes from the generated cabal file. Before a Hackage release, update the dependency bounds in =package.yaml= to reflect the versions selected by Stack.
-
-1. Confirm the resolver in =stack.yaml=.
-2. Get the direct dependency versions in the current snapshot:
+Get the direct dependency versions in the current snapshot:
 
 #+BEGIN_SRC sh
     stack ls dependencies --depth 1
 #+END_SRC
 
-3. For each direct dependency in =package.yaml=, set a lower bound at the version reported by Stack and an upper bound at the next PVP-compatible series.
+For each direct dependency in =package.yaml=, set a lower bound at the version reported by Stack and an upper bound at the next PVP-compatible series.
 
-   Examples:
+Examples:
 
-   - =containers 0.7= becomes =containers >= 0.7 && < 0.8=
-   - =path 0.9.6= becomes =path >= 0.9.6 && < 0.10=
-   - =filepath 1.5.4.0= becomes =filepath >= 1.5.4.0 && < 1.6=
+- =containers 0.7= becomes =containers >= 0.7 && < 0.8=
+- =path 0.9.6= becomes =path >= 0.9.6 && < 0.10=
+- =filepath 1.5.4.0= becomes =filepath >= 1.5.4.0 && < 1.6=
 
-4. Regenerate the cabal file and verify:
+Keep bounds broad enough to avoid unnecessary churn, but do not leave them unbounded when publishing to Hackage.
+
+If bounds were changed, regenerate and re-check:
 
 #+BEGIN_SRC sh
     stack build --only-configure
+    ./bin/build-and-test
     cabal check
 #+END_SRC
 
-5. If =cabal check= is clean, continue with =cabal sdist= and the Hackage upload steps.
+*** Commit the dependency update
 
-Keep bounds broad enough to avoid unnecessary churn, but do not leave them unbounded when publishing to Hackage. The goal is to describe the dependency range known to work, based on the Stack snapshot used for that release.
+Commit the Stackage resolver update and any cabal bound changes together as one commit. Do not include version bumps or changelog edits in this commit.
+
+#+BEGIN_SRC sh
+    git add stack.yaml stack.yaml.lock package.yaml
+    git commit -m "Update stackage to lts-<version>"
+#+END_SRC
+
+** Phase 2: Bump Version
+   :PROPERTIES:
+   :CUSTOM_ID: bump-version
+   :END:
+
+Update the version in =package.yaml= and add the corresponding entry in =ChangeLog.md=.
+
+Commit these together as their own commit:
+
+#+BEGIN_SRC sh
+    git add package.yaml ChangeLog.md
+    git commit -m "Bump version to <version>"
+#+END_SRC
+
+** Phase 3: Verify CI
+   :PROPERTIES:
+   :CUSTOM_ID: verify-ci
+   :END:
+
+Push the commits from phases 1 and 2:
+
+#+BEGIN_SRC sh
+    git push origin master
+#+END_SRC
+
+Wait for the GitHub Actions build to succeed. If it fails, fix the issue, commit, push, and wait again. Do not proceed to tagging until CI is green.
+
+** Phase 4: Tag and Release
+   :PROPERTIES:
+   :CUSTOM_ID: tag-and-release
+   :END:
+
+*** Create and push the release tag
+
+#+BEGIN_SRC sh
+    ./bin/tag-release
+    git push origin v<version>
+#+END_SRC
+
+=bin/tag-release= creates a signed annotated tag named =v<version>= using the version from =package.yaml=.
+
+Pushing the tag triggers the release workflow, which builds on all configured platforms and creates a draft GitHub release with binary artifacts attached.
+
+*** Verify the release build
+
+Wait for the tag-triggered workflow to complete. Confirm that all expected artifacts are present and that the build succeeded on every platform.
+
+#+BEGIN_SRC sh
+    ./bin/show-latest-release-info
+#+END_SRC
+
+Do not proceed if the release build failed. Fix, re-tag if necessary, and re-verify.
+
+** Phase 5: Publish
+   :PROPERTIES:
+   :CUSTOM_ID: publish
+   :END:
+
+*** Upload the Hackage candidate
+
+#+BEGIN_SRC sh
+    cabal sdist
+    cabal upload dist-newstyle/sdist/hledger-flow-<version>.tar.gz
+#+END_SRC
+
+By default, =cabal upload= uploads a candidate (not a live publish). Review the candidate page on Hackage and confirm the package metadata and file contents look correct.
+
+*** Publish the Hackage release
+
+#+BEGIN_SRC sh
+    cabal upload --publish dist-newstyle/sdist/hledger-flow-<version>.tar.gz
+#+END_SRC
+
+Only do this after the candidate looked correct and the release build succeeded. Hackage publishes are permanent.
+
+*** Publish the GitHub draft release
+
+Once the binaries and Hackage source release are both confirmed, publish the draft release on GitHub.
+
+Download counts can be checked later with =bin/show-release-downloads=.
