@@ -110,6 +110,15 @@ Push the commits from phases 1 and 2:
 
 Wait for the GitHub Actions build to succeed. If it fails, fix the issue, commit, push, and wait again. Do not proceed to tagging until CI is green.
 
+Before the first signed release, and after rotating Apple credentials:
+
+1. Confirm repository secrets =MACOS_CERTIFICATE_BASE64=, =MACOS_CERTIFICATE_PASSWORD=, and =APPLE_API_KEY_BASE64= are configured.
+2. Confirm repository variables =APPLE_API_KEY_ID= and =APPLE_API_ISSUER_ID= are configured.
+3. Manually run =Build & Release= on the release commit in GitHub Actions.
+4. Confirm both =Sign= jobs pass with identity =Developer ID Application: FernTrail B.V. (4UJZ75B7VG)=; inspect both =Notarize= results.
+
+macOS signing is made possible by [[https://ferntrail.tech/][FernTrail B.V.]]
+
 ** Phase 4: Tag and Release
    :PROPERTIES:
    :CUSTOM_ID: tag-and-release
@@ -128,13 +137,68 @@ Pushing the tag triggers the release workflow, which builds on all configured pl
 
 *** Verify the release build
 
-Wait for the tag-triggered workflow to complete. Confirm that all expected artifacts are present and that the build succeeded on every platform.
+1. Open the tag-triggered =Build & Release= run.
+2. Confirm every build job, both =Sign= jobs, and the =release= job succeeded. Fix any failure before publishing.
+3. Confirm the draft release contains =hledger-flow-linux-x64.tar.gz=, =hledger-flow-linux-arm64.tar.gz=, =hledger-flow-macos-x64.tar.gz=, and =hledger-flow-macos-arm64.tar.gz=.
+4. Inspect both =Notarize= jobs. If either failed, follow a recovery procedure below; publication may proceed if notarization is the only failure.
 
 #+BEGIN_SRC sh
     ./bin/show-latest-release-info
 #+END_SRC
 
-Do not proceed if the release build failed. Fix, re-tag if necessary, and re-verify.
+*** Retry notarization in GitHub Actions
+
+1. Inspect the failed =Notarize= job's submission ID and Apple log. For a timeout, check the existing submission before retrying.
+2. Confirm the original run is within GitHub's 30-day rerun window and its =signed-hledger-flow-*= artifacts have not expired. Otherwise, use the Mac procedure below.
+3. Select =Re-run failed jobs= on the original run, or run the command below. After publication, do not select =Re-run all jobs=.
+4. Confirm both =Notarize= jobs pass: look for =Apple notarization ticket is already available= or a new =Accepted= submission. Confirm the release downloads remain unchanged.
+
+#+BEGIN_SRC sh
+    gh run rerun RUN_ID --failed --repo apauley/hledger-flow
+#+END_SRC
+
+*** Notarize an existing release from a Mac
+
+Use Xcode's =notarytool= and the hledger-flow App Store Connect =.p8= key saved during setup. Store credentials once, replacing the path and IDs:
+
+#+BEGIN_SRC sh
+    xcrun notarytool store-credentials hledger-flow \
+      --key /absolute/path/to/AuthKey_KEY_ID.p8 \
+      --key-id KEY_ID --issuer ISSUER_ID
+#+END_SRC
+
+Download, verify, and submit the exact release executable. Replace =v<version>= with the release tag. Do not rebuild, strip, or re-sign the binary:
+
+#+BEGIN_SRC sh
+    TAG='v<version>'
+    PLATFORM=macos-arm64
+    work_dir="$(mktemp -d)"
+    gh release download "$TAG" --repo apauley/hledger-flow \
+      --pattern "hledger-flow-${PLATFORM}.tar.gz" --dir "$work_dir"
+    tar -xzf "$work_dir/hledger-flow-${PLATFORM}.tar.gz" -C "$work_dir"
+    codesign --verify --strict --verbose=4 \
+      --test-requirement '=anchor apple generic and certificate leaf[subject.OU] = "4UJZ75B7VG"' \
+      "$work_dir/hledger-flow"
+    ditto -c -k --keepParent "$work_dir/hledger-flow" "$work_dir/notary.zip"
+    xcrun notarytool submit "$work_dir/notary.zip" --keychain-profile hledger-flow
+#+END_SRC
+
+Record the submission ID, wait for completion, and inspect the log even if the wait fails. After a timeout, repeat =wait= with the same ID:
+
+#+BEGIN_SRC sh
+    SUBMISSION_ID='UUID-from-submit'
+    xcrun notarytool wait "$SUBMISSION_ID" --keychain-profile hledger-flow --timeout 30m
+    xcrun notarytool log "$SUBMISSION_ID" --keychain-profile hledger-flow
+#+END_SRC
+
+After Apple reports =Accepted=, verify the downloaded binary's online ticket:
+
+#+BEGIN_SRC sh
+    codesign --verify --strict --verbose=4 \
+      --test-requirement '=notarized' --check-notarization "$work_dir/hledger-flow"
+#+END_SRC
+
+Repeat with =PLATFORM= set to =macos-x64= for Intel. Keep the existing release assets; do not upload replacements. For an Apple rejection, fix the issue reported in the log before retrying.
 
 ** Phase 5: Publish
    :PROPERTIES:

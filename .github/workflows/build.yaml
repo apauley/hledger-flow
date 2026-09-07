@@ -11,6 +11,9 @@ on:
     branches:
       - master
 
+permissions:
+  contents: read
+
 jobs:
 
   build:
@@ -29,11 +32,11 @@ jobs:
       - name: Get Stack version for the project
         id: get-stack-version
         run: |
-          echo "stack-version=$(cat stack.yaml | grep '^resolver:' | awk '{print $2}')" >> $GITHUB_OUTPUT
+          echo "stack-version=$(cat stack.yaml | grep '^resolver:' | awk '{print $2}')" >> "$GITHUB_OUTPUT"
 
       - name: Prepare global variables
         id: global-variables
-        uses: actions/github-script@v6
+        uses: actions/github-script@v8
         env:
           # bump this cache date when new caches are needed, while keeping the same stack version.
           cache-date: 20260105
@@ -130,13 +133,13 @@ jobs:
         # hledger's releases are not available for linux-arm64
         if: ${{ steps.global-variables.outputs.platform != 'linux-arm64' }}
         run: |
-          git clone --recurse-submodules https://github.com/apauley/hledger-flow-example.git $HOME/hledger-flow-example && \
-          ~/.local/bin/hledger-flow --verbose --show-options import $HOME/hledger-flow-example && \
-          ~/.local/bin/hledger-flow --verbose --show-options report $HOME/hledger-flow-example
+          git clone --recurse-submodules https://github.com/apauley/hledger-flow-example.git "$HOME/hledger-flow-example" && \
+          ~/.local/bin/hledger-flow --verbose --show-options import "$HOME/hledger-flow-example" && \
+          ~/.local/bin/hledger-flow --verbose --show-options report "$HOME/hledger-flow-example"
 
       - name: Gather binaries
         run: |
-          mkdir tmp
+          mkdir -p tmp
           cd tmp
           cp -P ~/.local/bin/hledger-flow .
           strip hledger-flow
@@ -148,32 +151,188 @@ jobs:
           name: hledger-flow-${{ steps.global-variables.outputs.platform }}
           path: |
             tmp/hledger-flow-${{ steps.global-variables.outputs.platform }}.tar
+          if-no-files-found: error
+
+  sign_macos:
+    name: Sign (${{ matrix.platform }})
+    if: (github.event_name == 'push' && github.ref_type == 'tag') || github.event_name == 'workflow_dispatch'
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-15-intel
+            platform: macos-x64
+          - os: macos-latest
+            platform: macos-arm64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - name: Download unsigned macOS binary
+        uses: actions/download-artifact@v4
+        with:
+          name: hledger-flow-${{ matrix.platform }}
+          path: unsigned
+
+      - name: Import macOS signing certificate
+        uses: Apple-Actions/import-codesign-certs@5142e029c445c10ffc7149d172e540235a065466 # v7.0.0
+        with:
+          keychain: hledger-flow-signing
+          p12-file-base64: ${{ secrets.MACOS_CERTIFICATE_BASE64 }}
+          p12-password: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+
+      - name: Sign macOS binary
+        env:
+          PLATFORM: ${{ matrix.platform }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          keychain_path="hledger-flow-signing.keychain"
+          security find-identity -v -p codesigning "$keychain_path"
+
+          mkdir -p signed
+          tar -xf "unsigned/hledger-flow-${PLATFORM}.tar" -C signed
+          test -x signed/hledger-flow
+          # The build already stripped the binary; never strip it after signing.
+          codesign --force --options runtime --timestamp \
+            --identifier org.hledger-flow.cli \
+            --keychain "$keychain_path" \
+            --sign 'Developer ID Application: FernTrail B.V. (4UJZ75B7VG)' \
+            signed/hledger-flow
+          codesign --verify --strict --verbose=4 \
+            --test-requirement '=anchor apple generic and certificate leaf[subject.OU] = "4UJZ75B7VG"' \
+            signed/hledger-flow
+
+      - name: Smoke-test signed binary
+        run: |
+          signed/hledger-flow --help
+          signed/hledger-flow --version
+
+      - name: Package signed binary
+        env:
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          mkdir -p dist
+          tar -C signed -cf "dist/hledger-flow-${PLATFORM}.tar" hledger-flow
+
+      - name: Upload signed macOS binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: signed-hledger-flow-${{ matrix.platform }}
+          path: dist/hledger-flow-${{ matrix.platform }}.tar
+          if-no-files-found: error
+          retention-days: 30
+
+  # Notarization and release use the same signed bytes independently. A failed
+  # notarization stays visible and can be rerun without rebuilding or releasing.
+  notarize_macos:
+    name: Notarize (${{ matrix.platform }})
+    needs: sign_macos
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [macos-x64, macos-arm64]
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - name: Download signed macOS binary
+        uses: actions/download-artifact@v4
+        with:
+          name: signed-hledger-flow-${{ matrix.platform }}
+          path: signed
+
+      - name: Notarize macOS binary
+        env:
+          APPLE_API_KEY_BASE64: ${{ secrets.APPLE_API_KEY_BASE64 }}
+          APPLE_API_KEY_ID: ${{ vars.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER_ID: ${{ vars.APPLE_API_ISSUER_ID }}
+          PLATFORM: ${{ matrix.platform }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar -xf "signed/hledger-flow-${PLATFORM}.tar" -C signed
+          test -x signed/hledger-flow
+          if codesign --verify --strict --verbose=4 \
+            --test-requirement '=notarized' --check-notarization signed/hledger-flow; then
+            echo "Apple notarization ticket is already available"
+            exit 0
+          fi
+
+          : "${APPLE_API_KEY_BASE64:?Missing notarization key}"
+          : "${APPLE_API_KEY_ID:?Missing API key ID}"
+          : "${APPLE_API_ISSUER_ID:?Missing API issuer ID}"
+
+          api_key_path="$RUNNER_TEMP/hledger-flow-notary.p8"
+          trap 'rm -f "$api_key_path"' EXIT
+          umask 077
+          printf '%s' "$APPLE_API_KEY_BASE64" | base64 -D > "$api_key_path"
+          auth=(--key "$api_key_path" --key-id "$APPLE_API_KEY_ID" --issuer "$APPLE_API_ISSUER_ID")
+          submission="$RUNNER_TEMP/hledger-flow-notary.zip"
+          result="$RUNNER_TEMP/notarization.json"
+          ditto -c -k --keepParent signed/hledger-flow "$submission"
+          xcrun notarytool submit "$submission" "${auth[@]}" \
+            --output-format json > "$result"
+          cat "$result"
+          submission_id="$(plutil -extract id raw -o - "$result")"
+
+          notarization_exit=0
+          xcrun notarytool wait "$submission_id" "${auth[@]}" \
+            --timeout 30m --output-format json > "$result" || notarization_exit=$?
+          cat "$result"
+          if ! xcrun notarytool log "$submission_id" "${auth[@]}"; then
+            echo "::warning::Unable to fetch notarization log for $submission_id"
+          fi
+          if (( notarization_exit != 0 )); then
+            exit "$notarization_exit"
+          fi
+          test "$(plutil -extract status raw -o - "$result")" = Accepted
+          # Bare CLI executables cannot be stapled; verify Apple's online ticket.
+          codesign --verify --strict --verbose=4 \
+            --test-requirement '=notarized' --check-notarization signed/hledger-flow
+
+      - name: Clean up notarization key
+        if: always()
+        shell: bash
+        run: |
+          rm -f "$RUNNER_TEMP/hledger-flow-notary.p8"
+
+      - name: Report notarization failure
+        if: failure()
+        run: |
+          echo "::warning::Notarization failed. The signed release is unaffected; inspect the Apple log and rerun this job."
 
   release:
     if: github.event_name == 'push' && github.ref_type == 'tag'
-    needs: build
+    needs: [build, sign_macos]
     runs-on: ubuntu-latest
     permissions:
       contents: write
 
     steps:
-      - name: Download binaries
+      - name: Download Linux binaries
         uses: actions/download-artifact@v4
         with:
+          pattern: hledger-flow-linux-*
+          merge-multiple: true
           path: artifacts
 
-      # The unix files were
-      # 1. tarred to protect their executable permissions,
-      # 2. mandatorily zipped by actions/upload-artifact,
-      # 3. unzipped by actions/download-artifact.
-      # Now we 4. gzip them - to be more unix-standard ?
-      # And 5. softprops/action-gh-release will mandatorily zip them again.
+      - name: Download signed macOS binaries
+        uses: actions/download-artifact@v4
+        with:
+          pattern: signed-hledger-flow-macos-*
+          merge-multiple: true
+          path: artifacts
+
+      # Tar preserves executable permissions across artifact upload/download.
       - name: Repack unix artifacts with gz
         shell: bash
         run: |
           cd artifacts
-          mv */*.tar .
-          gzip *.tar
+          for platform in linux-x64 linux-arm64 macos-x64 macos-arm64; do
+            archive="hledger-flow-${platform}.tar"
+            test "$(tar -tf "$archive")" = hledger-flow
+            gzip "$archive"
+          done
 
       - name: Create GitHub Release with artifacts
         uses: softprops/action-gh-release@v2
