@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Discover report owners when `import` is a Windows directory junction.
+  Reports now follow the linked directory as they do for a Unix symbolic link.
 - Report an error for a nonpositive `--batch-size` in parallel mode.
   Previously, processing could hang. Sequential mode still ignores the batch size.
 - Publish preprocessed CSVs and constructed journals only after successful

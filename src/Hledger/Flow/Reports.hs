@@ -18,14 +18,13 @@ import Hledger.Flow.DateTime (timeAction)
 import Hledger.Flow.BaseDir (relativeToBase)
 import Hledger.Flow.Common
 import Hledger.Flow.Logging
-import Hledger.Flow.PathHelpers (AbsDir, AbsFile, RelFile)
+import Hledger.Flow.PathHelpers (AbsDir, AbsFile, RelDir, RelFile)
 import Hledger.Flow.RuntimeOptions
 import qualified Hledger.Flow.Types as FlowTypes
 import Path ((</>), parent, reldir, relfile, parseRelDir, toFilePath)
 import qualified Path.IO as PathIO
 import qualified System.Directory as Directory
 import System.Environment (lookupEnv)
-import qualified Turtle (single)
 import Prelude hiding (putStrLn, readFile, writeFile)
 
 data ReportParams = ReportParams
@@ -51,7 +50,7 @@ generateReports' opts ch = do
         "These reports can be used as a starting point for more tailored reports.\n"
           <> "The first line of each report contains the command used - change the parameters and use it in your own reports.\n"
   channelOutLn ch wipMsg
-  owners <- Turtle.single $ shellToList $ listOwners opts
+  owners <- listOwners opts
   ledgerEnvValue <- lookupEnv "LEDGER_FILE"
   let hledgerJournal = fromMaybe (toFilePath (baseDir opts </> [relfile|all-years.journal|])) ledgerEnvValue
   hledgerJournalExists <- Directory.doesFileExist hledgerJournal
@@ -59,7 +58,7 @@ generateReports' opts ch = do
     "Unable to find journal file: " ++ hledgerJournal ++ "\nIs your LEDGER_FILE environment variable set correctly?"
   let journalWithYears = baseDir opts </> [relfile|import/all-years.journal|]
   let aggregateReportDir
-        | any ((== "all") . map toLower) owners = baseDir opts </> [reldir|reports/_all_|]
+        | any ((== toFilePath [reldir|all|]) . map toLower . toFilePath) owners = baseDir opts </> [reldir|reports/_all_|]
         | otherwise = baseDir opts </> [reldir|reports/all|]
   aggregateYears <- includeYears ch journalWithYears
   let aggregateParams =
@@ -135,14 +134,13 @@ generateReport opts ch journal year reportsDir fileName args successCheck = do
       when exists (PathIO.removeFile outputFile)
       return $ Left outputFile
 
-ownerParameters :: RuntimeOptions -> TChan FlowTypes.LogMessage -> [FilePath] -> IO [ReportParams]
+ownerParameters :: RuntimeOptions -> TChan FlowTypes.LogMessage -> [RelDir] -> IO [ReportParams]
 ownerParameters opts ch owners = do
   let actions = map (ownerParameters' opts ch) owners
   parAwareActions opts actions
 
-ownerParameters' :: RuntimeOptions -> TChan FlowTypes.LogMessage -> FilePath -> IO ReportParams
-ownerParameters' opts ch name = do
-  owner <- parseRelDir name
+ownerParameters' :: RuntimeOptions -> TChan FlowTypes.LogMessage -> RelDir -> IO ReportParams
+ownerParameters' opts ch owner = do
   let ownerJournal = baseDir opts </> [reldir|import|] </> owner </> [relfile|all-years.journal|]
       reportsDir = baseDir opts </> [reldir|reports|] </> owner
   years <- includeYears ch ownerJournal

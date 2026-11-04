@@ -12,7 +12,7 @@ import qualified Control.Foldl as Fold
 import Data.Char (isDigit)
 import Data.Either
 import Data.Function (on)
-import qualified Data.List as List (groupBy, null, sortBy)
+import qualified Data.List as List (groupBy, isPrefixOf, isSuffixOf, null, sortBy)
 import Data.Maybe (mapMaybe)
 import qualified Data.Map.Strict as Map
 import Data.Ord (comparing)
@@ -23,14 +23,15 @@ import Data.Time.Clock.POSIX (utcTimeToPOSIXSeconds)
 import Foreign.Marshal.Utils (withMany)
 import qualified GHC.IO.Handle.FD as H
 import Hledger.Flow.DateTime (timeAction)
-import Hledger.Flow.BaseDir (relativeToBase, turtleBaseDir)
+import Hledger.Flow.BaseDir (relativeToBase)
 import Hledger.Flow.Logging
-import Hledger.Flow.PathHelpers (AbsFile, TurtlePath, fromTurtleAbsFile, pathToTurtle)
+import Hledger.Flow.PathHelpers (AbsFile, RelDir, TurtlePath, fromTurtleAbsFile, pathToTurtle)
 import qualified Hledger.Flow.RuntimeOptions as RT
 import Hledger.Flow.Types
-import Path (relfile, toFilePath)
+import Path (reldir, relfile, toFilePath)
 import qualified Path
 import qualified Path.IO as Path
+import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
 import System.Exit (ExitCode (..), exitWith)
 import System.IO (hClose)
@@ -253,12 +254,6 @@ allYearsFileName = "all-years" <.> "journal"
 directivesFile :: (HasBaseDir o) => o -> AbsFile
 directivesFile opts = baseDir opts Path.</> [relfile|directives.journal|]
 
-lsDirs :: TurtlePath -> Turtle.Shell TurtlePath
-lsDirs = onlyDirs . Turtle.ls
-
-onlyDirs :: Turtle.Shell TurtlePath -> Turtle.Shell TurtlePath
-onlyDirs = excludeHiddenFiles . excludeWeirdPaths . filterPathsByFileStatus Turtle.isDirectory
-
 onlyFiles :: Turtle.Shell TurtlePath -> Turtle.Shell TurtlePath
 onlyFiles = excludeHiddenFiles . filterPathsByFileStatus Turtle.isRegularFile
 
@@ -289,9 +284,6 @@ excludeHiddenFiles paths = do
   case (Turtle.match (Turtle.prefix ".") $ Turtle.format Turtle.fp $ Turtle.filename p) of
     [] -> Turtle.select [p]
     _ -> Turtle.select []
-
-excludeWeirdPaths :: Turtle.Shell TurtlePath -> Turtle.Shell TurtlePath
-excludeWeirdPaths = Turtle.findtree (Turtle.suffix $ Turtle.noneOf "_")
 
 firstExistingFile :: [AbsFile] -> IO (Maybe AbsFile)
 firstExistingFile [] = return Nothing
@@ -334,8 +326,19 @@ changeOutputPath newOutputLocation srcFile = mconcat $ map changeSrcDir $ Turtle
   where
     changeSrcDir file = if FilePath.dropTrailingPathSeparator file `elem` ["1-in", "2-preprocessed"] then newOutputLocation else file
 
-listOwners :: (HasBaseDir o) => o -> Turtle.Shell TurtlePath
-listOwners opts = fmap FilePath.takeFileName $ lsDirs $ (turtleBaseDir opts) </> "import"
+listOwners :: HasBaseDir o => o -> IO [RelDir]
+listOwners opts = do
+  let root = baseDir opts Path.</> [reldir|import|]
+  perms <- Directory.getPermissions (toFilePath root)
+  if Directory.readable perms
+    then do
+      (dirs, _) <- Path.listDirRel root
+      return (reverse (filter visible dirs))
+    else return []
+  where
+    visible dir =
+      let name = FilePath.dropTrailingPathSeparator (toFilePath dir)
+       in not ("." `List.isPrefixOf` name || "_" `List.isSuffixOf` name)
 
 intPath :: Integer -> TurtlePath
 intPath = show

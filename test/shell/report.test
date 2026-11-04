@@ -60,3 +60,20 @@ grep -q owner-fees "$aggregate"
 grep -q owner-fees "$individual"
 if grep -q bank-fees "$individual"; then exit 1; fi
 $ sh -eu
+
+# Reports discover owners under a linked import directory on Unix and Windows.
+<
+. ./test/shell/setup.sh
+mv import ledger-data
+case "$(uname -s)" in
+    MINGW*|MSYS*) MSYS2_ARG_CONV_EXCL='*' cmd.exe /d /c 'mklink /J import ledger-data' > /dev/null ;;
+    *) ln -s ledger-data import ;;
+esac
+flow import
+mkdir import/.hidden import/ignored_
+flow report --ascii-reports
+test ! -e reports/.hidden
+test ! -e reports/ignored_
+tr -d '\r' < reports/gawie/2016/accounts.txt | grep -Fx expenses:bank-fees
+$ sh -eu
+expenses:bank-fees
