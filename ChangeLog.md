@@ -199,7 +199,7 @@ https://github.com/apauley/hledger-flow/pull/57
 
 - Re-organised the command-line interface:
   moved various command-line options out of subcommands, into the top-level.
-- Added a [contributor's agreement](https://github.com/apauley/hledger-flow/blob/master/CONTRIBUTING.org)
+- Added a [contributor's agreement](https://github.com/apauley/hledger-flow/blob/master/CONTRIBUTING.md)
   after receiving some more valued contributions from
   [jecaro](https://github.com/apauley/hledger-flow/pull/42)
 

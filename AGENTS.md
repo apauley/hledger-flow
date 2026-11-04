@@ -5,13 +5,13 @@
 - Most accounting logic comes from upstream `hledger`; `hledger-flow` focuses on directory conventions, preprocessing/construct hooks, include-file generation, and report automation.
 
 **Primary docs**
-- `README.org` for project overview and status.
-- `docs/README.org` for the feature reference and directory layout details.
-- `step-by-step/README.org` for a tutorial-style walkthrough.
-- `CONTRIBUTING.org` for build/test instructions and contributor workflow.
+- `README.md` for project overview and status.
+- `docs/README.md` for the feature reference and directory layout details.
+- `step-by-step/README.md` for a tutorial-style walkthrough.
+- `CONTRIBUTING.md` for build/test instructions and contributor workflow.
 
 **Core commands**
-- Build + test (from `CONTRIBUTING.org`):
+- Build + test (from `CONTRIBUTING.md`):
   - `./bin/build-and-test` (runs `stack test` then `stack install`).
 - Run locally without installing:
   - `stack exec hledger-flow -- import [DIR]`

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Release helper. See release-procedure.org for the full procedure.
+# Release helper. See release-procedure.md for the full procedure.
 #
 # Usage: bin/release COMMAND [ARGS]
 #
@@ -57,7 +57,7 @@ watch_run() {
              -q '.jobs[] | select(.conclusion != "success" and .conclusion != "skipped") | .name')
   [ -z "$failed" ] && return
   grep -qv '^Notarize' <<<"$failed" && die "run $id failed jobs:\n$failed"
-  echo "warning: notarization failed in run $id; see 'Retry notarization' in release-procedure.org" >&2
+  echo "warning: notarization failed in run $id; see 'Retry notarization' in release-procedure.md" >&2
 }
 
 cmd_deps() {
