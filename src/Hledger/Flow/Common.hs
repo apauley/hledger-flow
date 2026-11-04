@@ -4,7 +4,7 @@
 module Hledger.Flow.Common where
 
 import Control.Concurrent (threadDelay)
-import Control.Monad (filterM)
+import Control.Monad (filterM, forM_, when)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Concurrent.Async (concurrently, wait, withAsync)
 import Control.Concurrent.STM
@@ -304,7 +304,9 @@ writeFiles' fileMap = do
   return $ Map.keys fileMap
 
 writeTextMap :: Map.Map TurtlePath T.Text -> IO ()
-writeTextMap = Map.foldlWithKey (\a k v -> a <> T.writeFile k v) (return ())
+writeTextMap files = forM_ (Map.toList files) $ \(path, contents) -> do
+  current <- tryIOError (T.readFile path)
+  when (either (const True) (/= contents) current) $ T.writeFile path contents
 
 changeExtension :: T.Text -> TurtlePath -> TurtlePath
 changeExtension ext path = (FilePath.dropExtension path) <.> (T.unpack ext)

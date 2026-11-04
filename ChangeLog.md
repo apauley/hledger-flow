@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Refresh the root ledger after a partial import, including newly imported
+  years. Ancestor includes are rebuilt from journals already on disk.
+  Statements outside the selected directory are still left for a later import.
 - Discover report owners when `import` is a Windows directory junction.
   Reports now follow the linked directory as they do for a Unix symbolic link.
 - Report an error for a nonpositive `--batch-size` in parallel mode.

@@ -47,8 +47,32 @@ cp "$inbox/march.csv" "$other/1-in/2016/"
 (cd "$account" && flow import)
 test ! -e "$other/3-journal/2016/march.journal"
 hledger -f "$account/all-years.journal" descriptions
+hledger -f all-years.journal descriptions
 $ sh -eu
 Monthly bank fee
+Monthly bank fee
+
+# A partial import refreshes the root ledger for a new year without processing siblings.
+<
+. ./test/shell/setup.sh
+other=import/gawie/bogart/savings
+mkdir -p "$other/1-in/2016"
+printf '%s\n' '2016-02-01,Savings interest,4' > "$other/1-in/2016/interest.csv"
+flow import
+cp "$other/3-journal/2016/interest.journal" savings-before.journal
+touch -t 201601010000 "$other/2016-include.journal" saved-time
+mkdir -p "$account/1-in/2017" "$other/1-in/2017"
+printf '%s\n' '2017-01-03,New year fee,-6' > "$account/1-in/2017/fee.csv"
+printf '%s\n' '2017-01-04,Pending interest,5' > "$other/1-in/2017/pending.csv"
+(cd "$account" && flow import)
+test ! -e "$other/3-journal/2017/pending.journal"
+cmp savings-before.journal "$other/3-journal/2016/interest.journal"
+test ! "$other/2016-include.journal" -nt saved-time
+hledger -f all-years.journal descriptions
+$ sh -eu
+Monthly bank fee
+New year fee
+Savings interest
 
 # With no conversion rules the CLI explains why this import failed.
 <

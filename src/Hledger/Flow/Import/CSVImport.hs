@@ -61,8 +61,9 @@ importCSVs' opts ch = do
       channelOutLn ch $ "Found " <> T.pack (show fileCount) <> " input files" <> startYearMsg <> "in " <> T.pack (show diff) <> ". Proceeding with import..."
       let actions = map (extractAndImport opts ch) inputFiles
       importedJournals <- parAwareActions opts actions
-      (journalsOnDisk, journalFindTime) <- timeAction $ findJournalFiles effectiveDir
-      (_, writeIncludeTime1) <- timeAction $ writeIncludesUpTo opts ch (pathToTurtle effectiveDir) $ fmap pathToTurtle journalsOnDisk
+      let importRoot = baseDir opts Path.</> [Path.reldir|import|]
+      (journalsOnDisk, journalFindTime) <- timeAction $ findJournalFiles importRoot
+      (_, writeIncludeTime1) <- timeAction $ writeIncludesUpTo opts ch (pathToTurtle importRoot) $ fmap pathToTurtle journalsOnDisk
       (_, writeIncludeTime2) <- timeAction $ writeToplevelAllYearsInclude opts
       let includeGenTime = journalFindTime + writeIncludeTime1 + writeIncludeTime2
       channelOutLn ch $ "Wrote include files for " <> T.pack (show (length journalsOnDisk)) <> " journals in " <> T.pack (show includeGenTime)
