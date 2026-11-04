@@ -1,11 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 
 module Hledger.Flow.Common where
 
 import Control.Concurrent.STM
-import Control.Exception (IOException, try)
 import qualified Control.Foldl as Fold
 import Data.Char (isDigit)
 import Data.Either
@@ -17,15 +15,17 @@ import Data.Ord (comparing)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import qualified Data.Text.Read as T
+import Data.Time.Clock.POSIX (utcTimeToPOSIXSeconds)
 import qualified GHC.IO.Handle.FD as H
 import Hledger.Flow.BaseDir (relativeToBase, turtleBaseDir)
 import Hledger.Flow.Logging
 import Hledger.Flow.PathHelpers (AbsFile, TurtlePath, fromTurtleAbsFile, pathToTurtle)
 import qualified Hledger.Flow.RuntimeOptions as RT
 import Hledger.Flow.Types
-import Path (relfile)
+import Path (relfile, toFilePath)
 import qualified Path.IO as Path
 import qualified System.FilePath as FilePath
+import System.IO.Error (tryIOError)
 import Turtle ((%), (<.>), (</>))
 import qualified Turtle
 import Prelude hiding (putStrLn, readFile, writeFile)
@@ -195,32 +195,28 @@ inprocWithErrFun errFun (cmd, args, standardInput) = do
       (Turtle.liftIO . errFun . Turtle.lineToText) ln
       Turtle.empty
 
-verboseTestFile :: (HasVerbosity o, HasBaseDir o) => o -> TChan LogMessage -> TurtlePath -> IO Bool
+verboseTestFile :: (HasVerbosity o, HasBaseDir o) => o -> TChan LogMessage -> AbsFile -> IO Bool
 verboseTestFile opts ch p = do
-  fileExists <- Turtle.testfile p
-  let rel = relativeToBase opts p
+  fileExists <- Path.doesFileExist p
+  let rel = T.pack (relativeToBase opts (toFilePath p))
   if fileExists
-    then logVerbose opts ch $ Turtle.format ("Found '" % Turtle.fp % "'") rel
-    else logVerbose opts ch $ Turtle.format ("Looked for but did not find '" % Turtle.fp % "'") rel
+    then logVerbose opts ch ("Found '" <> rel <> "'")
+    else logVerbose opts ch ("Looked for but did not find '" <> rel <> "'")
   return fileExists
 
-needsRegeneration :: TurtlePath -> TurtlePath -> IO Bool
+needsRegeneration :: AbsFile -> AbsFile -> IO Bool
 needsRegeneration src target = do
-  targetExists <- Turtle.testfile target
-  if not targetExists
-    then return True
-    else do
-      -- Use try to handle race conditions where files may be modified/deleted
-      -- between existence check and stat. Treat any IO error as "needs regeneration".
-      result <- try $ do
-        srcStat <- Turtle.stat src
-        targetStat <- Turtle.stat target
-        let srcMtime = Turtle.modificationTime srcStat
-        let targetMtime = Turtle.modificationTime targetStat
-        return (srcMtime > targetMtime)
-      case result of
-        Right needsRegen -> return needsRegen
-        Left (_ :: IOException) -> return True
+  targetExists <- Path.doesFileExist target
+  if targetExists
+    then do
+      -- Either file can disappear after the existence check.
+      newer <- tryIOError $ (>) <$> modificationSecond src <*> modificationSecond target
+      return (either (const True) id newer)
+    else return True
+  where
+    -- Preserve the whole-second comparison used by --new-files-only.
+    modificationSecond :: AbsFile -> IO Integer
+    modificationSecond file = floor . utcTimeToPOSIXSeconds <$> Path.getModificationTime file
 
 groupPairs' :: (Eq a, Ord a) => [(a, b)] -> [(a, [b])]
 groupPairs' =

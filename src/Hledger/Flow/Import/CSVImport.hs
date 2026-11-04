@@ -92,13 +92,13 @@ importCSV opts ch importDirs srcFile = do
   journalOut <- outputFile importDirs [Path.reldir|3-journal|] ".journal" csvFile
   shouldImport <-
     if onlyNewFiles opts && not preprocessHappened
-      then needsRegeneration (Path.toFilePath csvFile) (Path.toFilePath journalOut)
+      then needsRegeneration csvFile journalOut
       else return True
   PathIO.createDirIfMissing True (Path.parent journalOut)
   if shouldImport
     then do
       let script = accountDir importDirs Path.</> [Path.relfile|construct|]
-      hasConstruct <- verboseTestFile opts ch (Path.toFilePath script)
+      hasConstruct <- verboseTestFile opts ch script
       if hasConstruct
         then customConstruct opts ch script importDirs csvFile journalOut
         else hledgerImport opts ch importDirs csvFile journalOut
@@ -113,12 +113,12 @@ outputFile dirs stage ext source = do
 preprocessIfNeeded :: RuntimeOptions -> TChan FlowTypes.LogMessage -> ImportDirs Path.Abs -> AbsFile -> AbsFile -> IO (AbsFile, Bool)
 preprocessIfNeeded opts ch dirs src csvOut = do
   let script = accountDir dirs Path.</> [Path.relfile|preprocess|]
-  scriptExists <- verboseTestFile opts ch (Path.toFilePath script)
-  targetExists <- verboseTestFile opts ch (Path.toFilePath csvOut)
+  scriptExists <- verboseTestFile opts ch script
+  targetExists <- verboseTestFile opts ch csvOut
   shouldProceed <-
     if onlyNewFiles opts && scriptExists
       then do
-        needsRegen <- needsRegeneration (Path.toFilePath src) (Path.toFilePath csvOut)
+        needsRegen <- needsRegeneration src csvOut
         Control.Monad.unless needsRegen $ logNewFileSkip opts ch "preprocess" csvOut
         return needsRegen
       else return scriptExists

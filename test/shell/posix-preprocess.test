@@ -33,3 +33,23 @@ hledger -f all-years.journal descriptions
 $ sh -eu
 Monthly bank fee
 Monthly bank fee
+
+# Incremental import skips an up-to-date hook and reruns it when the raw CSV changes.
+<
+. ./test/shell/setup.sh
+printf '%s\n' '#!/bin/sh' 'set -eu' 'echo ran >> "$0.runs"' 'cp "$1" "$2"' > "$account/preprocess"
+chmod +x "$account/preprocess"
+flow import --new-files-only
+cached="$account/2-preprocessed/2016/march.csv"
+touch -t 201603010000 "$inbox/march.csv" "$cached" "$journal"
+flow import --new-files-only
+test "$(cat "$account/preprocess.runs")" = ran
+printf '%s\n' '2016-03-01,Corrected by hook,-9' > "$inbox/march.csv"
+touch -t 201603020000 "$inbox/march.csv"
+flow import --new-files-only
+cat "$account/preprocess.runs"
+hledger -f all-years.journal descriptions
+$ sh -eu
+ran
+ran
+Corrected by hook

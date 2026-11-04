@@ -1,15 +1,23 @@
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE QuasiQuotes #-}
 
 module Common.Integration (tests) where
 
+import Control.Concurrent.STM (atomically, newTChanIO, tryReadTChan)
 import qualified Data.List as List (sort)
-import Data.Time.Clock (UTCTime(..), secondsToDiffTime)
+import qualified Data.Text as T
+import qualified Data.Text.IO as T
+import Data.Time.Clock (UTCTime(..), addUTCTime, secondsToDiffTime)
 import Data.Time.Calendar (fromGregorian)
 import Hledger.Flow.Common
-import Hledger.Flow.PathHelpers (TurtlePath)
-import qualified System.Directory as Dir
+import Hledger.Flow.PathHelpers (AbsDir, TurtlePath)
+import qualified Hledger.Flow.RuntimeOptions as RT
+import Hledger.Flow.Types (LogMessage (StdErr))
+import qualified Path
+import qualified Path.IO as PathIO
 import Test.HUnit
+import TestHelpers (defaultOpts)
 import TestHelpersTurtle
 import Turtle
 
@@ -75,53 +83,61 @@ testFirstExistingFile =
         )
     )
 
--- Helper to set mtime on a Turtle path
-setMtime :: TurtlePath -> UTCTime -> IO ()
-setMtime path time = Dir.setModificationTime path time
+withTestDir :: (AbsDir -> IO ()) -> IO ()
+withTestDir action = do
+  cwd <- PathIO.getCurrentDir
+  let tmpbase = cwd Path.</> [Path.reldir|test/tmp|]
+  PathIO.createDirIfMissing True tmpbase
+  PathIO.withTempDir tmpbase "hlflowtest" action
 
--- Fixed timestamps for deterministic tests
-olderTime :: UTCTime
-olderTime = UTCTime (fromGregorian 2020 1 1) (secondsToDiffTime 0)
-
-newerTime :: UTCTime
-newerTime = UTCTime (fromGregorian 2025 1 1) (secondsToDiffTime 0)
+testVerboseTestFile :: Test
+testVerboseTestFile = TestCase $ withTestDir $ \base -> do
+  let opts = (defaultOpts base) {RT.verbose = True}
+      file = base Path.</> [Path.relfile|statement.csv|]
+  ch <- newTChanIO
+  let check expected message = do
+        exists <- verboseTestFile opts ch file
+        assertEqual "file existence" expected exists
+        entry <- atomically (tryReadTChan ch)
+        case entry of
+          Just (StdErr txt) -> assertBool "verbose log uses the relative path" (message `T.isSuffixOf` txt)
+          _ -> assertFailure "expected a verbose message on stderr"
+  check False "Looked for but did not find 'statement.csv'\n"
+  T.writeFile (Path.toFilePath file) ""
+  check True "Found 'statement.csv'\n"
+  _ <- verboseTestFile (defaultOpts base) ch file
+  quietEntry <- atomically (tryReadTChan ch)
+  case quietEntry of
+    Nothing -> return ()
+    Just msg -> assertFailure ("unexpected log with verbosity off: " ++ show msg)
 
 testNeedsRegeneration :: Test
-testNeedsRegeneration =
-  TestCase
-    ( sh
-        ( do
-            let tmpbase = "." </> "test" </> "tmp"
-            mktree tmpbase
-            tmpdir <- using (mktempdir tmpbase "hlflowtest")
-            let source = tmpdir </> "source.txt"
-            let target = tmpdir </> "target.txt"
+testNeedsRegeneration = TestCase $ withTestDir $ \base -> do
+  let source = base Path.</> [Path.relfile|source.txt|]
+      target = base Path.</> [Path.relfile|target.txt|]
+      older = UTCTime (fromGregorian 2020 1 1) (secondsToDiffTime 0)
+      newer = addUTCTime 1 older
+      check message expected = needsRegeneration source target >>= assertEqual message expected
 
-            -- Test case 1: target doesn't exist -> returns True
-            touch source
-            result1 <- liftIO $ needsRegeneration source target
-            liftIO $ assertEqual "Should return True when target doesn't exist" True result1
+  T.writeFile (Path.toFilePath source) ""
+  check "missing target" True
 
-            -- Test case 2: target exists, source is newer -> returns True
-            touch target
-            liftIO $ setMtime target olderTime
-            liftIO $ setMtime source newerTime
-            result2 <- liftIO $ needsRegeneration source target
-            liftIO $ assertEqual "Should return True when source is newer than target" True result2
+  T.writeFile (Path.toFilePath target) ""
+  PathIO.setModificationTime target older
+  PathIO.setModificationTime source newer
+  check "newer source" True
 
-            -- Test case 3: target exists, target is newer -> returns False
-            liftIO $ setMtime source olderTime
-            liftIO $ setMtime target newerTime
-            result3 <- liftIO $ needsRegeneration source target
-            liftIO $ assertEqual "Should return False when target is newer than source" False result3
+  PathIO.setModificationTime source older
+  PathIO.setModificationTime target newer
+  check "newer target" False
 
-            -- Test case 4: equal mtimes -> returns False (boundary condition)
-            liftIO $ setMtime source olderTime
-            liftIO $ setMtime target olderTime
-            result4 <- liftIO $ needsRegeneration source target
-            liftIO $ assertEqual "Should return False when mtimes are equal" False result4
-        )
-    )
+  PathIO.setModificationTime target older
+  check "equal timestamps" False
+  PathIO.setModificationTime source (addUTCTime 0.75 older)
+  check "subsecond differences alone do not trigger regeneration" False
+
+  PathIO.removeFile source
+  check "source timestamp no longer available" True
 
 tests :: Test
-tests = TestList [testHiddenFiles, testFilterPaths, testFirstExistingFile, testNeedsRegeneration]
+tests = TestList [testHiddenFiles, testFilterPaths, testFirstExistingFile, testVerboseTestFile, testNeedsRegeneration]
