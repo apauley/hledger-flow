@@ -76,7 +76,6 @@ tests:
       - hledger-flow
       - path >= 0.9.6 && < 0.10
       - path-io >= 1.8.2 && < 1.9
-      - turtle >= 1.6.2 && < 1.7
       - HUnit
       - containers >= 0.7 && < 0.8
       - directory

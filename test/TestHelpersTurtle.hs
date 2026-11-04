@@ -4,7 +4,8 @@ module TestHelpersTurtle where
 
 import Hledger.Flow.Common (changePathAndExtension)
 import Hledger.Flow.PathHelpers (TurtlePath)
-import Turtle
+import System.Directory (createDirectoryIfMissing)
+import System.FilePath (takeDirectory)
 
 inputJohnBogart :: [TurtlePath]
 inputJohnBogart =
@@ -67,10 +68,10 @@ hiddenFiles =
 toJournals :: [TurtlePath] -> [TurtlePath]
 toJournals = map (changePathAndExtension "3-journal/" "journal")
 
-touchAll :: [TurtlePath] -> Shell ()
-touchAll = foldl (\acc file -> acc <> superTouch file) (return ())
+touchAll :: [TurtlePath] -> IO ()
+touchAll = mapM_ superTouch
 
-superTouch :: TurtlePath -> Shell ()
+superTouch :: TurtlePath -> IO ()
 superTouch file = do
-  mktree $ directory file
-  touch file
+  createDirectoryIfMissing True (takeDirectory file)
+  appendFile file ""

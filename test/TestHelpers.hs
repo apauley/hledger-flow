@@ -6,11 +6,19 @@ module TestHelpers where
 
 import Data.Maybe (fromMaybe)
 import Hledger.Flow.Internals (SystemInfo (..), versionInfo)
-import Hledger.Flow.PathHelpers (RelFile)
+import Hledger.Flow.PathHelpers (AbsDir, RelFile)
 import Hledger.Flow.RuntimeOptions
 import qualified Hledger.Flow.Types as FlowTypes
 import Path
+import qualified Path.IO as PathIO
 import qualified System.Info as Sys
+
+withTestDir :: (AbsDir -> IO ()) -> IO ()
+withTestDir action = do
+  cwd <- PathIO.getCurrentDir
+  let tmpbase = cwd </> [reldir|test/tmp|]
+  PathIO.createDirIfMissing True tmpbase
+  PathIO.withTempDir tmpbase "hlflowtest" action
 
 defaultHlInfo :: FlowTypes.HledgerInfo
 defaultHlInfo = FlowTypes.HledgerInfo (testRoot </> [relfile|path/to/hledger|]) "1.2.3"

@@ -12,7 +12,7 @@ import qualified Data.Text.IO as T
 import Data.Time.Clock (UTCTime(..), addUTCTime, secondsToDiffTime)
 import Data.Time.Calendar (fromGregorian)
 import Hledger.Flow.Common
-import Hledger.Flow.PathHelpers (AbsDir, TurtlePath)
+import qualified Hledger.Flow.PathHelpers as Paths
 import qualified Hledger.Flow.RuntimeOptions as RT
 import Hledger.Flow.Types (LogMessage (StdErr))
 import qualified Path
@@ -20,49 +20,26 @@ import qualified Path.IO as PathIO
 import System.Directory (doesFileExist)
 import System.Timeout (timeout)
 import Test.HUnit
-import TestHelpers (defaultOpts)
+import TestHelpers (defaultOpts, withTestDir)
 import TestHelpersTurtle
-import Turtle
+import System.FilePath ((</>), normalise)
 
 testHiddenFiles :: Test
-testHiddenFiles =
-  TestCase
-    ( sh
-        ( do
-            let tmpbase = "." </> "test" </> "tmp"
-            mktree tmpbase
-            tmpdir <- using (mktempdir tmpbase "hlflowtest")
-            let tmpJournals = map (tmpdir </>) journalFiles :: [TurtlePath]
-            let tmpExtras = map (tmpdir </>) extraFiles :: [TurtlePath]
-            let tmpHidden = map (tmpdir </>) hiddenFiles :: [TurtlePath]
-            let onDisk = List.sort $ tmpJournals ++ tmpExtras ++ tmpHidden
-            touchAll onDisk
-            filtered <- fmap List.sort $ shellToList $ onlyFiles $ select onDisk
-            let expected = List.sort $ tmpExtras ++ tmpJournals
-            liftIO $ assertEqual "Hidden files should be excluded" expected filtered
-        )
-    )
+testHiddenFiles = TestCase $ withTestDir $ \base -> do
+  let paths = map (Path.toFilePath base </>) (journalFiles ++ extraFiles ++ hiddenFiles)
+  touchAll paths
+  found <- Paths.findFilesIn (const True) [] base
+  let expected = map (Path.toFilePath base </>) (journalFiles ++ extraFiles)
+  assertEqual "Hidden files should be excluded"
+    (List.sort (map normalise expected)) (List.sort (map Path.toFilePath found))
 
 testFilterPaths :: Test
-testFilterPaths =
-  TestCase
-    ( sh
-        ( do
-            let tmpbase = "." </> "test" </> "tmp"
-            mktree tmpbase
-            tmpdir <- using (mktempdir tmpbase "hlflowtest")
-            let tmpJournals = map (tmpdir </>) journalFiles :: [TurtlePath]
-            let tmpExtras = map (tmpdir </>) extraFiles :: [TurtlePath]
-            let tmpHidden = map (tmpdir </>) hiddenFiles :: [TurtlePath]
-            let onDisk = List.sort $ tmpJournals ++ tmpExtras ++ tmpHidden
-            touchAll onDisk
-
-            let nonExistant = map (tmpdir </>) ["where", "is", "my", "mind"]
-            let toFilter = nonExistant ++ onDisk
-            filtered <- liftIO $ filterPaths doesFileExist toFilter
-            liftIO $ assertEqual "Keep existing include files in reverse candidate order" (reverse onDisk) filtered
-        )
-    )
+testFilterPaths = TestCase $ withTestDir $ \base -> do
+  let onDisk = map (Path.toFilePath base </>) (journalFiles ++ extraFiles ++ hiddenFiles)
+      missing = map (Path.toFilePath base </>) ["where", "is", "my", "mind"]
+  touchAll onDisk
+  filtered <- filterPaths doesFileExist (missing ++ onDisk)
+  assertEqual "Keep existing include files in reverse candidate order" (reverse onDisk) filtered
 
 testFirstExistingFile :: Test
 testFirstExistingFile = TestCase $ withTestDir $ \base -> do
@@ -75,13 +52,6 @@ testFirstExistingFile = TestCase $ withTestDir $ \base -> do
   assertEqual "first existing file in candidate order" (Just first) found
   absent <- firstExistingFile [missing]
   assertEqual "no existing files" Nothing absent
-
-withTestDir :: (AbsDir -> IO ()) -> IO ()
-withTestDir action = do
-  cwd <- PathIO.getCurrentDir
-  let tmpbase = cwd Path.</> [Path.reldir|test/tmp|]
-  PathIO.createDirIfMissing True tmpbase
-  PathIO.withTempDir tmpbase "hlflowtest" action
 
 testVerboseTestFile :: Test
 testVerboseTestFile = TestCase $ withTestDir $ \base -> do

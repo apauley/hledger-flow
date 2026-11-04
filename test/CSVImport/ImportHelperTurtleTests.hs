@@ -14,7 +14,6 @@ import Hledger.Flow.Import.Types (TurtleFileBundle)
 import Test.HUnit
 import TestHelpers (defaultOpts, testRoot)
 import TestHelpersTurtle
-import Turtle
 
 groupedJaneBogart :: TurtleFileBundle
 groupedJaneBogart =
