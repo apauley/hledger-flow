@@ -315,9 +315,13 @@ changePathAndExtension :: TurtlePath -> T.Text -> TurtlePath -> TurtlePath
 changePathAndExtension newOutputLocation newExt = (changeOutputPath newOutputLocation) . (changeExtension newExt)
 
 changeOutputPath :: TurtlePath -> TurtlePath -> TurtlePath
-changeOutputPath newOutputLocation srcFile = mconcat $ map changeSrcDir $ Turtle.splitDirectories srcFile
+changeOutputPath newOutputLocation = concatMap changeSrcDir . FilePath.splitPath
   where
-    changeSrcDir file = if FilePath.dropTrailingPathSeparator file `elem` ["1-in", "2-preprocessed"] then newOutputLocation else file
+    changeSrcDir "." = "./"
+    changeSrcDir ".." = "../"
+    changeSrcDir part
+      | FilePath.dropTrailingPathSeparator part `elem` ["1-in", "2-preprocessed"] = newOutputLocation
+      | otherwise = part
 
 listOwners :: HasBaseDir o => o -> IO [RelDir]
 listOwners opts = do
