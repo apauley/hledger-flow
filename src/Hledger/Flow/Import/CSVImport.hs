@@ -19,7 +19,7 @@ import Hledger.Flow.Import.ImportHelpers
 import Hledger.Flow.Import.ImportHelpersTurtle (writeIncludesUpTo, writeToplevelAllYearsInclude)
 import Hledger.Flow.Import.Types
 import Hledger.Flow.Logging
-import Hledger.Flow.PathHelpers (AbsFile, RelDir, pathToTurtle)
+import Hledger.Flow.PathHelpers (AbsFile, RelDir)
 import Hledger.Flow.RuntimeOptions
 import qualified Hledger.Flow.Types as FlowTypes
 import qualified Path
@@ -63,7 +63,7 @@ importCSVs' opts ch = do
       importedJournals <- parAwareActions opts actions
       let importRoot = baseDir opts Path.</> [Path.reldir|import|]
       (journalsOnDisk, journalFindTime) <- timeAction $ findJournalFiles importRoot
-      (_, writeIncludeTime1) <- timeAction $ writeIncludesUpTo opts ch (pathToTurtle importRoot) $ fmap pathToTurtle journalsOnDisk
+      (_, writeIncludeTime1) <- timeAction $ writeIncludesUpTo opts ch importRoot journalsOnDisk
       (_, writeIncludeTime2) <- timeAction $ writeToplevelAllYearsInclude opts
       let includeGenTime = journalFindTime + writeIncludeTime1 + writeIncludeTime2
       channelOutLn ch $ "Wrote include files for " <> T.pack (show (length journalsOnDisk)) <> " journals in " <> T.pack (show includeGenTime)

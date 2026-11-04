@@ -75,25 +75,19 @@ excludeStageDirs stages dir
     common = [[reldir|_manual_|], [reldir|__pycache__|]]
 
 groupIncludesUpTo :: RelDir -> [RelFile] -> InputFileBundle
-groupIncludesUpTo = groupIncludesUpTo' Map.empty
+groupIncludesUpTo stopAt = collect Map.empty
+  where
+    collect acc files =
+      let belowStop f = isProperPrefixOf stopAt f && parent f /= stopAt
+          groups = Map.filterWithKey (\f _ -> isProperPrefixOf stopAt f) $
+            groupValuesBy includePath (filter belowStop files)
+       in if Map.null groups
+            then acc
+            else collect (Map.unionWith (++) acc groups) (Map.keys groups)
 
-groupIncludesUpTo' :: InputFileBundle -> RelDir -> [RelFile] -> InputFileBundle
-groupIncludesUpTo' acc _ [] = acc
-groupIncludesUpTo' acc stopAt journals = do
-  let dirs = map parent journals :: [RelDir]
-  let shouldStop = stopAt `elem` dirs
-  if shouldStop
-    then acc
-    else do
-      let grouped = groupIncludeFilesPerYear journals
-      groupIncludesUpTo' (acc <> grouped) stopAt (Map.keys grouped)
-
-groupIncludeFilesPerYear :: [RelFile] -> InputFileBundle
-groupIncludeFilesPerYear [] = Map.empty
-groupIncludeFilesPerYear ps@(p : _) =
-  if pathSize (parent p) == 6
-    then groupValuesBy initialIncludeFilePath ps
-    else groupValuesBy parentIncludeFilePath ps
+    includePath file
+      | pathSize (parent file) == 6 = initialIncludeFilePath file
+      | otherwise = parentIncludeFilePath file
 
 initialIncludeFilePath :: RelFile -> RelFile
 initialIncludeFilePath p = (parent . parent . parent) p </> includeFileName p

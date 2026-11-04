@@ -11,6 +11,8 @@ import Hledger.Flow.Import.ImportHelpersTurtle (extraIncludesForFile, groupAndWr
 import Hledger.Flow.PathHelpers
 import qualified Path
 import qualified Path.IO as PathIO
+import Data.Either (isLeft)
+import System.IO.Error (tryIOError)
 import System.FilePath ((</>))
 import qualified System.FilePath as FilePath
 import Test.HUnit
@@ -296,17 +298,27 @@ testWriteIncludesUpTo =
     touchAll [journal]
 
     ch <- newTChanIO
-    let stopAt = FilePath.addTrailingPathSeparator (tmpdir </> "import")
-    written <- writeIncludesUpTo (defaultOpts tmpdirAbsPath) ch stopAt [journal]
-    let expectedFinal = tmpdir </> "import/2019-include.journal"
+    stopAt <- Path.parseAbsDir (tmpdir </> "import")
+    input <- Path.parseAbsFile journal
+    expectedFinal <- Path.parseAbsFile (tmpdir </> "import/2019-include.journal")
+    narrower <- Path.parseAbsDir (tmpdir </> "import" </> "other")
+    rejected <- tryIOError (writeIncludesUpTo (defaultOpts tmpdirAbsPath) ch narrower [input])
+    assertBool "Reject a journal outside the boundary before writing" (isLeft rejected)
+    PathIO.doesFileExist expectedFinal >>= assertBool "No ancestor include written on rejection" . not
+
+    written <- writeIncludesUpTo (defaultOpts tmpdirAbsPath) ch stopAt [input]
     assertEqual "writeIncludesUpTo should stop at the requested directory" [expectedFinal] written
 
-    finalContents <- T.readFile expectedFinal
+    finalContents <- T.readFile (Path.toFilePath expectedFinal)
     let expectedContents =
           includePreamble
             <> "\n"
             <> "include john/2019-include.journal\n"
     assertEqual "Top-level year include should reference the owner include" expectedContents finalContents
+
+    _ <- writeIncludesUpTo (defaultOpts tmpdirAbsPath) ch stopAt []
+    emptyIndex <- T.readFile (tmpdir </> "import" </> "all-years.journal")
+    assertEqual "An empty import has a readable index" (includePreamble <> "\n") emptyIndex
 
 tests :: Test
 tests =

@@ -17,6 +17,7 @@ module Hledger.Flow.Import.ImportHelpersTurtle
 where
 
 import Control.Concurrent.STM (TChan)
+import Control.Monad (unless)
 import Data.Either (isRight)
 import qualified Data.List as List (isPrefixOf, nub, sort)
 import qualified Data.Map.Strict as Map
@@ -24,17 +25,16 @@ import Data.Maybe (fromMaybe)
 import qualified Data.Text as T
 import Hledger.Flow.BaseDir (relativeToBase, relativeToBase', turtleBaseDir)
 import Hledger.Flow.Common (allYearsFileName, directivesFile, filterPaths, groupValuesBy, writeFiles, writeFiles')
-import Hledger.Flow.Import.ImportHelpers (extractImportDirs)
+import Hledger.Flow.Import.ImportHelpers (extractImportDirs, groupIncludesUpTo)
 import Hledger.Flow.Import.Types
 import Hledger.Flow.Logging (logVerbose)
-import Hledger.Flow.PathHelpers (TurtlePath)
+import Hledger.Flow.PathHelpers (AbsDir, AbsFile, TurtlePath)
 import Hledger.Flow.Types
 import qualified Path
 import qualified Path.IO as PathIO
 import System.Directory (doesFileExist)
 import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
-import qualified Turtle (directory, parent)
 
 groupIncludeFiles :: [TurtlePath] -> (TurtleFileBundle, TurtleFileBundle)
 groupIncludeFiles = allYearIncludeFiles . groupIncludeFilesPerYear . filter isJournalFile
@@ -49,10 +49,7 @@ yearsIncludeMap :: [TurtlePath] -> TurtleFileBundle
 yearsIncludeMap = groupValuesBy allYearsPath
 
 allYearsPath :: TurtlePath -> TurtlePath
-allYearsPath = allYearsPath' Turtle.directory
-
-allYearsPath' :: (TurtlePath -> TurtlePath) -> TurtlePath -> TurtlePath
-allYearsPath' dir p = dir p </> allYearsFileName
+allYearsPath journal = fst (FilePath.splitFileName journal) </> allYearsFileName
 
 includeFileName :: TurtlePath -> TurtlePath
 includeFileName journal = FilePath.takeFileName (FilePath.takeDirectory journal) ++ "-include.journal"
@@ -65,10 +62,23 @@ groupIncludeFilesPerYear ps@(p : _)
   | otherwise = groupValuesBy parentIncludeFilePath ps
 
 initialIncludeFilePath :: TurtlePath -> TurtlePath
-initialIncludeFilePath p = (Turtle.parent . Turtle.parent . Turtle.parent) p </> includeFileName p
+initialIncludeFilePath p = ancestorDir 3 p </> includeFileName p
 
 parentIncludeFilePath :: TurtlePath -> TurtlePath
-parentIncludeFilePath p = (Turtle.parent . Turtle.parent) p </> FilePath.takeFileName p
+parentIncludeFilePath p = ancestorDir 2 p </> FilePath.takeFileName p
+
+-- Keep the original path components (including separators) when constructing
+-- include-map keys. Relative keys have historically been rooted at "./".
+ancestorDir :: Int -> FilePath -> FilePath
+ancestorDir levels file = prefix </> FilePath.joinPath parents
+  where
+    (drive, rest) = FilePath.splitDrive file
+    parts = FilePath.splitPath rest
+    parents = take (length parts - levels) parts
+    prefix = case parents of
+      first : _ | first == "./" || first == "../" -> drive
+      _ | null drive -> "./"
+      _ -> drive
 
 toIncludeFiles :: (HasBaseDir o, HasVerbosity o) => o -> TChan LogMessage -> TurtleFileBundle -> IO (Map.Map TurtlePath T.Text)
 toIncludeFiles opts ch m = do
@@ -92,7 +102,7 @@ generatedIncludeText preMap postMap outputFile fs = do
   let preFiles = fromMaybe [] $ Map.lookup outputFile preMap
   let files = List.nub . List.sort $ fs
   let postFiles = fromMaybe [] $ Map.lookup outputFile postMap
-  let lns = map (toIncludeLine $ Turtle.directory outputFile) $ preFiles ++ files ++ postFiles
+  let lns = map (toIncludeLine $ FilePath.takeDirectory outputFile) $ preFiles ++ files ++ postFiles
   T.intercalate "\n" $ lns ++ [""]
 
 includePreamble :: T.Text
@@ -106,15 +116,21 @@ writeFileMap opts ch (m, allYears) = do
   _ <- writeFiles' $ (addPreamble . toIncludeFiles' Map.empty Map.empty) allYears
   writeFiles . (toIncludeFiles opts ch) $ m
 
-writeIncludesUpTo :: (HasBaseDir o, HasVerbosity o) => o -> TChan LogMessage -> TurtlePath -> [TurtlePath] -> IO [TurtlePath]
-writeIncludesUpTo _ _ _ [] = return []
-writeIncludesUpTo opts ch stopAt journalFiles = do
-  let shouldStop = any (\dir -> dir == stopAt) $ map Turtle.parent journalFiles
-  if shouldStop
-    then return journalFiles
-    else do
-      newJournalFiles <- groupAndWriteIncludeFiles opts ch journalFiles
-      writeIncludesUpTo opts ch stopAt newJournalFiles
+writeIncludesUpTo :: (HasBaseDir o, HasVerbosity o) => o -> TChan LogMessage -> AbsDir -> [AbsFile] -> IO [AbsFile]
+writeIncludesUpTo opts ch stopAt journals = do
+  let base = baseDir opts
+      journalFiles = filter (isJournalFile . Path.toFilePath) journals
+  boundary <- Path.stripProperPrefix base stopAt
+  unless (all (Path.isProperPrefixOf stopAt) journalFiles) $
+    ioError (userError "Journal file outside the requested include directory")
+  inputs <- mapM (Path.stripProperPrefix base) journalFiles
+  let groups = groupIncludesUpTo boundary inputs
+      absolute file = Path.toFilePath (base Path.</> file)
+      includes = Map.mapKeys absolute (Map.map (map absolute) groups)
+      years = yearsIncludeMap (Map.keys includes)
+      allAtStop = Path.toFilePath stopAt </> allYearsFileName
+  _ <- writeFileMap opts ch (includes, Map.insertWith (++) allAtStop [] years)
+  return [base Path.</> f | f <- Map.keys groups, Path.parent f == boundary]
 
 writeToplevelAllYearsInclude :: (HasBaseDir o, HasVerbosity o) => o -> IO [TurtlePath]
 writeToplevelAllYearsInclude opts = do
@@ -139,9 +155,9 @@ extraIncludesForFile opts ch file extraSuffixes manualFiles prices = do
       stem = if "." `List.isPrefixOf` name then name else FilePath.dropExtensions name
       dirprefix = takeWhile (/= '-') stem
       fileNames = [dirprefix ++ "-" ++ T.unpack suffix | suffix <- extraSuffixes]
-  let suffixFiles = map (Turtle.directory file </>) fileNames
-  let suffixDirFiles = map (((Turtle.directory file </> "_manual_") </> dirprefix) </>) manualFiles
-  let priceFiles = map ((((Turtle.directory file </> "..") </> "prices") </> dirprefix) </>) prices
+  let suffixFiles = map (FilePath.takeDirectory file </>) fileNames
+  let suffixDirFiles = map (((FilePath.takeDirectory file </> "_manual_") </> dirprefix) </>) manualFiles
+  let priceFiles = map ((((FilePath.takeDirectory file </> "..") </> "prices") </> dirprefix) </>) prices
   let extraFiles = suffixFiles ++ suffixDirFiles ++ priceFiles
   filtered <- filterPaths doesFileExist extraFiles
   let logMsg =
