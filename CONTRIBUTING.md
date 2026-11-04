@@ -72,42 +72,36 @@ git submodule update
 
 ### Build the Project
 
-You need a recent version of [stack](https://docs.haskellstack.org/en/stable/README/) installed.
-
-Then run:
+You can build and test from a clean checkout with either Stack or Cabal.
+[Stack](https://docs.haskellstack.org/en/stable/README/) is the project default
+and uses the LTS snapshot pinned in `stack.yaml`.
 
 ``` bash
-./bin/build-and-test
-```
-
-Which should end with this:
-
-```
-Copied executables to ~/.local/bin:
-- hledger-flow
-```
-
-Ensure that `${HOME}/.local/bin` is in your `PATH`.
-
-On Windows, run the Stack commands directly from PowerShell:
-
-``` powershell
+stack build
 stack test
-stack install
-stack exec hledger-flow -- --help
 ```
 
-Stack installs the required GHC and MSYS2 toolchain automatically. Use
+To build and test with Cabal, run:
+
+``` bash
+cabal build all
+cabal test all
+```
+
+To install the executable with Stack, run `stack install`. On macOS and Linux,
+ensure that the installation directory (usually `${HOME}/.local/bin`) is on
+your `PATH`. For Bash, add this line to `~/.bashrc`:
+
+``` bash
+export PATH="${HOME}/.local/bin:${PATH}"
+```
+
+On Windows, run the Stack commands directly from PowerShell. Stack installs
+the required GHC and MSYS2 toolchain automatically. Use
 `stack path --local-bin` to find the directory containing `hledger-flow.exe`.
 Running imports and reports also requires `hledger` on `PATH` (or the
 `--hledger-path` option). Any account-specific `preprocess` or `construct`
 scripts need an interpreter that is available on Windows.
-
-Usually this means adding this to your `~/.bashrc`:
-
-``` bash
-PATH="${HOME}/.local/bin:${PATH}"
-```
 
 ### Run the command-line scenarios
 
@@ -213,13 +207,14 @@ What is helpful in contributor pull requests:
 - if you want to help validate Hackage packaging, also verify that a source tarball can be produced locally:
 
 ``` bash
-./bin/build-and-test
+stack build
+stack test
 cabal check
 cabal sdist
 ```
 
-This project keeps `package.yaml` in git and ignores the generated `hledger-flow.cabal` file.
-If `cabal check` or `cabal sdist` complains that the cabal file is missing or stale, regenerate it first by running `stack test` (or another `stack` command that refreshes the cabal file from `package.yaml`).
+Edit package metadata in `package.yaml`. Run `stack test` to regenerate
+`hledger-flow.cabal` and commit both files together so Cabal users get the same bounds.
 
 ## For Maintainers
 

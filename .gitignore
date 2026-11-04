@@ -1,7 +1,6 @@
 .stack-work/
 dist/
 dist-newstyle/
-hledger-flow.cabal
 *~
 scratch
 scratch.org

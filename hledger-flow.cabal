@@ -1,0 +1,113 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.39.6.
+--
+-- see: https://github.com/sol/hpack
+
+name:           hledger-flow
+version:        0.16.4
+synopsis:       An hledger workflow focusing on automated statement import and classification.
+description:    Please see the README on GitHub at <https://github.com/apauley/hledger-flow#readme>
+category:       Finance, Console
+homepage:       https://github.com/apauley/hledger-flow#readme
+bug-reports:    https://github.com/apauley/hledger-flow/issues
+author:         Andreas Pauley <hledger-flow@pauley.org.za>
+maintainer:     Andreas Pauley <hledger-flow@pauley.org.za>
+copyright:      2023 Andreas Pauley
+license:        GPL-3
+license-file:   LICENSE
+build-type:     Simple
+extra-source-files:
+    README.md
+    ChangeLog.md
+
+source-repository head
+  type: git
+  location: https://github.com/apauley/hledger-flow
+
+library
+  exposed-modules:
+      Hledger.Flow.BaseDir
+      Hledger.Flow.Common
+      Hledger.Flow.DateTime
+      Hledger.Flow.DocHelpers
+      Hledger.Flow.Import.CSVImport
+      Hledger.Flow.Import.ImportHelpers
+      Hledger.Flow.Import.ImportHelpersTurtle
+      Hledger.Flow.Import.Types
+      Hledger.Flow.Internals
+      Hledger.Flow.Logging
+      Hledger.Flow.PathHelpers
+      Hledger.Flow.Reports
+      Hledger.Flow.RuntimeOptions
+      Hledger.Flow.Types
+  other-modules:
+      Paths_hledger_flow
+  hs-source-dirs:
+      src
+  ghc-options: -Wall
+  build-depends:
+      async >=2.2.5 && <2.3
+    , base >=4.20 && <4.22
+    , containers ==0.7.*
+    , directory >=1.3.8.5 && <1.4
+    , exceptions >=0.10.9 && <0.11
+    , filepath >=1.5.4.0 && <1.6
+    , gitrev >=1.3.1 && <1.4
+    , path >=0.9.6 && <0.10
+    , path-io >=1.8.2 && <1.9
+    , process >=1.6.26.1 && <1.7
+    , stm >=2.5.3.1 && <2.6
+    , text >=2.1.3 && <2.2
+    , time >=1.12.2 && <1.13 || >=1.14 && <1.15
+  default-language: Haskell2010
+
+executable hledger-flow
+  main-is: Main.hs
+  other-modules:
+      Parsing
+      Paths_hledger_flow
+  hs-source-dirs:
+      app
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall -fPIC
+  ld-options: -dynamic
+  build-depends:
+      base >=4.20 && <4.22
+    , hledger-flow
+    , optparse-applicative >=0.18.1.0 && <0.20
+    , path >=0.9.6 && <0.10
+    , text >=2.1.3 && <2.2
+  default-language: Haskell2010
+
+test-suite hledger-flow-test
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules:
+      BaseDir.Integration
+      Common.Integration
+      Common.Unit
+      CSVImport.ImportHelperTests
+      CSVImport.ImportHelperTurtleTests
+      CSVImport.Integration
+      CSVImport.Unit
+      ImportHelpers.Integration
+      PathHelpers.Unit
+      TestHelpers
+      TestHelpersTurtle
+      Paths_hledger_flow
+  hs-source-dirs:
+      test
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      HUnit >=1.6.2.0 && <1.7
+    , base >=4.20 && <4.22
+    , containers ==0.7.*
+    , directory >=1.3.8.5 && <1.4
+    , filepath >=1.5.4.0 && <1.6
+    , hledger-flow
+    , path >=0.9.6 && <0.10
+    , path-io >=1.8.2 && <1.9
+    , stm >=2.5.3.1 && <2.6
+    , text >=2.1.3 && <2.2
+    , time >=1.12.2 && <1.13 || >=1.14 && <1.15
+  default-language: Haskell2010
