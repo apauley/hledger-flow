@@ -25,6 +25,9 @@ die() { printf 'error: %b\n' "$*" >&2; exit 1; }
 say() { printf '\n==> %s\n' "$*"; }
 version() { awk '/^version:/ {print $2}' package.yaml; }
 tag_exists() { git rev-parse -q --verify "refs/tags/$1" >/dev/null; }
+# hledger-flow.cabal is generated and gitignored. hpack refuses to overwrite one it
+# thinks was edited (e.g. written by another hpack version), so always start fresh.
+regen_cabal() { rm -f hledger-flow.cabal; stack build --only-configure; }
 confirm() {
   [ -t 0 ] || die "'$1' needs an interactive terminal"
   read -r -p "$1 [y/N] " answer
@@ -72,7 +75,7 @@ cmd_deps() {
     upper=$(awk -F. '{print $1 "." $2 + 1}' <<<"$ver")
     perl -pi -e "s/^(\s*- \Q$pkg\E) >= \S+ && < \S+\$/\$1 >= $ver && < $upper/" package.yaml
   done
-  stack build --only-configure
+  regen_cabal
   bin/build-and-test
   cabal check
   if git diff --quiet -- stack.yaml stack.yaml.lock package.yaml; then
@@ -94,7 +97,7 @@ cmd_bump() {
   notes Unreleased | grep -q '[^[:space:]]' || die "'## Unreleased' is empty: describe the changes first"
   perl -pi -e "s/^version: .*/version: $new/" package.yaml
   perl -pi -e "s/^## Unreleased\$/## $new/" ChangeLog.md
-  stack build --only-configure
+  regen_cabal
   cmd_changelog
   confirm "Commit version bump $old -> $new?"
   git commit -m "Bump version to $new" -- package.yaml ChangeLog.md
@@ -132,7 +135,7 @@ cmd_check() {
   [ "$ci" = success ] || die "CI for HEAD is '${ci:-missing}' (run: bin/release ci)"
   have=$({ gh secret list -R "$REPO"; gh variable list -R "$REPO"; } | cut -f1)
   for n in $CI_SECRETS; do grep -qx "$n" <<<"$have" || die "missing GitHub secret or variable $n"; done
-  stack build --only-configure
+  regen_cabal
   cabal check
   cabal sdist
   cmd_changelog
@@ -163,7 +166,7 @@ cmd_hackage() {
   v=$(version)
   tarball=dist-newstyle/sdist/hledger-flow-$v.tar.gz
   cmd_verify
-  stack build --only-configure
+  regen_cabal
   cabal sdist
   cabal upload "$tarball"
   say "Review the candidate: https://hackage.haskell.org/package/hledger-flow-$v/candidate"
