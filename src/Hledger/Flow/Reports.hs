@@ -22,8 +22,7 @@ import qualified Hledger.Flow.Types as FlowTypes
 import System.Directory (createDirectoryIfMissing, doesFileExist, removeFile)
 import System.Environment (lookupEnv)
 import System.FilePath ((<.>), (</>))
-import Turtle ((%))
-import qualified Turtle as Turtle hiding (proc, stderr, stdout)
+import qualified Turtle (procStrictWithErr, single)
 import Prelude hiding (putStrLn, readFile, writeFile)
 
 data ReportParams = ReportParams
@@ -37,11 +36,11 @@ type ReportGenerator = RuntimeOptions -> TChan FlowTypes.LogMessage -> TurtlePat
 
 generateReports :: RuntimeOptions -> IO ()
 generateReports opts = withConsoleLogging $ \ch -> do
-  if (showOptions opts) then channelOutLn ch (Turtle.repr opts) else return ()
+  when (showOptions opts) $ channelOutLn ch (T.pack (show opts))
   (reports, diff) <- timeAction $ generateReports' opts ch
   let failedAttempts = lefts reports
-  let failedText = if List.null failedAttempts then "" else Turtle.format ("(and attempted to write " % Turtle.d % " more) ") $ length failedAttempts
-  channelOutLn ch $ Turtle.format ("Generated " % Turtle.d % " reports " % Turtle.s % "in " % Turtle.s) (length (rights reports)) failedText $ Turtle.repr diff
+  let failedText = if List.null failedAttempts then "" else "(and attempted to write " <> T.pack (show (length failedAttempts)) <> " more) "
+  channelOutLn ch $ "Generated " <> T.pack (show (length (rights reports))) <> " reports " <> failedText <> "in " <> T.pack (show diff)
 
 generateReports' :: RuntimeOptions -> TChan FlowTypes.LogMessage -> IO [Either TurtlePath TurtlePath]
 generateReports' opts ch = do
@@ -114,18 +113,18 @@ generateReport opts ch journal year reportsDir fileName args successCheck = do
   let relativeJournal = relativeToBase opts journal
   let relativeOutputFile = relativeToBase opts outputFile
   let confArgs = hledgerConfArgs opts
-  let reportArgs = confArgs ++ ["--file", Turtle.format Turtle.fp journal, "--period", Turtle.repr year] ++ args
-  let reportDisplayArgs = confArgs ++ ["--file", Turtle.format Turtle.fp relativeJournal, "--period", Turtle.repr year] ++ args
-  let hledger = Turtle.format Turtle.fp $ pathToTurtle . FlowTypes.hlPath . hledgerInfo $ opts :: T.Text
-  let cmdLabel = Turtle.format ("hledger " % Turtle.s) $ showCmdArgs reportDisplayArgs
+  let reportArgs = confArgs ++ ["--file", T.pack journal, "--period", T.pack (show year)] ++ args
+  let reportDisplayArgs = confArgs ++ ["--file", T.pack relativeJournal, "--period", T.pack (show year)] ++ args
+  let hledger = T.pack (pathToTurtle (FlowTypes.hlPath (hledgerInfo opts)))
+  let cmdLabel = "hledger " <> showCmdArgs reportDisplayArgs
   ((exitCode, stdOut, _), _) <- timeAndExitOnErr opts ch cmdLabel dummyLogger channelErr Turtle.procStrictWithErr (hledger, reportArgs, mempty)
   if (successCheck stdOut)
     then do
       T.writeFile outputFile (cmdLabel <> "\n\n" <> stdOut)
-      logVerbose opts ch $ Turtle.format ("Wrote " % Turtle.fp) $ relativeOutputFile
+      logVerbose opts ch $ "Wrote " <> T.pack relativeOutputFile
       return $ Right outputFile
     else do
-      channelErrLn ch $ Turtle.format ("Did not write '" % Turtle.fp % "' (" % Turtle.s % ") " % Turtle.s) relativeOutputFile cmdLabel (Turtle.repr exitCode)
+      channelErrLn ch $ "Did not write '" <> T.pack relativeOutputFile <> "' (" <> cmdLabel <> ") " <> T.pack (show exitCode)
       exists <- doesFileExist outputFile
       when exists (removeFile outputFile)
       return $ Left outputFile

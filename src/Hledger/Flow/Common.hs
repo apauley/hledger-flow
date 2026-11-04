@@ -325,7 +325,7 @@ listOwners :: (HasBaseDir o) => o -> Turtle.Shell TurtlePath
 listOwners opts = fmap FilePath.takeFileName $ lsDirs $ (turtleBaseDir opts) </> "import"
 
 intPath :: Integer -> TurtlePath
-intPath = T.unpack . (Turtle.format Turtle.d)
+intPath = show
 
 includeYears :: TChan LogMessage -> TurtlePath -> IO [Integer]
 includeYears ch includeFile = do
