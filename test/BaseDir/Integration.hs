@@ -99,7 +99,10 @@ testBaseDirWithTempDir initialPwd absoluteTempDir = do
 
   let absoluteBaseDir = absoluteTempDir </> baseDir
 
-  T.writeFile (pathToTurtle $ absoluteTempDir </> yearDir </> [relfile|test-file.txt|]) (T.pack $ "The expected base dir is " ++ show absoluteBaseDir)
+  let file = toFilePath (absoluteTempDir </> yearDir </> [relfile|test-file.txt|])
+  T.writeFile file (T.pack $ "The expected base dir is " ++ show absoluteBaseDir)
+  fileResult <- try $ determineBaseDir (Just file)
+  assertEqual "An existing file cannot be used as the base directory" (Left (InvalidTurtleDir file)) fileResult
 
   assertSubDirsForDetermineBaseDir absoluteTempDir absoluteBaseDir subDirs
   assertSubDirsForDetermineBaseDir absoluteTempDir absoluteBaseDir absoluteSubDirs

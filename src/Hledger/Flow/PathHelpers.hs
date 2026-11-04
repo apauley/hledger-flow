@@ -3,16 +3,17 @@
 module Hledger.Flow.PathHelpers where
 
 import Control.Monad.Catch (Exception, MonadThrow, throwM)
-import Control.Monad.IO.Class (MonadIO)
+import Control.Monad.IO.Class (MonadIO, liftIO)
 import qualified Data.Text as T
 import Hledger.Flow.DocHelpers (docURL)
 import Path ((</>))
 import qualified Path
 import qualified Path.IO as Path
+import System.Directory (doesDirectoryExist)
 import qualified System.FilePath as FilePath
-import qualified Turtle
 
-type TurtlePath = Turtle.FilePath
+-- Marks raw paths that still need migration to typed paths.
+type TurtlePath = FilePath
 
 type AbsFile = Path.Path Path.Abs Path.File
 
@@ -50,7 +51,7 @@ fromTurtleRelDir turtlePath = Path.parseRelDir turtlePath
 
 turtleToAbsDir :: (MonadIO m, MonadThrow m) => AbsDir -> TurtlePath -> m AbsDir
 turtleToAbsDir baseDir p = do
-  isDir <- Turtle.testdir p
+  isDir <- liftIO (doesDirectoryExist p)
   if isDir
     then Path.resolveDir baseDir p
     else throwM $ InvalidTurtleDir p
