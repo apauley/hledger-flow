@@ -4,6 +4,8 @@
 module Hledger.Flow.Common where
 
 import Control.Concurrent (threadDelay)
+import Control.Monad (filterM)
+import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Concurrent.STM
 import qualified Control.Foldl as Fold
 import Data.Char (isDigit)
@@ -260,15 +262,13 @@ filterPathsByFileStatus' filepred acc (file : files) = do
   let filtered = if (filepred filestat) then file : acc else acc
   filterPathsByFileStatus' filepred filtered files
 
-filterPaths :: (TurtlePath -> IO Bool) -> [TurtlePath] -> Turtle.Shell [TurtlePath]
+filterPaths :: MonadIO m => (TurtlePath -> IO Bool) -> [TurtlePath] -> m [TurtlePath]
 filterPaths = filterPaths' []
 
-filterPaths' :: [TurtlePath] -> (TurtlePath -> IO Bool) -> [TurtlePath] -> Turtle.Shell [TurtlePath]
-filterPaths' acc _ [] = return acc
-filterPaths' acc filepred (file : files) = do
-  shouldInclude <- Turtle.liftIO $ filepred file
-  let filtered = if shouldInclude then file : acc else acc
-  filterPaths' filtered filepred files
+filterPaths' :: MonadIO m => [TurtlePath] -> (TurtlePath -> IO Bool) -> [TurtlePath] -> m [TurtlePath]
+filterPaths' acc predicate files = do
+  found <- liftIO $ filterM predicate files
+  return (reverse found ++ acc)
 
 excludeHiddenFiles :: Turtle.Shell TurtlePath -> Turtle.Shell TurtlePath
 excludeHiddenFiles paths = do

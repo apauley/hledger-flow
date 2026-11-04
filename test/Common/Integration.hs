@@ -16,6 +16,7 @@ import qualified Hledger.Flow.RuntimeOptions as RT
 import Hledger.Flow.Types (LogMessage (StdErr))
 import qualified Path
 import qualified Path.IO as PathIO
+import System.Directory (doesFileExist)
 import Test.HUnit
 import TestHelpers (defaultOpts)
 import TestHelpersTurtle
@@ -56,9 +57,8 @@ testFilterPaths =
 
             let nonExistant = map (tmpdir </>) ["where", "is", "my", "mind"]
             let toFilter = nonExistant ++ onDisk
-            filtered <- single $ filterPaths testfile toFilter
-            let actual = List.sort filtered
-            liftIO $ assertEqual "The filtered paths should exclude files not actually on disk" onDisk actual
+            filtered <- liftIO $ filterPaths doesFileExist toFilter
+            liftIO $ assertEqual "Keep existing include files in reverse candidate order" (reverse onDisk) filtered
         )
     )
 

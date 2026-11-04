@@ -31,6 +31,7 @@ import Hledger.Flow.PathHelpers (TurtlePath)
 import Hledger.Flow.Types
 import qualified Path
 import qualified Path.IO as PathIO
+import System.Directory (doesFileExist)
 import qualified System.FilePath as FilePath
 import Turtle ((%), (</>))
 import qualified Turtle
@@ -140,7 +141,7 @@ extraIncludesForFile opts ch file extraSuffixes manualFiles prices = do
   let suffixDirFiles = map (((Turtle.directory file </> "_manual_") </> dirprefix) </>) manualFiles
   let priceFiles = map ((((Turtle.directory file </> "..") </> "prices") </> dirprefix) </>) prices
   let extraFiles = suffixFiles ++ suffixDirFiles ++ priceFiles
-  filtered <- Turtle.single $ filterPaths Turtle.testfile extraFiles
+  filtered <- filterPaths doesFileExist extraFiles
   let logMsg =
         Turtle.format
           ("Looking for possible extra include files for '" % Turtle.fp % "' among these " % Turtle.d % " options: " % Turtle.s % ". Found " % Turtle.d % ": " % Turtle.s)
