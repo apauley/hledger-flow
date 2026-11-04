@@ -1,0 +1,12 @@
+# The bank's raw CSV needs its account-specific preprocessor before conversion.
+<
+. ./test/shell/setup.sh
+printf '%s\n' '2016-03-01|Monthly bank fee|-5' > "$inbox/march.csv"
+printf '%s\n' '#!/bin/sh' 'tr "|" "," < "$1" > "$2"' > "$account/preprocess"
+chmod +x "$account/preprocess"
+flow import
+cat "$account/2-preprocessed/2016/march.csv"
+hledger -f "$journal" descriptions
+$ sh -eu
+2016-03-01,Monthly bank fee,-5
+Monthly bank fee

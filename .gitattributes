@@ -1,0 +1,2 @@
+test/shell/*.sh text eol=lf
+test/shell/*.test text eol=lf

@@ -1,0 +1,15 @@
+# Annual reports include both the bank statement and a manual cash expense.
+<
+. ./test/shell/setup.sh
+manual=import/gawie/_manual_/2016
+mkdir -p "$manual"
+printf '%s\n' '2016-03-02 Market' '    expenses:groceries  30' '    assets:cash' > "$manual/post-import.journal"
+flow import
+flow report --ascii-reports
+tr -d '\r' < reports/gawie/2016/accounts.txt > accounts.txt
+grep -Fx expenses:groceries accounts.txt
+grep -Fx expenses:bank-fees accounts.txt
+grep -E 'groceries.*30' reports/gawie/2016/income-expenses.txt > /dev/null
+$ sh -eu
+expenses:groceries
+expenses:bank-fees

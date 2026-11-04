@@ -128,6 +128,32 @@ Usually this means adding this to your =~/.bashrc=:
     PATH="${HOME}/.local/bin:${PATH}"
 #+END_SRC
 
+*** Run the command-line scenarios
+
+The shelltest suite exercises imports and reports with real =hledger= and
+=hledger-flow= executables. Each scenario creates its own temporary finance
+directory. From the repository root on macOS or Linux, with =hledger= on
+your =PATH=, run:
+
+#+BEGIN_SRC sh
+    stack build hledger-flow shelltestrunner
+    stack exec -- shelltest test/shell
+#+END_SRC
+
+On Windows, install the [[https://hledger.org/get-hledger-installed.html][latest upstream hledger release]] and put =hledger.exe=
+on your =PATH=. From Git Bash at the repository root, build =hledger-flow.exe=
+from this checkout and run the same scenarios as Windows CI:
+
+#+BEGIN_SRC sh
+    stack install hledger-flow shelltestrunner --local-bin-path dist
+    export PATH="$PWD/dist:$PATH"
+    shelltest --shell=sh --exclude=posix-preprocess.test test/shell
+#+END_SRC
+
+The excluded case creates an executable =#!/bin/sh= hook. The native
+Windows executable launches hooks directly, so this Unix shell script
+is exercised by the Linux and macOS jobs.
+
 *** Find an Issue
     :PROPERTIES:
     :CUSTOM_ID: find-an-issue

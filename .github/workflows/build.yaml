@@ -101,7 +101,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          eget simonmichael/hledger --all --to /usr/local/bin/
+          eget hledgerorg/hledger --all --to /usr/local/bin/
 
       - name: Show hledger version
         # hledger's releases are not available for linux-arm64
@@ -119,6 +119,12 @@ jobs:
 
       - name: Build and Test
         run: stack test --interleaved-output && stack install
+
+      - name: Test CLI scenarios
+        if: ${{ steps.global-variables.outputs.platform != 'linux-arm64' }}
+        run: |
+          stack build shelltestrunner
+          stack exec -- shelltest test/shell
 
       - name: Check hledger-flow info
         run: |
@@ -181,11 +187,27 @@ jobs:
           restore-keys: |
             windows-x64-stack-
 
-      - name: Build and Test
+      - name: Install the latest upstream hledger release
+        run: |
+          $zip = Join-Path $env:RUNNER_TEMP hledger-windows-x64.zip
+          $bin = Join-Path $env:RUNNER_TEMP hledger
+          Invoke-WebRequest https://github.com/hledgerorg/hledger/releases/latest/download/hledger-windows-x64.zip -OutFile $zip
+          Expand-Archive -LiteralPath $zip -DestinationPath $bin
+          $bin >> $env:GITHUB_PATH
+
+      - name: Build and test hledger-flow from this checkout
         run: |
           stack test --interleaved-output
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          stack install --local-bin-path dist
+          stack install hledger-flow shelltestrunner --local-bin-path dist
+
+      - name: Test native Windows CLI scenarios with Git Bash
+        shell: bash
+        run: |
+          export PATH="$PWD/dist:$PATH"
+          hledger --version
+          ./dist/hledger-flow.exe --version
+          shelltest --shell=sh --exclude=posix-preprocess.test test/shell
 
       - name: Package Windows binary
         run: |
