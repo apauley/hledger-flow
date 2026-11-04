@@ -9,6 +9,22 @@ Monthly bank fee
 assets:bank:cheque -5
 expenses:bank-fees 5
 
+# Sequential import writes the same journal and keeps command diagnostics on stderr.
+<
+. ./test/shell/setup.sh
+flow import
+test -s "$journal"
+cp "$journal" parallel.journal
+rm "$journal"
+hledger-flow --sequential import > sequential.out
+cmp parallel.journal "$journal"
+if grep -F 'Monthly bank fee' sequential.out; then exit 1; fi
+printf '%s\n' 'not-a-journal-directive' > directives.journal
+if hledger-flow --sequential import > sequential.out 2> sequential.err; then exit 1; fi
+grep -q 'directives\.journal:1' sequential.err
+cmp parallel.journal "$journal"
+$ sh -eu
+
 # A subsequent download adds a transaction without rewriting the current journal.
 <
 . ./test/shell/setup.sh

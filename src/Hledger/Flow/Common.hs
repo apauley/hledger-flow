@@ -115,7 +115,7 @@ logTimedAction opts ch cmdLabel extraCmdLabels cmd args stdoutLogger stderrLogge
   return timed
 
 timeAndExitOnErr ::
-  (HasSequential o, HasVerbosity o) =>
+  (HasVerbosity o) =>
   o ->
   TChan LogMessage ->
   T.Text ->
@@ -127,7 +127,7 @@ timeAndExitOnErr ::
 timeAndExitOnErr opts ch cmdLabel = timeAndExitOnErr' opts ch cmdLabel []
 
 timeAndExitOnErr' ::
-  (HasSequential o, HasVerbosity o) =>
+  (HasVerbosity o) =>
   o ->
   TChan LogMessage ->
   T.Text ->
@@ -169,14 +169,6 @@ timeAndExitOnErr' opts ch cmdLabel extraCmdLabels stdoutLogger stderrLogger proc
               cmdLabel
       errExit i ch exitMsg timed
     ExitSuccess -> return timed
-
-procWithEmptyOutput :: ProcFun
-procWithEmptyOutput cmd args stdinput = do
-  ec <- Turtle.proc cmd args stdinput
-  return (ec, T.empty, T.empty)
-
-parAwareProc :: (HasSequential o) => o -> ProcFun
-parAwareProc opts = if (sequential opts) then procWithEmptyOutput else Turtle.procStrictWithErr
 
 parAwareActions :: (HasSequential o, HasBatchSize o) => o -> [IO a] -> IO [a]
 parAwareActions opts = if (sequential opts) then sequence else parBatchedActions (batchSize opts) []

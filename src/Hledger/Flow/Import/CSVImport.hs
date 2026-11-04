@@ -26,7 +26,7 @@ import qualified Path
 import qualified Path.IO as PathIO
 import System.FilePath (dropExtensions, dropTrailingPathSeparator, replaceExtension, (<.>))
 import Turtle ((%))
-import qualified Turtle hiding (proc, procStrictWithErr, stderr, stdout)
+import qualified Turtle hiding (proc, stderr, stdout)
 import Prelude hiding (putStrLn, take, writeFile)
 
 type FileWasGenerated = Bool
@@ -146,7 +146,7 @@ preprocess opts ch script dirs src csvOut = do
   let relScript = relativeToBase opts (Path.toFilePath script)
   let relSrc = relativeToBase opts (Path.toFilePath src)
   let cmdLabel = Turtle.format ("executing '" % Turtle.fp % "' on '" % Turtle.fp % "'") relScript relSrc
-  _ <- timeAndExitOnErr opts ch cmdLabel channelOut channelErr (parAwareProc opts) (T.pack (Path.toFilePath script), args, Turtle.empty)
+  _ <- timeAndExitOnErr opts ch cmdLabel channelOut channelErr Turtle.procStrictWithErr (T.pack (Path.toFilePath script), args, Turtle.empty)
   return ()
 
 hledgerImport :: RuntimeOptions -> TChan FlowTypes.LogMessage -> ImportDirs Path.Abs -> AbsFile -> AbsFile -> IO ()
@@ -166,7 +166,7 @@ hledgerImport opts ch importDirs csvFile journalOut = do
       let args = hledgerConfArgs opts ++ ["print", "--explicit"] ++ directivesArgs ++ csvArgs
 
       let cmdLabel = Turtle.format ("importing '" % Turtle.fp % "' using rules file '" % Turtle.fp % "'") relCSV relRules
-      ((_, stdOut, _), _) <- timeAndExitOnErr opts ch cmdLabel dummyLogger channelErr (parAwareProc opts) (hledger, args, Turtle.empty)
+      ((_, stdOut, _), _) <- timeAndExitOnErr opts ch cmdLabel dummyLogger channelErr Turtle.procStrictWithErr (hledger, args, Turtle.empty)
       T.writeFile (Path.toFilePath journalOut) stdOut
     Nothing ->
       do
@@ -232,5 +232,5 @@ customConstruct opts ch constructScript dirs csvFile journalOut = do
 
   let relSrc = relativeToBase opts csvSrc
   let cmdLabel = Turtle.format ("executing '" % Turtle.fp % "' on '" % Turtle.fp % "'") relScript relSrc
-  _ <- timeAndExitOnErr' opts ch cmdLabel [constructCmdText] channelOut channelErr (parAwareProc opts) (hledger, args, stdLines)
+  _ <- timeAndExitOnErr' opts ch cmdLabel [constructCmdText] channelOut channelErr Turtle.procStrictWithErr (hledger, args, stdLines)
   return ()
