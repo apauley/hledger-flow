@@ -31,19 +31,12 @@ data ReportParams = ReportParams
 type ReportGenerator = RuntimeOptions -> TChan FlowTypes.LogMessage -> TurtlePath -> TurtlePath -> Integer -> IO (Either TurtlePath TurtlePath)
 
 generateReports :: RuntimeOptions -> IO ()
-generateReports opts =
-  Turtle.sh
-    ( do
-        ch <- Turtle.liftIO newTChanIO
-        logHandle <- Turtle.fork $ consoleChannelLoop ch
-        Turtle.liftIO $ if (showOptions opts) then channelOutLn ch (Turtle.repr opts) else return ()
-        (reports, diff) <- Turtle.time $ Turtle.liftIO $ generateReports' opts ch
-        let failedAttempts = lefts reports
-        let failedText = if List.null failedAttempts then "" else Turtle.format ("(and attempted to write " % Turtle.d % " more) ") $ length failedAttempts
-        Turtle.liftIO $ channelOutLn ch $ Turtle.format ("Generated " % Turtle.d % " reports " % Turtle.s % "in " % Turtle.s) (length (rights reports)) failedText $ Turtle.repr diff
-        Turtle.liftIO $ terminateChannelLoop ch
-        Turtle.wait logHandle
-    )
+generateReports opts = withConsoleLogging $ \ch -> do
+  if (showOptions opts) then channelOutLn ch (Turtle.repr opts) else return ()
+  (reports, diff) <- Turtle.time $ generateReports' opts ch
+  let failedAttempts = lefts reports
+  let failedText = if List.null failedAttempts then "" else Turtle.format ("(and attempted to write " % Turtle.d % " more) ") $ length failedAttempts
+  channelOutLn ch $ Turtle.format ("Generated " % Turtle.d % " reports " % Turtle.s % "in " % Turtle.s) (length (rights reports)) failedText $ Turtle.repr diff
 
 generateReports' :: RuntimeOptions -> TChan FlowTypes.LogMessage -> IO [Either TurtlePath TurtlePath]
 generateReports' opts ch = do

@@ -31,19 +31,12 @@ import Prelude hiding (putStrLn, take, writeFile)
 type FileWasGenerated = Bool
 
 importCSVs :: RuntimeOptions -> IO ()
-importCSVs opts =
-  Turtle.sh
-    ( do
-        ch <- Turtle.liftIO newTChanIO
-        logHandle <- Turtle.fork $ consoleChannelLoop ch
-        Turtle.liftIO $ when (showOptions opts) (channelOutLn ch (Turtle.repr opts))
-        Turtle.liftIO $ logVerbose opts ch "Starting import"
-        (journals, diff) <- Turtle.time $ Turtle.liftIO $ importCSVs' opts ch
-        let generatedJournals = filter snd journals
-        Turtle.liftIO $ channelOutLn ch $ Turtle.format ("Imported " % Turtle.d % "/" % Turtle.d % " journals in " % Turtle.s) (length generatedJournals) (length journals) $ Turtle.repr diff
-        Turtle.liftIO $ terminateChannelLoop ch
-        Turtle.wait logHandle
-    )
+importCSVs opts = withConsoleLogging $ \ch -> do
+  when (showOptions opts) (channelOutLn ch (Turtle.repr opts))
+  logVerbose opts ch "Starting import"
+  (journals, diff) <- Turtle.time $ importCSVs' opts ch
+  let generatedJournals = filter snd journals
+  channelOutLn ch $ Turtle.format ("Imported " % Turtle.d % "/" % Turtle.d % " journals in " % Turtle.s) (length generatedJournals) (length journals) $ Turtle.repr diff
 
 importCSVs' :: RuntimeOptions -> TChan FlowTypes.LogMessage -> IO [(AbsFile, FileWasGenerated)]
 importCSVs' opts ch = do
