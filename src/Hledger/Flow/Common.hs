@@ -8,7 +8,6 @@ import Control.Monad (filterM, forM_, when)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Concurrent.Async (concurrently, wait, withAsync)
 import Control.Concurrent.STM
-import qualified Control.Foldl as Fold
 import Data.Char (isDigit)
 import Data.Either
 import Data.Function (on)
@@ -38,7 +37,6 @@ import System.IO (hClose)
 import qualified System.Process as Process
 import System.IO.Error (tryIOError)
 import System.FilePath ((<.>))
-import qualified Turtle
 import Prelude hiding (putStrLn, readFile, writeFile)
 
 hledgerPathFromOption :: Maybe TurtlePath -> IO AbsFile
@@ -247,22 +245,6 @@ allYearsFileName = "all-years" <.> "journal"
 directivesFile :: (HasBaseDir o) => o -> AbsFile
 directivesFile opts = baseDir opts Path.</> [relfile|directives.journal|]
 
-onlyFiles :: Turtle.Shell TurtlePath -> Turtle.Shell TurtlePath
-onlyFiles = excludeHiddenFiles . filterPathsByFileStatus Turtle.isRegularFile
-
-filterPathsByFileStatus :: (Turtle.FileStatus -> Bool) -> Turtle.Shell TurtlePath -> Turtle.Shell TurtlePath
-filterPathsByFileStatus filepred files = do
-  files' <- shellToList files
-  filtered <- filterPathsByFileStatus' filepred [] files'
-  Turtle.select filtered
-
-filterPathsByFileStatus' :: (Turtle.FileStatus -> Bool) -> [TurtlePath] -> [TurtlePath] -> Turtle.Shell [TurtlePath]
-filterPathsByFileStatus' _ acc [] = return acc
-filterPathsByFileStatus' filepred acc (file : files) = do
-  filestat <- Turtle.stat file
-  let filtered = if (filepred filestat) then file : acc else acc
-  filterPathsByFileStatus' filepred filtered files
-
 filterPaths :: MonadIO m => (TurtlePath -> IO Bool) -> [TurtlePath] -> m [TurtlePath]
 filterPaths = filterPaths' []
 
@@ -271,27 +253,11 @@ filterPaths' acc predicate files = do
   found <- liftIO $ filterM predicate files
   return (reverse found ++ acc)
 
-excludeHiddenFiles :: Turtle.Shell TurtlePath -> Turtle.Shell TurtlePath
-excludeHiddenFiles paths = do
-  p <- paths
-  if "." `List.isPrefixOf` FilePath.takeFileName p then Turtle.empty else return p
-
 firstExistingFile :: [AbsFile] -> IO (Maybe AbsFile)
 firstExistingFile [] = return Nothing
 firstExistingFile (file : rest) = do
   exists <- Path.doesFileExist file
   if exists then return (Just file) else firstExistingFile rest
-
-basenameLine :: TurtlePath -> Turtle.Shell Turtle.Line
-basenameLine path = case (Turtle.textToLine $ T.pack $ Turtle.basename path) of
-  Nothing -> liftIO $ ioError (userError ("Unable to determine basename from path: " ++ path ++ "\n"))
-  Just bn -> return bn
-
-buildFilename :: [Turtle.Line] -> T.Text -> TurtlePath
-buildFilename identifiers ext = T.unpack (T.intercalate "-" (map Turtle.lineToText identifiers)) <.> (T.unpack ext)
-
-shellToList :: Turtle.Shell a -> Turtle.Shell [a]
-shellToList files = Turtle.fold files Fold.list
 
 writeFiles :: IO (Map.Map TurtlePath T.Text) -> IO [TurtlePath]
 writeFiles fileMap = do
