@@ -70,6 +70,15 @@ testRelativeToBase =
 
         let mismatch = relativeToBase' "/base/dir" "/unrelated/dir/file1.journal"
         assertEqual "A basedir with no shared prefix should return the supplied file unchanged" "/unrelated/dir/file1.journal" mismatch
+
+        assertEqual "Do not strip part of a sibling directory name" "base.other/file"
+          (relativeToBase' "base" "base.other/file")
+        assertEqual "Retain the trailing separator for a parent directory" "../"
+          (relativeToBase' "base" "base/..")
+        if FilePath.pathSeparator == '\\'
+          then assertEqual "A UNC share is not relative to the current drive root" "//server/share/file"
+                 (relativeToBase' "/" "//server/share/file")
+          else return ()
     )
 
 testExtractDigits :: Test

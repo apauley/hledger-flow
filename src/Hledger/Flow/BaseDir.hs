@@ -12,8 +12,8 @@ where
 
 import Control.Monad (when)
 import Control.Monad.Catch (MonadThrow, throwM)
-import Control.Monad.IO.Class (MonadIO)
-import Data.Maybe
+import Control.Monad.IO.Class (MonadIO, liftIO)
+import Data.List (stripPrefix)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import Hledger.Flow.PathHelpers
@@ -21,7 +21,6 @@ import Hledger.Flow.Types (BaseDir, HasBaseDir, RunDir, baseDir)
 import Path
 import Path.IO
 import qualified System.FilePath as FilePath
-import qualified Turtle (liftIO, repr, stripPrefix)
 
 determineBaseDir :: Maybe TurtlePath -> IO (BaseDir, RunDir)
 determineBaseDir suppliedDir = do
@@ -58,8 +57,8 @@ limitRunDir bd absRunDir = do
   let fun = composeN (runDirDepth - 4) parent
   let newRunDir = fun rel
   when (runDirDepth > 4) $ do
-    let msg = T.pack $ "Changing runDir from " ++ Turtle.repr rel ++ " to " ++ Turtle.repr newRunDir :: T.Text
-    Turtle.liftIO $ T.putStrLn msg
+    let msg = T.pack $ "Changing runDir from " ++ show rel ++ " to " ++ show newRunDir :: T.Text
+    liftIO $ T.putStrLn msg
   return newRunDir
 
 composeN :: Int -> (a -> a) -> (a -> a)
@@ -72,11 +71,14 @@ relativeToBase :: (HasBaseDir o) => o -> TurtlePath -> TurtlePath
 relativeToBase opts = relativeToBase' $ pathToTurtle (baseDir opts)
 
 relativeToBase' :: TurtlePath -> TurtlePath -> TurtlePath
-relativeToBase' bd p =
-  if forceTrailingSlash bd == forceTrailingSlash p
-    then "./"
-    else
-      fromMaybe p $ Turtle.stripPrefix (forceTrailingSlash bd) (FilePath.normalise p)
+relativeToBase' bd p
+  | forceTrailingSlash bd == forceTrailingSlash p = "./"
+  | otherwise =
+      case stripPrefix (FilePath.splitPath (forceTrailingSlash bd)) (FilePath.splitPath (FilePath.normalise p)) of
+        Nothing -> p
+        Just parts ->
+          let suffix = concat parts
+           in if FilePath.takeFileName suffix == ".." then suffix ++ "/" else suffix
 
 turtleBaseDir :: (HasBaseDir o) => o -> TurtlePath
 turtleBaseDir opts = pathToTurtle $ baseDir opts
