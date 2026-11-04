@@ -327,9 +327,9 @@ listOwners opts = fmap FilePath.takeFileName $ lsDirs $ (turtleBaseDir opts) </>
 intPath :: Integer -> TurtlePath
 intPath = show
 
-includeYears :: TChan LogMessage -> TurtlePath -> IO [Integer]
+includeYears :: TChan LogMessage -> AbsFile -> IO [Integer]
 includeYears ch includeFile = do
-  txt <- T.readFile includeFile
+  txt <- T.readFile (toFilePath includeFile)
   case includeYears' txt of
     Left msg -> do
       channelErrLn ch msg
