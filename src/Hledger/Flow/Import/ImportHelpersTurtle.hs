@@ -18,7 +18,7 @@ where
 
 import Control.Concurrent.STM (TChan)
 import Data.Either (isRight)
-import qualified Data.List as List (nub, sort)
+import qualified Data.List as List (isPrefixOf, nub, sort)
 import qualified Data.Map.Strict as Map
 import Data.Maybe (fromMaybe)
 import qualified Data.Text as T
@@ -33,14 +33,14 @@ import qualified Path
 import qualified Path.IO as PathIO
 import System.Directory (doesFileExist)
 import qualified System.FilePath as FilePath
-import Turtle ((%), (</>))
-import qualified Turtle
+import System.FilePath ((</>))
+import qualified Turtle (directory, parent)
 
 groupIncludeFiles :: [TurtlePath] -> (TurtleFileBundle, TurtleFileBundle)
 groupIncludeFiles = allYearIncludeFiles . groupIncludeFilesPerYear . filter isJournalFile
 
 isJournalFile :: TurtlePath -> Bool
-isJournalFile f = Turtle.extension f == Just "journal"
+isJournalFile f = FilePath.takeExtension f == ".journal"
 
 allYearIncludeFiles :: TurtleFileBundle -> (TurtleFileBundle, TurtleFileBundle)
 allYearIncludeFiles m = (m, yearsIncludeMap $ Map.keys m)
@@ -68,7 +68,7 @@ initialIncludeFilePath :: TurtlePath -> TurtlePath
 initialIncludeFilePath p = (Turtle.parent . Turtle.parent . Turtle.parent) p </> includeFileName p
 
 parentIncludeFilePath :: TurtlePath -> TurtlePath
-parentIncludeFilePath p = (Turtle.parent . Turtle.parent) p </> Turtle.filename p
+parentIncludeFilePath p = (Turtle.parent . Turtle.parent) p </> FilePath.takeFileName p
 
 toIncludeFiles :: (HasBaseDir o, HasVerbosity o) => o -> TChan LogMessage -> TurtleFileBundle -> IO (Map.Map TurtlePath T.Text)
 toIncludeFiles opts ch m = do
@@ -83,7 +83,7 @@ addPreamble :: Map.Map TurtlePath T.Text -> Map.Map TurtlePath T.Text
 addPreamble = Map.map (\txt -> includePreamble <> "\n" <> txt)
 
 toIncludeLine :: TurtlePath -> TurtlePath -> T.Text
-toIncludeLine base file = Turtle.format ("include " % Turtle.fp) $ map forwardSlash $ relativeToBase' base file
+toIncludeLine base file = "include " <> T.pack (map forwardSlash (relativeToBase' base file))
   where
     forwardSlash c = if FilePath.isPathSeparator c then '/' else c
 
@@ -135,23 +135,23 @@ extraIncludes' opts ch acc (file : files) extraSuffixes manualFiles prices = do
 
 extraIncludesForFile :: (HasVerbosity o, HasBaseDir o) => o -> TChan LogMessage -> TurtlePath -> [T.Text] -> [TurtlePath] -> [TurtlePath] -> IO TurtleFileBundle
 extraIncludesForFile opts ch file extraSuffixes manualFiles prices = do
-  let dirprefix = T.unpack $ fst $ T.breakOn "-" $ Turtle.format Turtle.fp $ Turtle.basename file
-  let fileNames = map (T.unpack . Turtle.format (Turtle.fp % "-" % Turtle.s) dirprefix) extraSuffixes
+  let name = FilePath.takeFileName file
+      stem = if "." `List.isPrefixOf` name then name else FilePath.dropExtensions name
+      dirprefix = takeWhile (/= '-') stem
+      fileNames = [dirprefix ++ "-" ++ T.unpack suffix | suffix <- extraSuffixes]
   let suffixFiles = map (Turtle.directory file </>) fileNames
   let suffixDirFiles = map (((Turtle.directory file </> "_manual_") </> dirprefix) </>) manualFiles
   let priceFiles = map ((((Turtle.directory file </> "..") </> "prices") </> dirprefix) </>) prices
   let extraFiles = suffixFiles ++ suffixDirFiles ++ priceFiles
   filtered <- filterPaths doesFileExist extraFiles
   let logMsg =
-        Turtle.format
-          ("Looking for possible extra include files for '" % Turtle.fp % "' among these " % Turtle.d % " options: " % Turtle.s % ". Found " % Turtle.d % ": " % Turtle.s)
-          (relativeToBase opts file)
-          (length extraFiles)
-          (Turtle.repr $ relativeFilesAsText opts extraFiles)
-          (length filtered)
-          (Turtle.repr $ relativeFilesAsText opts filtered)
+        "Looking for possible extra include files for '" <> T.pack (relativeToBase opts file)
+          <> "' among these " <> T.pack (show (length extraFiles)) <> " options: "
+          <> T.pack (show (relativeFilesAsText opts extraFiles))
+          <> ". Found " <> T.pack (show (length filtered)) <> ": "
+          <> T.pack (show (relativeFilesAsText opts filtered))
   logVerbose opts ch logMsg
   return $ Map.fromList [(file, filtered)]
 
 relativeFilesAsText :: (HasBaseDir o) => o -> [TurtlePath] -> [T.Text]
-relativeFilesAsText opts = map (Turtle.format Turtle.fp . relativeToBase opts)
+relativeFilesAsText opts = map (T.pack . relativeToBase opts)
