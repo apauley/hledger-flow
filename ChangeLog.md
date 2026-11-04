@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Fix `--sequential import`, which could print transactions to the terminal
+  and overwrite the generated journal with an empty file. It now writes the
+  same journal as a parallel import and keeps diagnostics visible.
+- Keep generated files under the correct account when an owner, bank, or
+  account is named `1-in` or `2-preprocessed`. Include those journals in the
+  root ledger.
 - Update the Stack resolver to LTS 24.65 (GHC 9.10.3).
 - Add Windows x64 CI builds and a `hledger-flow-windows-x64.zip` release archive.
 - Fix Windows compilation and make the test suite portable.
