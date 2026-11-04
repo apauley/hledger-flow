@@ -67,3 +67,18 @@ hledger -f all-years.journal balance expenses --flat --no-total --format '%(acco
 $ sh -eu
 expenses:bank-fees 5
 expenses:groceries 30
+
+# An account named 1-in keeps its own cached CSV, journal and ledger includes.
+<
+. ./test/shell/setup.sh
+mv "$account" import/gawie/bogart/1-in
+account=import/gawie/bogart/1-in
+mkdir -p "$account/2-preprocessed/2016"
+printf '%s\n' '2016-03-01,From cached CSV,-5' > "$account/2-preprocessed/2016/march.csv"
+flow import
+hledger -f "$account/3-journal/2016/march.journal" descriptions
+hledger -f all-years.journal descriptions
+test ! -e import/gawie/bogart/3-journal
+$ sh -eu
+From cached CSV
+From cached CSV

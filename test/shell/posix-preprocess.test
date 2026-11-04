@@ -10,3 +10,26 @@ hledger -f "$journal" descriptions
 $ sh -eu
 2016-03-01,Monthly bank fee,-5
 Monthly bank fee
+
+# Both hooks receive the account's file and the original bank, account and owner names.
+<
+. ./test/shell/setup.sh
+mv import/gawie import/2-preprocessed
+mv import/2-preprocessed/bogart/cheque import/2-preprocessed/bogart/1-in
+account=import/2-preprocessed/bogart/1-in
+mv "$account/1-in/2016/march.csv" "$account/1-in/2016/march.bank.txt"
+printf '%s\n' '#!/bin/sh' 'set -eu' \
+    'test "$3/$4/$5" = "bogart/1-in/2-preprocessed"' \
+    'cp "$1" "$2"' > "$account/preprocess"
+printf '%s\n' '#!/bin/sh' 'set -eu' \
+    'test "$2/$3/$4/$5" = "-/bogart/1-in/2-preprocessed"' \
+    'case "$1" in */1-in/2-preprocessed/2016/march.bank.csv) ;; *) exit 1 ;; esac' \
+    'hledger -f "$1" --rules-file import/bogart.rules print' > "$account/construct"
+chmod +x "$account/preprocess" "$account/construct"
+flow import
+cmp "$account/1-in/2016/march.bank.txt" "$account/2-preprocessed/2016/march.bank.csv"
+hledger -f "$account/3-journal/2016/march.bank.journal" descriptions
+hledger -f all-years.journal descriptions
+$ sh -eu
+Monthly bank fee
+Monthly bank fee

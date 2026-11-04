@@ -10,7 +10,7 @@ import qualified Data.Text as T
 import Hledger.Flow.Common (groupValuesBy)
 import Hledger.Flow.DocHelpers (docURL)
 import Hledger.Flow.Import.Types (ImportDirs (..), InputFileBundle)
-import Hledger.Flow.PathHelpers (AbsDir, AbsFile, RelDir, RelFile, findFilesIn, pathSize)
+import Hledger.Flow.PathHelpers (AbsDir, AbsFile, RelDir, RelFile, findFilesInWith, pathSize)
 import Path
 import System.FilePath (dropTrailingPathSeparator)
 
@@ -34,13 +34,13 @@ extractImportDirs inputFile = walk (parent inputFile) []
 
 findInputFiles :: Integer -> AbsDir -> IO [AbsFile]
 findInputFiles startYear = do
-  let excludeDirs = [[reldir|2-preprocessed|], [reldir|3-journal|]] ++ commonExcludeDirs
-  findFilesIn (includeYearFilesForParent [reldir|1-in|] startYear) excludeDirs
+  let excludeDirs = excludeStageDirs [[reldir|2-preprocessed|], [reldir|3-journal|]]
+  findFilesInWith (includeYearFilesForParent [reldir|1-in|] startYear) excludeDirs
 
 findJournalFiles :: AbsDir -> IO [AbsFile]
 findJournalFiles = do
-  let excludeDirs = [[reldir|1-in|], [reldir|2-preprocessed|]] ++ commonExcludeDirs
-  findFilesIn (includeYearFilesForParent [reldir|3-journal|] 0) excludeDirs
+  let excludeDirs = excludeStageDirs [[reldir|1-in|], [reldir|2-preprocessed|]]
+  findFilesInWith (includeYearFilesForParent [reldir|3-journal|] 0) excludeDirs
 
 -- | Include only files directly underneath parentDir/yearDir, e.g. 1-in/2020/* or 3-journal/2020/*
 includeYearFilesForParent :: RelDir -> Integer -> AbsDir -> Bool
@@ -55,8 +55,13 @@ includeYearFilesForParent parentDir startYear d =
 dirToStringNoSlash :: AbsDir -> String
 dirToStringNoSlash = init . Path.toFilePath . Path.dirname
 
-commonExcludeDirs :: [RelDir]
-commonExcludeDirs = [[reldir|_manual_|], [reldir|__pycache__|]]
+-- Stage names are reserved only directly below an account.
+excludeStageDirs :: [RelDir] -> AbsDir -> [RelDir]
+excludeStageDirs stages dir
+  | dirname (parent (parent (parent dir))) == [reldir|import|] = stages ++ common
+  | otherwise = common
+  where
+    common = [[reldir|_manual_|], [reldir|__pycache__|]]
 
 groupIncludesUpTo :: RelDir -> [RelFile] -> InputFileBundle
 groupIncludesUpTo = groupIncludesUpTo' Map.empty

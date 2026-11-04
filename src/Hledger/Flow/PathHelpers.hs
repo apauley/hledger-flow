@@ -79,9 +79,12 @@ findFilesIn ::
   AbsDir ->
   -- | Absolute paths to all files in the directories which match the predicate
   m [AbsFile]
-findFilesIn includePred excludeDirs = Path.walkDirAccum (Just excludeHandler) accumulator
+findFilesIn includePred excludeDirs = findFilesInWith includePred (const excludeDirs)
+
+findFilesInWith :: MonadIO m => (AbsDir -> Bool) -> (AbsDir -> [RelDir]) -> AbsDir -> m [AbsFile]
+findFilesInWith includePred excludeDirs = Path.walkDirAccum (Just excludeHandler) accumulator
   where
-    excludeHandler currentDir _ _ = return $ Path.WalkExclude (map (currentDir </>) excludeDirs)
+    excludeHandler currentDir _ _ = return $ Path.WalkExclude (map (currentDir </>) (excludeDirs currentDir))
     accumulator currentDir _ files =
       if includePred currentDir
         then return $ excludeHiddenFiles files

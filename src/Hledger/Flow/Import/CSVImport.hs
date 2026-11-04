@@ -19,11 +19,12 @@ import Hledger.Flow.Import.ImportHelpers
 import Hledger.Flow.Import.ImportHelpersTurtle (writeIncludesUpTo, writeToplevelAllYearsInclude)
 import Hledger.Flow.Import.Types
 import Hledger.Flow.Logging
-import Hledger.Flow.PathHelpers (AbsFile, TurtlePath, pathToTurtle)
+import Hledger.Flow.PathHelpers (AbsFile, RelDir, TurtlePath, pathToTurtle)
 import Hledger.Flow.RuntimeOptions
 import qualified Hledger.Flow.Types as FlowTypes
 import qualified Path
-import System.FilePath (dropTrailingPathSeparator)
+import qualified Path.IO as PathIO
+import System.FilePath (dropTrailingPathSeparator, replaceExtension)
 import Turtle ((%), (<.>), (</>))
 import qualified Turtle hiding (proc, procStrictWithErr, stderr, stdout)
 import Prelude hiding (putStrLn, take, writeFile)
@@ -45,7 +46,7 @@ importCSVs opts =
         Turtle.wait logHandle
     )
 
-importCSVs' :: RuntimeOptions -> TChan FlowTypes.LogMessage -> IO [(TurtlePath, FileWasGenerated)]
+importCSVs' :: RuntimeOptions -> TChan FlowTypes.LogMessage -> IO [(AbsFile, FileWasGenerated)]
 importCSVs' opts ch = do
   let effectiveDir = effectiveRunDir (baseDir opts) (importRunDir opts)
   let startYearMsg = maybe " " (Turtle.format (" (for the year " % Turtle.d % " and onwards) ")) (importStartYear opts)
@@ -77,69 +78,63 @@ importCSVs' opts ch = do
       channelOutLn ch $ Turtle.format ("Wrote include files for " % Turtle.d % " journals in " % Turtle.s) (length journalsOnDisk) (Turtle.repr includeGenTime)
       return importedJournals
 
-extractAndImport :: RuntimeOptions -> TChan FlowTypes.LogMessage -> AbsFile -> IO (TurtlePath, FileWasGenerated)
+extractAndImport :: RuntimeOptions -> TChan FlowTypes.LogMessage -> AbsFile -> IO (AbsFile, FileWasGenerated)
 extractAndImport opts ch inputFile = do
   case extractImportDirs inputFile of
     Right importDirs -> importCSV opts ch importDirs inputFile
     Left errorMessage -> do
-      errExit 1 ch errorMessage (pathToTurtle inputFile, False)
+      errExit 1 ch errorMessage (inputFile, False)
 
-importCSV :: RuntimeOptions -> TChan FlowTypes.LogMessage -> ImportDirs Path.Abs -> AbsFile -> IO (TurtlePath, FileWasGenerated)
+importCSV :: RuntimeOptions -> TChan FlowTypes.LogMessage -> ImportDirs Path.Abs -> AbsFile -> IO (AbsFile, FileWasGenerated)
 importCSV opts ch importDirs srcFile = do
-  let preprocessScript = pathToTurtle (accountDir importDirs Path.</> [Path.relfile|preprocess|])
-  let constructScript = pathToTurtle (accountDir importDirs Path.</> [Path.relfile|construct|])
-  let bankName = importDirLine (bankDir importDirs)
-  let accountName = importDirLine (accountDir importDirs)
-  let ownerName = importDirLine (ownerDir importDirs)
-  (csvFile, preprocessHappened) <- preprocessIfNeeded opts ch preprocessScript bankName accountName ownerName (pathToTurtle srcFile)
-  let journalOut = changePathAndExtension "3-journal/" "journal" csvFile
+  csvOut <- outputFile importDirs [Path.reldir|2-preprocessed|] ".csv" srcFile
+  (csvFile, preprocessHappened) <- preprocessIfNeeded opts ch importDirs srcFile csvOut
+  journalOut <- outputFile importDirs [Path.reldir|3-journal|] ".journal" csvFile
   shouldImport <-
     if onlyNewFiles opts && not preprocessHappened
-      then needsRegeneration csvFile journalOut
+      then needsRegeneration (Path.toFilePath csvFile) (Path.toFilePath journalOut)
       else return True
+  PathIO.createDirIfMissing True (Path.parent journalOut)
+  if shouldImport
+    then do
+      let script = accountDir importDirs Path.</> [Path.relfile|construct|]
+      hasConstruct <- verboseTestFile opts ch (Path.toFilePath script)
+      if hasConstruct
+        then customConstruct opts ch script importDirs csvFile journalOut
+        else hledgerImport opts ch importDirs csvFile journalOut
+    else logNewFileSkip opts ch "import" journalOut
+  return (journalOut, shouldImport)
 
-  importFun <-
-    if shouldImport
-      then constructOrImport opts ch constructScript bankName accountName ownerName
-      else do
-        _ <- logNewFileSkip opts ch "import" journalOut
-        return $ \_p1 _p2 -> return journalOut
-  Turtle.mktree $ Turtle.directory journalOut
-  out <- importFun csvFile journalOut
-  return (out, shouldImport)
+outputFile :: ImportDirs Path.Abs -> RelDir -> String -> AbsFile -> IO AbsFile
+outputFile dirs stage ext source = do
+  name <- Path.parseRelFile (replaceExtension (Path.toFilePath (Path.filename source)) ext)
+  return (accountDir dirs Path.</> stage Path.</> Path.dirname (yearDir dirs) Path.</> name)
 
-constructOrImport :: RuntimeOptions -> TChan FlowTypes.LogMessage -> TurtlePath -> Turtle.Line -> Turtle.Line -> Turtle.Line -> IO (TurtlePath -> TurtlePath -> IO TurtlePath)
-constructOrImport opts ch constructScript bankName accountName ownerName = do
-  constructScriptExists <- verboseTestFile opts ch constructScript
-  if constructScriptExists
-    then return $ customConstruct opts ch constructScript bankName accountName ownerName
-    else return $ hledgerImport opts ch
-
-preprocessIfNeeded :: RuntimeOptions -> TChan FlowTypes.LogMessage -> TurtlePath -> Turtle.Line -> Turtle.Line -> Turtle.Line -> TurtlePath -> IO (TurtlePath, Bool)
-preprocessIfNeeded opts ch script bank account owner src = do
-  let csvOut = changePathAndExtension "2-preprocessed/" "csv" src
-  scriptExists <- verboseTestFile opts ch script
-  targetExists <- verboseTestFile opts ch csvOut
+preprocessIfNeeded :: RuntimeOptions -> TChan FlowTypes.LogMessage -> ImportDirs Path.Abs -> AbsFile -> AbsFile -> IO (AbsFile, Bool)
+preprocessIfNeeded opts ch dirs src csvOut = do
+  let script = accountDir dirs Path.</> [Path.relfile|preprocess|]
+  scriptExists <- verboseTestFile opts ch (Path.toFilePath script)
+  targetExists <- verboseTestFile opts ch (Path.toFilePath csvOut)
   shouldProceed <-
     if onlyNewFiles opts && scriptExists
       then do
-        needsRegen <- needsRegeneration src csvOut
+        needsRegen <- needsRegeneration (Path.toFilePath src) (Path.toFilePath csvOut)
         Control.Monad.unless needsRegen $ logNewFileSkip opts ch "preprocess" csvOut
         return needsRegen
       else return scriptExists
   if shouldProceed
     then do
-      out <- preprocess opts ch script bank account owner src csvOut
-      return (out, True)
+      preprocess opts ch script dirs src csvOut
+      return (csvOut, True)
     else do
       if targetExists
         then return (csvOut, False)
         else return (src, False)
 
-logNewFileSkip :: RuntimeOptions -> TChan FlowTypes.LogMessage -> T.Text -> TurtlePath -> IO ()
+logNewFileSkip :: RuntimeOptions -> TChan FlowTypes.LogMessage -> T.Text -> AbsFile -> IO ()
 logNewFileSkip opts ch logIdentifier absTarget =
   Control.Monad.when (onlyNewFiles opts) $ do
-    let relativeTarget = relativeToBase opts absTarget
+    let relativeTarget = relativeToBase opts (Path.toFilePath absTarget)
     logVerbose opts ch $
       Turtle.format
         ( "Skipping "
@@ -151,26 +146,19 @@ logNewFileSkip opts ch logIdentifier absTarget =
         logIdentifier
         relativeTarget
 
-preprocess :: RuntimeOptions -> TChan FlowTypes.LogMessage -> TurtlePath -> Turtle.Line -> Turtle.Line -> Turtle.Line -> TurtlePath -> TurtlePath -> IO TurtlePath
-preprocess opts ch script bank account owner src csvOut = do
-  Turtle.mktree $ Turtle.directory csvOut
-  let args = [Turtle.format Turtle.fp src, Turtle.format Turtle.fp csvOut, Turtle.lineToText bank, Turtle.lineToText account, Turtle.lineToText owner]
-  let relScript = relativeToBase opts script
-  let relSrc = relativeToBase opts src
+preprocess :: RuntimeOptions -> TChan FlowTypes.LogMessage -> AbsFile -> ImportDirs Path.Abs -> AbsFile -> AbsFile -> IO ()
+preprocess opts ch script dirs src csvOut = do
+  PathIO.createDirIfMissing True (Path.parent csvOut)
+  let args = map (T.pack . Path.toFilePath) [src, csvOut] ++ hookDirArgs dirs
+  let relScript = relativeToBase opts (Path.toFilePath script)
+  let relSrc = relativeToBase opts (Path.toFilePath src)
   let cmdLabel = Turtle.format ("executing '" % Turtle.fp % "' on '" % Turtle.fp % "'") relScript relSrc
-  _ <- timeAndExitOnErr opts ch cmdLabel channelOut channelErr (parAwareProc opts) (Turtle.format Turtle.fp script, args, Turtle.empty)
-  return csvOut
+  _ <- timeAndExitOnErr opts ch cmdLabel channelOut channelErr (parAwareProc opts) (T.pack (Path.toFilePath script), args, Turtle.empty)
+  return ()
 
-hledgerImport :: RuntimeOptions -> TChan FlowTypes.LogMessage -> TurtlePath -> TurtlePath -> IO TurtlePath
-hledgerImport opts ch csvSrc journalOut = do
-  csvFile <- Path.parseAbsFile csvSrc
-  case extractImportDirs csvFile of
-    Right importDirs -> hledgerImport' opts ch importDirs csvSrc journalOut
-    Left errorMessage -> do
-      errExit 1 ch errorMessage csvSrc
-
-hledgerImport' :: RuntimeOptions -> TChan FlowTypes.LogMessage -> ImportDirs b -> TurtlePath -> TurtlePath -> IO TurtlePath
-hledgerImport' opts ch importDirs csvSrc journalOut = do
+hledgerImport :: RuntimeOptions -> TChan FlowTypes.LogMessage -> ImportDirs Path.Abs -> AbsFile -> AbsFile -> IO ()
+hledgerImport opts ch importDirs csvFile journalOut = do
+  let csvSrc = Path.toFilePath csvFile
   let candidates = rulesFileCandidates csvSrc importDirs
   maybeRulesFile <- firstExistingFile candidates
   let relCSV = relativeToBase opts csvSrc
@@ -185,8 +173,7 @@ hledgerImport' opts ch importDirs csvSrc journalOut = do
 
       let cmdLabel = Turtle.format ("importing '" % Turtle.fp % "' using rules file '" % Turtle.fp % "'") relCSV relRules
       ((_, stdOut, _), _) <- timeAndExitOnErr opts ch cmdLabel dummyLogger channelErr (parAwareProc opts) (hledger, args, Turtle.empty)
-      _ <- T.writeFile journalOut stdOut
-      return journalOut
+      T.writeFile (Path.toFilePath journalOut) stdOut
     Nothing ->
       do
         let relativeCandidates = map (relativeToBase opts) candidates
@@ -206,7 +193,7 @@ hledgerImport' opts ch importDirs csvSrc journalOut = do
                 (length candidates)
                 candidatesTxt
                 (docURL "rules-files")
-        errExit 1 ch msg csvSrc
+        errExit 1 ch msg ()
 
 rulesFileCandidates :: TurtlePath -> ImportDirs b -> [TurtlePath]
 rulesFileCandidates csvSrc importDirs = statementSpecificRulesFiles csvSrc importDirs ++ generalRulesFiles importDirs
@@ -214,8 +201,8 @@ rulesFileCandidates csvSrc importDirs = statementSpecificRulesFiles csvSrc impor
 importDirLines :: Path.Path b Path.Dir -> [Turtle.Line]
 importDirLines = NonEmpty.toList . Turtle.textToLines . T.pack . dropTrailingPathSeparator . Path.toFilePath . Path.dirname
 
-importDirLine :: Path.Path b Path.Dir -> Turtle.Line
-importDirLine = foldl (<>) "" . importDirLines
+hookDirArgs :: ImportDirs b -> [T.Text]
+hookDirArgs dirs = map (Turtle.lineToText . foldl (<>) "" . importDirLines) [bankDir dirs, accountDir dirs, ownerDir dirs]
 
 generalRulesFiles :: ImportDirs b -> [TurtlePath]
 generalRulesFiles importDirs = do
@@ -236,11 +223,12 @@ statementSpecificRulesFiles csvSrc importDirs = do
       map ((</> srcSpecificFilename) . pathToTurtle) [accountDir importDirs, bankDir importDirs, importDir importDirs]
     else []
 
-customConstruct :: RuntimeOptions -> TChan FlowTypes.LogMessage -> TurtlePath -> Turtle.Line -> Turtle.Line -> Turtle.Line -> TurtlePath -> TurtlePath -> IO TurtlePath
-customConstruct opts ch constructScript bank account owner csvSrc journalOut = do
-  let script = Turtle.format Turtle.fp constructScript :: T.Text
-  let relScript = relativeToBase opts constructScript
-  let constructArgs = [Turtle.format Turtle.fp csvSrc, "-", Turtle.lineToText bank, Turtle.lineToText account, Turtle.lineToText owner]
+customConstruct :: RuntimeOptions -> TChan FlowTypes.LogMessage -> AbsFile -> ImportDirs Path.Abs -> AbsFile -> AbsFile -> IO ()
+customConstruct opts ch constructScript dirs csvFile journalOut = do
+  let csvSrc = Path.toFilePath csvFile
+  let script = T.pack (Path.toFilePath constructScript)
+  let relScript = relativeToBase opts (Path.toFilePath constructScript)
+  let constructArgs = [T.pack csvSrc, "-"] ++ hookDirArgs dirs
   let constructCmdText = Turtle.format ("Running: " % Turtle.fp % " " % Turtle.s) relScript (showCmdArgs constructArgs)
   let stdLines = inprocWithErrFun (channelErrLn ch) (script, constructArgs, Turtle.empty)
   let hledger = Turtle.format Turtle.fp $ pathToTurtle . FlowTypes.hlPath . hledgerInfo $ opts :: T.Text
@@ -251,10 +239,10 @@ customConstruct opts ch constructScript bank account owner csvSrc journalOut = d
                "--file",
                "-",
                "--output-file",
-               Turtle.format Turtle.fp journalOut
+               T.pack (Path.toFilePath journalOut)
              ]
 
   let relSrc = relativeToBase opts csvSrc
   let cmdLabel = Turtle.format ("executing '" % Turtle.fp % "' on '" % Turtle.fp % "'") relScript relSrc
   _ <- timeAndExitOnErr' opts ch cmdLabel [constructCmdText] channelOut channelErr (parAwareProc opts) (hledger, args, stdLines)
-  return journalOut
+  return ()
