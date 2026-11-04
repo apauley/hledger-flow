@@ -68,6 +68,29 @@ $ sh -eu
 expenses:bank-fees 5
 expenses:groceries 30
 
+# Statement overrides win in account, bank, then import order, ahead of the general rules.
+<
+. ./test/shell/setup.sh
+mv "$inbox/march.csv" "$inbox/march_rfo-market.bank.csv"
+journal="$account/3-journal/2016/march_rfo-market.bank.journal"
+bank=import/gawie/bogart
+make_rule() { sed "s/bank-fees/$2/" import/bogart.rules > "$1"; }
+make_rule "$account/rfo-market.rules" account-override
+make_rule "$bank/rfo-market.rules" bank-override
+make_rule import/rfo-market.rules import-override
+make_rule "$account/bogart-cheque.rules" account-default
+for rule in "$account/rfo-market.rules" "$bank/rfo-market.rules" import/rfo-market.rules "$account/bogart-cheque.rules" import/bogart.rules; do
+    flow import
+    hledger -f "$journal" accounts '^expenses:'
+    rm "$rule"
+done
+$ sh -eu
+expenses:account-override
+expenses:bank-override
+expenses:import-override
+expenses:account-default
+expenses:bank-fees
+
 # An account named 1-in keeps its own cached CSV, journal and ledger includes.
 <
 . ./test/shell/setup.sh

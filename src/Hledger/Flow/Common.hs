@@ -285,13 +285,11 @@ excludeHiddenFiles paths = do
 excludeWeirdPaths :: Turtle.Shell TurtlePath -> Turtle.Shell TurtlePath
 excludeWeirdPaths = Turtle.findtree (Turtle.suffix $ Turtle.noneOf "_")
 
-firstExistingFile :: [TurtlePath] -> IO (Maybe TurtlePath)
-firstExistingFile files = do
-  case files of
-    [] -> return Nothing
-    file : fs -> do
-      exists <- Turtle.testfile file
-      if exists then return (Just file) else firstExistingFile fs
+firstExistingFile :: [AbsFile] -> IO (Maybe AbsFile)
+firstExistingFile [] = return Nothing
+firstExistingFile (file : rest) = do
+  exists <- Path.doesFileExist file
+  if exists then return (Just file) else firstExistingFile rest
 
 basenameLine :: TurtlePath -> Turtle.Shell Turtle.Line
 basenameLine path = case (Turtle.textToLine $ Turtle.format Turtle.fp $ Turtle.basename path) of

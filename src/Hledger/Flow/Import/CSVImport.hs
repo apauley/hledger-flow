@@ -8,7 +8,6 @@ where
 
 import Control.Concurrent.STM
 import Control.Monad
-import qualified Data.List.NonEmpty as NonEmpty
 import Data.Maybe (fromMaybe, isNothing)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
@@ -19,13 +18,13 @@ import Hledger.Flow.Import.ImportHelpers
 import Hledger.Flow.Import.ImportHelpersTurtle (writeIncludesUpTo, writeToplevelAllYearsInclude)
 import Hledger.Flow.Import.Types
 import Hledger.Flow.Logging
-import Hledger.Flow.PathHelpers (AbsFile, RelDir, TurtlePath, pathToTurtle)
+import Hledger.Flow.PathHelpers (AbsFile, RelDir, pathToTurtle)
 import Hledger.Flow.RuntimeOptions
 import qualified Hledger.Flow.Types as FlowTypes
 import qualified Path
 import qualified Path.IO as PathIO
-import System.FilePath (dropTrailingPathSeparator, replaceExtension)
-import Turtle ((%), (<.>), (</>))
+import System.FilePath (dropExtensions, dropTrailingPathSeparator, replaceExtension, (<.>))
+import Turtle ((%))
 import qualified Turtle hiding (proc, procStrictWithErr, stderr, stdout)
 import Prelude hiding (putStrLn, take, writeFile)
 
@@ -159,16 +158,16 @@ preprocess opts ch script dirs src csvOut = do
 hledgerImport :: RuntimeOptions -> TChan FlowTypes.LogMessage -> ImportDirs Path.Abs -> AbsFile -> AbsFile -> IO ()
 hledgerImport opts ch importDirs csvFile journalOut = do
   let csvSrc = Path.toFilePath csvFile
-  let candidates = rulesFileCandidates csvSrc importDirs
+  candidates <- rulesFileCandidates csvFile importDirs
   maybeRulesFile <- firstExistingFile candidates
   let relCSV = relativeToBase opts csvSrc
   case maybeRulesFile of
     Just rf -> do
-      let relRules = relativeToBase opts rf
+      let relRules = relativeToBase opts (Path.toFilePath rf)
       let hledger = Turtle.format Turtle.fp $ pathToTurtle . FlowTypes.hlPath . hledgerInfo $ opts :: T.Text
       directivesExist <- Turtle.testfile $ directivesFile opts
       let directivesArgs = if directivesExist then ["--file", Turtle.format Turtle.fp (directivesFile opts)] else []
-      let csvArgs = ["--file", Turtle.format Turtle.fp csvSrc, "--rules-file", Turtle.format Turtle.fp rf]
+      let csvArgs = ["--file", Turtle.format Turtle.fp csvSrc, "--rules-file", T.pack (Path.toFilePath rf)]
       let args = hledgerConfArgs opts ++ ["print", "--explicit"] ++ directivesArgs ++ csvArgs
 
       let cmdLabel = Turtle.format ("importing '" % Turtle.fp % "' using rules file '" % Turtle.fp % "'") relCSV relRules
@@ -176,8 +175,7 @@ hledgerImport opts ch importDirs csvFile journalOut = do
       T.writeFile (Path.toFilePath journalOut) stdOut
     Nothing ->
       do
-        let relativeCandidates = map (relativeToBase opts) candidates
-        let candidatesTxt = T.intercalate "\n" $ map (Turtle.format Turtle.fp) relativeCandidates
+        let candidatesTxt = T.intercalate "\n" $ map (T.pack . relativeToBase opts . Path.toFilePath) candidates
         let msg =
               Turtle.format
                 ( "I couldn't find an hledger rules file while trying to import\n"
@@ -195,33 +193,28 @@ hledgerImport opts ch importDirs csvFile journalOut = do
                 (docURL "rules-files")
         errExit 1 ch msg ()
 
-rulesFileCandidates :: TurtlePath -> ImportDirs b -> [TurtlePath]
-rulesFileCandidates csvSrc importDirs = statementSpecificRulesFiles csvSrc importDirs ++ generalRulesFiles importDirs
+rulesFileCandidates :: AbsFile -> ImportDirs Path.Abs -> IO [AbsFile]
+rulesFileCandidates csv dirs = do
+  let bank = importDirLines (bankDir dirs)
+      account = importDirLines (accountDir dirs)
+  accountRule <- rulesName (bank ++ account)
+  bankRule <- rulesName bank
+  overrides <- if "rfo" `T.isPrefixOf` suffix
+    then do
+      name <- rulesName [suffix]
+      return [dir Path.</> name | dir <- [accountDir dirs, bankDir dirs, importDir dirs]]
+    else return []
+  return (overrides ++ [accountDir dirs Path.</> accountRule, importDir dirs Path.</> bankRule])
+  where
+    stem = dropExtensions (Path.toFilePath (Path.filename csv))
+    suffix = snd (T.breakOnEnd "_" (T.pack stem))
+    rulesName parts = Path.parseRelFile (T.unpack (T.intercalate "-" parts) <.> "rules")
 
-importDirLines :: Path.Path b Path.Dir -> [Turtle.Line]
-importDirLines = NonEmpty.toList . Turtle.textToLines . T.pack . dropTrailingPathSeparator . Path.toFilePath . Path.dirname
+importDirLines :: Path.Path b Path.Dir -> [T.Text]
+importDirLines = T.splitOn "\n" . T.pack . dropTrailingPathSeparator . Path.toFilePath . Path.dirname
 
 hookDirArgs :: ImportDirs b -> [T.Text]
-hookDirArgs dirs = map (Turtle.lineToText . foldl (<>) "" . importDirLines) [bankDir dirs, accountDir dirs, ownerDir dirs]
-
-generalRulesFiles :: ImportDirs b -> [TurtlePath]
-generalRulesFiles importDirs = do
-  let bank = importDirLines (bankDir importDirs)
-  let account = importDirLines (accountDir importDirs)
-  let accountRulesFile = pathToTurtle (accountDir importDirs) </> buildFilename (bank ++ account) "rules"
-
-  let bankRulesFile = pathToTurtle (importDir importDirs) </> buildFilename bank "rules"
-  [accountRulesFile, bankRulesFile]
-
-statementSpecificRulesFiles :: TurtlePath -> ImportDirs b -> [TurtlePath]
-statementSpecificRulesFiles csvSrc importDirs = do
-  let srcSuffix = snd $ T.breakOnEnd "_" (Turtle.format Turtle.fp (Turtle.basename csvSrc))
-
-  if ((T.take 3 srcSuffix) == "rfo")
-    then do
-      let srcSpecificFilename = T.unpack srcSuffix <.> "rules"
-      map ((</> srcSpecificFilename) . pathToTurtle) [accountDir importDirs, bankDir importDirs, importDir importDirs]
-    else []
+hookDirArgs dirs = map (T.concat . importDirLines) [bankDir dirs, accountDir dirs, ownerDir dirs]
 
 customConstruct :: RuntimeOptions -> TChan FlowTypes.LogMessage -> AbsFile -> ImportDirs Path.Abs -> AbsFile -> AbsFile -> IO ()
 customConstruct opts ch constructScript dirs csvFile journalOut = do
