@@ -25,7 +25,7 @@ import Path ((</>), parent, reldir, relfile, parseRelDir, toFilePath)
 import qualified Path.IO as PathIO
 import qualified System.Directory as Directory
 import System.Environment (lookupEnv)
-import qualified Turtle (procStrictWithErr, single)
+import qualified Turtle (single)
 import Prelude hiding (putStrLn, readFile, writeFile)
 
 data ReportParams = ReportParams
@@ -123,7 +123,7 @@ generateReport opts ch journal year reportsDir fileName args successCheck = do
   let reportDisplayArgs = confArgs ++ ["--file", T.pack relativeJournal, "--period", T.pack (show year)] ++ args
   let hledger = T.pack (toFilePath (FlowTypes.hlPath (hledgerInfo opts)))
   let cmdLabel = "hledger " <> showCmdArgs reportDisplayArgs
-  ((exitCode, stdOut, _), _) <- timeAndExitOnErr opts ch cmdLabel dummyLogger channelErr Turtle.procStrictWithErr (hledger, reportArgs, mempty)
+  ((exitCode, stdOut, _), _) <- timeAndExitOnErr opts ch cmdLabel dummyLogger channelErr (hledger, reportArgs, Nothing)
   if (successCheck stdOut)
     then do
       T.writeFile (toFilePath outputFile) (cmdLabel <> "\n\n" <> stdOut)

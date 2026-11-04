@@ -28,7 +28,6 @@ import System.Exit (ExitCode (..), exitWith)
 import System.IO (hClose)
 import qualified System.Process as Process
 import System.FilePath (dropExtensions, dropTrailingPathSeparator, replaceExtension, (<.>))
-import qualified Turtle (empty, inhandle, procStrictWithErr)
 import Prelude hiding (putStrLn, take, writeFile)
 
 type FileWasGenerated = Bool
@@ -135,7 +134,7 @@ preprocess opts ch script dirs src csvOut = do
   let relScript = relativeToBase opts (Path.toFilePath script)
   let relSrc = relativeToBase opts (Path.toFilePath src)
   let cmdLabel = "executing '" <> T.pack relScript <> "' on '" <> T.pack relSrc <> "'"
-  _ <- timeAndExitOnErr opts ch cmdLabel channelOut channelErr Turtle.procStrictWithErr (T.pack (Path.toFilePath script), args, Turtle.empty)
+  _ <- timeAndExitOnErr opts ch cmdLabel channelOut channelErr (T.pack (Path.toFilePath script), args, Nothing)
   return ()
 
 hledgerImport :: RuntimeOptions -> TChan FlowTypes.LogMessage -> ImportDirs Path.Abs -> AbsFile -> AbsFile -> IO ()
@@ -155,7 +154,7 @@ hledgerImport opts ch importDirs csvFile journalOut = do
       let args = hledgerConfArgs opts ++ ["print", "--explicit"] ++ directivesArgs ++ csvArgs
 
       let cmdLabel = "importing '" <> T.pack relCSV <> "' using rules file '" <> T.pack relRules <> "'"
-      ((_, stdOut, _), _) <- timeAndExitOnErr opts ch cmdLabel dummyLogger channelErr Turtle.procStrictWithErr (hledger, args, Turtle.empty)
+      ((_, stdOut, _), _) <- timeAndExitOnErr opts ch cmdLabel dummyLogger channelErr (hledger, args, Nothing)
       T.writeFile (Path.toFilePath journalOut) stdOut
     Nothing ->
       do
@@ -217,7 +216,7 @@ customConstruct opts ch constructScript dirs csvFile journalOut = do
     Just stdoutPipe <- return output
     hClose stdinPipe
     _ <- timeAndExitOnErr' opts ch cmdLabel [constructCmdText] channelOut channelErr
-      Turtle.procStrictWithErr (hledger, args, Turtle.inhandle stdoutPipe)
+      (hledger, args, Just stdoutPipe)
     hClose stdoutPipe
     status <- Process.waitForProcess handle
     case status of

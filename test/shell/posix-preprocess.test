@@ -119,3 +119,21 @@ test "$(wc -l < "$hook.calls")" -eq 3
 hledger -f "$journal" descriptions
 $ sh -eu
 Constructed on retry
+
+# Drain both hook output streams even when they exceed OS pipe capacity.
+<
+. ./test/shell/setup.sh
+cat > "$account/preprocess" <<'HOOK'
+#!/bin/sh
+set -eu
+awk 'BEGIN { for (i=0; i<2048; i++) print "stdout xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"; print "stdout complete" }'
+awk 'BEGIN { for (i=0; i<2048; i++) print "stderr xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"; print "stderr complete" }' >&2
+cp "$1" "$2"
+HOOK
+chmod +x "$account/preprocess"
+flow import
+grep -q '^stdout complete$' "$finance/flow.log"
+grep -q '^stderr complete$' "$finance/flow.log"
+hledger -f "$journal" descriptions
+$ sh -eu
+Monthly bank fee

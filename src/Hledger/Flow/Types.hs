@@ -6,7 +6,7 @@ import qualified Data.Text as T
 import Hledger.Flow.PathHelpers
 import Data.Time.Clock (NominalDiffTime)
 import System.Exit (ExitCode)
-import qualified Turtle (Line, Shell)
+import System.IO (Handle)
 
 type BaseDir = AbsDir
 
@@ -18,9 +18,7 @@ type FullOutput = (ExitCode, T.Text, T.Text)
 
 type FullTimedOutput = (FullOutput, NominalDiffTime)
 
-type ProcFun = T.Text -> [T.Text] -> Turtle.Shell Turtle.Line -> IO FullOutput
-
-type ProcInput = (T.Text, [T.Text], Turtle.Shell Turtle.Line)
+type ProcInput = (T.Text, [T.Text], Maybe Handle)
 
 data HledgerInfo = HledgerInfo
   { hlPath :: AbsFile,

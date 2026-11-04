@@ -6,6 +6,7 @@ module Hledger.Flow.Common where
 import Control.Concurrent (threadDelay)
 import Control.Monad (filterM)
 import Control.Monad.IO.Class (MonadIO, liftIO)
+import Control.Concurrent.Async (concurrently)
 import Control.Concurrent.STM
 import qualified Control.Foldl as Fold
 import Data.Char (isDigit)
@@ -31,6 +32,8 @@ import qualified Path
 import qualified Path.IO as Path
 import qualified System.FilePath as FilePath
 import System.Exit (ExitCode (..), exitWith)
+import System.IO (hClose)
+import qualified System.Process as Process
 import System.IO.Error (tryIOError)
 import Turtle ((%), (<.>), (</>))
 import qualified Turtle
@@ -116,6 +119,22 @@ logTimedAction opts ch cmdLabel extraCmdLabels cmd args stdoutLogger stderrLogge
   logVerbose opts ch $ Turtle.format ("End:   " % Turtle.s % " " % Turtle.s % " (" % Turtle.s % ")") cmdLabel (Turtle.repr ec) (Turtle.repr diff)
   return timed
 
+-- Drain both output pipes concurrently so a full stderr pipe cannot stall stdout.
+runProcessCaptured :: ProcInput -> IO FullOutput
+runProcessCaptured (cmd, args, input) = do
+  let process = (Process.proc (T.unpack cmd) (map T.unpack args))
+        { Process.std_in = maybe Process.CreatePipe Process.UseHandle input,
+          Process.std_out = Process.CreatePipe,
+          Process.std_err = Process.CreatePipe
+        }
+  Process.withCreateProcess process $ \stdinPipe output errors handle -> do
+    mapM_ hClose stdinPipe
+    Just stdoutPipe <- return output
+    Just stderrPipe <- return errors
+    (stdoutText, stderrText) <- concurrently (T.hGetContents stdoutPipe) (T.hGetContents stderrPipe)
+    status <- Process.waitForProcess handle
+    return (status, stdoutText, stderrText)
+
 timeAndExitOnErr ::
   (HasVerbosity o) =>
   o ->
@@ -123,7 +142,6 @@ timeAndExitOnErr ::
   T.Text ->
   (TChan LogMessage -> T.Text -> IO ()) ->
   (TChan LogMessage -> T.Text -> IO ()) ->
-  ProcFun ->
   ProcInput ->
   IO FullTimedOutput
 timeAndExitOnErr opts ch cmdLabel = timeAndExitOnErr' opts ch cmdLabel []
@@ -136,11 +154,10 @@ timeAndExitOnErr' ::
   [T.Text] ->
   (TChan LogMessage -> T.Text -> IO ()) ->
   (TChan LogMessage -> T.Text -> IO ()) ->
-  ProcFun ->
   ProcInput ->
   IO FullTimedOutput
-timeAndExitOnErr' opts ch cmdLabel extraCmdLabels stdoutLogger stderrLogger procFun (cmd, args, stdInput) = do
-  let action = procFun cmd args stdInput
+timeAndExitOnErr' opts ch cmdLabel extraCmdLabels stdoutLogger stderrLogger input@(cmd, args, _) = do
+  let action = runProcessCaptured input
   timed@((ec, stdOut, stdErr), _) <- logTimedAction opts ch cmdLabel extraCmdLabels cmd args stdoutLogger stderrLogger action
   case ec of
     ExitFailure i -> do
@@ -182,15 +199,6 @@ parBatchedActions batch done todo = do
   let remaining = drop batch todo
   doneNow <- (Turtle.single . shellToList . Turtle.parallel) doNow
   parBatchedActions batch (done ++ doneNow) remaining
-
-inprocWithErrFun :: (T.Text -> IO ()) -> ProcInput -> Turtle.Shell Turtle.Line
-inprocWithErrFun errFun (cmd, args, standardInput) = do
-  result <- Turtle.inprocWithErr cmd args standardInput
-  case result of
-    Right ln -> return ln
-    Left ln -> do
-      (Turtle.liftIO . errFun . Turtle.lineToText) ln
-      Turtle.empty
 
 verboseTestFile :: (HasVerbosity o, HasBaseDir o) => o -> TChan LogMessage -> AbsFile -> IO Bool
 verboseTestFile opts ch p = do
