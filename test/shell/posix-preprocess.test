@@ -53,3 +53,69 @@ $ sh -eu
 ran
 ran
 Corrected by hook
+
+# A failed preprocess cannot replace the good CSV or make an incremental retry skip it.
+<
+. ./test/shell/setup.sh
+hook="$account/preprocess"
+cached="$account/2-preprocessed/2016/march.csv"
+printf '%s\n' '#!/bin/sh' 'cp "$1" "$2"' > "$hook"
+chmod +x "$hook"
+flow import
+cp "$cached" good.csv
+cp "$journal" good.journal
+touch -t 201603010000 "$cached" "$journal"
+touch -t 201603020000 "$inbox/march.csv"
+cat > "$hook" <<'HOOK'
+#!/bin/sh
+set -eu
+printf '%s\n' "$2" >> "$0.calls"
+test "${2##*/}" = march.csv
+printf '%s\n' '2016-03-01,Partial CSV,-3' > "$2"
+if test ! -e "$0.retry"; then echo 'preprocess failed' >&2; exit 17; fi
+printf '%s\n' '2016-03-01,Retried CSV,-7' > "$2"
+HOOK
+if hledger-flow import --new-files-only > failure.log 2>&1; then exit 1; else test "$?" -eq 17; fi
+grep -q 'preprocess failed' failure.log
+cmp good.csv "$cached"
+cmp good.journal "$journal"
+staged=$(cat "$hook.calls")
+test "$staged" != "$finance/$cached"
+test ! -d "${staged%/*}"
+touch "$hook.retry"
+flow import --new-files-only
+test "$(wc -l < "$hook.calls")" -eq 2
+hledger -f "$journal" descriptions
+$ sh -eu
+Retried CSV
+
+# Neither a failed construct nor invalid journal text may replace the previous journal.
+<
+. ./test/shell/setup.sh
+flow import
+cp "$journal" good.journal
+touch -t 201603010000 "$journal"
+touch -t 201603020000 "$inbox/march.csv"
+hook="$account/construct"
+cat > "$hook" <<'HOOK'
+#!/bin/sh
+set -eu
+echo ran >> "$0.calls"
+if test -e "$0.invalid"; then echo 'invalid journal'; exit 0; fi
+printf '2016-03-01 Constructed on retry\n    expenses:fee  3\n    assets:bank\n'
+if test ! -e "$0.retry"; then echo 'construct failed' >&2; exit 17; fi
+HOOK
+chmod +x "$hook"
+if hledger-flow import --new-files-only > failure.log 2>&1; then exit 1; else test "$?" -eq 17; fi
+grep -q 'construct failed' failure.log
+cmp good.journal "$journal"
+touch "$hook.invalid"
+if hledger-flow import --new-files-only > failure.log 2>&1; then exit 1; fi
+cmp good.journal "$journal"
+rm "$hook.invalid"
+touch "$hook.retry"
+flow import --new-files-only
+test "$(wc -l < "$hook.calls")" -eq 3
+hledger -f "$journal" descriptions
+$ sh -eu
+Constructed on retry

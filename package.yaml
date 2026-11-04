@@ -30,6 +30,7 @@ library:
   ghc-options:
     - -Wall
   dependencies:
+    - process >= 1.6.26.1 && < 1.7
     - async >= 2.2.6 && < 2.3
     - turtle >= 1.6.2 && < 1.7
     - path >= 0.9.6 && < 0.10

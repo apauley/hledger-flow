@@ -287,12 +287,12 @@ If you put a script called `preprocess` in the account directory, e.g.
 `import/john/mybank/savings/preprocess`, then `hledger-flow` will call
 that script for each input statement.
 
-The `preprocess` script will be called with 4 positional parameters:
+The `preprocess` script will be called with 5 positional parameters:
 
 1.  The path to the input statement, e.g.
     `import/john/mybank/savings/1-in/2018/123456789_2018-06-30.csv`
-2.  The path to an output file that can be sent to `hledger`, e.g.
-    `import/john/mybank/savings/2-preprocessed/2018/123456789_2018-06-30.csv`
+2.  A temporary output path. Its filename and extension match the final CSV,
+    e.g. `123456789_2018-06-30.csv`. Write to the supplied path directly.
 3.  The name of the bank, e.g. `mybank`
 4.  The name of the account, e.g. `savings`
 5.  The name of the owner, e.g. `john`
@@ -304,6 +304,10 @@ Your `preprocess` script is expected to:
   rules file
 - be idempotent. Running `preprocess` multiple times on the same files
   will produce the same result.
+
+After the script succeeds, hledger-flow moves its output into
+`2-preprocessed/<year>/`. If the script fails, any previous CSV stays in
+place. A failed first run leaves no cached CSV.
 
 ### Stability of this Feature
 
@@ -344,6 +348,10 @@ Your `construct` script is expected to:
   should produce the same result.
 - send all journals to `stdout`. `hledger-flow` will pipe your standard output into
   `hledger` which will format it and save it to an output file.
+
+hledger-flow replaces the journal in `3-journal/<year>/` only after both
+the construct script and hledger finish successfully. If either fails, the
+previous journal stays in place.
 
 You can still use `stderr` in your construct script for any other output that you may want to see.
 

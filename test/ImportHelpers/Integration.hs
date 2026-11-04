@@ -4,11 +4,13 @@
 module ImportHelpers.Integration (tests) where
 
 import qualified Data.List as List
+import Data.Either (isLeft)
 import qualified Data.Text.IO as T
-import Hledger.Flow.Import.ImportHelpers (findInputFiles, findJournalFiles)
+import Hledger.Flow.Import.ImportHelpers (findInputFiles, findJournalFiles, withStagedOutput)
 import Hledger.Flow.PathHelpers (AbsFile)
 import Path
 import Path.IO
+import System.IO.Error (tryIOError)
 import Test.HUnit
 
 touchFile :: AbsFile -> IO ()
@@ -64,5 +66,26 @@ testFindJournalFiles =
           assertEqual "findJournalFiles should return only journal directory files, excluding hidden and excluded dirs" expected (List.sort actual)
     )
 
+testStagedOutput :: Test
+testStagedOutput = TestCase $ withSystemTempDir "hlflow-output" $ \dir -> do
+  let target = dir </> [relfile|march.bank.csv|]
+      failAfterWriting staged = do
+        assertEqual "hook output keeps its filename" (filename target) (filename staged)
+        assertBool "hook output has a temporary parent" (parent staged /= dir)
+        T.writeFile (toFilePath staged) "partial"
+        ioError (userError "failed hook")
+      checkFailure = do
+        result <- tryIOError (withStagedOutput target failAfterWriting)
+        assertBool "propagate hook failure" (isLeft result)
+        (dirs, _) <- listDir dir
+        assertEqual "clean up staging directories" [] dirs
+  checkFailure
+  doesFileExist target >>= assertEqual "failed first run publishes no file" False
+  T.writeFile (toFilePath target) "previous"
+  checkFailure
+  T.readFile (toFilePath target) >>= assertEqual "preserve previous output" "previous"
+  withStagedOutput target $ \staged -> T.writeFile (toFilePath staged) "complete"
+  T.readFile (toFilePath target) >>= assertEqual "publish successful retry" "complete"
+
 tests :: Test
-tests = TestList [testFindInputFiles, testFindJournalFiles]
+tests = TestList [testFindInputFiles, testFindJournalFiles, testStagedOutput]

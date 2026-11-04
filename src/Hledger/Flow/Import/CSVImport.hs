@@ -24,8 +24,11 @@ import Hledger.Flow.RuntimeOptions
 import qualified Hledger.Flow.Types as FlowTypes
 import qualified Path
 import qualified Path.IO as PathIO
+import System.Exit (ExitCode (..), exitWith)
+import System.IO (hClose)
+import qualified System.Process as Process
 import System.FilePath (dropExtensions, dropTrailingPathSeparator, replaceExtension, (<.>))
-import qualified Turtle (empty, procStrictWithErr)
+import qualified Turtle (empty, inhandle, procStrictWithErr)
 import Prelude hiding (putStrLn, take, writeFile)
 
 type FileWasGenerated = Bool
@@ -88,7 +91,7 @@ importCSV opts ch importDirs srcFile = do
       let script = accountDir importDirs Path.</> [Path.relfile|construct|]
       hasConstruct <- verboseTestFile opts ch script
       if hasConstruct
-        then customConstruct opts ch script importDirs csvFile journalOut
+        then withStagedOutput journalOut (customConstruct opts ch script importDirs csvFile)
         else hledgerImport opts ch importDirs csvFile journalOut
     else logNewFileSkip opts ch "import" journalOut
   return (journalOut, shouldImport)
@@ -112,7 +115,7 @@ preprocessIfNeeded opts ch dirs src csvOut = do
       else return scriptExists
   if shouldProceed
     then do
-      preprocess opts ch script dirs src csvOut
+      withStagedOutput csvOut (preprocess opts ch script dirs src)
       return (csvOut, True)
     else do
       if targetExists
@@ -128,7 +131,6 @@ logNewFileSkip opts ch logIdentifier absTarget =
 
 preprocess :: RuntimeOptions -> TChan FlowTypes.LogMessage -> AbsFile -> ImportDirs Path.Abs -> AbsFile -> AbsFile -> IO ()
 preprocess opts ch script dirs src csvOut = do
-  PathIO.createDirIfMissing True (Path.parent csvOut)
   let args = map (T.pack . Path.toFilePath) [src, csvOut] ++ hookDirArgs dirs
   let relScript = relativeToBase opts (Path.toFilePath script)
   let relSrc = relativeToBase opts (Path.toFilePath src)
@@ -192,11 +194,11 @@ hookDirArgs dirs = map (T.concat . importDirLines) [bankDir dirs, accountDir dir
 customConstruct :: RuntimeOptions -> TChan FlowTypes.LogMessage -> AbsFile -> ImportDirs Path.Abs -> AbsFile -> AbsFile -> IO ()
 customConstruct opts ch constructScript dirs csvFile journalOut = do
   let csvSrc = Path.toFilePath csvFile
-  let script = T.pack (Path.toFilePath constructScript)
   let relScript = relativeToBase opts (Path.toFilePath constructScript)
   let constructArgs = [T.pack csvSrc, "-"] ++ hookDirArgs dirs
   let constructCmdText = "Running: " <> T.pack relScript <> " " <> showCmdArgs constructArgs
-  let stdLines = inprocWithErrFun (channelErrLn ch) (script, constructArgs, Turtle.empty)
+  let hook = (Process.proc (Path.toFilePath constructScript) (map T.unpack constructArgs))
+        { Process.std_in = Process.CreatePipe, Process.std_out = Process.CreatePipe }
   let hledger = T.pack (Path.toFilePath (FlowTypes.hlPath (hledgerInfo opts)))
   let args =
         hledgerConfArgs opts
@@ -210,5 +212,14 @@ customConstruct opts ch constructScript dirs csvFile journalOut = do
 
   let relSrc = relativeToBase opts csvSrc
   let cmdLabel = "executing '" <> T.pack relScript <> "' on '" <> T.pack relSrc <> "'"
-  _ <- timeAndExitOnErr' opts ch cmdLabel [constructCmdText] channelOut channelErr Turtle.procStrictWithErr (hledger, args, stdLines)
-  return ()
+  Process.withCreateProcess hook $ \input output _ handle -> do
+    Just stdinPipe <- return input
+    Just stdoutPipe <- return output
+    hClose stdinPipe
+    _ <- timeAndExitOnErr' opts ch cmdLabel [constructCmdText] channelOut channelErr
+      Turtle.procStrictWithErr (hledger, args, Turtle.inhandle stdoutPipe)
+    hClose stdoutPipe
+    status <- Process.waitForProcess handle
+    case status of
+      ExitSuccess -> return ()
+      ExitFailure _ -> exitWith status

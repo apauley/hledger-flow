@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes #-}
 
-module Hledger.Flow.Import.ImportHelpers (extractImportDirs, findInputFiles, findJournalFiles, groupIncludesUpTo, includeFileName) where
+module Hledger.Flow.Import.ImportHelpers (withStagedOutput, extractImportDirs, findInputFiles, findJournalFiles, groupIncludesUpTo, includeFileName) where
 
 import Data.Char (isDigit)
 import qualified Data.Map.Strict as Map
@@ -12,7 +12,18 @@ import Hledger.Flow.DocHelpers (docURL)
 import Hledger.Flow.Import.Types (ImportDirs (..), InputFileBundle)
 import Hledger.Flow.PathHelpers (AbsDir, AbsFile, RelDir, RelFile, findFilesInWith, pathSize)
 import Path
+import qualified Path.IO as PathIO
 import System.FilePath (dropTrailingPathSeparator)
+
+-- Keep hook output on the destination filesystem and publish it only on success.
+withStagedOutput :: AbsFile -> (AbsFile -> IO ()) -> IO ()
+withStagedOutput target writeOutput = do
+  let dir = parent target
+  PathIO.createDirIfMissing True dir
+  PathIO.withTempDir dir ".hledger-flow-" $ \tmp -> do
+    let staged = tmp </> filename target
+    writeOutput staged
+    PathIO.renameFile staged target
 
 extractImportDirs :: Path b File -> Either T.Text (ImportDirs b)
 extractImportDirs inputFile = walk (parent inputFile) []

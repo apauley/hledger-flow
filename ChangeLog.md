@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Publish preprocessed CSVs and constructed journals only after successful
+  processing. Failed hooks leave any previous output intact. The second
+  argument to `preprocess` is now a temporary path with the final filename
+  and extension.
 - Keep aggregate reports in `reports/all/` unless an owner is named `all`
   (in any capitalization). In that case, write aggregates to `reports/_all_/`
   so the owner's reports and the aggregate reports are both available.
