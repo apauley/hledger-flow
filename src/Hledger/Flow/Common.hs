@@ -23,8 +23,9 @@ import Hledger.Flow.Logging
 import Hledger.Flow.PathHelpers (AbsFile, TurtlePath, fromTurtleAbsFile, pathToTurtle)
 import qualified Hledger.Flow.RuntimeOptions as RT
 import Hledger.Flow.Types
-import Path (absfile, relfile)
+import Path (relfile)
 import qualified Path.IO as Path
+import qualified System.FilePath as FilePath
 import Turtle ((%), (<.>), (</>))
 import qualified Turtle
 import Prelude hiding (putStrLn, readFile, writeFile)
@@ -49,7 +50,7 @@ hledgerPathFromOption pathOption = do
                 "Unable to find hledger in your path.\n"
                   <> "You need to either install hledger, or add it to your PATH, or provide the path to an hledger executable.\n\n"
                   <> "There are a number of installation options on the hledger website: https://hledger.org/download.html"
-          errExit' 1 (T.hPutStrLn H.stderr) msg [absfile|/hledger|]
+          Turtle.die msg
 
 hledgerVersionFromPath :: TurtlePath -> IO T.Text
 hledgerVersionFromPath hlp = fmap (T.strip . Turtle.linesToText) (Turtle.single $ shellToList $ Turtle.inproc (Turtle.format Turtle.fp hlp) ["--version"] Turtle.empty)
@@ -329,7 +330,7 @@ changePathAndExtension newOutputLocation newExt = (changeOutputPath newOutputLoc
 changeOutputPath :: TurtlePath -> TurtlePath -> TurtlePath
 changeOutputPath newOutputLocation srcFile = mconcat $ map changeSrcDir $ Turtle.splitDirectories srcFile
   where
-    changeSrcDir file = if file == "1-in/" || file == "2-preprocessed/" then newOutputLocation else file
+    changeSrcDir file = if FilePath.dropTrailingPathSeparator file `elem` ["1-in", "2-preprocessed"] then newOutputLocation else file
 
 listOwners :: (HasBaseDir o) => o -> Turtle.Shell TurtlePath
 listOwners opts = fmap Turtle.basename $ lsDirs $ (turtleBaseDir opts) </> "import"

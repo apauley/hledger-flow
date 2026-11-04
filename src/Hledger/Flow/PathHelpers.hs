@@ -9,6 +9,7 @@ import Hledger.Flow.DocHelpers (docURL)
 import Path ((</>))
 import qualified Path
 import qualified Path.IO as Path
+import qualified System.FilePath as FilePath
 import qualified Turtle
 
 type TurtlePath = Turtle.FilePath
@@ -58,7 +59,7 @@ pathToTurtle :: Path.Path b t -> TurtlePath
 pathToTurtle = Path.toFilePath
 
 forceTrailingSlash :: TurtlePath -> TurtlePath
-forceTrailingSlash p = Turtle.directory (p Turtle.</> "temp")
+forceTrailingSlash = FilePath.addTrailingPathSeparator . FilePath.normalise
 
 pathSize :: Path.Path b Path.Dir -> Int
 pathSize p = pathSize' p 0

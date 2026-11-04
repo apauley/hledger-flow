@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes #-}
 
@@ -12,7 +13,15 @@ import Path
 import qualified System.Info as Sys
 
 defaultHlInfo :: FlowTypes.HledgerInfo
-defaultHlInfo = FlowTypes.HledgerInfo [absfile|/path/to/hledger|] "1.2.3"
+defaultHlInfo = FlowTypes.HledgerInfo (testRoot </> [relfile|path/to/hledger|]) "1.2.3"
+
+-- A fictional absolute root for fixtures; no files are created here.
+testRoot :: Path Abs Dir
+#ifdef mingw32_HOST_OS
+testRoot = [absdir|C:/|]
+#else
+testRoot = [absdir|/|]
+#endif
 
 testSystemInfo :: SystemInfo
 testSystemInfo =

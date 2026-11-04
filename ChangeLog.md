@@ -1,5 +1,11 @@
 # Changelog for [hledger-flow](https://github.com/apauley/hledger-flow)
 
+## Unreleased
+
+- Fix Windows compilation and make the test suite portable.
+- Handle native Windows separators when replacing import directories and
+  generating relative journal includes. Generated includes use forward slashes.
+
 ## 0.16.4
 
 - Add a new command-line option: `--hledger-conf /path/to/hledger/conf`.

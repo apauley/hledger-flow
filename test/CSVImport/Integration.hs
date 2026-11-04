@@ -10,6 +10,7 @@ import qualified Data.Text.IO as T
 import Hledger.Flow.Common
 import Hledger.Flow.Import.ImportHelpersTurtle (extraIncludesForFile, groupAndWriteIncludeFiles, includePreamble, toIncludeFiles, writeIncludesUpTo, writeToplevelAllYearsInclude)
 import Hledger.Flow.PathHelpers
+import qualified System.FilePath as FilePath
 import Test.HUnit
 import TestHelpers (defaultOpts)
 import TestHelpersTurtle (extraFiles, hiddenFiles, journalFiles, touchAll)
@@ -46,10 +47,10 @@ testExtraIncludesForFile =
             touchAll [opening, closing]
 
             extraOpening2 <- liftIO $ extraIncludesForFile (defaultOpts tmpdirAbsPath) ch accountInclude ["opening.journal"] [] []
-            liftIO $ assertEqual "The opening journal should be included when it is on disk" [(accountInclude, [opening])] extraOpening2
+            liftIO $ assertEqual "The opening journal should be included when it is on disk" [(accountInclude, [FilePath.normalise opening])] (Map.map (map FilePath.normalise) extraOpening2)
 
             extraClosing2 <- liftIO $ extraIncludesForFile (defaultOpts tmpdirAbsPath) ch accountInclude ["closing.journal"] [] []
-            liftIO $ assertEqual "The closing journal should be included when it is on disk" [(accountInclude, [closing])] extraClosing2
+            liftIO $ assertEqual "The closing journal should be included when it is on disk" [(accountInclude, [FilePath.normalise closing])] (Map.map (map FilePath.normalise) extraClosing2)
         )
     )
 
@@ -79,7 +80,7 @@ testExtraIncludesPrices =
             let expectedPricePath = tmpdir </> "import" </> ".." </> priceFile
 
             price2 <- liftIO $ extraIncludesForFile (defaultOpts tmpdirAbsPath) ch includeFile [] [] ["prices.journal"]
-            liftIO $ assertEqual "The price file should be included when it is on disk" [(includeFile, [expectedPricePath])] price2
+            liftIO $ assertEqual "The price file should be included when it is on disk" [(includeFile, [FilePath.normalise expectedPricePath])] (Map.map (map FilePath.normalise) price2)
         )
     )
 
@@ -248,7 +249,7 @@ testWriteIncludeFiles =
                   ]
             let expectedOnDisk = List.sort $ reportedAsWritten ++ extras ++ importedJournals ++ allYears
             allFilesOnDisk <- single $ sort $ onlyFiles $ lstree tmpdir
-            liftIO $ assertEqual "The actual files on disk should match what groupAndWriteIncludeFiles reported" expectedOnDisk allFilesOnDisk
+            liftIO $ assertEqual "The actual files on disk should match what groupAndWriteIncludeFiles reported" (List.sort $ map FilePath.normalise expectedOnDisk) (List.sort $ map FilePath.normalise allFilesOnDisk)
 
             let expectedJohn1Contents =
                   includePreamble

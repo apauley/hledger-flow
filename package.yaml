@@ -78,6 +78,7 @@ tests:
       - HUnit
       - containers >= 0.7 && < 0.8
       - directory
+      - filepath >= 1.5.4.0 && < 1.6
       - foldl >= 1.4.18 && < 1.5
       - text >= 2.1.3 && < 2.2
       - time >= 1.12.2 && < 1.13

@@ -9,9 +9,10 @@ import Hledger.Flow.Common
 import Hledger.Flow.RuntimeOptions (RuntimeOptions (hledgerConf))
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
-import Path (absdir)
+import Path ((</>), reldir)
 import Test.HUnit
-import TestHelpers (defaultOpts)
+import TestHelpers (defaultOpts, testRoot)
+import qualified System.FilePath as FilePath
 
 testShowCmdArgs :: Test
 testShowCmdArgs =
@@ -27,7 +28,7 @@ testHledgerConfArgs :: Test
 testHledgerConfArgs =
   TestCase
     ( do
-        let optsWithoutConf = defaultOpts [absdir|/base/|]
+        let optsWithoutConf = defaultOpts (testRoot </> [reldir|base|])
         assertEqual "No hledger config should produce no hledger config args" [] (hledgerConfArgs optsWithoutConf)
 
         let optsWithConf = optsWithoutConf {hledgerConf = Just "/tmp/hledger.conf"}
@@ -99,6 +100,11 @@ testChangePathAndExtension =
         let expected3 = "import/john/bank/acc/3-journal/2018/2018-06-30.journal"
         let actual3 = changePathAndExtension "3-journal/" "journal" src3
         assertEqual "Leave other directories intact, only change extension" expected3 actual3
+
+        let nativeInput = FilePath.joinPath ["import", "john", "bank", "acc", "1-in", "2018", "statement.csv"]
+        let nativeExpected = FilePath.joinPath ["import", "john", "bank", "acc", "3-journal", "2018", "statement.journal"]
+        assertEqual "Change the input directory with native path separators" nativeExpected
+          (FilePath.normalise $ changePathAndExtension "3-journal/" "journal" nativeInput)
     )
 
 testGroupValuesBy :: Test

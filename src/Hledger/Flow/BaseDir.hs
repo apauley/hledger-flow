@@ -20,6 +20,7 @@ import Hledger.Flow.PathHelpers
 import Hledger.Flow.Types (BaseDir, HasBaseDir, RunDir, baseDir)
 import Path
 import Path.IO
+import qualified System.FilePath as FilePath
 import qualified Turtle (liftIO, repr, stripPrefix)
 
 determineBaseDir :: Maybe TurtlePath -> IO (BaseDir, RunDir)
@@ -75,7 +76,7 @@ relativeToBase' bd p =
   if forceTrailingSlash bd == forceTrailingSlash p
     then "./"
     else
-      fromMaybe p $ Turtle.stripPrefix (forceTrailingSlash bd) p
+      fromMaybe p $ Turtle.stripPrefix (forceTrailingSlash bd) (FilePath.normalise p)
 
 turtleBaseDir :: (HasBaseDir o) => o -> TurtlePath
 turtleBaseDir opts = pathToTurtle $ baseDir opts

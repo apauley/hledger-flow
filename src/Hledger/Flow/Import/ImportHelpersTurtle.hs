@@ -28,6 +28,7 @@ import Hledger.Flow.Import.Types
 import Hledger.Flow.Logging (logVerbose)
 import Hledger.Flow.PathHelpers (TurtlePath)
 import Hledger.Flow.Types
+import qualified System.FilePath as FilePath
 import Turtle ((%), (<.>), (</>))
 import qualified Turtle
 
@@ -104,7 +105,9 @@ addPreamble :: Map.Map TurtlePath T.Text -> Map.Map TurtlePath T.Text
 addPreamble = Map.map (\txt -> includePreamble <> "\n" <> txt)
 
 toIncludeLine :: TurtlePath -> TurtlePath -> T.Text
-toIncludeLine base file = Turtle.format ("include " % Turtle.fp) $ relativeToBase' base file
+toIncludeLine base file = Turtle.format ("include " % Turtle.fp) $ map forwardSlash $ relativeToBase' base file
+  where
+    forwardSlash c = if FilePath.isPathSeparator c then '/' else c
 
 generatedIncludeText :: TurtleFileBundle -> TurtleFileBundle -> TurtlePath -> [TurtlePath] -> T.Text
 generatedIncludeText preMap postMap outputFile fs = do

@@ -108,6 +108,20 @@ Which should end with this:
 
 Ensure that =${HOME}/.local/bin= is in your =PATH=.
 
+On Windows, run the Stack commands directly from PowerShell:
+
+#+BEGIN_SRC powershell
+    stack test
+    stack install
+    stack exec hledger-flow -- --help
+#+END_SRC
+
+Stack installs the required GHC and MSYS2 toolchain automatically. Use
+=stack path --local-bin= to find the directory containing =hledger-flow.exe=.
+Running imports and reports also requires =hledger= on =PATH= (or the
+=--hledger-path= option). Any account-specific =preprocess= or =construct=
+scripts need an interpreter that is available on Windows.
+
 Usually this means adding this to your =~/.bashrc=:
 
 #+BEGIN_SRC sh

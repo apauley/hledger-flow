@@ -14,6 +14,7 @@ import Hledger.Flow.Types (BaseDir, RunDir)
 import Path
 import Path.IO
 import Test.HUnit
+import TestHelpers (testRoot)
 import qualified Turtle
 import Prelude hiding (readFile, writeFile)
 
@@ -153,7 +154,7 @@ testEffectiveRunDir :: Test
 testEffectiveRunDir =
   TestCase
     ( do
-        let base = [absdir|/tmp/hlflow-base|]
+        let base = testRoot </> [reldir|tmp/hlflow-base|]
         let expectedBaseImport = base </> [reldir|import|]
         assertEqual "A runDir of '.' should map to base/import" expectedBaseImport (effectiveRunDir base [reldir|.|])
 
