@@ -1,10 +1,10 @@
 module Hledger.Flow.Import.Types where
 
 import qualified Data.Map.Strict as Map
-import Hledger.Flow.PathHelpers (RelFile, TurtlePath)
+import Hledger.Flow.PathHelpers (RelFile)
 import Path (Dir, Path)
 
-type TurtleFileBundle = Map.Map TurtlePath [TurtlePath]
+type TurtleFileBundle = Map.Map FilePath [FilePath]
 
 type InputFileBundle = Map.Map RelFile [RelFile]
 

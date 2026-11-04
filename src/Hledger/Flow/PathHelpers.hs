@@ -12,9 +12,6 @@ import qualified Path.IO as Path
 import System.Directory (doesDirectoryExist)
 import qualified System.FilePath as FilePath
 
--- Marks raw paths that still need migration to typed paths.
-type TurtlePath = FilePath
-
 type AbsFile = Path.Path Path.Abs Path.File
 
 type RelFile = Path.Path Path.Rel Path.File
@@ -23,7 +20,7 @@ type AbsDir = Path.Path Path.Abs Path.Dir
 
 type RelDir = Path.Path Path.Rel Path.Dir
 
-data PathException = MissingBaseDir AbsDir | InvalidTurtleDir TurtlePath
+data PathException = MissingBaseDir AbsDir | InvalidTurtleDir FilePath
   deriving (Eq)
 
 instance Show PathException where
@@ -37,29 +34,29 @@ instance Show PathException where
 
 instance Exception PathException
 
-fromTurtleAbsFile :: (MonadThrow m) => TurtlePath -> m AbsFile
+fromTurtleAbsFile :: (MonadThrow m) => FilePath -> m AbsFile
 fromTurtleAbsFile turtlePath = Path.parseAbsFile turtlePath
 
-fromTurtleRelFile :: (MonadThrow m) => TurtlePath -> m RelFile
+fromTurtleRelFile :: (MonadThrow m) => FilePath -> m RelFile
 fromTurtleRelFile turtlePath = Path.parseRelFile turtlePath
 
-fromTurtleAbsDir :: (MonadThrow m) => TurtlePath -> m AbsDir
+fromTurtleAbsDir :: (MonadThrow m) => FilePath -> m AbsDir
 fromTurtleAbsDir turtlePath = Path.parseAbsDir turtlePath
 
-fromTurtleRelDir :: (MonadThrow m) => TurtlePath -> m RelDir
+fromTurtleRelDir :: (MonadThrow m) => FilePath -> m RelDir
 fromTurtleRelDir turtlePath = Path.parseRelDir turtlePath
 
-turtleToAbsDir :: (MonadIO m, MonadThrow m) => AbsDir -> TurtlePath -> m AbsDir
+turtleToAbsDir :: (MonadIO m, MonadThrow m) => AbsDir -> FilePath -> m AbsDir
 turtleToAbsDir baseDir p = do
   isDir <- liftIO (doesDirectoryExist p)
   if isDir
     then Path.resolveDir baseDir p
     else throwM $ InvalidTurtleDir p
 
-pathToTurtle :: Path.Path b t -> TurtlePath
+pathToTurtle :: Path.Path b t -> FilePath
 pathToTurtle = Path.toFilePath
 
-forceTrailingSlash :: TurtlePath -> TurtlePath
+forceTrailingSlash :: FilePath -> FilePath
 forceTrailingSlash = FilePath.addTrailingPathSeparator . FilePath.normalise
 
 pathSize :: Path.Path b Path.Dir -> Int

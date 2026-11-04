@@ -25,11 +25,11 @@ testExtraIncludesForFile =
   TestCase $ withTestDir $ \tmpdirAbsPath -> do
     let tmpdir = Path.toFilePath tmpdirAbsPath
 
-    let importedJournals = map (tmpdir </>) journalFiles :: [TurtlePath]
+    let importedJournals = map (tmpdir </>) journalFiles :: [FilePath]
     let accountDir = "import/john/bogartbank/savings"
     let opening = tmpdir </> accountDir </> "2017-opening.journal"
     let closing = tmpdir </> accountDir </> "2017-closing.journal"
-    let hidden = map (tmpdir </>) hiddenFiles :: [TurtlePath]
+    let hidden = map (tmpdir </>) hiddenFiles :: [FilePath]
     touchAll $ importedJournals ++ hidden
 
     let accountInclude = tmpdir </> accountDir </> "2017-include.journal"
@@ -56,7 +56,7 @@ testExtraIncludesPrices =
   TestCase $ withTestDir $ \tmpdirAbsPath -> do
     let tmpdir = Path.toFilePath tmpdirAbsPath
 
-    let importedJournals = map (tmpdir </>) journalFiles :: [TurtlePath]
+    let importedJournals = map (tmpdir </>) journalFiles :: [FilePath]
     touchAll $ importedJournals
 
     let priceFile = "prices" </> "2020" </> "prices.journal"
@@ -161,9 +161,9 @@ testWriteIncludeFiles =
   TestCase $ withTestDir $ \tmpdirAbsPath -> do
     let tmpdir = Path.toFilePath tmpdirAbsPath
 
-    let importedJournals = map (tmpdir </>) journalFiles :: [TurtlePath]
-    let extras = map (tmpdir </>) extraFiles :: [TurtlePath]
-    let hidden = map (tmpdir </>) hiddenFiles :: [TurtlePath]
+    let importedJournals = map (tmpdir </>) journalFiles :: [FilePath]
+    let extras = map (tmpdir </>) extraFiles :: [FilePath]
+    let hidden = map (tmpdir </>) hiddenFiles :: [FilePath]
     touchAll $ importedJournals ++ extras ++ hidden
 
     let jane1 = tmpdir </> "import/jane/bogartbank/checking/2018-include.journal"

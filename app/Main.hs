@@ -33,7 +33,6 @@ import Options.Applicative
       str,
       switch )
 
-import Hledger.Flow.PathHelpers (TurtlePath)
 import Hledger.Flow.Common ( hledgerInfoFromPath )
 import Hledger.Flow.Internals (versionInfo, systemInfo)
 import Hledger.Flow.BaseDir ( determineBaseDir )
@@ -43,20 +42,20 @@ import Hledger.Flow.Import.CSVImport ( importCSVs )
 
 import qualified Data.Text.IO as T
 
-data ImportParams = ImportParams { maybeImportBaseDir :: Maybe TurtlePath
+data ImportParams = ImportParams { maybeImportBaseDir :: Maybe FilePath
                                  , importStartYear :: Maybe String
                                  , onlyNewFiles :: Bool
                                  } deriving (Show)
 
-data ReportParams = ReportParams { maybeReportBaseDir :: Maybe TurtlePath
+data ReportParams = ReportParams { maybeReportBaseDir :: Maybe FilePath
                                  , asciiReports :: Bool
                                  } deriving (Show)
 
 data Command = Import ImportParams | Report ReportParams deriving (Show)
 
 data MainParams = MainParams { verbosity :: Int
-                             , hledgerPathOpt :: Maybe TurtlePath
-                             , hledgerConfOpt :: Maybe TurtlePath
+                             , hledgerPathOpt :: Maybe FilePath
+                             , hledgerConfOpt :: Maybe FilePath
                              , showOpts :: Bool
                              , batchSize :: Maybe Int
                              , sequential :: Bool
@@ -87,7 +86,7 @@ determineBatchSize mainParams' =
 toRuntimeOptionsImport :: MainParams -> ImportParams -> IO RT.RuntimeOptions
 toRuntimeOptionsImport mainParams' subParams' = do
   startYear <- parseStartYear $ importStartYear subParams'
-  let maybeBD = maybeImportBaseDir subParams' :: Maybe TurtlePath
+  let maybeBD = maybeImportBaseDir subParams' :: Maybe FilePath
   (bd, runDir) <- determineBaseDir maybeBD
   hli <- hledgerInfoFromPath $ hledgerPathOpt mainParams'
   size <- determineBatchSize mainParams'
@@ -109,7 +108,7 @@ toRuntimeOptionsImport mainParams' subParams' = do
 
 toRuntimeOptionsReport :: MainParams -> ReportParams -> IO RT.RuntimeOptions
 toRuntimeOptionsReport mainParams' subParams' = do
-  let maybeBD = maybeReportBaseDir subParams' :: Maybe TurtlePath
+  let maybeBD = maybeReportBaseDir subParams' :: Maybe FilePath
   (bd, _) <- determineBaseDir maybeBD
   hli <- hledgerInfoFromPath $ hledgerPathOpt mainParams'
   size <- determineBatchSize mainParams'

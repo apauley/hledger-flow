@@ -22,12 +22,12 @@ import Path
 import Path.IO
 import qualified System.FilePath as FilePath
 
-determineBaseDir :: Maybe TurtlePath -> IO (BaseDir, RunDir)
+determineBaseDir :: Maybe FilePath -> IO (BaseDir, RunDir)
 determineBaseDir suppliedDir = do
   pwd <- getCurrentDir
   determineBaseDir' pwd suppliedDir
 
-determineBaseDir' :: AbsDir -> Maybe TurtlePath -> IO (BaseDir, RunDir)
+determineBaseDir' :: AbsDir -> Maybe FilePath -> IO (BaseDir, RunDir)
 determineBaseDir' pwd (Just suppliedDir) = do
   absDir <- turtleToAbsDir pwd suppliedDir
   determineBaseDirFromStartDir absDir
@@ -67,10 +67,10 @@ composeN n f
   | n == 1 = f
   | otherwise = composeN (n - 1) (f . f)
 
-relativeToBase :: (HasBaseDir o) => o -> TurtlePath -> TurtlePath
+relativeToBase :: (HasBaseDir o) => o -> FilePath -> FilePath
 relativeToBase opts = relativeToBase' $ pathToTurtle (baseDir opts)
 
-relativeToBase' :: TurtlePath -> TurtlePath -> TurtlePath
+relativeToBase' :: FilePath -> FilePath -> FilePath
 relativeToBase' bd p
   | forceTrailingSlash bd == forceTrailingSlash p = "./"
   | otherwise =
@@ -80,7 +80,7 @@ relativeToBase' bd p
           let suffix = concat parts
            in if FilePath.takeFileName suffix == ".." then suffix ++ "/" else suffix
 
-turtleBaseDir :: (HasBaseDir o) => o -> TurtlePath
+turtleBaseDir :: (HasBaseDir o) => o -> FilePath
 turtleBaseDir opts = pathToTurtle $ baseDir opts
 
 effectiveRunDir :: BaseDir -> RunDir -> AbsDir

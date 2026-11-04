@@ -24,7 +24,7 @@ import qualified GHC.IO.Handle.FD as H
 import Hledger.Flow.DateTime (timeAction)
 import Hledger.Flow.BaseDir (relativeToBase)
 import Hledger.Flow.Logging
-import Hledger.Flow.PathHelpers (AbsFile, RelDir, TurtlePath, fromTurtleAbsFile)
+import Hledger.Flow.PathHelpers (AbsFile, RelDir, fromTurtleAbsFile)
 import qualified Hledger.Flow.RuntimeOptions as RT
 import Hledger.Flow.Types
 import Path (reldir, relfile, toFilePath)
@@ -39,7 +39,7 @@ import System.IO.Error (tryIOError)
 import System.FilePath ((<.>))
 import Prelude hiding (putStrLn, readFile, writeFile)
 
-hledgerPathFromOption :: Maybe TurtlePath -> IO AbsFile
+hledgerPathFromOption :: Maybe FilePath -> IO AbsFile
 hledgerPathFromOption pathOption = do
   case pathOption of
     Just h -> do
@@ -74,7 +74,7 @@ hledgerVersionFromPath hlp = do
       ExitSuccess -> return (T.strip version)
       ExitFailure _ -> exitWith status
 
-hledgerInfoFromPath :: Maybe TurtlePath -> IO HledgerInfo
+hledgerInfoFromPath :: Maybe FilePath -> IO HledgerInfo
 hledgerInfoFromPath pathOption = do
   hlp <- hledgerPathFromOption pathOption
   hlv <- hledgerVersionFromPath hlp
@@ -239,16 +239,16 @@ pairBy keyFun = map (\v -> (keyFun v, v))
 groupValuesBy :: (Ord k, Ord v) => (v -> k) -> [v] -> Map.Map k [v]
 groupValuesBy keyFun = groupPairs . pairBy keyFun
 
-allYearsFileName :: TurtlePath
+allYearsFileName :: FilePath
 allYearsFileName = "all-years" <.> "journal"
 
 directivesFile :: (HasBaseDir o) => o -> AbsFile
 directivesFile opts = baseDir opts Path.</> [relfile|directives.journal|]
 
-filterPaths :: MonadIO m => (TurtlePath -> IO Bool) -> [TurtlePath] -> m [TurtlePath]
+filterPaths :: MonadIO m => (FilePath -> IO Bool) -> [FilePath] -> m [FilePath]
 filterPaths = filterPaths' []
 
-filterPaths' :: MonadIO m => [TurtlePath] -> (TurtlePath -> IO Bool) -> [TurtlePath] -> m [TurtlePath]
+filterPaths' :: MonadIO m => [FilePath] -> (FilePath -> IO Bool) -> [FilePath] -> m [FilePath]
 filterPaths' acc predicate files = do
   found <- liftIO $ filterM predicate files
   return (reverse found ++ acc)
@@ -259,28 +259,28 @@ firstExistingFile (file : rest) = do
   exists <- Path.doesFileExist file
   if exists then return (Just file) else firstExistingFile rest
 
-writeFiles :: IO (Map.Map TurtlePath T.Text) -> IO [TurtlePath]
+writeFiles :: IO (Map.Map FilePath T.Text) -> IO [FilePath]
 writeFiles fileMap = do
   m <- fileMap
   writeFiles' m
 
-writeFiles' :: Map.Map TurtlePath T.Text -> IO [TurtlePath]
+writeFiles' :: Map.Map FilePath T.Text -> IO [FilePath]
 writeFiles' fileMap = do
   writeTextMap fileMap
   return $ Map.keys fileMap
 
-writeTextMap :: Map.Map TurtlePath T.Text -> IO ()
+writeTextMap :: Map.Map FilePath T.Text -> IO ()
 writeTextMap files = forM_ (Map.toList files) $ \(path, contents) -> do
   current <- tryIOError (T.readFile path)
   when (either (const True) (/= contents) current) $ T.writeFile path contents
 
-changeExtension :: T.Text -> TurtlePath -> TurtlePath
+changeExtension :: T.Text -> FilePath -> FilePath
 changeExtension ext path = (FilePath.dropExtension path) <.> (T.unpack ext)
 
-changePathAndExtension :: TurtlePath -> T.Text -> TurtlePath -> TurtlePath
+changePathAndExtension :: FilePath -> T.Text -> FilePath -> FilePath
 changePathAndExtension newOutputLocation newExt = (changeOutputPath newOutputLocation) . (changeExtension newExt)
 
-changeOutputPath :: TurtlePath -> TurtlePath -> TurtlePath
+changeOutputPath :: FilePath -> FilePath -> FilePath
 changeOutputPath newOutputLocation = concatMap changeSrcDir . FilePath.splitPath
   where
     changeSrcDir "." = "./"
@@ -303,7 +303,7 @@ listOwners opts = do
       let name = FilePath.dropTrailingPathSeparator (toFilePath dir)
        in not ("." `List.isPrefixOf` name || "_" `List.isSuffixOf` name)
 
-intPath :: Integer -> TurtlePath
+intPath :: Integer -> FilePath
 intPath = show
 
 includeYears :: TChan LogMessage -> AbsFile -> IO [Integer]

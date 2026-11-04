@@ -2,14 +2,7 @@
 
 ## Unreleased
 
-- Remove the `turtle` dependency from the library, CLI, and tests. The import
-  and report workflows now use typed paths and standard filesystem and process
-  APIs. `TurtlePath` remains a migration marker for ordinary `FilePath` values.
-- **Haskell API change.** `Hledger.Flow.Common` no longer exports `onlyFiles`,
-  `filterPathsByFileStatus`, `filterPathsByFileStatus'`, `excludeHiddenFiles`,
-  `basenameLine`, `buildFilename`, or `shellToList`. Library callers using
-  these helpers must migrate. `Hledger.Flow.PathHelpers.excludeHiddenFiles`
-  remains available for lists of typed absolute file paths.
+- Remove the `turtle` dependency from the hledger-flow.
 - Refresh the root ledger after a partial import, including newly imported
   years. Ancestor includes are rebuilt from journals already on disk.
   Statements outside the selected directory are still left for a later import.
