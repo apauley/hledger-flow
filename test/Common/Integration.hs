@@ -4,6 +4,7 @@
 
 module Common.Integration (tests) where
 
+import Control.Concurrent.MVar (newEmptyMVar, putMVar, takeMVar, tryTakeMVar)
 import Control.Concurrent.STM (atomically, newTChanIO, tryReadTChan)
 import qualified Data.List as List (sort)
 import qualified Data.Text as T
@@ -17,6 +18,7 @@ import Hledger.Flow.Types (LogMessage (StdErr))
 import qualified Path
 import qualified Path.IO as PathIO
 import System.Directory (doesFileExist)
+import System.Timeout (timeout)
 import Test.HUnit
 import TestHelpers (defaultOpts)
 import TestHelpersTurtle
@@ -133,5 +135,18 @@ testNeedsRegeneration = TestCase $ withTestDir $ \base -> do
   PathIO.removeFile source
   check "source timestamp no longer available" True
 
+testBatchOrder :: Test
+testBatchOrder = TestCase $ do
+  secondStarted <- newEmptyMVar
+  firstFinished <- newEmptyMVar
+  let first = takeMVar secondStarted >> putMVar firstFinished () >> return (1 :: Int)
+      second = putMVar secondStarted () >> return 2
+      third = do
+        finished <- tryTakeMVar firstFinished
+        assertEqual "finish the current batch before starting the next" (Just ()) finished
+        return 3
+  result <- timeout 10000000 (parBatchedActions 2 [0] [first, second, third])
+  assertEqual "preserve input order across parallel batches" (Just [0, 1, 2, 3]) result
+
 tests :: Test
-tests = TestList [testHiddenFiles, testFilterPaths, testFirstExistingFile, testVerboseTestFile, testNeedsRegeneration]
+tests = TestList [testHiddenFiles, testFilterPaths, testFirstExistingFile, testVerboseTestFile, testNeedsRegeneration, testBatchOrder]

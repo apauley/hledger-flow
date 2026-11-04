@@ -147,7 +147,7 @@ verboseParser = MainParams
   <*> optional (option str (long "hledger-path" <> short 'H' <> metavar "HLEDGER-PATH" <> help "The full path to an hledger executable"))
   <*> optional (option str (long "hledger-conf" <> metavar "PATH" <> help "The hledger config file to pass to hledger --conf"))
   <*> switch (long "show-options" <> help "Print the options this program will run with")
-  <*> optional (option auto (long "batch-size" <> metavar "SIZE" <> help ("Parallel processing of files are done in batches of the specified size. Default: " <> show defaultBatchSize <> ". Ignored during sequential processing.")))
+  <*> optional (option auto (long "batch-size" <> metavar "SIZE" <> help ("Number of files to process in parallel. Must be positive. Default: " <> show defaultBatchSize <> ". Ignored during sequential processing.")))
   <*> switch (long "sequential" <> help "Disable parallel processing")
 
 subcommandParserImport :: Parser ImportParams

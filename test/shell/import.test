@@ -130,3 +130,13 @@ test ! -e import/gawie/bogart/3-journal
 $ sh -eu
 From cached CSV
 From cached CSV
+
+# Parallel work needs a positive batch size; sequential mode ignores the setting.
+<
+. ./test/shell/setup.sh
+flow --sequential --batch-size 0 import
+test -s "$journal"
+hledger-flow --batch-size 0 import > /dev/null
+$ sh -eu
+>2 /--batch-size must be positive/
+>= 1

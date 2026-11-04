@@ -6,7 +6,7 @@ module Hledger.Flow.Common where
 import Control.Concurrent (threadDelay)
 import Control.Monad (filterM)
 import Control.Monad.IO.Class (MonadIO, liftIO)
-import Control.Concurrent.Async (concurrently)
+import Control.Concurrent.Async (concurrently, wait, withAsync)
 import Control.Concurrent.STM
 import qualified Control.Foldl as Fold
 import Data.Char (isDigit)
@@ -20,6 +20,7 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import qualified Data.Text.Read as T
 import Data.Time.Clock.POSIX (utcTimeToPOSIXSeconds)
+import Foreign.Marshal.Utils (withMany)
 import qualified GHC.IO.Handle.FD as H
 import Hledger.Flow.DateTime (timeAction)
 import Hledger.Flow.BaseDir (relativeToBase, turtleBaseDir)
@@ -193,12 +194,16 @@ parAwareActions :: (HasSequential o, HasBatchSize o) => o -> [IO a] -> IO [a]
 parAwareActions opts = if (sequential opts) then sequence else parBatchedActions (batchSize opts) []
 
 parBatchedActions :: Int -> [a] -> [IO a] -> IO [a]
-parBatchedActions _ done [] = return done
-parBatchedActions batch done todo = do
-  let doNow = take batch todo
-  let remaining = drop batch todo
-  doneNow <- (Turtle.single . shellToList . Turtle.parallel) doNow
-  parBatchedActions batch (done ++ doneNow) remaining
+parBatchedActions batch done todo
+  | batch < 1 = ioError (userError "--batch-size must be positive")
+  | otherwise = (done ++) <$> runBatches todo
+  where
+    runBatches [] = return []
+    runBatches actions = do
+      let (current, remaining) = splitAt batch actions
+      -- Start the whole batch, then collect results and exceptions in input order.
+      results <- withMany withAsync current (mapM wait)
+      (results ++) <$> runBatches remaining
 
 verboseTestFile :: (HasVerbosity o, HasBaseDir o) => o -> TChan LogMessage -> AbsFile -> IO Bool
 verboseTestFile opts ch p = do

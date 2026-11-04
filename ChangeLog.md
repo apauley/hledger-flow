@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Report an error for a nonpositive `--batch-size` in parallel mode.
+  Previously, processing could hang. Sequential mode still ignores the batch size.
 - Publish preprocessed CSVs and constructed journals only after successful
   processing. Failed hooks leave any previous output intact. The second
   argument to `preprocess` is now a temporary path with the final filename
