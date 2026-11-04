@@ -1,15 +1,36 @@
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes #-}
 
-module Hledger.Flow.Import.ImportHelpers (findInputFiles, findJournalFiles, groupIncludesUpTo, includeFileName) where
+module Hledger.Flow.Import.ImportHelpers (extractImportDirs, findInputFiles, findJournalFiles, groupIncludesUpTo, includeFileName) where
 
 import Data.Char (isDigit)
 import qualified Data.Map.Strict as Map
 import Data.Maybe (fromMaybe)
+import qualified Data.Text as T
 import Hledger.Flow.Common (groupValuesBy)
-import Hledger.Flow.Import.Types (InputFileBundle)
+import Hledger.Flow.DocHelpers (docURL)
+import Hledger.Flow.Import.Types (ImportDirs (..), InputFileBundle)
 import Hledger.Flow.PathHelpers (AbsDir, AbsFile, RelDir, RelFile, findFilesIn, pathSize)
 import Path
 import System.FilePath (dropTrailingPathSeparator)
+
+extractImportDirs :: Path b File -> Either T.Text (ImportDirs b)
+extractImportDirs inputFile = walk (parent inputFile) []
+  where
+    walk dir children
+      | dirname dir == [reldir|import|] = case children of
+          [owner, bank, account, state, year] -> Right (ImportDirs dir owner bank account state year)
+          _ -> malformed
+      | parent dir == dir = malformed
+      | otherwise = walk (parent dir) (dir : children)
+
+    malformed = Left $
+      "I couldn't find the right number of directories between \"import\" and the input file:\n"
+      <> T.pack (toFilePath inputFile)
+      <> "\n\nhledger-flow expects to find input files in this structure:\n"
+      <> "import/owner/bank/account/filestate/year/trxfile\n\n"
+      <> "Have a look at the documentation for a detailed explanation:\n"
+      <> docURL "input-files"
 
 findInputFiles :: Integer -> AbsDir -> IO [AbsFile]
 findInputFiles startYear = do

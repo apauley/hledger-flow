@@ -17,47 +17,22 @@ module Hledger.Flow.Import.ImportHelpersTurtle
 where
 
 import Control.Concurrent.STM (TChan)
+import Data.Either (isRight)
 import qualified Data.List as List (nub, sort)
 import qualified Data.Map.Strict as Map
 import Data.Maybe (fromMaybe)
 import qualified Data.Text as T
 import Hledger.Flow.BaseDir (relativeToBase, relativeToBase', turtleBaseDir)
 import Hledger.Flow.Common (allYearsFileName, directivesFile, filterPaths, groupValuesBy, writeFiles, writeFiles')
-import Hledger.Flow.DocHelpers (docURL)
+import Hledger.Flow.Import.ImportHelpers (extractImportDirs)
 import Hledger.Flow.Import.Types
 import Hledger.Flow.Logging (logVerbose)
 import Hledger.Flow.PathHelpers (TurtlePath)
 import Hledger.Flow.Types
+import qualified Path
 import qualified System.FilePath as FilePath
 import Turtle ((%), (</>))
 import qualified Turtle
-
-extractImportDirs :: TurtlePath -> Either T.Text ImportDirs
-extractImportDirs inputFile = do
-  case importDirBreakdown inputFile of
-    [bd, owner, bank, account, filestate, year] -> Right $ ImportDirs bd owner bank account filestate year
-    _ -> do
-      Left $
-        Turtle.format
-          ( "I couldn't find the right number of directories between \"import\" and the input file:\n"
-              % Turtle.fp
-              % "\n\nhledger-flow expects to find input files in this structure:\n"
-              % "import/owner/bank/account/filestate/year/trxfile\n\n"
-              % "Have a look at the documentation for a detailed explanation:\n"
-              % Turtle.s
-          )
-          inputFile
-          (docURL "input-files")
-
-importDirBreakdown :: TurtlePath -> [TurtlePath]
-importDirBreakdown = importDirBreakdown' []
-
-importDirBreakdown' :: [TurtlePath] -> TurtlePath -> [TurtlePath]
-importDirBreakdown' acc path = do
-  let dir = Turtle.directory path
-  if Turtle.dirname dir == "import" || (Turtle.dirname dir == "")
-    then dir : acc
-    else importDirBreakdown' (dir : acc) $ Turtle.parent dir
 
 groupIncludeFiles :: [TurtlePath] -> (TurtleFileBundle, TurtleFileBundle)
 groupIncludeFiles = allYearIncludeFiles . groupIncludeFilesPerYear . filter isJournalFile
@@ -82,9 +57,10 @@ includeFileName journal = FilePath.takeFileName (FilePath.takeDirectory journal)
 
 groupIncludeFilesPerYear :: [TurtlePath] -> TurtleFileBundle
 groupIncludeFilesPerYear [] = Map.empty
-groupIncludeFilesPerYear ps@(p : _) = case extractImportDirs p of
-  Right _ -> groupValuesBy initialIncludeFilePath ps
-  Left _ -> groupValuesBy parentIncludeFilePath ps
+groupIncludeFilesPerYear ps@(p : _)
+  | maybe False (Path.prjSomeBase (isRight . extractImportDirs)) (Path.parseSomeFile p) =
+      groupValuesBy initialIncludeFilePath ps
+  | otherwise = groupValuesBy parentIncludeFilePath ps
 
 initialIncludeFilePath :: TurtlePath -> TurtlePath
 initialIncludeFilePath p = (Turtle.parent . Turtle.parent . Turtle.parent) p </> includeFileName p

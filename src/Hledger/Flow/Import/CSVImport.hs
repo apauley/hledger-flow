@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE QuasiQuotes #-}
 
 module Hledger.Flow.Import.CSVImport
   ( importCSVs,
@@ -15,12 +16,14 @@ import Hledger.Flow.BaseDir (effectiveRunDir, relativeToBase)
 import Hledger.Flow.Common
 import Hledger.Flow.DocHelpers (docURL)
 import Hledger.Flow.Import.ImportHelpers
-import Hledger.Flow.Import.ImportHelpersTurtle (extractImportDirs, writeIncludesUpTo, writeToplevelAllYearsInclude)
+import Hledger.Flow.Import.ImportHelpersTurtle (writeIncludesUpTo, writeToplevelAllYearsInclude)
 import Hledger.Flow.Import.Types
 import Hledger.Flow.Logging
 import Hledger.Flow.PathHelpers (AbsFile, TurtlePath, pathToTurtle)
 import Hledger.Flow.RuntimeOptions
 import qualified Hledger.Flow.Types as FlowTypes
+import qualified Path
+import System.FilePath (dropTrailingPathSeparator)
 import Turtle ((%), (<.>), (</>))
 import qualified Turtle hiding (proc, procStrictWithErr, stderr, stdout)
 import Prelude hiding (putStrLn, take, writeFile)
@@ -76,19 +79,18 @@ importCSVs' opts ch = do
 
 extractAndImport :: RuntimeOptions -> TChan FlowTypes.LogMessage -> AbsFile -> IO (TurtlePath, FileWasGenerated)
 extractAndImport opts ch inputFile = do
-  let inputPath = pathToTurtle inputFile
-  case extractImportDirs inputPath of
+  case extractImportDirs inputFile of
     Right importDirs -> importCSV opts ch importDirs inputFile
     Left errorMessage -> do
-      errExit 1 ch errorMessage (inputPath, False)
+      errExit 1 ch errorMessage (pathToTurtle inputFile, False)
 
-importCSV :: RuntimeOptions -> TChan FlowTypes.LogMessage -> ImportDirs -> AbsFile -> IO (TurtlePath, FileWasGenerated)
+importCSV :: RuntimeOptions -> TChan FlowTypes.LogMessage -> ImportDirs Path.Abs -> AbsFile -> IO (TurtlePath, FileWasGenerated)
 importCSV opts ch importDirs srcFile = do
-  let preprocessScript = accountDir importDirs </> "preprocess"
-  let constructScript = accountDir importDirs </> "construct"
-  let bankName = importDirLine bankDir importDirs
-  let accountName = importDirLine accountDir importDirs
-  let ownerName = importDirLine ownerDir importDirs
+  let preprocessScript = pathToTurtle (accountDir importDirs Path.</> [Path.relfile|preprocess|])
+  let constructScript = pathToTurtle (accountDir importDirs Path.</> [Path.relfile|construct|])
+  let bankName = importDirLine (bankDir importDirs)
+  let accountName = importDirLine (accountDir importDirs)
+  let ownerName = importDirLine (ownerDir importDirs)
   (csvFile, preprocessHappened) <- preprocessIfNeeded opts ch preprocessScript bankName accountName ownerName (pathToTurtle srcFile)
   let journalOut = changePathAndExtension "3-journal/" "journal" csvFile
   shouldImport <-
@@ -161,12 +163,13 @@ preprocess opts ch script bank account owner src csvOut = do
 
 hledgerImport :: RuntimeOptions -> TChan FlowTypes.LogMessage -> TurtlePath -> TurtlePath -> IO TurtlePath
 hledgerImport opts ch csvSrc journalOut = do
-  case extractImportDirs csvSrc of
+  csvFile <- Path.parseAbsFile csvSrc
+  case extractImportDirs csvFile of
     Right importDirs -> hledgerImport' opts ch importDirs csvSrc journalOut
     Left errorMessage -> do
       errExit 1 ch errorMessage csvSrc
 
-hledgerImport' :: RuntimeOptions -> TChan FlowTypes.LogMessage -> ImportDirs -> TurtlePath -> TurtlePath -> IO TurtlePath
+hledgerImport' :: RuntimeOptions -> TChan FlowTypes.LogMessage -> ImportDirs b -> TurtlePath -> TurtlePath -> IO TurtlePath
 hledgerImport' opts ch importDirs csvSrc journalOut = do
   let candidates = rulesFileCandidates csvSrc importDirs
   maybeRulesFile <- firstExistingFile candidates
@@ -205,32 +208,32 @@ hledgerImport' opts ch importDirs csvSrc journalOut = do
                 (docURL "rules-files")
         errExit 1 ch msg csvSrc
 
-rulesFileCandidates :: TurtlePath -> ImportDirs -> [TurtlePath]
+rulesFileCandidates :: TurtlePath -> ImportDirs b -> [TurtlePath]
 rulesFileCandidates csvSrc importDirs = statementSpecificRulesFiles csvSrc importDirs ++ generalRulesFiles importDirs
 
-importDirLines :: (ImportDirs -> TurtlePath) -> ImportDirs -> [Turtle.Line]
-importDirLines dirFun importDirs = NonEmpty.toList $ Turtle.textToLines $ Turtle.format Turtle.fp $ Turtle.dirname $ dirFun importDirs
+importDirLines :: Path.Path b Path.Dir -> [Turtle.Line]
+importDirLines = NonEmpty.toList . Turtle.textToLines . T.pack . dropTrailingPathSeparator . Path.toFilePath . Path.dirname
 
-importDirLine :: (ImportDirs -> TurtlePath) -> ImportDirs -> Turtle.Line
-importDirLine dirFun importDirs = foldl (<>) "" $ importDirLines dirFun importDirs
+importDirLine :: Path.Path b Path.Dir -> Turtle.Line
+importDirLine = foldl (<>) "" . importDirLines
 
-generalRulesFiles :: ImportDirs -> [TurtlePath]
+generalRulesFiles :: ImportDirs b -> [TurtlePath]
 generalRulesFiles importDirs = do
-  let bank = importDirLines bankDir importDirs
-  let account = importDirLines accountDir importDirs
-  let accountRulesFile = accountDir importDirs </> buildFilename (bank ++ account) "rules"
+  let bank = importDirLines (bankDir importDirs)
+  let account = importDirLines (accountDir importDirs)
+  let accountRulesFile = pathToTurtle (accountDir importDirs) </> buildFilename (bank ++ account) "rules"
 
-  let bankRulesFile = importDir importDirs </> buildFilename bank "rules"
+  let bankRulesFile = pathToTurtle (importDir importDirs) </> buildFilename bank "rules"
   [accountRulesFile, bankRulesFile]
 
-statementSpecificRulesFiles :: TurtlePath -> ImportDirs -> [TurtlePath]
+statementSpecificRulesFiles :: TurtlePath -> ImportDirs b -> [TurtlePath]
 statementSpecificRulesFiles csvSrc importDirs = do
   let srcSuffix = snd $ T.breakOnEnd "_" (Turtle.format Turtle.fp (Turtle.basename csvSrc))
 
   if ((T.take 3 srcSuffix) == "rfo")
     then do
       let srcSpecificFilename = T.unpack srcSuffix <.> "rules"
-      map (</> srcSpecificFilename) [accountDir importDirs, bankDir importDirs, importDir importDirs]
+      map ((</> srcSpecificFilename) . pathToTurtle) [accountDir importDirs, bankDir importDirs, importDir importDirs]
     else []
 
 customConstruct :: RuntimeOptions -> TChan FlowTypes.LogMessage -> TurtlePath -> Turtle.Line -> Turtle.Line -> Turtle.Line -> TurtlePath -> TurtlePath -> IO TurtlePath

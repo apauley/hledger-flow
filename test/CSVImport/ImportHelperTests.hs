@@ -4,11 +4,45 @@
 
 module CSVImport.ImportHelperTests where
 
-import Hledger.Flow.Import.ImportHelpers (groupIncludesUpTo, includeFileName)
-import Hledger.Flow.Import.Types (InputFileBundle)
+import qualified Data.Text as T
+import Hledger.Flow.DocHelpers (docURL)
+import Hledger.Flow.Import.ImportHelpers (extractImportDirs, groupIncludesUpTo, includeFileName)
+import Hledger.Flow.Import.Types (ImportDirs (..), InputFileBundle)
 import Path
-import Test.HUnit
+import Test.HUnit hiding (Path)
 import TestHelpers
+
+testExtractImportDirs :: Test
+testExtractImportDirs = TestList
+  [ TestCase $ check [reldir|.|],
+    TestCase $ check (testRoot </> [reldir|finance|])
+  ]
+  where
+    check :: Path b Dir -> Assertion
+    check base = do
+      let root = base </> [reldir|import|]
+          owner = root </> [reldir|john|]
+          bank = owner </> [reldir|mybank|]
+          account = bank </> [reldir|checking|]
+          state = account </> [reldir|1-in|]
+          year = state </> [reldir|2019|]
+          statement = year </> [relfile|2019-01-01.csv|]
+      assertEqual "statement directories"
+        (Right (ImportDirs root owner bank account state year)) (extractImportDirs statement)
+      checkMalformed (account </> [relfile|2019-01-01.csv|])
+      checkMalformed (year </> [relfile|extra/2019-01-01.csv|])
+      checkMalformed (base </> [relfile|outside/john/mybank/checking/1-in/2019/statement.csv|])
+
+    checkMalformed file =
+      case extractImportDirs file of
+        Right _ -> assertFailure "expected malformed import layout to be rejected"
+        Left err -> assertEqual "malformed layout diagnostic"
+          ("I couldn't find the right number of directories between \"import\" and the input file:\n"
+            <> T.pack (toFilePath file)
+            <> "\n\nhledger-flow expects to find input files in this structure:\n"
+            <> "import/owner/bank/account/filestate/year/trxfile\n\n"
+            <> "Have a look at the documentation for a detailed explanation:\n"
+            <> docURL "input-files") err
 
 testToJournal :: Test
 testToJournal =
@@ -112,4 +146,4 @@ testGroupIncludesUpTo =
     )
 
 tests :: Test
-tests = TestList [testToJournal, testIncludeFileName, testGroupIncludesUpToTinySet, testGroupIncludesUpToSmallSet, testGroupIncludesUpTo]
+tests = TestList [testExtractImportDirs, testToJournal, testIncludeFileName, testGroupIncludesUpToTinySet, testGroupIncludesUpToSmallSet, testGroupIncludesUpTo]
