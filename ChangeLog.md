@@ -2,6 +2,31 @@
 
 ## Unreleased
 
+- Remove the `turtle` dependency from the hledger-flow.
+- Refresh the root ledger after a partial import, including newly imported
+  years. Ancestor includes are rebuilt from journals already on disk.
+  Statements outside the selected directory are still left for a later import.
+- Keep generated includes within the requested directory, even when Windows
+  paths use different separators. An empty import index is now readable.
+- Discover report owners when `import` is a Windows directory junction.
+  Reports now follow the linked directory as they do for a Unix symbolic link.
+- Report an error for a nonpositive `--batch-size` in parallel mode.
+  Previously, processing could hang. Sequential mode still ignores the batch size.
+- Publish preprocessed CSVs and constructed journals only after successful
+  processing. Failed hooks leave any previous output intact. The second
+  argument to `preprocess` is now a temporary path with the final filename
+  and extension.
+- Keep aggregate reports in `reports/all/` unless an owner is named `all`
+  (in any capitalization). In that case, write aggregates to `reports/_all_/`
+  so the owner's reports and the aggregate reports are both available.
+- Use the full owner directory name when generating reports. Owners such as
+  `gawie` and `gawie.jr` now each get reports from their own journal.
+- Fix `--sequential import`, which could print transactions to the terminal
+  and overwrite the generated journal with an empty file. It now writes the
+  same journal as a parallel import and keeps diagnostics visible.
+- Keep generated files under the correct account when an owner, bank, or
+  account is named `1-in` or `2-preprocessed`. Include those journals in the
+  root ledger.
 - Update the Stack resolver to LTS 24.65 (GHC 9.10.3).
 - Add Windows x64 CI builds and a `hledger-flow-windows-x64.zip` release archive.
 - Fix Windows compilation and make the test suite portable.

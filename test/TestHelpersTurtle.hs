@@ -3,10 +3,10 @@
 module TestHelpersTurtle where
 
 import Hledger.Flow.Common (changePathAndExtension)
-import Hledger.Flow.PathHelpers (TurtlePath)
-import Turtle
+import System.Directory (createDirectoryIfMissing)
+import System.FilePath (takeDirectory)
 
-inputJohnBogart :: [TurtlePath]
+inputJohnBogart :: [FilePath]
 inputJohnBogart =
   [ "import/john/bogartbank/savings/1-in/2017/2017-11-30.csv",
     "import/john/bogartbank/savings/1-in/2017/2017-12-30.csv",
@@ -19,7 +19,7 @@ inputJohnBogart =
     "import/john/bogartbank/checking/1-in/2019/2019-02-30.csv"
   ]
 
-inputJohnOther :: [TurtlePath]
+inputJohnOther :: [FilePath]
 inputJohnOther =
   [ "import/john/otherbank/creditcard/1-in/2017/2017-12-30.csv",
     "import/john/otherbank/creditcard/1-in/2018/2018-01-30.csv",
@@ -27,7 +27,7 @@ inputJohnOther =
     "import/john/otherbank/investments/1-in/2019/2019-01-30.csv"
   ]
 
-inputJaneBogart :: [TurtlePath]
+inputJaneBogart :: [FilePath]
 inputJaneBogart =
   [ "import/jane/bogartbank/savings/1-in/2017/2017-12-30.csv",
     "import/jane/bogartbank/savings/1-in/2018/2018-01-30.csv",
@@ -35,7 +35,7 @@ inputJaneBogart =
     "import/jane/bogartbank/checking/1-in/2019/2019-01-30.csv"
   ]
 
-inputJaneOther :: [TurtlePath]
+inputJaneOther :: [FilePath]
 inputJaneOther =
   [ "import/jane/otherbank/creditcard/1-in/2017/2017-12-30.csv",
     "import/jane/otherbank/creditcard/1-in/2018/2018-01-30.csv",
@@ -43,19 +43,19 @@ inputJaneOther =
     "import/jane/otherbank/investments/1-in/2019/2019-01-30.csv"
   ]
 
-inputFiles :: [TurtlePath]
+inputFiles :: [FilePath]
 inputFiles = inputJohnBogart <> inputJohnOther <> inputJaneBogart <> inputJaneOther
 
-journalFiles :: [TurtlePath]
+journalFiles :: [FilePath]
 journalFiles = toJournals inputFiles ++ ignoredJournalFiles
 
-ignoredJournalFiles :: [TurtlePath]
+ignoredJournalFiles :: [FilePath]
 ignoredJournalFiles = ["import/john/bogartbank/checking/3-journal/2018/not-a-journal.pdf"]
 
-extraFiles :: [TurtlePath]
+extraFiles :: [FilePath]
 extraFiles = ["import/john/bogartbank/savings/2017-opening.journal"]
 
-hiddenFiles :: [TurtlePath]
+hiddenFiles :: [FilePath]
 hiddenFiles =
   [ ".hiddenfile",
     "checking/.DS_Store",
@@ -64,13 +64,13 @@ hiddenFiles =
     "import/john/bogartbank/checking/3-journal/2018/.hidden"
   ]
 
-toJournals :: [TurtlePath] -> [TurtlePath]
+toJournals :: [FilePath] -> [FilePath]
 toJournals = map (changePathAndExtension "3-journal/" "journal")
 
-touchAll :: [TurtlePath] -> Shell ()
-touchAll = foldl (\acc file -> acc <> superTouch file) (return ())
+touchAll :: [FilePath] -> IO ()
+touchAll = mapM_ superTouch
 
-superTouch :: TurtlePath -> Shell ()
+superTouch :: FilePath -> IO ()
 superTouch file = do
-  mktree $ directory file
-  touch file
+  createDirectoryIfMissing True (takeDirectory file)
+  appendFile file ""

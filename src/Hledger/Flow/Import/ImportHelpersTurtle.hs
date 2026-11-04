@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
--- | Functions which currently uses TurtlePath and will be replaced with Path eventually
+-- | Generate journal include files and their relative include directives.
 module Hledger.Flow.Import.ImportHelpersTurtle
   ( allYearIncludeFiles,
     extractImportDirs,
@@ -17,162 +17,157 @@ module Hledger.Flow.Import.ImportHelpersTurtle
 where
 
 import Control.Concurrent.STM (TChan)
-import qualified Data.List as List (nub, sort)
+import Control.Monad (unless)
+import Data.Either (isRight)
+import qualified Data.List as List (isPrefixOf, nub, sort)
 import qualified Data.Map.Strict as Map
 import Data.Maybe (fromMaybe)
 import qualified Data.Text as T
 import Hledger.Flow.BaseDir (relativeToBase, relativeToBase', turtleBaseDir)
 import Hledger.Flow.Common (allYearsFileName, directivesFile, filterPaths, groupValuesBy, writeFiles, writeFiles')
-import Hledger.Flow.DocHelpers (docURL)
+import Hledger.Flow.Import.ImportHelpers (extractImportDirs, groupIncludesUpTo)
 import Hledger.Flow.Import.Types
 import Hledger.Flow.Logging (logVerbose)
-import Hledger.Flow.PathHelpers (TurtlePath)
+import Hledger.Flow.PathHelpers (AbsDir, AbsFile)
 import Hledger.Flow.Types
+import qualified Path
+import qualified Path.IO as PathIO
+import System.Directory (doesFileExist)
 import qualified System.FilePath as FilePath
-import Turtle ((%), (</>))
-import qualified Turtle
+import System.FilePath ((</>))
 
-extractImportDirs :: TurtlePath -> Either T.Text ImportDirs
-extractImportDirs inputFile = do
-  case importDirBreakdown inputFile of
-    [bd, owner, bank, account, filestate, year] -> Right $ ImportDirs bd owner bank account filestate year
-    _ -> do
-      Left $
-        Turtle.format
-          ( "I couldn't find the right number of directories between \"import\" and the input file:\n"
-              % Turtle.fp
-              % "\n\nhledger-flow expects to find input files in this structure:\n"
-              % "import/owner/bank/account/filestate/year/trxfile\n\n"
-              % "Have a look at the documentation for a detailed explanation:\n"
-              % Turtle.s
-          )
-          inputFile
-          (docURL "input-files")
-
-importDirBreakdown :: TurtlePath -> [TurtlePath]
-importDirBreakdown = importDirBreakdown' []
-
-importDirBreakdown' :: [TurtlePath] -> TurtlePath -> [TurtlePath]
-importDirBreakdown' acc path = do
-  let dir = Turtle.directory path
-  if Turtle.dirname dir == "import" || (Turtle.dirname dir == "")
-    then dir : acc
-    else importDirBreakdown' (dir : acc) $ Turtle.parent dir
-
-groupIncludeFiles :: [TurtlePath] -> (TurtleFileBundle, TurtleFileBundle)
+groupIncludeFiles :: [FilePath] -> (TurtleFileBundle, TurtleFileBundle)
 groupIncludeFiles = allYearIncludeFiles . groupIncludeFilesPerYear . filter isJournalFile
 
-isJournalFile :: TurtlePath -> Bool
-isJournalFile f = Turtle.extension f == Just "journal"
+isJournalFile :: FilePath -> Bool
+isJournalFile f = FilePath.takeExtension f == ".journal"
 
 allYearIncludeFiles :: TurtleFileBundle -> (TurtleFileBundle, TurtleFileBundle)
 allYearIncludeFiles m = (m, yearsIncludeMap $ Map.keys m)
 
-yearsIncludeMap :: [TurtlePath] -> TurtleFileBundle
+yearsIncludeMap :: [FilePath] -> TurtleFileBundle
 yearsIncludeMap = groupValuesBy allYearsPath
 
-allYearsPath :: TurtlePath -> TurtlePath
-allYearsPath = allYearsPath' Turtle.directory
+allYearsPath :: FilePath -> FilePath
+allYearsPath journal = fst (FilePath.splitFileName journal) </> allYearsFileName
 
-allYearsPath' :: (TurtlePath -> TurtlePath) -> TurtlePath -> TurtlePath
-allYearsPath' dir p = dir p </> allYearsFileName
-
-includeFileName :: TurtlePath -> TurtlePath
+includeFileName :: FilePath -> FilePath
 includeFileName journal = FilePath.takeFileName (FilePath.takeDirectory journal) ++ "-include.journal"
 
-groupIncludeFilesPerYear :: [TurtlePath] -> TurtleFileBundle
+groupIncludeFilesPerYear :: [FilePath] -> TurtleFileBundle
 groupIncludeFilesPerYear [] = Map.empty
-groupIncludeFilesPerYear ps@(p : _) = case extractImportDirs p of
-  Right _ -> groupValuesBy initialIncludeFilePath ps
-  Left _ -> groupValuesBy parentIncludeFilePath ps
+groupIncludeFilesPerYear ps@(p : _)
+  | maybe False (Path.prjSomeBase (isRight . extractImportDirs)) (Path.parseSomeFile p) =
+      groupValuesBy initialIncludeFilePath ps
+  | otherwise = groupValuesBy parentIncludeFilePath ps
 
-initialIncludeFilePath :: TurtlePath -> TurtlePath
-initialIncludeFilePath p = (Turtle.parent . Turtle.parent . Turtle.parent) p </> includeFileName p
+initialIncludeFilePath :: FilePath -> FilePath
+initialIncludeFilePath p = ancestorDir 3 p </> includeFileName p
 
-parentIncludeFilePath :: TurtlePath -> TurtlePath
-parentIncludeFilePath p = (Turtle.parent . Turtle.parent) p </> Turtle.filename p
+parentIncludeFilePath :: FilePath -> FilePath
+parentIncludeFilePath p = ancestorDir 2 p </> FilePath.takeFileName p
 
-toIncludeFiles :: (HasBaseDir o, HasVerbosity o) => o -> TChan LogMessage -> TurtleFileBundle -> IO (Map.Map TurtlePath T.Text)
+-- Keep the original path components (including separators) when constructing
+-- include-map keys. Relative keys have historically been rooted at "./".
+ancestorDir :: Int -> FilePath -> FilePath
+ancestorDir levels file = prefix </> FilePath.joinPath parents
+  where
+    (drive, rest) = FilePath.splitDrive file
+    parts = FilePath.splitPath rest
+    parents = take (length parts - levels) parts
+    prefix = case parents of
+      first : _ | first == "./" || first == "../" -> drive
+      _ | null drive -> "./"
+      _ -> drive
+
+toIncludeFiles :: (HasBaseDir o, HasVerbosity o) => o -> TChan LogMessage -> TurtleFileBundle -> IO (Map.Map FilePath T.Text)
 toIncludeFiles opts ch m = do
   preMap <- extraIncludes opts ch (Map.keys m) ["opening.journal"] ["pre-import.journal"] []
   postMap <- extraIncludes opts ch (Map.keys m) ["closing.journal"] ["post-import.journal"] ["prices.journal"]
   return $ (addPreamble . toIncludeFiles' preMap postMap) m
 
-toIncludeFiles' :: TurtleFileBundle -> TurtleFileBundle -> TurtleFileBundle -> Map.Map TurtlePath T.Text
+toIncludeFiles' :: TurtleFileBundle -> TurtleFileBundle -> TurtleFileBundle -> Map.Map FilePath T.Text
 toIncludeFiles' preMap postMap = Map.mapWithKey $ generatedIncludeText preMap postMap
 
-addPreamble :: Map.Map TurtlePath T.Text -> Map.Map TurtlePath T.Text
+addPreamble :: Map.Map FilePath T.Text -> Map.Map FilePath T.Text
 addPreamble = Map.map (\txt -> includePreamble <> "\n" <> txt)
 
-toIncludeLine :: TurtlePath -> TurtlePath -> T.Text
-toIncludeLine base file = Turtle.format ("include " % Turtle.fp) $ map forwardSlash $ relativeToBase' base file
+toIncludeLine :: FilePath -> FilePath -> T.Text
+toIncludeLine base file = "include " <> T.pack (map forwardSlash (relativeToBase' base file))
   where
     forwardSlash c = if FilePath.isPathSeparator c then '/' else c
 
-generatedIncludeText :: TurtleFileBundle -> TurtleFileBundle -> TurtlePath -> [TurtlePath] -> T.Text
+generatedIncludeText :: TurtleFileBundle -> TurtleFileBundle -> FilePath -> [FilePath] -> T.Text
 generatedIncludeText preMap postMap outputFile fs = do
   let preFiles = fromMaybe [] $ Map.lookup outputFile preMap
   let files = List.nub . List.sort $ fs
   let postFiles = fromMaybe [] $ Map.lookup outputFile postMap
-  let lns = map (toIncludeLine $ Turtle.directory outputFile) $ preFiles ++ files ++ postFiles
+  let lns = map (toIncludeLine $ FilePath.takeDirectory outputFile) $ preFiles ++ files ++ postFiles
   T.intercalate "\n" $ lns ++ [""]
 
 includePreamble :: T.Text
 includePreamble = "### Generated by hledger-flow - DO NOT EDIT ###\n"
 
-groupAndWriteIncludeFiles :: (HasBaseDir o, HasVerbosity o) => o -> TChan LogMessage -> [TurtlePath] -> IO [TurtlePath]
+groupAndWriteIncludeFiles :: (HasBaseDir o, HasVerbosity o) => o -> TChan LogMessage -> [FilePath] -> IO [FilePath]
 groupAndWriteIncludeFiles opts ch = writeFileMap opts ch . groupIncludeFiles
 
-writeFileMap :: (HasBaseDir o, HasVerbosity o) => o -> TChan LogMessage -> (TurtleFileBundle, TurtleFileBundle) -> IO [TurtlePath]
+writeFileMap :: (HasBaseDir o, HasVerbosity o) => o -> TChan LogMessage -> (TurtleFileBundle, TurtleFileBundle) -> IO [FilePath]
 writeFileMap opts ch (m, allYears) = do
   _ <- writeFiles' $ (addPreamble . toIncludeFiles' Map.empty Map.empty) allYears
   writeFiles . (toIncludeFiles opts ch) $ m
 
-writeIncludesUpTo :: (HasBaseDir o, HasVerbosity o) => o -> TChan LogMessage -> TurtlePath -> [TurtlePath] -> IO [TurtlePath]
-writeIncludesUpTo _ _ _ [] = return []
-writeIncludesUpTo opts ch stopAt journalFiles = do
-  let shouldStop = any (\dir -> dir == stopAt) $ map Turtle.parent journalFiles
-  if shouldStop
-    then return journalFiles
-    else do
-      newJournalFiles <- groupAndWriteIncludeFiles opts ch journalFiles
-      writeIncludesUpTo opts ch stopAt newJournalFiles
+writeIncludesUpTo :: (HasBaseDir o, HasVerbosity o) => o -> TChan LogMessage -> AbsDir -> [AbsFile] -> IO [AbsFile]
+writeIncludesUpTo opts ch stopAt journals = do
+  let base = baseDir opts
+      journalFiles = filter (isJournalFile . Path.toFilePath) journals
+  boundary <- Path.stripProperPrefix base stopAt
+  unless (all (Path.isProperPrefixOf stopAt) journalFiles) $
+    ioError (userError "Journal file outside the requested include directory")
+  inputs <- mapM (Path.stripProperPrefix base) journalFiles
+  let groups = groupIncludesUpTo boundary inputs
+      absolute file = Path.toFilePath (base Path.</> file)
+      includes = Map.mapKeys absolute (Map.map (map absolute) groups)
+      years = yearsIncludeMap (Map.keys includes)
+      allAtStop = Path.toFilePath stopAt </> allYearsFileName
+  _ <- writeFileMap opts ch (includes, Map.insertWith (++) allAtStop [] years)
+  return [base Path.</> f | f <- Map.keys groups, Path.parent f == boundary]
 
-writeToplevelAllYearsInclude :: (HasBaseDir o, HasVerbosity o) => o -> IO [TurtlePath]
+writeToplevelAllYearsInclude :: (HasBaseDir o, HasVerbosity o) => o -> IO [FilePath]
 writeToplevelAllYearsInclude opts = do
-  directivesExists <- Turtle.testfile (directivesFile opts)
-  let preMap = if directivesExists then Map.singleton (turtleBaseDir opts </> allYearsFileName) [directivesFile opts] else Map.empty
+  let directives = directivesFile opts
+  directivesExists <- PathIO.doesFileExist directives
+  let preMap = if directivesExists then Map.singleton (turtleBaseDir opts </> allYearsFileName) [Path.toFilePath directives] else Map.empty
   let allTop = Map.singleton (turtleBaseDir opts </> allYearsFileName) ["import" </> allYearsFileName]
   writeFiles' $ (addPreamble . toIncludeFiles' preMap Map.empty) allTop
 
-extraIncludes :: (HasBaseDir o, HasVerbosity o) => o -> TChan LogMessage -> [TurtlePath] -> [T.Text] -> [TurtlePath] -> [TurtlePath] -> IO TurtleFileBundle
+extraIncludes :: (HasBaseDir o, HasVerbosity o) => o -> TChan LogMessage -> [FilePath] -> [T.Text] -> [FilePath] -> [FilePath] -> IO TurtleFileBundle
 extraIncludes opts ch = extraIncludes' opts ch Map.empty
 
-extraIncludes' :: (HasBaseDir o, HasVerbosity o) => o -> TChan LogMessage -> TurtleFileBundle -> [TurtlePath] -> [T.Text] -> [TurtlePath] -> [TurtlePath] -> IO TurtleFileBundle
+extraIncludes' :: (HasBaseDir o, HasVerbosity o) => o -> TChan LogMessage -> TurtleFileBundle -> [FilePath] -> [T.Text] -> [FilePath] -> [FilePath] -> IO TurtleFileBundle
 extraIncludes' _ _ acc [] _ _ _ = return acc
 extraIncludes' opts ch acc (file : files) extraSuffixes manualFiles prices = do
   extra <- extraIncludesForFile opts ch file extraSuffixes manualFiles prices
   extraIncludes' opts ch (Map.unionWith (++) acc extra) files extraSuffixes manualFiles prices
 
-extraIncludesForFile :: (HasVerbosity o, HasBaseDir o) => o -> TChan LogMessage -> TurtlePath -> [T.Text] -> [TurtlePath] -> [TurtlePath] -> IO TurtleFileBundle
+extraIncludesForFile :: (HasVerbosity o, HasBaseDir o) => o -> TChan LogMessage -> FilePath -> [T.Text] -> [FilePath] -> [FilePath] -> IO TurtleFileBundle
 extraIncludesForFile opts ch file extraSuffixes manualFiles prices = do
-  let dirprefix = T.unpack $ fst $ T.breakOn "-" $ Turtle.format Turtle.fp $ Turtle.basename file
-  let fileNames = map (T.unpack . Turtle.format (Turtle.fp % "-" % Turtle.s) dirprefix) extraSuffixes
-  let suffixFiles = map (Turtle.directory file </>) fileNames
-  let suffixDirFiles = map (((Turtle.directory file </> "_manual_") </> dirprefix) </>) manualFiles
-  let priceFiles = map ((((Turtle.directory file </> "..") </> "prices") </> dirprefix) </>) prices
+  let name = FilePath.takeFileName file
+      stem = if "." `List.isPrefixOf` name then name else FilePath.dropExtensions name
+      dirprefix = takeWhile (/= '-') stem
+      fileNames = [dirprefix ++ "-" ++ T.unpack suffix | suffix <- extraSuffixes]
+  let suffixFiles = map (FilePath.takeDirectory file </>) fileNames
+  let suffixDirFiles = map (((FilePath.takeDirectory file </> "_manual_") </> dirprefix) </>) manualFiles
+  let priceFiles = map ((((FilePath.takeDirectory file </> "..") </> "prices") </> dirprefix) </>) prices
   let extraFiles = suffixFiles ++ suffixDirFiles ++ priceFiles
-  filtered <- Turtle.single $ filterPaths Turtle.testfile extraFiles
+  filtered <- filterPaths doesFileExist extraFiles
   let logMsg =
-        Turtle.format
-          ("Looking for possible extra include files for '" % Turtle.fp % "' among these " % Turtle.d % " options: " % Turtle.s % ". Found " % Turtle.d % ": " % Turtle.s)
-          (relativeToBase opts file)
-          (length extraFiles)
-          (Turtle.repr $ relativeFilesAsText opts extraFiles)
-          (length filtered)
-          (Turtle.repr $ relativeFilesAsText opts filtered)
+        "Looking for possible extra include files for '" <> T.pack (relativeToBase opts file)
+          <> "' among these " <> T.pack (show (length extraFiles)) <> " options: "
+          <> T.pack (show (relativeFilesAsText opts extraFiles))
+          <> ". Found " <> T.pack (show (length filtered)) <> ": "
+          <> T.pack (show (relativeFilesAsText opts filtered))
   logVerbose opts ch logMsg
   return $ Map.fromList [(file, filtered)]
 
-relativeFilesAsText :: (HasBaseDir o) => o -> [TurtlePath] -> [T.Text]
-relativeFilesAsText opts = map (Turtle.format Turtle.fp . relativeToBase opts)
+relativeFilesAsText :: (HasBaseDir o) => o -> [FilePath] -> [T.Text]
+relativeFilesAsText opts = map (T.pack . relativeToBase opts)

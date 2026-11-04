@@ -2,6 +2,7 @@
 
 module Hledger.Flow.Logging where
 
+import Control.Concurrent.Async (wait, withAsync)
 import Control.Concurrent.STM
 import Control.Monad (when)
 import qualified Data.Text as T
@@ -9,8 +10,6 @@ import qualified Data.Text.IO as T
 import Data.Time.LocalTime (getZonedTime)
 import qualified GHC.IO.Handle.FD as H
 import Hledger.Flow.Types
-import Turtle ((%))
-import qualified Turtle
 
 dummyLogger :: TChan LogMessage -> T.Text -> IO ()
 dummyLogger _ _ = return ()
@@ -35,7 +34,16 @@ logToChannel ch msg = do
 timestampPrefix :: T.Text -> IO T.Text
 timestampPrefix txt = do
   t <- getZonedTime
-  return $ Turtle.format (Turtle.s % "\thledger-flow " % Turtle.s) (Turtle.repr t) txt
+  return $ T.pack (show t) <> "\thledger-flow " <> txt
+
+withConsoleLogging :: (TChan LogMessage -> IO a) -> IO a
+withConsoleLogging action = do
+  ch <- newTChanIO
+  withAsync (consoleChannelLoop ch) $ \logger -> do
+    result <- action ch
+    terminateChannelLoop ch
+    wait logger
+    return result
 
 consoleChannelLoop :: TChan LogMessage -> IO ()
 consoleChannelLoop ch = do

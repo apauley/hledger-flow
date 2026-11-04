@@ -11,7 +11,7 @@ import qualified Common.Unit
 import qualified ImportHelpers.Integration
 import qualified PathHelpers.Unit
 import Test.HUnit
-import Turtle
+import System.Exit (exitFailure)
 
 tests :: Test
 tests =
@@ -29,5 +29,5 @@ main :: IO Counts
 main = do
   errCounts <- runTestTT tests
   if (errors errCounts > 0 || failures errCounts > 0)
-    then exit $ ExitFailure 1
+    then exitFailure
     else return errCounts

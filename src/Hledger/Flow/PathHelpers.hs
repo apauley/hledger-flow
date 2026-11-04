@@ -3,16 +3,14 @@
 module Hledger.Flow.PathHelpers where
 
 import Control.Monad.Catch (Exception, MonadThrow, throwM)
-import Control.Monad.IO.Class (MonadIO)
+import Control.Monad.IO.Class (MonadIO, liftIO)
 import qualified Data.Text as T
 import Hledger.Flow.DocHelpers (docURL)
 import Path ((</>))
 import qualified Path
 import qualified Path.IO as Path
+import System.Directory (doesDirectoryExist)
 import qualified System.FilePath as FilePath
-import qualified Turtle
-
-type TurtlePath = Turtle.FilePath
 
 type AbsFile = Path.Path Path.Abs Path.File
 
@@ -22,7 +20,7 @@ type AbsDir = Path.Path Path.Abs Path.Dir
 
 type RelDir = Path.Path Path.Rel Path.Dir
 
-data PathException = MissingBaseDir AbsDir | InvalidTurtleDir TurtlePath
+data PathException = MissingBaseDir AbsDir | InvalidTurtleDir FilePath
   deriving (Eq)
 
 instance Show PathException where
@@ -36,29 +34,29 @@ instance Show PathException where
 
 instance Exception PathException
 
-fromTurtleAbsFile :: (MonadThrow m) => TurtlePath -> m AbsFile
+fromTurtleAbsFile :: (MonadThrow m) => FilePath -> m AbsFile
 fromTurtleAbsFile turtlePath = Path.parseAbsFile turtlePath
 
-fromTurtleRelFile :: (MonadThrow m) => TurtlePath -> m RelFile
+fromTurtleRelFile :: (MonadThrow m) => FilePath -> m RelFile
 fromTurtleRelFile turtlePath = Path.parseRelFile turtlePath
 
-fromTurtleAbsDir :: (MonadThrow m) => TurtlePath -> m AbsDir
+fromTurtleAbsDir :: (MonadThrow m) => FilePath -> m AbsDir
 fromTurtleAbsDir turtlePath = Path.parseAbsDir turtlePath
 
-fromTurtleRelDir :: (MonadThrow m) => TurtlePath -> m RelDir
+fromTurtleRelDir :: (MonadThrow m) => FilePath -> m RelDir
 fromTurtleRelDir turtlePath = Path.parseRelDir turtlePath
 
-turtleToAbsDir :: (MonadIO m, MonadThrow m) => AbsDir -> TurtlePath -> m AbsDir
+turtleToAbsDir :: (MonadIO m, MonadThrow m) => AbsDir -> FilePath -> m AbsDir
 turtleToAbsDir baseDir p = do
-  isDir <- Turtle.testdir p
+  isDir <- liftIO (doesDirectoryExist p)
   if isDir
     then Path.resolveDir baseDir p
     else throwM $ InvalidTurtleDir p
 
-pathToTurtle :: Path.Path b t -> TurtlePath
+pathToTurtle :: Path.Path b t -> FilePath
 pathToTurtle = Path.toFilePath
 
-forceTrailingSlash :: TurtlePath -> TurtlePath
+forceTrailingSlash :: FilePath -> FilePath
 forceTrailingSlash = FilePath.addTrailingPathSeparator . FilePath.normalise
 
 pathSize :: Path.Path b Path.Dir -> Int
@@ -79,9 +77,12 @@ findFilesIn ::
   AbsDir ->
   -- | Absolute paths to all files in the directories which match the predicate
   m [AbsFile]
-findFilesIn includePred excludeDirs = Path.walkDirAccum (Just excludeHandler) accumulator
+findFilesIn includePred excludeDirs = findFilesInWith includePred (const excludeDirs)
+
+findFilesInWith :: MonadIO m => (AbsDir -> Bool) -> (AbsDir -> [RelDir]) -> AbsDir -> m [AbsFile]
+findFilesInWith includePred excludeDirs = Path.walkDirAccum (Just excludeHandler) accumulator
   where
-    excludeHandler currentDir _ _ = return $ Path.WalkExclude (map (currentDir </>) excludeDirs)
+    excludeHandler currentDir _ _ = return $ Path.WalkExclude (map (currentDir </>) (excludeDirs currentDir))
     accumulator currentDir _ files =
       if includePred currentDir
         then return $ excludeHiddenFiles files

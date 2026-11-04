@@ -13,3 +13,67 @@ grep -E 'groceries.*30' reports/gawie/2016/income-expenses.txt > /dev/null
 $ sh -eu
 expenses:groceries
 expenses:bank-fees
+
+# A relative LEDGER_FILE may contain spaces; empty reports remove their stale output.
+<
+. ./test/shell/setup.sh
+flow import
+export LEDGER_FILE="selected ledger.journal"
+mv all-years.journal "$LEDGER_FILE"
+mkdir -p reports/gawie/2016
+echo stale > reports/gawie/2016/unknown-transactions.txt
+flow report --ascii-reports
+test ! -e reports/gawie/2016/unknown-transactions.txt
+test -s reports/gawie/2016/accounts.txt
+$ sh -eu
+
+# Each owner's accounts report uses the full directory name, including dots.
+<
+. ./test/shell/setup.sh
+junior=import/gawie.jr/bogart/cheque
+mkdir -p "$junior/1-in/2016"
+cp "$inbox/march.csv" "$junior/1-in/2016/march.csv"
+sed 's/bank-fees/junior-fees/' import/bogart.rules > "$junior/bogart-cheque.rules"
+flow import
+flow report --ascii-reports
+grep '^expenses:' reports/gawie/2016/accounts.txt | tr -d '\r'
+grep '^expenses:' reports/gawie.jr/2016/accounts.txt | tr -d '\r'
+test -s reports/all/2016/income-expenses.txt
+test ! -e reports/_all_
+$ sh -eu
+expenses:bank-fees
+expenses:junior-fees
+
+# An owner named All keeps its own report while aggregates use the fallback.
+<
+. ./test/shell/setup.sh
+other=import/All/bogart/cheque
+mkdir -p "$other/1-in/2016"
+cp "$inbox/march.csv" "$other/1-in/2016/march.csv"
+sed 's/bank-fees/owner-fees/' import/bogart.rules > "$other/bogart-cheque.rules"
+flow import
+flow report --ascii-reports
+aggregate=reports/_all_/2016/income-expenses.txt
+individual=reports/All/2016/income-expenses.txt
+grep -q bank-fees "$aggregate"
+grep -q owner-fees "$aggregate"
+grep -q owner-fees "$individual"
+if grep -q bank-fees "$individual"; then exit 1; fi
+$ sh -eu
+
+# Reports discover owners under a linked import directory on Unix and Windows.
+<
+. ./test/shell/setup.sh
+mv import ledger-data
+case "$(uname -s)" in
+    MINGW*|MSYS*) MSYS2_ARG_CONV_EXCL='*' cmd.exe /d /c 'mklink /J import ledger-data' > /dev/null ;;
+    *) ln -s ledger-data import ;;
+esac
+flow import
+mkdir import/.hidden import/ignored_
+flow report --ascii-reports
+test ! -e reports/.hidden
+test ! -e reports/ignored_
+tr -d '\r' < reports/gawie/2016/accounts.txt | grep -Fx expenses:bank-fees
+$ sh -eu
+expenses:bank-fees

@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE QuasiQuotes #-}
 
 module Hledger.Flow.Reports
   ( generateReports,
@@ -6,58 +7,59 @@ module Hledger.Flow.Reports
 where
 
 import Control.Concurrent.STM
+import Control.Monad (unless, when)
+import Data.Char (toLower)
 import Data.Either
 import qualified Data.List as List
 import Data.Maybe
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
-import Hledger.Flow.BaseDir (relativeToBase, turtleBaseDir)
+import Hledger.Flow.DateTime (timeAction)
+import Hledger.Flow.BaseDir (relativeToBase)
 import Hledger.Flow.Common
 import Hledger.Flow.Logging
-import Hledger.Flow.PathHelpers (TurtlePath, pathToTurtle)
+import Hledger.Flow.PathHelpers (AbsDir, AbsFile, RelDir, RelFile)
 import Hledger.Flow.RuntimeOptions
 import qualified Hledger.Flow.Types as FlowTypes
-import Turtle ((%), (<.>), (</>))
-import qualified Turtle as Turtle hiding (proc, stderr, stdout)
+import Path ((</>), parent, reldir, relfile, parseRelDir, toFilePath)
+import qualified Path.IO as PathIO
+import qualified System.Directory as Directory
+import System.Environment (lookupEnv)
 import Prelude hiding (putStrLn, readFile, writeFile)
 
 data ReportParams = ReportParams
-  { ledgerFile :: TurtlePath,
+  { ledgerFile :: FilePath,
     reportYears :: [Integer],
-    outputDir :: TurtlePath
+    outputDir :: AbsDir
   }
   deriving (Show)
 
-type ReportGenerator = RuntimeOptions -> TChan FlowTypes.LogMessage -> TurtlePath -> TurtlePath -> Integer -> IO (Either TurtlePath TurtlePath)
+type ReportGenerator = RuntimeOptions -> TChan FlowTypes.LogMessage -> FilePath -> AbsDir -> Integer -> IO (Either AbsFile AbsFile)
 
 generateReports :: RuntimeOptions -> IO ()
-generateReports opts =
-  Turtle.sh
-    ( do
-        ch <- Turtle.liftIO newTChanIO
-        logHandle <- Turtle.fork $ consoleChannelLoop ch
-        Turtle.liftIO $ if (showOptions opts) then channelOutLn ch (Turtle.repr opts) else return ()
-        (reports, diff) <- Turtle.time $ Turtle.liftIO $ generateReports' opts ch
-        let failedAttempts = lefts reports
-        let failedText = if List.null failedAttempts then "" else Turtle.format ("(and attempted to write " % Turtle.d % " more) ") $ length failedAttempts
-        Turtle.liftIO $ channelOutLn ch $ Turtle.format ("Generated " % Turtle.d % " reports " % Turtle.s % "in " % Turtle.s) (length (rights reports)) failedText $ Turtle.repr diff
-        Turtle.liftIO $ terminateChannelLoop ch
-        Turtle.wait logHandle
-    )
+generateReports opts = withConsoleLogging $ \ch -> do
+  when (showOptions opts) $ channelOutLn ch (T.pack (show opts))
+  (reports, diff) <- timeAction $ generateReports' opts ch
+  let failedAttempts = lefts reports
+  let failedText = if List.null failedAttempts then "" else "(and attempted to write " <> T.pack (show (length failedAttempts)) <> " more) "
+  channelOutLn ch $ "Generated " <> T.pack (show (length (rights reports))) <> " reports " <> failedText <> "in " <> T.pack (show diff)
 
-generateReports' :: RuntimeOptions -> TChan FlowTypes.LogMessage -> IO [Either TurtlePath TurtlePath]
+generateReports' :: RuntimeOptions -> TChan FlowTypes.LogMessage -> IO [Either AbsFile AbsFile]
 generateReports' opts ch = do
   let wipMsg =
         "These reports can be used as a starting point for more tailored reports.\n"
           <> "The first line of each report contains the command used - change the parameters and use it in your own reports.\n"
   channelOutLn ch wipMsg
-  owners <- Turtle.single $ shellToList $ listOwners opts
-  ledgerEnvValue <- Turtle.need "LEDGER_FILE" :: IO (Maybe T.Text)
-  let hledgerJournal = fromMaybe (turtleBaseDir opts </> allYearsFileName) $ fmap T.unpack ledgerEnvValue
-  hledgerJournalExists <- Turtle.testfile hledgerJournal
-  _ <- if not hledgerJournalExists then Turtle.die $ Turtle.format ("Unable to find journal file: " % Turtle.fp % "\nIs your LEDGER_FILE environment variable set correctly?") hledgerJournal else return ()
-  let journalWithYears = journalFile opts []
-  let aggregateReportDir = outputReportDir opts ["all"]
+  owners <- listOwners opts
+  ledgerEnvValue <- lookupEnv "LEDGER_FILE"
+  let hledgerJournal = fromMaybe (toFilePath (baseDir opts </> [relfile|all-years.journal|])) ledgerEnvValue
+  hledgerJournalExists <- Directory.doesFileExist hledgerJournal
+  unless hledgerJournalExists $ ioError $ userError $
+    "Unable to find journal file: " ++ hledgerJournal ++ "\nIs your LEDGER_FILE environment variable set correctly?"
+  let journalWithYears = baseDir opts </> [relfile|import/all-years.journal|]
+  let aggregateReportDir
+        | any ((== toFilePath [reldir|all|]) . map toLower . toFilePath) owners = baseDir opts </> [reldir|reports/_all_|]
+        | otherwise = baseDir opts </> [reldir|reports/all|]
   aggregateYears <- includeYears ch journalWithYears
   let aggregateParams =
         ReportParams
@@ -73,7 +75,7 @@ generateReports' opts ch = do
   let ownerOnlyReports = List.concat $ fmap (reportActions opts ch [accountList, unknownTransactions]) ownerParams
   parAwareActions opts (aggregateOnlyReports ++ ownerWithAggregateReports ++ ownerOnlyReports)
 
-reportActions :: RuntimeOptions -> TChan FlowTypes.LogMessage -> [ReportGenerator] -> ReportParams -> [IO (Either TurtlePath TurtlePath)]
+reportActions :: RuntimeOptions -> TChan FlowTypes.LogMessage -> [ReportGenerator] -> ReportParams -> [IO (Either AbsFile AbsFile)]
 reportActions opts ch reports (ReportParams journal years reportsDir) = do
   y <- years
   map (\r -> r opts ch journal reportsDir y) reports
@@ -81,69 +83,65 @@ reportActions opts ch reports (ReportParams journal years reportsDir) = do
 accountList :: ReportGenerator
 accountList opts ch journal baseOutDir year = do
   let reportArgs = ["accounts"]
-  generateReport opts ch journal year (baseOutDir </> intPath year) ("accounts" <.> "txt") reportArgs (not . T.null)
+  generateReport opts ch journal year baseOutDir [relfile|accounts.txt|] reportArgs (not . T.null)
 
 unknownTransactions :: ReportGenerator
 unknownTransactions opts ch journal baseOutDir year = do
   let reportArgs = ["print", "unknown"]
-  generateReport opts ch journal year (baseOutDir </> intPath year) ("unknown-transactions" <.> "txt") reportArgs (not . T.null)
+  generateReport opts ch journal year baseOutDir [relfile|unknown-transactions.txt|] reportArgs (not . T.null)
 
 incomeStatement :: [T.Text] -> ReportGenerator
 incomeStatement sharedOptions opts ch journal baseOutDir year = do
   let reportArgs = ["incomestatement"] ++ sharedOptions
-  generateReport opts ch journal year (baseOutDir </> intPath year) ("income-expenses" <.> "txt") reportArgs (not . T.null)
+  generateReport opts ch journal year baseOutDir [relfile|income-expenses.txt|] reportArgs (not . T.null)
 
 incomeMonthlyStatement :: [T.Text] -> ReportGenerator
 incomeMonthlyStatement sharedOptions opts ch journal baseOutDir year = do
   let reportArgs = ["incomestatement"] ++ sharedOptions ++ ["--monthly"]
-  generateReport opts ch journal year (baseOutDir </> intPath year </> "monthly") ("income-expenses" <.> "txt") reportArgs (not . T.null)
+  generateReport opts ch journal year baseOutDir [relfile|monthly/income-expenses.txt|] reportArgs (not . T.null)
 
 balanceSheet :: [T.Text] -> ReportGenerator
 balanceSheet sharedOptions opts ch journal baseOutDir year = do
   let reportArgs = ["balancesheet"] ++ sharedOptions ++ ["--flat"]
-  generateReport opts ch journal year (baseOutDir </> intPath year) ("balance-sheet" <.> "txt") reportArgs (not . T.null)
+  generateReport opts ch journal year baseOutDir [relfile|balance-sheet.txt|] reportArgs (not . T.null)
 
 transferBalance :: ReportGenerator
 transferBalance opts ch journal baseOutDir year = do
   let reportArgs = ["balance"] ++ (if prettyReports opts then ["--pretty-tables"] else []) ++ ["--quarterly", "--flat", "--no-total", "transfer"]
-  generateReport opts ch journal year (baseOutDir </> intPath year) ("transfer-balance" <.> "txt") reportArgs (\txt -> (length $ T.lines txt) > 4)
+  generateReport opts ch journal year baseOutDir [relfile|transfer-balance.txt|] reportArgs (\txt -> (length $ T.lines txt) > 4)
 
-generateReport :: RuntimeOptions -> TChan FlowTypes.LogMessage -> TurtlePath -> Integer -> TurtlePath -> TurtlePath -> [T.Text] -> (T.Text -> Bool) -> IO (Either TurtlePath TurtlePath)
+generateReport :: RuntimeOptions -> TChan FlowTypes.LogMessage -> FilePath -> Integer -> AbsDir -> RelFile -> [T.Text] -> (T.Text -> Bool) -> IO (Either AbsFile AbsFile)
 generateReport opts ch journal year reportsDir fileName args successCheck = do
-  Turtle.mktree reportsDir
-  let outputFile = reportsDir </> fileName
+  yearDir <- parseRelDir (show year)
+  let outputFile = reportsDir </> yearDir </> fileName
+  PathIO.createDirIfMissing True (parent outputFile)
   let relativeJournal = relativeToBase opts journal
-  let relativeOutputFile = relativeToBase opts outputFile
+  let relativeOutputFile = relativeToBase opts (toFilePath outputFile)
   let confArgs = hledgerConfArgs opts
-  let reportArgs = confArgs ++ ["--file", Turtle.format Turtle.fp journal, "--period", Turtle.repr year] ++ args
-  let reportDisplayArgs = confArgs ++ ["--file", Turtle.format Turtle.fp relativeJournal, "--period", Turtle.repr year] ++ args
-  let hledger = Turtle.format Turtle.fp $ pathToTurtle . FlowTypes.hlPath . hledgerInfo $ opts :: T.Text
-  let cmdLabel = Turtle.format ("hledger " % Turtle.s) $ showCmdArgs reportDisplayArgs
-  ((exitCode, stdOut, _), _) <- timeAndExitOnErr opts ch cmdLabel dummyLogger channelErr Turtle.procStrictWithErr (hledger, reportArgs, mempty)
+  let reportArgs = confArgs ++ ["--file", T.pack journal, "--period", T.pack (show year)] ++ args
+  let reportDisplayArgs = confArgs ++ ["--file", T.pack relativeJournal, "--period", T.pack (show year)] ++ args
+  let hledger = T.pack (toFilePath (FlowTypes.hlPath (hledgerInfo opts)))
+  let cmdLabel = "hledger " <> showCmdArgs reportDisplayArgs
+  ((exitCode, stdOut, _), _) <- timeAndExitOnErr opts ch cmdLabel dummyLogger channelErr (hledger, reportArgs, Nothing)
   if (successCheck stdOut)
     then do
-      T.writeFile outputFile (cmdLabel <> "\n\n" <> stdOut)
-      logVerbose opts ch $ Turtle.format ("Wrote " % Turtle.fp) $ relativeOutputFile
+      T.writeFile (toFilePath outputFile) (cmdLabel <> "\n\n" <> stdOut)
+      logVerbose opts ch $ "Wrote " <> T.pack relativeOutputFile
       return $ Right outputFile
     else do
-      channelErrLn ch $ Turtle.format ("Did not write '" % Turtle.fp % "' (" % Turtle.s % ") " % Turtle.s) relativeOutputFile cmdLabel (Turtle.repr exitCode)
-      exists <- Turtle.testfile outputFile
-      if exists then Turtle.rm outputFile else return ()
+      channelErrLn ch $ "Did not write '" <> T.pack relativeOutputFile <> "' (" <> cmdLabel <> ") " <> T.pack (show exitCode)
+      exists <- PathIO.doesFileExist outputFile
+      when exists (PathIO.removeFile outputFile)
       return $ Left outputFile
 
-journalFile :: RuntimeOptions -> [TurtlePath] -> TurtlePath
-journalFile opts dirs = (foldl (</>) (turtleBaseDir opts) ("import" : dirs)) </> allYearsFileName
-
-outputReportDir :: RuntimeOptions -> [TurtlePath] -> TurtlePath
-outputReportDir opts dirs = foldl (</>) (turtleBaseDir opts) ("reports" : dirs)
-
-ownerParameters :: RuntimeOptions -> TChan FlowTypes.LogMessage -> [TurtlePath] -> IO [ReportParams]
+ownerParameters :: RuntimeOptions -> TChan FlowTypes.LogMessage -> [RelDir] -> IO [ReportParams]
 ownerParameters opts ch owners = do
   let actions = map (ownerParameters' opts ch) owners
   parAwareActions opts actions
 
-ownerParameters' :: RuntimeOptions -> TChan FlowTypes.LogMessage -> TurtlePath -> IO ReportParams
+ownerParameters' :: RuntimeOptions -> TChan FlowTypes.LogMessage -> RelDir -> IO ReportParams
 ownerParameters' opts ch owner = do
-  let ownerJournal = journalFile opts [owner]
+  let ownerJournal = baseDir opts </> [reldir|import|] </> owner </> [relfile|all-years.journal|]
+      reportsDir = baseDir opts </> [reldir|reports|] </> owner
   years <- includeYears ch ownerJournal
-  return $ ReportParams ownerJournal years (outputReportDir opts [owner])
+  return $ ReportParams (toFilePath ownerJournal) years reportsDir

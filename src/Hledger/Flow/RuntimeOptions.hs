@@ -2,7 +2,6 @@ module Hledger.Flow.RuntimeOptions where
 
 import qualified Data.Text as T
 import Hledger.Flow.Internals (SystemInfo)
-import Hledger.Flow.PathHelpers (TurtlePath)
 import Hledger.Flow.Types
 import Prelude hiding (putStrLn)
 
@@ -13,7 +12,7 @@ data RuntimeOptions = RuntimeOptions
     onlyNewFiles :: Bool,
     hfVersion :: T.Text,
     hledgerInfo :: HledgerInfo,
-    hledgerConf :: Maybe TurtlePath,
+    hledgerConf :: Maybe FilePath,
     sysInfo :: SystemInfo,
     verbose :: Bool,
     showOptions :: Bool,

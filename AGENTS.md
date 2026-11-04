@@ -50,7 +50,7 @@
 - `bin/` contains helper scripts for build/test and releases.
 
 **Implementation notes and conventions**
-- Paths are handled using `path` + `turtle` with helpers in `Hledger.Flow.PathHelpers`. Prefer those helpers for new filesystem code.
+- Paths are handled using `path` and `path-io` with helpers in `Hledger.Flow.PathHelpers`. Prefer those helpers for new filesystem code.
 - `RuntimeOptions` is the primary config type; new CLI flags typically require adding fields to `RuntimeOptions` and wiring them through `app/Main.hs`.
 - Import flow is orchestrated in `Hledger.Flow.Import.CSVImport`:
   - Find input files.

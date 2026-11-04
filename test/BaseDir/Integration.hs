@@ -8,14 +8,12 @@ import Control.Exception (try)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import Hledger.Flow.BaseDir (determineBaseDir, effectiveRunDir)
-import Hledger.Flow.Common
 import Hledger.Flow.PathHelpers
 import Hledger.Flow.Types (BaseDir, RunDir)
 import Path
 import Path.IO
 import Test.HUnit
 import TestHelpers (testRoot)
-import qualified Turtle
 import Prelude hiding (readFile, writeFile)
 
 assertSubDirsForDetermineBaseDir :: AbsDir -> BaseDir -> [Path.Path b Dir] -> IO ()
@@ -45,10 +43,10 @@ assertDetermineBaseDir initialPwd expectedBaseDir subDir = do
 assertFindTestFileUsingRundir :: BaseDir -> RunDir -> IO ()
 assertFindTestFileUsingRundir baseDir runDir = do
   let absRunDir = baseDir </> runDir
-  foundFiles <- Turtle.single $ shellToList $ Turtle.find (Turtle.has "test-file.txt") $ pathToTurtle absRunDir
-  case foundFiles of
+  foundFiles <- findFilesIn (const True) [] absRunDir
+  case filter ((== [relfile|test-file.txt|]) . filename) foundFiles of
     (found : _) -> do
-      fileContents <- T.readFile found
+      fileContents <- T.readFile (toFilePath found)
       assertEqual "We should find our test file by searching from the returned runDir" (T.pack $ "The expected base dir is " ++ show baseDir) fileContents
     [] -> assertFailure "Expected to find test-file.txt but search returned no results"
 
@@ -99,7 +97,10 @@ testBaseDirWithTempDir initialPwd absoluteTempDir = do
 
   let absoluteBaseDir = absoluteTempDir </> baseDir
 
-  T.writeFile (pathToTurtle $ absoluteTempDir </> yearDir </> [relfile|test-file.txt|]) (T.pack $ "The expected base dir is " ++ show absoluteBaseDir)
+  let file = toFilePath (absoluteTempDir </> yearDir </> [relfile|test-file.txt|])
+  T.writeFile file (T.pack $ "The expected base dir is " ++ show absoluteBaseDir)
+  fileResult <- try $ determineBaseDir (Just file)
+  assertEqual "An existing file cannot be used as the base directory" (Left (InvalidTurtleDir file)) fileResult
 
   assertSubDirsForDetermineBaseDir absoluteTempDir absoluteBaseDir subDirs
   assertSubDirsForDetermineBaseDir absoluteTempDir absoluteBaseDir absoluteSubDirs

@@ -10,3 +10,130 @@ hledger -f "$journal" descriptions
 $ sh -eu
 2016-03-01,Monthly bank fee,-5
 Monthly bank fee
+
+# Both hooks receive the account's file and the original bank, account and owner names.
+<
+. ./test/shell/setup.sh
+mv import/gawie import/2-preprocessed
+mv import/2-preprocessed/bogart/cheque import/2-preprocessed/bogart/1-in
+account=import/2-preprocessed/bogart/1-in
+mv "$account/1-in/2016/march.csv" "$account/1-in/2016/march.bank.txt"
+printf '%s\n' '#!/bin/sh' 'set -eu' \
+    'test "$3/$4/$5" = "bogart/1-in/2-preprocessed"' \
+    'cp "$1" "$2"' > "$account/preprocess"
+printf '%s\n' '#!/bin/sh' 'set -eu' \
+    'test "$2/$3/$4/$5" = "-/bogart/1-in/2-preprocessed"' \
+    'case "$1" in */1-in/2-preprocessed/2016/march.bank.csv) ;; *) exit 1 ;; esac' \
+    'hledger -f "$1" --rules-file import/bogart.rules print' > "$account/construct"
+chmod +x "$account/preprocess" "$account/construct"
+flow import
+cmp "$account/1-in/2016/march.bank.txt" "$account/2-preprocessed/2016/march.bank.csv"
+hledger -f "$account/3-journal/2016/march.bank.journal" descriptions
+hledger -f all-years.journal descriptions
+$ sh -eu
+Monthly bank fee
+Monthly bank fee
+
+# Incremental import skips an up-to-date hook and reruns it when the raw CSV changes.
+<
+. ./test/shell/setup.sh
+printf '%s\n' '#!/bin/sh' 'set -eu' 'echo ran >> "$0.runs"' 'cp "$1" "$2"' > "$account/preprocess"
+chmod +x "$account/preprocess"
+flow import --new-files-only
+cached="$account/2-preprocessed/2016/march.csv"
+touch -t 201603010000 "$inbox/march.csv" "$cached" "$journal"
+flow import --new-files-only
+test "$(cat "$account/preprocess.runs")" = ran
+printf '%s\n' '2016-03-01,Corrected by hook,-9' > "$inbox/march.csv"
+touch -t 201603020000 "$inbox/march.csv"
+flow import --new-files-only
+cat "$account/preprocess.runs"
+hledger -f all-years.journal descriptions
+$ sh -eu
+ran
+ran
+Corrected by hook
+
+# A failed preprocess cannot replace the good CSV or make an incremental retry skip it.
+<
+. ./test/shell/setup.sh
+hook="$account/preprocess"
+cached="$account/2-preprocessed/2016/march.csv"
+printf '%s\n' '#!/bin/sh' 'cp "$1" "$2"' > "$hook"
+chmod +x "$hook"
+flow import
+cp "$cached" good.csv
+cp "$journal" good.journal
+touch -t 201603010000 "$cached" "$journal"
+touch -t 201603020000 "$inbox/march.csv"
+cat > "$hook" <<'HOOK'
+#!/bin/sh
+set -eu
+printf '%s\n' "$2" >> "$0.calls"
+test "${2##*/}" = march.csv
+printf '%s\n' '2016-03-01,Partial CSV,-3' > "$2"
+if test ! -e "$0.retry"; then echo 'preprocess failed' >&2; exit 17; fi
+printf '%s\n' '2016-03-01,Retried CSV,-7' > "$2"
+HOOK
+if hledger-flow import --new-files-only > failure.log 2>&1; then exit 1; else test "$?" -eq 17; fi
+grep -q 'preprocess failed' failure.log
+cmp good.csv "$cached"
+cmp good.journal "$journal"
+staged=$(cat "$hook.calls")
+test "$staged" != "$finance/$cached"
+test ! -d "${staged%/*}"
+touch "$hook.retry"
+flow import --new-files-only
+test "$(wc -l < "$hook.calls")" -eq 2
+hledger -f "$journal" descriptions
+$ sh -eu
+Retried CSV
+
+# Neither a failed construct nor invalid journal text may replace the previous journal.
+<
+. ./test/shell/setup.sh
+flow import
+cp "$journal" good.journal
+touch -t 201603010000 "$journal"
+touch -t 201603020000 "$inbox/march.csv"
+hook="$account/construct"
+cat > "$hook" <<'HOOK'
+#!/bin/sh
+set -eu
+echo ran >> "$0.calls"
+if test -e "$0.invalid"; then echo 'invalid journal'; exit 0; fi
+printf '2016-03-01 Constructed on retry\n    expenses:fee  3\n    assets:bank\n'
+if test ! -e "$0.retry"; then echo 'construct failed' >&2; exit 17; fi
+HOOK
+chmod +x "$hook"
+if hledger-flow import --new-files-only > failure.log 2>&1; then exit 1; else test "$?" -eq 17; fi
+grep -q 'construct failed' failure.log
+cmp good.journal "$journal"
+touch "$hook.invalid"
+if hledger-flow import --new-files-only > failure.log 2>&1; then exit 1; fi
+cmp good.journal "$journal"
+rm "$hook.invalid"
+touch "$hook.retry"
+flow import --new-files-only
+test "$(wc -l < "$hook.calls")" -eq 3
+hledger -f "$journal" descriptions
+$ sh -eu
+Constructed on retry
+
+# Drain both hook output streams even when they exceed OS pipe capacity.
+<
+. ./test/shell/setup.sh
+cat > "$account/preprocess" <<'HOOK'
+#!/bin/sh
+set -eu
+awk 'BEGIN { for (i=0; i<2048; i++) print "stdout xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"; print "stdout complete" }'
+awk 'BEGIN { for (i=0; i<2048; i++) print "stderr xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"; print "stderr complete" }' >&2
+cp "$1" "$2"
+HOOK
+chmod +x "$account/preprocess"
+flow import
+grep -q '^stdout complete$' "$finance/flow.log"
+grep -q '^stderr complete$' "$finance/flow.log"
+hledger -f "$journal" descriptions
+$ sh -eu
+Monthly bank fee
