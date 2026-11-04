@@ -165,8 +165,9 @@ hledgerImport opts ch importDirs csvFile journalOut = do
     Just rf -> do
       let relRules = relativeToBase opts (Path.toFilePath rf)
       let hledger = Turtle.format Turtle.fp $ pathToTurtle . FlowTypes.hlPath . hledgerInfo $ opts :: T.Text
-      directivesExist <- Turtle.testfile $ directivesFile opts
-      let directivesArgs = if directivesExist then ["--file", Turtle.format Turtle.fp (directivesFile opts)] else []
+      let directives = directivesFile opts
+      directivesExist <- PathIO.doesFileExist directives
+      let directivesArgs = if directivesExist then ["--file", T.pack (Path.toFilePath directives)] else []
       let csvArgs = ["--file", Turtle.format Turtle.fp csvSrc, "--rules-file", T.pack (Path.toFilePath rf)]
       let args = hledgerConfArgs opts ++ ["print", "--explicit"] ++ directivesArgs ++ csvArgs
 

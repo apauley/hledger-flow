@@ -30,6 +30,7 @@ import Hledger.Flow.Logging (logVerbose)
 import Hledger.Flow.PathHelpers (TurtlePath)
 import Hledger.Flow.Types
 import qualified Path
+import qualified Path.IO as PathIO
 import qualified System.FilePath as FilePath
 import Turtle ((%), (</>))
 import qualified Turtle
@@ -116,8 +117,9 @@ writeIncludesUpTo opts ch stopAt journalFiles = do
 
 writeToplevelAllYearsInclude :: (HasBaseDir o, HasVerbosity o) => o -> IO [TurtlePath]
 writeToplevelAllYearsInclude opts = do
-  directivesExists <- Turtle.testfile (directivesFile opts)
-  let preMap = if directivesExists then Map.singleton (turtleBaseDir opts </> allYearsFileName) [directivesFile opts] else Map.empty
+  let directives = directivesFile opts
+  directivesExists <- PathIO.doesFileExist directives
+  let preMap = if directivesExists then Map.singleton (turtleBaseDir opts </> allYearsFileName) [Path.toFilePath directives] else Map.empty
   let allTop = Map.singleton (turtleBaseDir opts </> allYearsFileName) ["import" </> allYearsFileName]
   writeFiles' $ (addPreamble . toIncludeFiles' preMap Map.empty) allTop
 

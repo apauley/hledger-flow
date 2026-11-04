@@ -23,6 +23,7 @@ import Hledger.Flow.PathHelpers (AbsFile, TurtlePath, fromTurtleAbsFile, pathToT
 import qualified Hledger.Flow.RuntimeOptions as RT
 import Hledger.Flow.Types
 import Path (relfile, toFilePath)
+import qualified Path
 import qualified Path.IO as Path
 import qualified System.FilePath as FilePath
 import System.IO.Error (tryIOError)
@@ -240,8 +241,8 @@ groupValuesBy keyFun = groupPairs . pairBy keyFun
 allYearsFileName :: TurtlePath
 allYearsFileName = "all-years" <.> "journal"
 
-directivesFile :: (HasBaseDir o) => o -> TurtlePath
-directivesFile opts = turtleBaseDir opts </> "directives" <.> "journal"
+directivesFile :: (HasBaseDir o) => o -> AbsFile
+directivesFile opts = baseDir opts Path.</> [relfile|directives.journal|]
 
 lsDirs :: TurtlePath -> Turtle.Shell TurtlePath
 lsDirs = onlyDirs . Turtle.ls
