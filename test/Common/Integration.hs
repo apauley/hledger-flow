@@ -91,7 +91,10 @@ testVerboseTestFile = TestCase $ withTestDir $ \base -> do
         assertEqual "file existence" expected exists
         entry <- atomically (tryReadTChan ch)
         case entry of
-          Just (StdErr txt) -> assertBool "verbose log uses the relative path" (message `T.isSuffixOf` txt)
+          Just (StdErr txt) -> do
+            let (timestamp, body) = T.breakOn "\t" txt
+            assertBool "verbose log starts with a timestamp" (not (T.null timestamp))
+            assertEqual "verbose log uses the relative path" ("\thledger-flow " <> message) body
           _ -> assertFailure "expected a verbose message on stderr"
   check False "Looked for but did not find 'statement.csv'\n"
   T.writeFile (Path.toFilePath file) ""

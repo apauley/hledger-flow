@@ -9,8 +9,6 @@ import qualified Data.Text.IO as T
 import Data.Time.LocalTime (getZonedTime)
 import qualified GHC.IO.Handle.FD as H
 import Hledger.Flow.Types
-import Turtle ((%))
-import qualified Turtle
 
 dummyLogger :: TChan LogMessage -> T.Text -> IO ()
 dummyLogger _ _ = return ()
@@ -35,7 +33,7 @@ logToChannel ch msg = do
 timestampPrefix :: T.Text -> IO T.Text
 timestampPrefix txt = do
   t <- getZonedTime
-  return $ Turtle.format (Turtle.s % "\thledger-flow " % Turtle.s) (Turtle.repr t) txt
+  return $ T.pack (show t) <> "\thledger-flow " <> txt
 
 consoleChannelLoop :: TChan LogMessage -> IO ()
 consoleChannelLoop ch = do
