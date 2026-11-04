@@ -6,11 +6,21 @@ module Main where
 import Parsing ( parseStartYear )
 import Path ( reldir )
 
-import qualified Turtle hiding (switch)
 import Prelude hiding (putStrLn)
 
+import qualified Options.Applicative as Opts (command)
 import Options.Applicative
     ( auto,
+      argument,
+      customExecParser,
+      headerDoc,
+      helper,
+      hsubparser,
+      info,
+      prefs,
+      progDescDoc,
+      showHelpOnEmpty,
+      showHelpOnError,
       optional,
       Alternative(many, (<|>)),
       Parser,
@@ -55,7 +65,9 @@ data BaseCommand = Version | Command { mainParams :: MainParams, command :: Comm
 
 main :: IO ()
 main = do
-  cmd <- Turtle.options "An hledger workflow focusing on automated statement import and classification:\nhttps://github.com/apauley/hledger-flow#readme" baseCommandParser
+  let description = "An hledger workflow focusing on automated statement import and classification:\nhttps://github.com/apauley/hledger-flow#readme"
+  cmd <- customExecParser (prefs (showHelpOnError <> showHelpOnEmpty))
+    (info (helper <*> baseCommandParser) (headerDoc (Just description)))
   case cmd of
     Version -> do
       sysInfo <- systemInfo
@@ -122,13 +134,17 @@ baseCommandParser = (Command <$> verboseParser <*> commandParser)
   <|> flag' Version (long "version" <> short 'V' <> help "Display version information")
 
 commandParser :: Parser Command
-commandParser = fmap Import (Turtle.subcommand "import" "Uses hledger with your own rules and/or scripts to convert electronic statements into categorised journal files" subcommandParserImport)
-  <|> fmap Report (Turtle.subcommand "report" "Generate Reports" subcommandParserReport)
+commandParser = fmap Import (subcommand "import" "Uses hledger with your own rules and/or scripts to convert electronic statements into categorised journal files" subcommandParserImport)
+  <|> fmap Report (subcommand "report" "Generate Reports" subcommandParserReport)
+
+  where
+    subcommand name desc parser =
+      hsubparser (Opts.command name (info parser (progDescDoc (Just desc))) <> metavar name)
 
 verboseParser :: Parser MainParams
 verboseParser = MainParams
   <$> (length <$> many (flag' () (long "verbose" <> short 'v' <> help "Print more verbose output")))
-  <*> optional (Turtle.optPath "hledger-path" 'H' "The full path to an hledger executable")
+  <*> optional (option str (long "hledger-path" <> short 'H' <> metavar "HLEDGER-PATH" <> help "The full path to an hledger executable"))
   <*> optional (option str (long "hledger-conf" <> metavar "PATH" <> help "The hledger config file to pass to hledger --conf"))
   <*> switch (long "show-options" <> help "Print the options this program will run with")
   <*> optional (option auto (long "batch-size" <> metavar "SIZE" <> help ("Parallel processing of files are done in batches of the specified size. Default: " <> show defaultBatchSize <> ". Ignored during sequential processing.")))
@@ -136,11 +152,11 @@ verboseParser = MainParams
 
 subcommandParserImport :: Parser ImportParams
 subcommandParserImport = ImportParams
-  <$> optional (Turtle.argPath "dir" "The directory to import. Use the base directory for a full import or a sub-directory for a partial import. Defaults to the current directory.")
+  <$> optional (argument str (metavar "DIR" <> help "The directory to import. Use the base directory for a full import or a sub-directory for a partial import. Defaults to the current directory."))
   <*> optional (option str (long "start-year" <> metavar "YEAR" <> help "Import only from the specified year and onwards, ignoring previous years. By default all available years are imported. Valid values include a 4-digit year or 'current' for the current year"))
   <*> switch (long "new-files-only" <> help "Skip regenerating output files that are at least as new as their source. This applies to preprocessed files and hledger journal files.")
 
 subcommandParserReport :: Parser ReportParams
 subcommandParserReport = ReportParams
-  <$> optional (Turtle.argPath "basedir" "The hledger-flow base directory")
+  <$> optional (argument str (metavar "BASEDIR" <> help "The hledger-flow base directory"))
   <*> switch (long "ascii-reports" <> help "If to avoid using hledger --pretty-tables flag when generating reports.")
