@@ -13,3 +13,16 @@ grep -E 'groceries.*30' reports/gawie/2016/income-expenses.txt > /dev/null
 $ sh -eu
 expenses:groceries
 expenses:bank-fees
+
+# A relative LEDGER_FILE may contain spaces; empty reports remove their stale output.
+<
+. ./test/shell/setup.sh
+flow import
+export LEDGER_FILE="selected ledger.journal"
+mv all-years.journal "$LEDGER_FILE"
+mkdir -p reports/gawie/2016
+echo stale > reports/gawie/2016/unknown-transactions.txt
+flow report --ascii-reports
+test ! -e reports/gawie/2016/unknown-transactions.txt
+test -s reports/gawie/2016/accounts.txt
+$ sh -eu

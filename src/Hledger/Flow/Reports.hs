@@ -6,6 +6,7 @@ module Hledger.Flow.Reports
 where
 
 import Control.Concurrent.STM
+import Control.Monad (unless, when)
 import Data.Either
 import qualified Data.List as List
 import Data.Maybe
@@ -18,7 +19,10 @@ import Hledger.Flow.Logging
 import Hledger.Flow.PathHelpers (TurtlePath, pathToTurtle)
 import Hledger.Flow.RuntimeOptions
 import qualified Hledger.Flow.Types as FlowTypes
-import Turtle ((%), (<.>), (</>))
+import System.Directory (createDirectoryIfMissing, doesFileExist, removeFile)
+import System.Environment (lookupEnv)
+import System.FilePath ((<.>), (</>))
+import Turtle ((%))
 import qualified Turtle as Turtle hiding (proc, stderr, stdout)
 import Prelude hiding (putStrLn, readFile, writeFile)
 
@@ -46,10 +50,11 @@ generateReports' opts ch = do
           <> "The first line of each report contains the command used - change the parameters and use it in your own reports.\n"
   channelOutLn ch wipMsg
   owners <- Turtle.single $ shellToList $ listOwners opts
-  ledgerEnvValue <- Turtle.need "LEDGER_FILE" :: IO (Maybe T.Text)
-  let hledgerJournal = fromMaybe (turtleBaseDir opts </> allYearsFileName) $ fmap T.unpack ledgerEnvValue
-  hledgerJournalExists <- Turtle.testfile hledgerJournal
-  _ <- if not hledgerJournalExists then Turtle.die $ Turtle.format ("Unable to find journal file: " % Turtle.fp % "\nIs your LEDGER_FILE environment variable set correctly?") hledgerJournal else return ()
+  ledgerEnvValue <- lookupEnv "LEDGER_FILE"
+  let hledgerJournal = fromMaybe (turtleBaseDir opts </> allYearsFileName) ledgerEnvValue
+  hledgerJournalExists <- doesFileExist hledgerJournal
+  unless hledgerJournalExists $ ioError $ userError $
+    "Unable to find journal file: " ++ hledgerJournal ++ "\nIs your LEDGER_FILE environment variable set correctly?"
   let journalWithYears = journalFile opts []
   let aggregateReportDir = outputReportDir opts ["all"]
   aggregateYears <- includeYears ch journalWithYears
@@ -104,7 +109,7 @@ transferBalance opts ch journal baseOutDir year = do
 
 generateReport :: RuntimeOptions -> TChan FlowTypes.LogMessage -> TurtlePath -> Integer -> TurtlePath -> TurtlePath -> [T.Text] -> (T.Text -> Bool) -> IO (Either TurtlePath TurtlePath)
 generateReport opts ch journal year reportsDir fileName args successCheck = do
-  Turtle.mktree reportsDir
+  createDirectoryIfMissing True reportsDir
   let outputFile = reportsDir </> fileName
   let relativeJournal = relativeToBase opts journal
   let relativeOutputFile = relativeToBase opts outputFile
@@ -121,8 +126,8 @@ generateReport opts ch journal year reportsDir fileName args successCheck = do
       return $ Right outputFile
     else do
       channelErrLn ch $ Turtle.format ("Did not write '" % Turtle.fp % "' (" % Turtle.s % ") " % Turtle.s) relativeOutputFile cmdLabel (Turtle.repr exitCode)
-      exists <- Turtle.testfile outputFile
-      if exists then Turtle.rm outputFile else return ()
+      exists <- doesFileExist outputFile
+      when exists (removeFile outputFile)
       return $ Left outputFile
 
 journalFile :: RuntimeOptions -> [TurtlePath] -> TurtlePath
