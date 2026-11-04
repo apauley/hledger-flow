@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Use the full owner directory name when generating reports. Owners such as
+  `gawie` and `gawie.jr` now each get reports from their own journal.
 - Fix `--sequential import`, which could print transactions to the terminal
   and overwrite the generated journal with an empty file. It now writes the
   same journal as a parallel import and keeps diagnostics visible.

@@ -322,7 +322,7 @@ changeOutputPath newOutputLocation srcFile = mconcat $ map changeSrcDir $ Turtle
     changeSrcDir file = if FilePath.dropTrailingPathSeparator file `elem` ["1-in", "2-preprocessed"] then newOutputLocation else file
 
 listOwners :: (HasBaseDir o) => o -> Turtle.Shell TurtlePath
-listOwners opts = fmap Turtle.basename $ lsDirs $ (turtleBaseDir opts) </> "import"
+listOwners opts = fmap FilePath.takeFileName $ lsDirs $ (turtleBaseDir opts) </> "import"
 
 intPath :: Integer -> TurtlePath
 intPath = T.unpack . (Turtle.format Turtle.d)

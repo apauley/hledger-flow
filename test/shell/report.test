@@ -26,3 +26,18 @@ flow report --ascii-reports
 test ! -e reports/gawie/2016/unknown-transactions.txt
 test -s reports/gawie/2016/accounts.txt
 $ sh -eu
+
+# Each owner's accounts report uses the full directory name, including dots.
+<
+. ./test/shell/setup.sh
+junior=import/gawie.jr/bogart/cheque
+mkdir -p "$junior/1-in/2016"
+cp "$inbox/march.csv" "$junior/1-in/2016/march.csv"
+sed 's/bank-fees/junior-fees/' import/bogart.rules > "$junior/bogart-cheque.rules"
+flow import
+flow report --ascii-reports
+grep '^expenses:' reports/gawie/2016/accounts.txt | tr -d '\r'
+grep '^expenses:' reports/gawie.jr/2016/accounts.txt | tr -d '\r'
+$ sh -eu
+expenses:bank-fees
+expenses:junior-fees
