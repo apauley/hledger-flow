@@ -18,7 +18,7 @@ import Hledger.Flow.Import.ImportHelpers
 import Hledger.Flow.Import.ImportHelpersTurtle (extractImportDirs, writeIncludesUpTo, writeToplevelAllYearsInclude)
 import Hledger.Flow.Import.Types
 import Hledger.Flow.Logging
-import Hledger.Flow.PathHelpers (TurtlePath, pathToTurtle)
+import Hledger.Flow.PathHelpers (AbsFile, TurtlePath, pathToTurtle)
 import Hledger.Flow.RuntimeOptions
 import qualified Hledger.Flow.Types as FlowTypes
 import Turtle ((%), (<.>), (</>))
@@ -65,7 +65,7 @@ importCSVs' opts ch = do
       errExit 1 ch msg []
     else do
       channelOutLn ch $ Turtle.format ("Found " % Turtle.d % " input files" % Turtle.s % "in " % Turtle.s % ". Proceeding with import...") fileCount startYearMsg (Turtle.repr diff)
-      let actions = map (extractAndImport opts ch . pathToTurtle) inputFiles :: [IO (TurtlePath, FileWasGenerated)]
+      let actions = map (extractAndImport opts ch) inputFiles
       importedJournals <- parAwareActions opts actions
       (journalsOnDisk, journalFindTime) <- Turtle.time $ findJournalFiles effectiveDir
       (_, writeIncludeTime1) <- Turtle.time $ writeIncludesUpTo opts ch (pathToTurtle effectiveDir) $ fmap pathToTurtle journalsOnDisk
@@ -74,21 +74,22 @@ importCSVs' opts ch = do
       channelOutLn ch $ Turtle.format ("Wrote include files for " % Turtle.d % " journals in " % Turtle.s) (length journalsOnDisk) (Turtle.repr includeGenTime)
       return importedJournals
 
-extractAndImport :: RuntimeOptions -> TChan FlowTypes.LogMessage -> TurtlePath -> IO (TurtlePath, FileWasGenerated)
+extractAndImport :: RuntimeOptions -> TChan FlowTypes.LogMessage -> AbsFile -> IO (TurtlePath, FileWasGenerated)
 extractAndImport opts ch inputFile = do
-  case extractImportDirs inputFile of
+  let inputPath = pathToTurtle inputFile
+  case extractImportDirs inputPath of
     Right importDirs -> importCSV opts ch importDirs inputFile
     Left errorMessage -> do
-      errExit 1 ch errorMessage (inputFile, False)
+      errExit 1 ch errorMessage (inputPath, False)
 
-importCSV :: RuntimeOptions -> TChan FlowTypes.LogMessage -> ImportDirs -> TurtlePath -> IO (TurtlePath, FileWasGenerated)
+importCSV :: RuntimeOptions -> TChan FlowTypes.LogMessage -> ImportDirs -> AbsFile -> IO (TurtlePath, FileWasGenerated)
 importCSV opts ch importDirs srcFile = do
   let preprocessScript = accountDir importDirs </> "preprocess"
   let constructScript = accountDir importDirs </> "construct"
   let bankName = importDirLine bankDir importDirs
   let accountName = importDirLine accountDir importDirs
   let ownerName = importDirLine ownerDir importDirs
-  (csvFile, preprocessHappened) <- preprocessIfNeeded opts ch preprocessScript bankName accountName ownerName srcFile
+  (csvFile, preprocessHappened) <- preprocessIfNeeded opts ch preprocessScript bankName accountName ownerName (pathToTurtle srcFile)
   let journalOut = changePathAndExtension "3-journal/" "journal" csvFile
   shouldImport <-
     if onlyNewFiles opts && not preprocessHappened
