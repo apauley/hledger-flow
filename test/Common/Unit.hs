@@ -6,6 +6,7 @@ module Common.Unit where
 
 import Hledger.Flow.BaseDir (relativeToBase')
 import Hledger.Flow.Common
+import Hledger.Flow.DocHelpers (docURL)
 import Hledger.Flow.RuntimeOptions (RuntimeOptions (hledgerConf))
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
@@ -13,6 +14,12 @@ import Path ((</>), reldir)
 import Test.HUnit
 import TestHelpers (defaultOpts, testRoot)
 import qualified System.FilePath as FilePath
+
+testDocURL :: Test
+testDocURL = TestCase $
+  assertEqual "Input files documentation URL"
+    "https://github.com/apauley/hledger-flow/tree/master/docs#input-files"
+    (docURL "input-files")
 
 testShowCmdArgs :: Test
 testShowCmdArgs =
@@ -119,4 +126,4 @@ testGroupValuesBy =
     )
 
 tests :: Test
-tests = TestList [testShowCmdArgs, testHledgerConfArgs, testRelativeToBase, testExtractDigits, testChangePathAndExtension, testGroupValuesBy]
+tests = TestList [testDocURL, testShowCmdArgs, testHledgerConfArgs, testRelativeToBase, testExtractDigits, testChangePathAndExtension, testGroupValuesBy]
