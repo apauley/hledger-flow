@@ -11,6 +11,7 @@ import qualified Data.List as List
 import Data.Maybe
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
+import Hledger.Flow.DateTime (timeAction)
 import Hledger.Flow.BaseDir (relativeToBase, turtleBaseDir)
 import Hledger.Flow.Common
 import Hledger.Flow.Logging
@@ -33,7 +34,7 @@ type ReportGenerator = RuntimeOptions -> TChan FlowTypes.LogMessage -> TurtlePat
 generateReports :: RuntimeOptions -> IO ()
 generateReports opts = withConsoleLogging $ \ch -> do
   if (showOptions opts) then channelOutLn ch (Turtle.repr opts) else return ()
-  (reports, diff) <- Turtle.time $ generateReports' opts ch
+  (reports, diff) <- timeAction $ generateReports' opts ch
   let failedAttempts = lefts reports
   let failedText = if List.null failedAttempts then "" else Turtle.format ("(and attempted to write " % Turtle.d % " more) ") $ length failedAttempts
   channelOutLn ch $ Turtle.format ("Generated " % Turtle.d % " reports " % Turtle.s % "in " % Turtle.s) (length (rights reports)) failedText $ Turtle.repr diff

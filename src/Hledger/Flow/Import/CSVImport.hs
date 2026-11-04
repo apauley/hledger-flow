@@ -11,6 +11,7 @@ import Control.Monad
 import Data.Maybe (fromMaybe, isNothing)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
+import Hledger.Flow.DateTime (timeAction)
 import Hledger.Flow.BaseDir (effectiveRunDir, relativeToBase)
 import Hledger.Flow.Common
 import Hledger.Flow.DocHelpers (docURL)
@@ -34,7 +35,7 @@ importCSVs :: RuntimeOptions -> IO ()
 importCSVs opts = withConsoleLogging $ \ch -> do
   when (showOptions opts) (channelOutLn ch (Turtle.repr opts))
   logVerbose opts ch "Starting import"
-  (journals, diff) <- Turtle.time $ importCSVs' opts ch
+  (journals, diff) <- timeAction $ importCSVs' opts ch
   let generatedJournals = filter snd journals
   channelOutLn ch $ Turtle.format ("Imported " % Turtle.d % "/" % Turtle.d % " journals in " % Turtle.s) (length generatedJournals) (length journals) $ Turtle.repr diff
 
@@ -43,7 +44,7 @@ importCSVs' opts ch = do
   let effectiveDir = effectiveRunDir (baseDir opts) (importRunDir opts)
   let startYearMsg = maybe " " (Turtle.format (" (for the year " % Turtle.d % " and onwards) ")) (importStartYear opts)
   channelOutLn ch $ Turtle.format ("Collecting input files" % Turtle.s % "from " % Turtle.fp) startYearMsg (pathToTurtle effectiveDir)
-  (inputFiles, diff) <- Turtle.time $ findInputFiles (fromMaybe 0 $ importStartYear opts) effectiveDir
+  (inputFiles, diff) <- timeAction $ findInputFiles (fromMaybe 0 $ importStartYear opts) effectiveDir
 
   let fileCount = length inputFiles
   if fileCount == 0 && isNothing (importStartYear opts)
@@ -63,9 +64,9 @@ importCSVs' opts ch = do
       channelOutLn ch $ Turtle.format ("Found " % Turtle.d % " input files" % Turtle.s % "in " % Turtle.s % ". Proceeding with import...") fileCount startYearMsg (Turtle.repr diff)
       let actions = map (extractAndImport opts ch) inputFiles
       importedJournals <- parAwareActions opts actions
-      (journalsOnDisk, journalFindTime) <- Turtle.time $ findJournalFiles effectiveDir
-      (_, writeIncludeTime1) <- Turtle.time $ writeIncludesUpTo opts ch (pathToTurtle effectiveDir) $ fmap pathToTurtle journalsOnDisk
-      (_, writeIncludeTime2) <- Turtle.time $ writeToplevelAllYearsInclude opts
+      (journalsOnDisk, journalFindTime) <- timeAction $ findJournalFiles effectiveDir
+      (_, writeIncludeTime1) <- timeAction $ writeIncludesUpTo opts ch (pathToTurtle effectiveDir) $ fmap pathToTurtle journalsOnDisk
+      (_, writeIncludeTime2) <- timeAction $ writeToplevelAllYearsInclude opts
       let includeGenTime = journalFindTime + writeIncludeTime1 + writeIncludeTime2
       channelOutLn ch $ Turtle.format ("Wrote include files for " % Turtle.d % " journals in " % Turtle.s) (length journalsOnDisk) (Turtle.repr includeGenTime)
       return importedJournals

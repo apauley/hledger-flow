@@ -3,6 +3,7 @@
 
 module Hledger.Flow.Common where
 
+import Control.Concurrent (threadDelay)
 import Control.Concurrent.STM
 import qualified Control.Foldl as Fold
 import Data.Char (isDigit)
@@ -17,6 +18,7 @@ import qualified Data.Text.IO as T
 import qualified Data.Text.Read as T
 import Data.Time.Clock.POSIX (utcTimeToPOSIXSeconds)
 import qualified GHC.IO.Handle.FD as H
+import Hledger.Flow.DateTime (timeAction)
 import Hledger.Flow.BaseDir (relativeToBase, turtleBaseDir)
 import Hledger.Flow.Logging
 import Hledger.Flow.PathHelpers (AbsFile, TurtlePath, fromTurtleAbsFile, pathToTurtle)
@@ -26,6 +28,7 @@ import Path (relfile, toFilePath)
 import qualified Path
 import qualified Path.IO as Path
 import qualified System.FilePath as FilePath
+import System.Exit (ExitCode (..), exitWith)
 import System.IO.Error (tryIOError)
 import Turtle ((%), (<.>), (</>))
 import qualified Turtle
@@ -78,11 +81,10 @@ errExit :: Int -> TChan LogMessage -> T.Text -> a -> IO a
 errExit exitStatus ch = errExit' exitStatus (channelErrLn ch)
 
 errExit' :: Int -> (T.Text -> IO ()) -> T.Text -> a -> IO a
-errExit' exitStatus logFun errorMessage dummyReturnValue = do
+errExit' exitStatus logFun errorMessage _ = do
   logFun errorMessage
-  Turtle.sleep 0.1
-  _ <- Turtle.exit $ Turtle.ExitFailure exitStatus
-  return dummyReturnValue
+  threadDelay 100000
+  exitWith (ExitFailure exitStatus)
 
 descriptiveOutput :: T.Text -> T.Text -> T.Text
 descriptiveOutput outputLabel outTxt = do
@@ -106,7 +108,7 @@ logTimedAction opts ch cmdLabel extraCmdLabels cmd args stdoutLogger stderrLogge
   logVerbose opts ch $ Turtle.format ("Begin: " % Turtle.s) cmdLabel
   logVerbose opts ch $ Turtle.format (Turtle.s % " " % Turtle.s) cmd (T.intercalate " " args)
   if (List.null extraCmdLabels) then return () else logVerbose opts ch $ T.intercalate "\n" extraCmdLabels
-  timed@((ec, stdOut, stdErr), diff) <- Turtle.time action
+  timed@((ec, stdOut, stdErr), diff) <- timeAction action
   stdoutLogger ch stdOut
   stderrLogger ch stdErr
   logVerbose opts ch $ Turtle.format ("End:   " % Turtle.s % " " % Turtle.s % " (" % Turtle.s % ")") cmdLabel (Turtle.repr ec) (Turtle.repr diff)
@@ -139,7 +141,7 @@ timeAndExitOnErr' opts ch cmdLabel extraCmdLabels stdoutLogger stderrLogger proc
   let action = procFun cmd args stdInput
   timed@((ec, stdOut, stdErr), _) <- logTimedAction opts ch cmdLabel extraCmdLabels cmd args stdoutLogger stderrLogger action
   case ec of
-    Turtle.ExitFailure i -> do
+    ExitFailure i -> do
       let cmdText = Turtle.format (Turtle.s % " " % Turtle.s) cmd $ showCmdArgs args
       let msgOut = descriptiveOutput "Standard output" stdOut
       let msgErr = descriptiveOutput "Error output" stdErr
@@ -166,7 +168,7 @@ timeAndExitOnErr' opts ch cmdLabel extraCmdLabels stdoutLogger stderrLogger proc
               msgErr
               cmdLabel
       errExit i ch exitMsg timed
-    Turtle.ExitSuccess -> return timed
+    ExitSuccess -> return timed
 
 procWithEmptyOutput :: ProcFun
 procWithEmptyOutput cmd args stdinput = do
