@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Update the Stack resolver to LTS 24.65 (GHC 9.10.3).
 - Add Windows x64 CI builds and a `hledger-flow-windows-x64.zip` release archive.
 - Fix Windows compilation and make the test suite portable.
 - Handle native Windows separators when replacing import directories and
