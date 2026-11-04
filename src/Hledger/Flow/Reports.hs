@@ -8,6 +8,7 @@ where
 
 import Control.Concurrent.STM
 import Control.Monad (unless, when)
+import Data.Char (toLower)
 import Data.Either
 import qualified Data.List as List
 import Data.Maybe
@@ -57,7 +58,9 @@ generateReports' opts ch = do
   unless hledgerJournalExists $ ioError $ userError $
     "Unable to find journal file: " ++ hledgerJournal ++ "\nIs your LEDGER_FILE environment variable set correctly?"
   let journalWithYears = baseDir opts </> [relfile|import/all-years.journal|]
-  let aggregateReportDir = baseDir opts </> [reldir|reports/all|]
+  let aggregateReportDir
+        | any ((== "all") . map toLower) owners = baseDir opts </> [reldir|reports/_all_|]
+        | otherwise = baseDir opts </> [reldir|reports/all|]
   aggregateYears <- includeYears ch journalWithYears
   let aggregateParams =
         ReportParams

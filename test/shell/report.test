@@ -38,6 +38,25 @@ flow import
 flow report --ascii-reports
 grep '^expenses:' reports/gawie/2016/accounts.txt | tr -d '\r'
 grep '^expenses:' reports/gawie.jr/2016/accounts.txt | tr -d '\r'
+test -s reports/all/2016/income-expenses.txt
+test ! -e reports/_all_
 $ sh -eu
 expenses:bank-fees
 expenses:junior-fees
+
+# An owner named All keeps its own report while aggregates use the fallback.
+<
+. ./test/shell/setup.sh
+other=import/All/bogart/cheque
+mkdir -p "$other/1-in/2016"
+cp "$inbox/march.csv" "$other/1-in/2016/march.csv"
+sed 's/bank-fees/owner-fees/' import/bogart.rules > "$other/bogart-cheque.rules"
+flow import
+flow report --ascii-reports
+aggregate=reports/_all_/2016/income-expenses.txt
+individual=reports/All/2016/income-expenses.txt
+grep -q bank-fees "$aggregate"
+grep -q owner-fees "$aggregate"
+grep -q owner-fees "$individual"
+if grep -q bank-fees "$individual"; then exit 1; fi
+$ sh -eu

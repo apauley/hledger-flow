@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Keep aggregate reports in `reports/all/` unless an owner is named `all`
+  (in any capitalization). In that case, write aggregates to `reports/_all_/`
+  so the owner's reports and the aggregate reports are both available.
 - Use the full owner directory name when generating reports. Owners such as
   `gawie` and `gawie.jr` now each get reports from their own journal.
 - Fix `--sequential import`, which could print transactions to the terminal
