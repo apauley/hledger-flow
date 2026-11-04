@@ -29,7 +29,7 @@ import Hledger.Flow.Logging (logVerbose)
 import Hledger.Flow.PathHelpers (TurtlePath)
 import Hledger.Flow.Types
 import qualified System.FilePath as FilePath
-import Turtle ((%), (<.>), (</>))
+import Turtle ((%), (</>))
 import qualified Turtle
 
 extractImportDirs :: TurtlePath -> Either T.Text ImportDirs
@@ -78,7 +78,7 @@ allYearsPath' :: (TurtlePath -> TurtlePath) -> TurtlePath -> TurtlePath
 allYearsPath' dir p = dir p </> allYearsFileName
 
 includeFileName :: TurtlePath -> TurtlePath
-includeFileName = (<.> "journal") . T.unpack . (Turtle.format (Turtle.fp % "-include")) . Turtle.dirname
+includeFileName journal = FilePath.takeFileName (FilePath.takeDirectory journal) ++ "-include.journal"
 
 groupIncludeFilesPerYear :: [TurtlePath] -> TurtleFileBundle
 groupIncludeFilesPerYear [] = Map.empty
