@@ -7,7 +7,7 @@
 
 This project has 2 release outputs:
 
-- GitHub releases with prebuilt binaries (using stack) for supported Linux and macOS platforms
+- GitHub releases with prebuilt binaries (using stack) for supported Linux, macOS, and Windows platforms
 - A source package uploaded to [[https://hackage.haskell.org/package/hledger-flow][Hackage]]
 
 The automation is tag-driven: pushing a version tag triggers a GitHub Actions workflow that builds release binaries and creates a /draft/ GitHub release.
@@ -139,12 +139,17 @@ Pushing the tag triggers the release workflow, which builds on all configured pl
 
 1. Open the tag-triggered =Build & Release= run.
 2. Confirm every build job, both =Sign= jobs, and the =release= job succeeded. Fix any failure before publishing.
-3. Confirm the draft release contains =hledger-flow-linux-x64.tar.gz=, =hledger-flow-linux-arm64.tar.gz=, =hledger-flow-macos-x64.tar.gz=, and =hledger-flow-macos-arm64.tar.gz=.
+3. Confirm the draft release contains =hledger-flow-linux-x64.tar.gz=, =hledger-flow-linux-arm64.tar.gz=, =hledger-flow-macos-x64.tar.gz=, =hledger-flow-macos-arm64.tar.gz=, and =hledger-flow-windows-x64.zip=.
 4. Inspect both =Notarize= jobs. If either failed, follow a recovery procedure below; publication may proceed if notarization is the only failure.
 
 #+BEGIN_SRC sh
     ./bin/show-latest-release-info
 #+END_SRC
+
+The Windows x64 ZIP contains =hledger-flow.exe=. Its CI job runs =stack test=
+and checks the extracted executable's =--help= and =--version= with only Windows
+system directories on =PATH=. Users still need =hledger= installed to run
+imports and reports.
 
 *** Retry notarization in GitHub Actions
 

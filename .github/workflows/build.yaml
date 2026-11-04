@@ -153,6 +153,60 @@ jobs:
             tmp/hledger-flow-${{ steps.global-variables.outputs.platform }}.tar
           if-no-files-found: error
 
+  build_windows:
+    name: Build (Windows x64)
+    runs-on: windows-latest
+    env:
+      STACK_ROOT: C:\sr
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Stack
+        uses: haskell-actions/setup@v2
+        with:
+          enable-stack: true
+          stack-no-global: true
+
+      - name: Cache Windows Stack toolchain and packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            C:\sr
+            ~\AppData\Local\Programs\stack
+            .stack-work
+          key: windows-x64-stack-${{ hashFiles('stack.yaml', 'stack.yaml.lock', 'package.yaml') }}
+          restore-keys: |
+            windows-x64-stack-
+
+      - name: Build and Test
+        run: |
+          stack test --interleaved-output
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          stack install --local-bin-path dist
+
+      - name: Package Windows binary
+        run: |
+          Compress-Archive -LiteralPath dist/hledger-flow.exe -DestinationPath dist/hledger-flow-windows-x64.zip
+
+      - name: Smoke-test packaged Windows binary
+        run: |
+          Expand-Archive -LiteralPath dist/hledger-flow-windows-x64.zip -DestinationPath tmp/windows-release
+          # Check that the release runs without Stack or GHC on PATH.
+          $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot"
+          ./tmp/windows-release/hledger-flow.exe --help
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./tmp/windows-release/hledger-flow.exe --version
+
+      - name: Upload Windows binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: hledger-flow-windows-x64
+          path: dist/hledger-flow-windows-x64.zip
+          if-no-files-found: error
+
   sign_macos:
     name: Sign (${{ matrix.platform }})
     if: (github.event_name == 'push' && github.ref_type == 'tag') || github.event_name == 'workflow_dispatch'
@@ -303,7 +357,7 @@ jobs:
 
   release:
     if: github.event_name == 'push' && github.ref_type == 'tag'
-    needs: [build, sign_macos]
+    needs: [build, build_windows, sign_macos]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -321,6 +375,12 @@ jobs:
         with:
           pattern: signed-hledger-flow-macos-*
           merge-multiple: true
+          path: artifacts
+
+      - name: Download Windows binary
+        uses: actions/download-artifact@v4
+        with:
+          name: hledger-flow-windows-x64
           path: artifacts
 
       # Tar preserves executable permissions across artifact upload/download.
@@ -341,5 +401,6 @@ jobs:
         with:
           files: |
             artifacts/*.tar.gz
+            artifacts/hledger-flow-windows-x64.zip
           fail_on_unmatched_files: true
           draft: true

@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Add Windows x64 CI builds and a `hledger-flow-windows-x64.zip` release archive.
 - Fix Windows compilation and make the test suite portable.
 - Handle native Windows separators when replacing import directories and
   generating relative journal includes. Generated includes use forward slashes.
