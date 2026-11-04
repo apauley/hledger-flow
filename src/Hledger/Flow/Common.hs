@@ -25,7 +25,7 @@ import qualified GHC.IO.Handle.FD as H
 import Hledger.Flow.DateTime (timeAction)
 import Hledger.Flow.BaseDir (relativeToBase)
 import Hledger.Flow.Logging
-import Hledger.Flow.PathHelpers (AbsFile, RelDir, TurtlePath, fromTurtleAbsFile, pathToTurtle)
+import Hledger.Flow.PathHelpers (AbsFile, RelDir, TurtlePath, fromTurtleAbsFile)
 import qualified Hledger.Flow.RuntimeOptions as RT
 import Hledger.Flow.Types
 import Path (reldir, relfile, toFilePath)
@@ -37,7 +37,7 @@ import System.Exit (ExitCode (..), exitWith)
 import System.IO (hClose)
 import qualified System.Process as Process
 import System.IO.Error (tryIOError)
-import Turtle ((%), (<.>), (</>))
+import System.FilePath ((<.>))
 import qualified Turtle
 import Prelude hiding (putStrLn, readFile, writeFile)
 
@@ -50,7 +50,7 @@ hledgerPathFromOption pathOption = do
       if isOnDisk
         then return hlAbs
         else do
-          let msg = Turtle.format ("Unable to find hledger at " % Turtle.fp) h
+          let msg = "Unable to find hledger at " <> T.pack h
           errExit' 1 (T.hPutStrLn H.stderr) msg hlAbs
     Nothing -> do
       maybeH <- Path.findExecutable [relfile|hledger|]
@@ -61,22 +61,32 @@ hledgerPathFromOption pathOption = do
                 "Unable to find hledger in your path.\n"
                   <> "You need to either install hledger, or add it to your PATH, or provide the path to an hledger executable.\n\n"
                   <> "There are a number of installation options on the hledger website: https://hledger.org/download.html"
-          Turtle.die msg
+          ioError (userError msg)
 
-hledgerVersionFromPath :: TurtlePath -> IO T.Text
-hledgerVersionFromPath hlp = fmap (T.strip . Turtle.linesToText) (Turtle.single $ shellToList $ Turtle.inproc (Turtle.format Turtle.fp hlp) ["--version"] Turtle.empty)
+hledgerVersionFromPath :: AbsFile -> IO T.Text
+hledgerVersionFromPath hlp = do
+  let command = (Process.proc (toFilePath hlp) ["--version"])
+        { Process.std_in = Process.CreatePipe, Process.std_out = Process.CreatePipe }
+  Process.withCreateProcess command $ \input output _ handle -> do
+    mapM_ hClose input
+    Just stdoutPipe <- return output
+    version <- T.hGetContents stdoutPipe
+    status <- Process.waitForProcess handle
+    case status of
+      ExitSuccess -> return (T.strip version)
+      ExitFailure _ -> exitWith status
 
 hledgerInfoFromPath :: Maybe TurtlePath -> IO HledgerInfo
 hledgerInfoFromPath pathOption = do
   hlp <- hledgerPathFromOption pathOption
-  hlv <- hledgerVersionFromPath $ pathToTurtle hlp
+  hlv <- hledgerVersionFromPath hlp
   return $ HledgerInfo hlp hlv
 
 hledgerConfArgs :: RT.RuntimeOptions -> [T.Text]
 hledgerConfArgs opts =
   case RT.hledgerConf opts of
     Nothing -> []
-    Just conf -> ["--conf", Turtle.format Turtle.fp conf]
+    Just conf -> ["--conf", T.pack conf]
 
 showCmdArgs :: [T.Text] -> T.Text
 showCmdArgs args = T.intercalate " " (map escapeArg args)
@@ -96,7 +106,7 @@ errExit' exitStatus logFun errorMessage _ = do
 descriptiveOutput :: T.Text -> T.Text -> T.Text
 descriptiveOutput outputLabel outTxt = do
   if not (T.null outTxt)
-    then Turtle.format (Turtle.s % ":\n" % Turtle.s % "\n") outputLabel outTxt
+    then outputLabel <> ":\n" <> outTxt <> "\n"
     else ""
 
 logTimedAction ::
@@ -112,13 +122,13 @@ logTimedAction ::
   IO FullOutput ->
   IO FullTimedOutput
 logTimedAction opts ch cmdLabel extraCmdLabels cmd args stdoutLogger stderrLogger action = do
-  logVerbose opts ch $ Turtle.format ("Begin: " % Turtle.s) cmdLabel
-  logVerbose opts ch $ Turtle.format (Turtle.s % " " % Turtle.s) cmd (T.intercalate " " args)
+  logVerbose opts ch $ "Begin: " <> cmdLabel
+  logVerbose opts ch $ cmd <> " " <> T.intercalate " " args
   if (List.null extraCmdLabels) then return () else logVerbose opts ch $ T.intercalate "\n" extraCmdLabels
   timed@((ec, stdOut, stdErr), diff) <- timeAction action
   stdoutLogger ch stdOut
   stderrLogger ch stdErr
-  logVerbose opts ch $ Turtle.format ("End:   " % Turtle.s % " " % Turtle.s % " (" % Turtle.s % ")") cmdLabel (Turtle.repr ec) (Turtle.repr diff)
+  logVerbose opts ch $ "End:   " <> cmdLabel <> " " <> T.pack (show ec) <> " (" <> T.pack (show diff) <> ")"
   return timed
 
 -- Drain both output pipes concurrently so a full stderr pipe cannot stall stdout.
@@ -163,31 +173,14 @@ timeAndExitOnErr' opts ch cmdLabel extraCmdLabels stdoutLogger stderrLogger inpu
   timed@((ec, stdOut, stdErr), _) <- logTimedAction opts ch cmdLabel extraCmdLabels cmd args stdoutLogger stderrLogger action
   case ec of
     ExitFailure i -> do
-      let cmdText = Turtle.format (Turtle.s % " " % Turtle.s) cmd $ showCmdArgs args
+      let cmdText = cmd <> " " <> showCmdArgs args
       let msgOut = descriptiveOutput "Standard output" stdOut
       let msgErr = descriptiveOutput "Error output" stdErr
 
       let exitMsg =
-            Turtle.format
-              ( "\n=== Begin Error: "
-                  % Turtle.s
-                  % " ===\nExternal command:\n"
-                  % Turtle.s
-                  % "\nExit code "
-                  % Turtle.d
-                  % "\n"
-                  % Turtle.s
-                  % Turtle.s
-                  % "=== End Error: "
-                  % Turtle.s
-                  % " ===\n"
-              )
-              cmdLabel
-              cmdText
-              i
-              msgOut
-              msgErr
-              cmdLabel
+            "\n=== Begin Error: " <> cmdLabel <> " ===\nExternal command:\n"
+              <> cmdText <> "\nExit code " <> T.pack (show i) <> "\n" <> msgOut <> msgErr
+              <> "=== End Error: " <> cmdLabel <> " ===\n"
       errExit i ch exitMsg timed
     ExitSuccess -> return timed
 
@@ -281,9 +274,7 @@ filterPaths' acc predicate files = do
 excludeHiddenFiles :: Turtle.Shell TurtlePath -> Turtle.Shell TurtlePath
 excludeHiddenFiles paths = do
   p <- paths
-  case (Turtle.match (Turtle.prefix ".") $ Turtle.format Turtle.fp $ Turtle.filename p) of
-    [] -> Turtle.select [p]
-    _ -> Turtle.select []
+  if "." `List.isPrefixOf` FilePath.takeFileName p then Turtle.empty else return p
 
 firstExistingFile :: [AbsFile] -> IO (Maybe AbsFile)
 firstExistingFile [] = return Nothing
@@ -292,12 +283,12 @@ firstExistingFile (file : rest) = do
   if exists then return (Just file) else firstExistingFile rest
 
 basenameLine :: TurtlePath -> Turtle.Shell Turtle.Line
-basenameLine path = case (Turtle.textToLine $ Turtle.format Turtle.fp $ Turtle.basename path) of
-  Nothing -> Turtle.die $ Turtle.format ("Unable to determine basename from path: " % Turtle.fp % "\n") path
+basenameLine path = case (Turtle.textToLine $ T.pack $ Turtle.basename path) of
+  Nothing -> liftIO $ ioError (userError ("Unable to determine basename from path: " ++ path ++ "\n"))
   Just bn -> return bn
 
 buildFilename :: [Turtle.Line] -> T.Text -> TurtlePath
-buildFilename identifiers ext = T.unpack (T.intercalate "-" (map Turtle.lineToText identifiers)) Turtle.<.> (T.unpack ext)
+buildFilename identifiers ext = T.unpack (T.intercalate "-" (map Turtle.lineToText identifiers)) <.> (T.unpack ext)
 
 shellToList :: Turtle.Shell a -> Turtle.Shell [a]
 shellToList files = Turtle.fold files Fold.list
@@ -316,7 +307,7 @@ writeTextMap :: Map.Map TurtlePath T.Text -> IO ()
 writeTextMap = Map.foldlWithKey (\a k v -> a <> T.writeFile k v) (return ())
 
 changeExtension :: T.Text -> TurtlePath -> TurtlePath
-changeExtension ext path = (Turtle.dropExtension path) Turtle.<.> (T.unpack ext)
+changeExtension ext path = (FilePath.dropExtension path) <.> (T.unpack ext)
 
 changePathAndExtension :: TurtlePath -> T.Text -> TurtlePath -> TurtlePath
 changePathAndExtension newOutputLocation newExt = (changeOutputPath newOutputLocation) . (changeExtension newExt)
@@ -355,7 +346,7 @@ includeYears ch includeFile = do
 includeYears' :: T.Text -> Either T.Text [Integer]
 includeYears' txt = case partitionEithers (includeYears'' txt) of
   (errors, []) -> do
-    let msg = Turtle.format ("Unable to extract years from the following text:\n" % Turtle.s % "\nErrors:\n" % Turtle.s) txt (T.intercalate "\n" $ map T.pack errors)
+    let msg = "Unable to extract years from the following text:\n" <> txt <> "\nErrors:\n" <> T.intercalate "\n" (map T.pack errors)
     Left msg
   (_, years) -> Right years
 
