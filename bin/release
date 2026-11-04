@@ -1,0 +1,188 @@
+#!/usr/bin/env bash
+# Release helper. See release-procedure.org for the full procedure.
+#
+# Usage: bin/release COMMAND [ARGS]
+#
+#   deps [RESOLVER]  Update stack.yaml (default: latest LTS) and cabal bounds, test, commit
+#   bump VERSION     Rename '## Unreleased' in ChangeLog.md, set package.yaml version, commit
+#   ci               Push master and wait for its CI run
+#   changelog        Verify ChangeLog.md is up to date for the package.yaml version
+#   check            All pre-tag checks (clean synced master, green CI, secrets, cabal, changelog)
+#   tag              check, then sign and push the tag, wait for the release build, verify assets
+#   verify           Verify the GitHub release has every expected asset
+#   hackage          Upload a Hackage candidate, then publish after confirmation
+#   publish          Publish the GitHub draft release
+#   notes [VERSION]  Print the ChangeLog.md section for VERSION
+
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+REPO=apauley/hledger-flow
+ASSETS="hledger-flow-linux-x64.tar.gz hledger-flow-linux-arm64.tar.gz hledger-flow-macos-x64.tar.gz hledger-flow-macos-arm64.tar.gz hledger-flow-windows-x64.zip"
+CI_SECRETS="MACOS_CERTIFICATE_BASE64 MACOS_CERTIFICATE_PASSWORD APPLE_API_KEY_BASE64 APPLE_API_KEY_ID APPLE_API_ISSUER_ID"
+
+die() { printf 'error: %b\n' "$*" >&2; exit 1; }
+say() { printf '\n==> %s\n' "$*"; }
+version() { awk '/^version:/ {print $2}' package.yaml; }
+tag_exists() { git rev-parse -q --verify "refs/tags/$1" >/dev/null; }
+confirm() {
+  [ -t 0 ] || die "'$1' needs an interactive terminal"
+  read -r -p "$1 [y/N] " answer
+  [ "$answer" = y ] || [ "$answer" = Y ] || die "aborted"
+}
+
+notes() {
+  awk -v h="## ${1:-$(version)}" '$0 == h {f=1; next} /^## / {f=0} f' ChangeLog.md | sed '/./,$!d'
+}
+
+clean_master() {
+  [ "$(git branch --show-current)" = master ] || die "not on master"
+  [ -z "$(git status --porcelain)" ] || die "working tree not clean:\n$(git status --short)"
+}
+
+# Wait for the Build & Release run of HEAD on a branch or tag. Notarization
+# failures are only warnings: they do not block the release (see recovery steps).
+watch_run() {
+  local ref=$1 sha id="" failed
+  sha=$(git rev-parse HEAD)
+  for _ in $(seq 30); do
+    id=$(gh run list -R "$REPO" --workflow build.yaml --commit "$sha" --branch "$ref" \
+           --json databaseId -q '.[0].databaseId')
+    [ -n "$id" ] && break
+    sleep 10
+  done
+  [ -n "$id" ] || die "no Build & Release run found for $ref at $sha"
+  gh run watch "$id" -R "$REPO" --exit-status || true
+  failed=$(gh run view "$id" -R "$REPO" --json jobs \
+             -q '.jobs[] | select(.conclusion != "success" and .conclusion != "skipped") | .name')
+  [ -z "$failed" ] && return
+  grep -qv '^Notarize' <<<"$failed" && die "run $id failed jobs:\n$failed"
+  echo "warning: notarization failed in run $id; see 'Retry notarization' in release-procedure.org" >&2
+}
+
+cmd_deps() {
+  clean_master
+  local resolver=${1:-$(curl -sfL https://www.stackage.org/download/snapshots.json | jq -r .lts)}
+  say "Updating to $resolver"
+  perl -pi -e "s/^resolver: .*/resolver: $resolver/" stack.yaml
+  # Lower bound = snapshot version, upper bound = next PVP major (A.B -> A.(B+1)).
+  # Only rewrites dependencies that already have '>= X && < Y' bounds.
+  stack ls dependencies --depth 1 | while read -r pkg ver; do
+    [ "$pkg" = base ] && continue
+    upper=$(awk -F. '{print $1 "." $2 + 1}' <<<"$ver")
+    perl -pi -e "s/^(\s*- \Q$pkg\E) >= \S+ && < \S+\$/\$1 >= $ver && < $upper/" package.yaml
+  done
+  stack build --only-configure
+  bin/build-and-test
+  cabal check
+  if git diff --quiet -- stack.yaml stack.yaml.lock package.yaml; then
+    say "Already on $resolver with current bounds"; return
+  fi
+  git diff -- stack.yaml package.yaml
+  confirm "Commit dependency update?"
+  git commit -m "Update stackage to $resolver" -- stack.yaml stack.yaml.lock package.yaml
+}
+
+cmd_bump() {
+  local new=${1:?usage: bin/release bump VERSION} old
+  old=$(version)
+  clean_master
+  [ "$new" != "$old" ] && [ "$(printf '%s\n%s\n' "$old" "$new" | sort -V | tail -1)" = "$new" ] \
+    || die "$new is not greater than $old"
+  tag_exists "v$new" && die "tag v$new already exists"
+  [ "$(grep -m1 '^## ' ChangeLog.md)" = "## Unreleased" ] || die "ChangeLog.md must start with '## Unreleased'"
+  notes Unreleased | grep -q '[^[:space:]]' || die "'## Unreleased' is empty: describe the changes first"
+  perl -pi -e "s/^version: .*/version: $new/" package.yaml
+  perl -pi -e "s/^## Unreleased\$/## $new/" ChangeLog.md
+  stack build --only-configure
+  cmd_changelog
+  confirm "Commit version bump $old -> $new?"
+  git commit -m "Bump version to $new" -- package.yaml ChangeLog.md
+}
+
+cmd_ci() {
+  clean_master
+  git push origin master
+  watch_run master
+}
+
+cmd_changelog() {
+  local v first prev
+  v=$(version)
+  first=$(grep -m1 '^## ' ChangeLog.md)
+  [ "$first" = "## $v" ] || die "ChangeLog.md: first section is '$first', expected '## $v' (run: bin/release bump $v)"
+  notes "$v" | grep -q '[^[:space:]]' || die "ChangeLog.md: section '## $v' is empty"
+  prev=$(git describe --tags --abbrev=0 --match 'v*' --exclude "v$v" HEAD) || die "no previous release tag"
+  [ -n "$(git diff --name-only "$prev" HEAD -- ChangeLog.md)" ] || die "ChangeLog.md unchanged since $prev"
+  say "Commits since $prev"
+  git log --no-merges --format='  %h %s' "$prev..HEAD"
+  say "ChangeLog.md entry for $v"
+  notes "$v"
+}
+
+cmd_check() {
+  local v ci have n
+  v=$(version)
+  clean_master
+  git fetch -q origin master
+  [ "$(git rev-parse HEAD)" = "$(git rev-parse origin/master)" ] || die "HEAD is not origin/master (run: bin/release ci)"
+  tag_exists "v$v" && die "tag v$v already exists"
+  ci=$(gh run list -R "$REPO" --workflow build.yaml --commit "$(git rev-parse HEAD)" --branch master \
+         --json conclusion -q '.[0].conclusion')
+  [ "$ci" = success ] || die "CI for HEAD is '${ci:-missing}' (run: bin/release ci)"
+  have=$({ gh secret list -R "$REPO"; gh variable list -R "$REPO"; } | cut -f1)
+  for n in $CI_SECRETS; do grep -qx "$n" <<<"$have" || die "missing GitHub secret or variable $n"; done
+  stack build --only-configure
+  cabal check
+  cabal sdist
+  cmd_changelog
+  echo
+  confirm "Does the $v entry cover every user-visible change above?"
+}
+
+cmd_tag() {
+  local v
+  v=$(version)
+  cmd_check
+  bin/tag-release
+  git push origin "v$v"
+  watch_run "v$v"
+  cmd_verify
+}
+
+cmd_verify() {
+  local v have a
+  v=$(version)
+  have=$(gh release view "v$v" -R "$REPO" --json assets -q '.assets[].name')
+  for a in $ASSETS; do grep -qx "$a" <<<"$have" || die "release v$v is missing $a"; done
+  say "Release v$v has all $(wc -w <<<"$ASSETS" | tr -d ' ') assets"
+}
+
+cmd_hackage() {
+  local v tarball
+  v=$(version)
+  tarball=dist-newstyle/sdist/hledger-flow-$v.tar.gz
+  cmd_verify
+  stack build --only-configure
+  cabal sdist
+  cabal upload "$tarball"
+  say "Review the candidate: https://hackage.haskell.org/package/hledger-flow-$v/candidate"
+  confirm "Publish hledger-flow-$v to Hackage? This is permanent."
+  cabal upload --publish "$tarball"
+}
+
+cmd_publish() {
+  local v
+  v=$(version)
+  cmd_verify
+  curl -sfo /dev/null "https://hackage.haskell.org/package/hledger-flow-$v" \
+    || die "hledger-flow-$v is not published on Hackage (run: bin/release hackage)"
+  gh release edit "v$v" -R "$REPO" --draft=false --latest
+  gh release view "v$v" -R "$REPO" --json url -q .url
+}
+
+case "${1:-}" in
+  deps|bump|ci|changelog|check|tag|verify|hackage|publish) c=$1; shift; "cmd_$c" "$@" ;;
+  notes) shift; notes "$@" ;;
+  *) sed -n '4,15s/^# \{0,1\}//p' "$0"; exit 1 ;;
+esac

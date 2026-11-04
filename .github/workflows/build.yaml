@@ -385,6 +385,16 @@ jobs:
       contents: write
 
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check tag, package.yaml and ChangeLog.md agree
+        run: |
+          test "${GITHUB_REF_NAME}" = "v$(awk '/^version:/ {print $2}' package.yaml)"
+          bin/release changelog
+          bin/release notes > release-notes.md
+
       - name: Download Linux binaries
         uses: actions/download-artifact@v4
         with:
@@ -425,4 +435,5 @@ jobs:
             artifacts/*.tar.gz
             artifacts/hledger-flow-windows-x64.zip
           fail_on_unmatched_files: true
+          body_path: release-notes.md
           draft: true
