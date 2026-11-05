@@ -65,9 +65,16 @@ I'm open to suggestions for improvement though.
 
 ## Rules Files
 
-If your input file is in CSV format, or converted to CSV by your
-`preprocess` script, then you'll need an
-[hledger rules file](https://hledger.org/hledger.html#csv-format).
+For most downloaded bank CSVs, an hledger rules file handles the whole
+conversion. Use `fields` to map columns, `skip` to ignore headers, `if` to
+classify matching transactions, and `include` to share rules across accounts.
+See [hledger's CSV rules reference](https://hledger.org/1.52/hledger.html#csv).
+
+The upcoming hledger 2 release also has experimental rules functions,
+available since preview 1.99.6. For example, if you named a CSV column
+`memo`, you can use `description %{replace(%memo, "^POS +", "")}` to strip a
+bank's prefix, or `%{substr(%memo, 1, 4)}` to extract the first four characters.
+See [hledger's rules functions](https://hledger.org/dev/hledger.html#functions).
 
 `hledger-flow` will try to find a rules file for each statement in a few
 places. The same rules file is typically used for all statements of a
@@ -137,15 +144,6 @@ Where `import/mybank-shared.rules` may define some shared attributes:
 
     date-format %Y-%m-%d
     currency $
-
-Another possible approach could be to use your `preprocess` script to
-write out a CSV file that has extra fields for `account1` and
-`account2`.
-
-You could then create the above mentioned global `import/mybank.rules`
-with the fields defined more or less like this:
-
-    fields date, description, amount, balance, account1, account2
 
 ### Stability of this Feature
 
@@ -320,10 +318,11 @@ by running a native command, use `exit $LASTEXITCODE` to forward its result.
 
 ## The `preprocess` Script
 
-Sometimes the statements you get from your bank is
-[less than suitable](https://github.com/apauley/fnb-csv-demoronizer)
-for automatic processing. Or maybe you just want to make it easier for
-the hledger rules file to do its thing by adding some useful columns.
+Most bank CSVs can go straight through [hledger's CSV rules](#rules-files).
+Add a `preprocess` script only when the input needs work those rules cannot
+do, such as converting a non-CSV statement or repairing malformed rows
+before hledger can read them. The script becomes part of every rebuild for
+that account, including imports of older statements.
 
 If you put a script called `preprocess` in the account directory, e.g.
 `import/john/mybank/savings/preprocess`, then `hledger-flow` will call
@@ -359,17 +358,13 @@ Stable and tested.
 
 ## The `construct` Script
 
-If you need even more power and flexibility than what you can get from
-the `preprocess` script and `hledger`'s [CSV import functionality](https://hledger.org/csv.html), then
-you can create your own custom script to `construct` transactions
-exactly as you need them.
-
-At the expense of more construction work for you, of course.
-
-The `construct` script can be used in addition to the `preprocess`
-script, or on it's own. But since the `construct` script is more
-powerful than the `preprocess` script, you could tell your `construct`
-script to do anything that the `preprocess` script would have done.
+For most downloaded CSVs, [hledger's CSV rules](#rules-files) can generate
+the postings directly. Reserve `construct` for cases where you need to
+generate journal entries yourself, for example when you already have a
+converter that produces a journal for a specialised statement format.
+With this hook you maintain the logic for generating and balancing the
+postings. You can use it on its own or after `preprocess` if both steps
+are needed.
 
 Save your `construct` script in the account directory, e.g.
 `import/john/mybank/savings/construct`.

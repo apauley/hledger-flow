@@ -2,65 +2,69 @@
 
 ## What is it?
 
-`hledger-flow` is a command-line program that gives you a guided [Hledger](https://hledger.org/)
-workflow. It is important to note that most of the heavy lifting is done by the
-upstream `hledger` project. For example, `hledger-flow` cares about where you
-put your files for long-term maintainability, but the actual conversion to
-classified accounting journals is done by `hledger`.
+hledger-flow organises bank statements by owner, bank, account and year.
+It uses [hledger](https://hledger.org/) and its CSV rules to generate one
+journal per statement, then includes those journals and your manual entries
+in `all-years.journal`. You keep the original statements so you can rebuild
+the imported entries when your rules change.
 
-`hledger-flow` focuses on automated processing of electronic statements as much as possible,
-as opposed to manually adding your own hledger journal entries. Manual entries
-are still possible, it just saves time in the long run to automatically process
-a statement whenever one is available.
-
-Within `hledger-flow` you will keep your original bank statements around
-permanently as input, and generate (h)ledger journals each time
-you run the program. The classification is done with [hledger's rules files](https://hledger.org/csv.html),
-and/or your own script hooks.
-
-Keeping the original statements means that you never have to worry too
-much about "am I doing this accounting thing right?" or "what happens if
-I make a mistake?". If you want to change your mind about some
-classification, or if you made a mistake, you just change your
-classification rules, and run the program again.
-
-It started when I realized that the scripts I wrote while playing around with
-[adept's Full-fledged Hledger](https://github.com/adept/full-fledged-hledger/wiki) aren't really specific to my own finances, and can
-be shared.
-
-## Overview of the Basic Workflow
-
-1.  Save an input transaction file (typically CSV) to a [specific directory](docs/README.md#input-files).
-2.  Add an hledger [rules file](docs/README.md#rules-files).
-    Include some classification rules if you want.
-3.  Run `hledger-flow import`
-
-Add all your files to your favourite version control system.
-
-The generated journal that you most likely want to use as your
-`LEDGER_FILE` is called `all-years.journal`. This has include directives
-to all the automatically imported journals, as well as includes for your
-own manually managed journal entries.
-
-In a typical software project we don't add generated files to version
-control, but in this case I think it is a good idea to add all the
-generated files to version control as well - when you inevitably change
-something, e.g. how you classify transactions in your rules file, then
-you can easily see if your change had the desired effect by looking at a
-diff.
+It grew out of scripts I wrote while using
+[adept's Full-fledged Hledger](https://github.com/adept/full-fledged-hledger/wiki).
 
 ## Who should use this?
 
-`hledger-flow` is intended for you if:
+**Choose hledger-flow** if you keep non-overlapping statements and want to
+apply better rules to several years of transactions. It is especially useful
+when you manage several accounts or owners and want to review the changes
+to each statement's journal before committing them.
 
-- You want a way to organise your finances into a structure that will be
-  maintainable over the long term.
-- You like the idea of treating your source transactions (typically CSV files)
-  as input, and having your hledger journals (mostly) being generated as output.
-- You want to automate as much as possible when dealing with your
-  financial life.
-- You don't mind writing some scripts when needed, as long as it saves
-  you time over the long term.
+**Choose plain `hledger import`** if you want to append new transactions
+and then review, split or annotate them directly in your journal. Your edits
+survive the next import. This also suits rolling downloads such as “the last
+90 days” from the same account. hledger remembers how far it got for each
+source, which works well when dates and the order of same-day transactions
+are stable. hledger-flow processes each statement independently, so overlapping
+files can count the same purchase twice. You can keep the original CSVs with
+either workflow. See [hledger's import guide](https://hledger.org/dev/hledger.html#import).
+
+## Overview of the Basic Workflow
+
+1. Save each statement under its [account and year](docs/README.md#input-files).
+2. Add an [hledger rules file](docs/README.md#rules-files) for the account or bank.
+   For most bank CSVs, rules are all you need.
+3. Run `hledger-flow import` from the base directory. Use the generated
+   `all-years.journal` as your `LEDGER_FILE`.
+4. Commit the statements, rules, manual journals and generated journals to
+   version control so you can review the effect of later rule changes.
+
+### Example: reclassify purchases across three years
+
+Suppose your 2023–2025 statements are already imported and committed.
+Purchases from City Rail currently appear under `expenses:misc`. You also
+recorded a one-off cash fare by hand in
+`import/john/_manual_/2024/post-import.journal`. Keep handwritten adjustments
+in a [manual journal](docs/README.md#manually-managed-journals), since each
+full import rewrites the statement journals in `3-journal/`.
+
+Add this rule to `import/mybank.rules`, the rules file used by those statements:
+
+```rules
+if %description City Rail
+  account2 expenses:transport
+```
+
+From the base directory, rebuild all three years and review the changes:
+
+```sh
+hledger-flow import
+git diff -- import/
+hledger -f all-years.journal print expenses:transport
+```
+
+The diff should show the rule and the matching purchases moving from
+`expenses:misc` to `expenses:transport` in each affected statement journal.
+The cash fare stays in the manual journal. If you booked it to
+`expenses:transport`, the last command shows it alongside the rebuilt entries.
 
 ## How do I install it?
 
