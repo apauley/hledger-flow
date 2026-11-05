@@ -4,19 +4,25 @@
 # Usage: bin/release COMMAND [ARGS]
 #
 #   deps [RESOLVER]  Update stack.yaml (default: latest LTS) and cabal bounds, test, commit
-#   precheck         Local checks, review '## Unreleased' against the commits, suggest versions
+#   precheck         Local checks; show '## Unreleased' next to the commits; list next versions
 #   bump LEVEL|VER   LEVEL is major, minor or patch. Rename '## Unreleased', set version, commit
 #   ci               Push master and wait for its CI run
 #   changelog        Verify ChangeLog.md is up to date for the package.yaml version
 #   check            All pre-tag checks (clean synced master, green CI, secrets, cabal, changelog)
-#   tag              check, then sign and push the tag, wait for the release build, verify assets
+#   tag              check, then create the signed tag locally
+#   push-tag         PERMANENT: push the tag, wait for the release build, verify assets
 #   verify           Verify the GitHub release has every expected asset
-#   hackage          Upload a Hackage candidate, then publish after confirmation
-#   publish          Publish the GitHub draft release
+#   hackage          Upload a Hackage candidate
+#   hackage-publish  PERMANENT: publish the reviewed candidate tarball on Hackage
+#   publish          PERMANENT: publish the GitHub draft release
 #   notes [VERSION]  Print the ChangeLog.md section for VERSION
+#
+# Commands never prompt. Each one stops with an error naming the fix, and can be
+# re-run once the fix is in. Only the PERMANENT commands can't be undone.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
+export GIT_PAGER=cat  # git output is part of the report, never paged
 
 REPO=apauley/hledger-flow
 ASSETS="hledger-flow-linux-x64.tar.gz hledger-flow-linux-arm64.tar.gz hledger-flow-macos-x64.tar.gz hledger-flow-macos-arm64.tar.gz hledger-flow-windows-x64.zip"
@@ -26,6 +32,8 @@ die() { printf 'error: %b\n' "$*" >&2; exit 1; }
 say() { printf '\n==> %s\n' "$*"; }
 version() { awk '/^version:/ {print $2}' package.yaml; }
 tag_exists() { git rev-parse -q --verify "refs/tags/$1" >/dev/null; }
+remote_tag_exists() { git ls-remote --exit-code --tags origin "refs/tags/$1" >/dev/null; }
+sdist_tarball() { echo "dist-newstyle/sdist/hledger-flow-$(version).tar.gz"; }
 # hledger-flow.cabal is generated from package.yaml and committed with it. hpack
 # refuses to overwrite one it thinks was edited (e.g. written by another hpack
 # version), so always start fresh; git shows any real difference.
@@ -34,11 +42,6 @@ cabal_in_sync() {
   regen_cabal
   git diff --quiet -- hledger-flow.cabal \
     || die "hledger-flow.cabal does not match package.yaml: commit the regenerated file"
-}
-confirm() {
-  [ -t 0 ] || die "'$1' needs an interactive terminal"
-  read -r -p "$1 [y/N] " answer
-  [ "$answer" = y ] || [ "$answer" = Y ] || die "aborted"
 }
 
 notes() {
@@ -95,11 +98,10 @@ show_changes() { # PREV_TAG SECTION
   notes "$2"
 }
 
-# Wait for the Build & Release run of HEAD on a branch or tag. Notarization
-# failures are only warnings: they do not block the release (see recovery steps).
-watch_run() {
-  local ref=$1 sha id="" failed
-  sha=$(git rev-parse HEAD)
+# Wait quietly for the Build & Release run of SHA on a branch or tag, then report.
+# Notarization failures are only warnings: they don't block the release.
+watch_run() { # REF SHA
+  local ref=$1 sha=$2 id="" url failed
   for _ in $(seq 30); do
     id=$(gh run list -R "$REPO" --workflow build.yaml --commit "$sha" --branch "$ref" \
            --json databaseId -q '.[0].databaseId')
@@ -107,12 +109,18 @@ watch_run() {
     sleep 10
   done
   [ -n "$id" ] || die "no Build & Release run found for $ref at $sha"
-  gh run watch "$id" -R "$REPO" --exit-status || true
+  url=$(gh run view "$id" -R "$REPO" --json url -q .url)
+  say "Waiting for $url"
+  gh run watch "$id" -R "$REPO" --interval 30 >/dev/null 2>&1 || true
+  [ "$(gh run view "$id" -R "$REPO" --json status -q .status)" = completed ] \
+    || die "run $id has not finished; re-run this command to keep waiting"
   failed=$(gh run view "$id" -R "$REPO" --json jobs \
              -q '.jobs[] | select(.conclusion != "success" and .conclusion != "skipped") | .name')
-  [ -z "$failed" ] && return
-  grep -qv '^Notarize' <<<"$failed" && die "run $id failed jobs:\n$failed"
-  echo "warning: notarization failed in run $id; see 'Retry notarization' in release-procedure.md" >&2
+  if [ -z "$failed" ]; then say "Run $id succeeded"; return; fi
+  if grep -qv '^Notarize' <<<"$failed"; then
+    die "run $id failed jobs:\n$failed\nInspect: gh run view $id -R $REPO --log-failed\nRetry transient failures: gh run rerun $id -R $REPO --failed, then re-run this command"
+  fi
+  echo "warning: notarization failed in run $id; see 'Recovery: notarization' in release-procedure.md" >&2
 }
 
 cmd_deps() {
@@ -134,7 +142,6 @@ cmd_deps() {
     say "Already on $resolver with current bounds"; return
   fi
   git diff -- stack.yaml package.yaml
-  confirm "Commit dependency update?"
   git commit -m "Update stackage to $resolver" -- stack.yaml stack.yaml.lock package.yaml hledger-flow.cabal
 }
 
@@ -147,9 +154,10 @@ cmd_precheck() {
   unreleased_ok
   prev=$(git describe --tags --abbrev=0 --match 'v*' HEAD) || die "no previous release tag"
   show_changes "$prev" Unreleased
-  echo
-  confirm "Does '## Unreleased' cover every user-visible change above?"
-  say "Choose the next version (see 'Choose the version number' in release-procedure.md)"
+  say "Review before bumping"
+  echo "  - Every user-visible change in the commits above has an entry."
+  echo "  - Entries follow the guidelines at the top of ChangeLog.md."
+  say "Next versions (choose with 'Choose the version number' in release-procedure.md)"
   for level in major minor patch; do
     printf '  bin/release bump %-5s  # %s\n' "$level" "$(next_version "$level")"
   done
@@ -168,14 +176,13 @@ cmd_bump() {
   perl -pi -e "s/^## Unreleased\$/## $new/" ChangeLog.md
   regen_cabal
   cmd_changelog
-  confirm "Commit version bump $old -> $new?"
   git commit -m "Bump version to $new" -- package.yaml hledger-flow.cabal ChangeLog.md
 }
 
 cmd_ci() {
   clean_master
   git push origin master
-  watch_run master
+  watch_run master "$(git rev-parse HEAD)"
 }
 
 cmd_changelog() {
@@ -195,7 +202,8 @@ cmd_check() {
   clean_master
   git fetch -q origin master
   [ "$(git rev-parse HEAD)" = "$(git rev-parse origin/master)" ] || die "HEAD is not origin/master (run: bin/release ci)"
-  tag_exists "v$v" && die "tag v$v already exists"
+  remote_tag_exists "v$v" && die "v$v is already released: its tag is on origin"
+  tag_exists "v$v" && die "tag v$v exists locally but was not pushed: delete it with 'git tag -d v$v' and re-run"
   ci=$(gh run list -R "$REPO" --workflow build.yaml --commit "$(git rev-parse HEAD)" --branch master \
          --json conclusion -q '.[0].conclusion')
   [ "$ci" = success ] || die "CI for HEAD is '${ci:-missing}' (run: bin/release ci)"
@@ -204,13 +212,11 @@ cmd_check() {
   cabal check
   cabal sdist
   cmd_changelog
-  # precheck reviewed everything up to the bump; only ask about commits made since.
+  # precheck reviewed everything up to the bump; flag commits made since.
   late=$(git log --no-merges --format='  %h %s' "$(git log -1 --format=%H -- ChangeLog.md)..HEAD")
   if [ -n "$late" ]; then
-    say "Commits after the last ChangeLog.md change"
+    say "Review: commits after the last ChangeLog.md change"
     echo "$late"
-    echo
-    confirm "Is the $v entry still complete with these commits?"
   fi
 }
 
@@ -219,8 +225,21 @@ cmd_tag() {
   v=$(version)
   cmd_check
   bin/tag-release
+  say "Created local tag v$v at $(git rev-parse --short "v$v^{commit}"). Release notes:"
+  notes "$v"
+  say "Next: bin/release push-tag (permanent: starts the release build)"
+  echo "  To change anything first: git tag -d v$v, commit the fix, then bin/release ci and tag again."
+}
+
+cmd_push_tag() {
+  local v sha
+  v=$(version)
+  tag_exists "v$v" || die "no local tag v$v (run: bin/release tag)"
+  sha=$(git rev-parse "v$v^{commit}")
+  git fetch -q origin master
+  [ "$sha" = "$(git rev-parse origin/master)" ] || die "tag v$v is not at origin/master"
   git push origin "v$v"
-  watch_run "v$v"
+  watch_run "v$v" "$sha"
   cmd_verify
   verify_provenance
 }
@@ -234,15 +253,18 @@ cmd_verify() {
 }
 
 cmd_hackage() {
-  local v tarball
-  v=$(version)
-  tarball=dist-newstyle/sdist/hledger-flow-$v.tar.gz
   cmd_verify
   cabal_in_sync
   cabal sdist
-  cabal upload "$tarball"
-  say "Review the candidate: https://hackage.haskell.org/package/hledger-flow-$v/candidate"
-  confirm "Publish hledger-flow-$v to Hackage? This is permanent."
+  cabal upload "$(sdist_tarball)"
+  say "Review the candidate: https://hackage.haskell.org/package/hledger-flow-$(version)/candidate"
+  say "Next: bin/release hackage-publish (permanent)"
+}
+
+cmd_hackage_publish() {
+  local tarball
+  tarball=$(sdist_tarball)
+  [ -f "$tarball" ] || die "$tarball not found (run: bin/release hackage)"
   cabal upload --publish "$tarball"
 }
 
@@ -251,7 +273,7 @@ cmd_publish() {
   v=$(version)
   cmd_verify
   curl -sfo /dev/null "https://hackage.haskell.org/package/hledger-flow-$v" \
-    || die "hledger-flow-$v is not published on Hackage (run: bin/release hackage)"
+    || die "hledger-flow-$v is not published on Hackage (run: bin/release hackage-publish)"
   gh release edit "v$v" -R "$REPO" --draft=false --latest
   # GitHub attests an immutable release when it is published.
   for _ in $(seq 12); do
@@ -263,7 +285,8 @@ cmd_publish() {
 }
 
 case "${1:-}" in
-  deps|precheck|bump|ci|changelog|check|tag|verify|hackage|publish) c=$1; shift; "cmd_$c" "$@" ;;
+  deps|precheck|bump|ci|changelog|check|tag|push-tag|verify|hackage|hackage-publish|publish)
+    c=${1//-/_}; shift; "cmd_$c" "$@" ;;
   notes) shift; notes "$@" ;;
-  *) sed -n '4,16s/^# \{0,1\}//p' "$0"; exit 1 ;;
+  *) sed -n '4,21s/^# \{0,1\}//p' "$0"; exit 1 ;;
 esac

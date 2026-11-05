@@ -5,34 +5,46 @@ This project has 2 release outputs:
 - GitHub releases with prebuilt binaries for Linux, macOS (signed and notarized), and Windows
 - A source package on [Hackage](https://hackage.haskell.org/package/hledger-flow)
 
-Every step is a `bin/release` subcommand. Each one checks its preconditions,
-refuses to run in the wrong state, and asks before anything permanent. Run
-`bin/release` without arguments for a summary.
+Every step is a `bin/release` command. Commands never prompt: each one checks
+its preconditions, stops with an error that names the fix, and can be re-run
+once the fix is in. Run `bin/release` without arguments for a summary.
 
-Requirements: `stack`, `cabal`, `gh` (authenticated), `jq`, `perl`, and a GPG
-or SSH signing key for signed tags.
+Three commands are permanent: `push-tag`, `hackage-publish` and `publish`.
+Everything before `push-tag` is local or an ordinary commit on `master`, so a
+problem is fixed with another commit. The steps marked **Review** are the
+points to stop and check the results before going further.
+
+Requirements: `stack`, `cabal`, `gh` (authenticated), `jq`, `perl`, a GPG or
+SSH signing key for the tag (creating the tag may ask you to unlock it), and
+Hackage credentials that `cabal upload` can use without prompting, such as
+`username` and `password-command` in cabal's config file.
 
 ## Quick reference
 
 ``` bash
 bin/release deps              # optional: latest Stackage LTS + cabal bounds
-bin/release precheck          # review "## Unreleased" against the commits, suggest versions
+bin/release precheck          # show "## Unreleased" next to the commits, list next versions
+#   Review: the ChangeLog entries and the version number
 bin/release bump major        # major|minor|patch|<version>: ChangeLog + package.yaml
 bin/release ci                # push master, wait for green CI
-bin/release tag               # all checks, signed tag, wait for release build, verify assets
-bin/release hackage           # candidate upload, review, permanent publish
-bin/release publish           # publish the GitHub draft release
+bin/release tag               # all checks, then create the signed tag locally
+#   Review: the tagged commit and its release notes
+bin/release push-tag          # PERMANENT: push the tag, wait for the release build, verify
+bin/release hackage           # upload a Hackage candidate
+#   Review: the candidate page
+bin/release hackage-publish   # PERMANENT: publish the candidate on Hackage
+bin/release publish           # PERMANENT: publish the GitHub draft release
 ```
 
-Every command can be re-run after fixing a failure. Before `tag`, fixing a
-problem is just another commit on `master`; nothing permanent happens until
-the tag is pushed.
+## The ChangeLog
 
-## During development: keep the ChangeLog current
+`ChangeLog.md` is kept current during development, not written at release
+time. Every user-visible change adds or updates an entry under
+`## Unreleased` in the same commit. The guidelines for writing and ordering
+entries are at the top of `ChangeLog.md`; in short, entries describe what
+changes for users and how it affects them, ordered by impact on users.
 
-`ChangeLog.md` always starts with an `## Unreleased` section. Add a line there
-in the same commit as any user-visible change. `bin/release precheck` and
-`bin/release bump` refuse to run while that section is empty.
+Step 2 checks the section once more before the release.
 
 ## Step 1: Update dependencies (optional)
 
@@ -45,14 +57,15 @@ This:
 1.  Sets `resolver` in `stack.yaml` to the latest Stackage LTS (or the one given).
 2.  Rewrites every bounded dependency in `package.yaml` to
     `>= <snapshot version> && < <next PVP major>`, e.g. `path 0.9.6` becomes
-    `path >= 0.9.6 && < 0.10`. `base` and unbounded test dependencies are left alone.
+    `path >= 0.9.6 && < 0.10`. `base`, unbounded test dependencies, and
+    dependencies with several version ranges are left alone.
 3.  Regenerates `hledger-flow.cabal`, runs `bin/build-and-test` and `cabal check`.
 4.  Shows the diff and commits `stack.yaml`, `stack.yaml.lock`, `package.yaml` and
     `hledger-flow.cabal` as `Update stackage to <resolver>`.
 
 If the build breaks on the new snapshot, fix the code, commit, and re-run.
 
-## Step 2: Check the unreleased work
+## Step 2: Review the unreleased work
 
 ``` bash
 bin/release precheck
@@ -68,11 +81,18 @@ It does the checks that don't depend on the version:
 4.  `ChangeLog.md` starts with a non-empty `## Unreleased` section.
 
 It then prints every commit since the previous release tag next to the
-`## Unreleased` section, and asks you to confirm the section covers every
-user-visible change. If it doesn't, answer `n`, update `ChangeLog.md`, commit,
-and run it again.
+`## Unreleased` section, followed by the candidate version numbers.
 
-Finally it prints the three candidate version numbers.
+**Review** the section against the commits and the guidelines at the top of
+`ChangeLog.md`:
+
+- Every user-visible change in the commits has an entry, and no entry describes
+  a change users can't notice.
+- Each entry says what changes for users and how it affects or benefits them.
+- Entries are ordered by impact on users, highest first.
+
+Commit any changes to `ChangeLog.md` and run `precheck` again, then choose the
+version number.
 
 ## Step 3: Choose the version number and bump it
 
@@ -92,6 +112,9 @@ release that changes them for unchanged input shows up as a diff in every
 user's repository (as 0.15.0 did). This includes bug fixes: a fix that corrects
 a generated journal, include file, or report is still `major`.
 
+**Review**: settle the ChangeLog wording and the version number before bumping.
+They become the release notes and the tag.
+
 ``` bash
 bin/release bump major        # or minor, patch, or an explicit version like 0.17.0
 ```
@@ -99,8 +122,7 @@ bin/release bump major        # or minor, patch, or an explicit version like 0.1
 This checks the new version is greater than the current one and not yet tagged,
 renames `## Unreleased` in `ChangeLog.md` to `## <version>`, sets `version:` in
 `package.yaml`, regenerates `hledger-flow.cabal`, runs the ChangeLog check from
-step 5, and commits all three files as
-`Bump version to <version>`.
+step 5, and commits all three files as `Bump version to <version>`.
 
 Add a fresh `## Unreleased` heading to `ChangeLog.md` after the release.
 
@@ -110,10 +132,22 @@ Add a fresh `## Unreleased` heading to `ChangeLog.md` after the release.
 bin/release ci
 ```
 
-Pushes `master` and follows the `Build & Release` run for `HEAD` until it
-finishes. If it fails, fix, commit, and run it again.
+Pushes `master` and waits for the `Build & Release` run for `HEAD`, printing
+its URL. If the command stops before the run finishes, run it again to keep
+waiting.
 
-## Step 5: Check, tag, and build the release
+When jobs fail, it lists them with the commands to read their logs and to
+rerun them. For a transient failure, such as a network error, rerun the failed
+jobs and run `bin/release ci` again to wait for them:
+
+``` bash
+gh run rerun RUN_ID --failed -R apauley/hledger-flow
+bin/release ci
+```
+
+Otherwise fix the problem, commit, and run `bin/release ci` again.
+
+## Step 5: Check and tag
 
 ``` bash
 bin/release tag
@@ -122,7 +156,8 @@ bin/release tag
 This first runs `bin/release check`, which stops on the first failure:
 
 1.  On `master`, clean working tree, `HEAD` equals `origin/master`.
-2.  Tag `v<version>` does not exist yet.
+2.  Tag `v<version>` isn't on `origin`. A local tag that was never pushed is
+    reported with the command to delete it.
 3.  The `Build & Release` run for `HEAD` on `master` succeeded.
 4.  The signing secrets (`MACOS_CERTIFICATE_BASE64`, `MACOS_CERTIFICATE_PASSWORD`,
     `APPLE_API_KEY_BASE64`) and variables (`APPLE_API_KEY_ID`, `APPLE_API_ISSUER_ID`)
@@ -135,24 +170,36 @@ This first runs `bin/release check`, which stops on the first failure:
     - that section is not empty;
     - `ChangeLog.md` changed since the previous release tag.
 
-    It prints every commit since the previous tag next to the ChangeLog entry.
-    `precheck` already reviewed the commits up to the version bump, so it
-    only asks about commits made after the last `ChangeLog.md` change (for
-    example, fixes made while CI was failing). If the entry is missing
-    something, answer `n`, edit `ChangeLog.md`, commit, and start again from
-    step 4.
+    It prints every commit since the previous tag next to the ChangeLog entry,
+    and lists separately any commits made after the last `ChangeLog.md` change,
+    such as fixes made while CI was failing. Step 2 reviewed everything before
+    those.
 
-This is the final gate: it runs right before the tag is created, because the
-tag is the first step that can't be redone with another commit.
+If everything passes, it creates the signed tag locally (`bin/tag-release`)
+and prints its commit and release notes. Nothing has been pushed yet.
 
-If everything passes, it creates the signed tag (`bin/tag-release`), pushes it,
-follows the tag's `Build & Release` run, and verifies the draft release has
-all of `hledger-flow-linux-x64.tar.gz`, `hledger-flow-linux-arm64.tar.gz`,
+**Review** before pushing the tag: the tagged commit, the release notes, and
+any commits listed as made after the last `ChangeLog.md` change. To change
+anything, delete the local tag with `git tag -d v<version>`, commit the fix,
+and continue from step 4.
+
+## Step 6: Push the tag and build the release
+
+``` bash
+bin/release push-tag
+```
+
+**Permanent**: the pushed tag is public and starts the release build in CI.
+
+It checks the local tag points at `origin/master`, pushes it, waits for the
+tag's `Build & Release` run, and verifies the draft release has all of
+`hledger-flow-linux-x64.tar.gz`, `hledger-flow-linux-arm64.tar.gz`,
 `hledger-flow-macos-x64.tar.gz`, `hledger-flow-macos-arm64.tar.gz`, and
-`hledger-flow-windows-x64.zip`.
+`hledger-flow-windows-x64.zip`. Like `ci`, it can be re-run to keep waiting, and
+reports failed jobs with the commands to inspect and rerun them.
 
 The `release` job attests the build provenance of every archive before
-uploading it. `bin/release tag` downloads each asset and checks with
+uploading it. `bin/release push-tag` downloads each asset and checks with
 `gh attestation verify` that it was built by `build.yaml` in this repository
 from `refs/tags/v<version>` on a GitHub-hosted runner.
 
@@ -169,28 +216,40 @@ The Windows ZIP contains `hledger-flow.exe`; CI checks its `--help` and
 
 macOS signing is made possible by [FernTrail B.V.](https://ferntrail.tech/)
 
-## Step 6: Publish to Hackage
+## Step 7: Upload a Hackage candidate
 
 ``` bash
 bin/release hackage
 ```
 
-Verifies the GitHub release assets, builds the sdist, and uploads a candidate.
-Review the candidate page it prints, then confirm to publish. Hackage
-publishes are permanent.
+Verifies the GitHub release assets, builds the sdist, uploads it as a Hackage
+candidate, and prints the candidate's URL.
 
-## Step 7: Publish the GitHub release
+**Review** the candidate page: the package metadata, README, ChangeLog and
+file list. The tag is already pushed, so a problem found here needs a fix and
+a new version.
+
+## Step 8: Publish on Hackage
+
+``` bash
+bin/release hackage-publish
+```
+
+**Permanent**: publishes the tarball uploaded as the candidate in step 7.
+Hackage releases can't be removed.
+
+## Step 9: Publish the GitHub release
 
 ``` bash
 bin/release publish
 ```
 
+**Permanent**: an immutable release's tag and assets can't be changed or
+replaced after publication. A problem found later needs a new version.
+
 Verifies the assets and that the version is live on Hackage, then publishes the
 draft as the latest release, checks the release attestation GitHub creates on
 publication (`gh release verify`), and prints its URL.
-
-Publishing is permanent: an immutable release's tag and assets can't be
-changed or replaced afterwards. A problem found later needs a new version.
 
 Download counts: `bin/show-release-downloads`.
 

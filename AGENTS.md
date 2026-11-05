@@ -50,6 +50,7 @@
 - `bin/` contains helper scripts for build/test and releases.
 
 **Implementation notes and conventions**
+- ChangeLog: whenever a change is user-visible, add or update its entry under `## Unreleased` in `ChangeLog.md` in the same commit. Follow the guidelines at the top of that file: write from the user's point of view (what changes for them, and how it affects or benefits them), and keep entries ordered by impact on users.
 - Paths are handled using `path` and `path-io` with helpers in `Hledger.Flow.PathHelpers`. Prefer those helpers for new filesystem code.
 - `RuntimeOptions` is the primary config type; new CLI flags typically require adding fields to `RuntimeOptions` and wiring them through `app/Main.hs`.
 - Import flow is orchestrated in `Hledger.Flow.Import.CSVImport`:
@@ -67,5 +68,8 @@
 - `hlint` for linting (suggested).
 - `fourmolu` or `ormolu` for formatting (pick one and document when adopted).
 
-**Release scripts (maintainers only)**
-- `bin/tag-release`, `bin/show-latest-release-info`, etc. are used for release tasks.
+**Releases (maintainers only)**
+- Follow `release-procedure.md`. Every step is a `bin/release` command; commands never prompt, and their errors name the fix.
+- Stop at each **Review** point in the procedure and wait for the maintainer's approval before continuing: the ChangeLog wording and the proposed version number before `bump`, the local tag before `push-tag`, and the Hackage candidate before `hackage-publish`.
+- Run the permanent commands (`push-tag`, `hackage-publish`, `publish`) only when the maintainer explicitly asks.
+- `ci` and `push-tag` wait for GitHub Actions runs that can take over 30 minutes. Run them in the background; re-running either one resumes waiting.
