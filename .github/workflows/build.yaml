@@ -223,7 +223,7 @@ jobs:
           export PATH="$PWD/dist:$PATH"
           hledger --version
           ./dist/hledger-flow.exe --version
-          shelltest --shell=sh --exclude=posix-preprocess.test test/shell
+          shelltest --shell=sh --exclude=posix-preprocess.test test/shell test/windows
 
       - name: Package Windows binary
         run: |

@@ -135,9 +135,9 @@ See the [build instructions](CONTRIBUTING.md#build-the-project) for prerequisite
 
 Check that both commands are available with `hledger-flow --version` and
 `hledger --version`. To select a specific copy of hledger, use
-`hledger-flow --hledger-path /path/to/hledger import`. Account-specific
-`preprocess` and `construct` scripts need an available interpreter. On
-Windows, Unix shell scripts may need adapting.
+`hledger-flow --hledger-path /path/to/hledger import`. Windows users can
+write account hooks in PowerShell (`preprocess.ps1` and `construct.ps1`)
+or use native executables. See [Windows import hooks](docs/README.md#windows-import-hooks).
 
 Have a look at the [detailed step-by-step instructions](step-by-step/README.md) and the [feature reference](docs/README.md).
 

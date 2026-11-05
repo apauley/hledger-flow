@@ -24,10 +24,12 @@ import Hledger.Flow.RuntimeOptions
 import qualified Hledger.Flow.Types as FlowTypes
 import qualified Path
 import qualified Path.IO as PathIO
+import System.Environment (getEnv)
 import System.Exit (ExitCode (..), exitWith)
 import System.IO (hClose)
+import qualified System.Info as Sys
 import qualified System.Process as Process
-import System.FilePath (dropExtensions, dropTrailingPathSeparator, replaceExtension, (<.>))
+import System.FilePath (dropExtensions, dropTrailingPathSeparator, replaceExtension, takeExtension, (<.>), (</>))
 import Prelude hiding (putStrLn, take, writeFile)
 
 type FileWasGenerated = Bool
@@ -88,11 +90,10 @@ importCSV opts ch importDirs srcFile = do
   PathIO.createDirIfMissing True (Path.parent journalOut)
   if shouldImport
     then do
-      let script = accountDir importDirs Path.</> [Path.relfile|construct|]
-      hasConstruct <- verboseTestFile opts ch script
-      if hasConstruct
-        then withStagedOutput journalOut (customConstruct opts ch script importDirs csvFile)
-        else hledgerImport opts ch importDirs csvFile journalOut
+      hook <- findHook opts ch (accountDir importDirs Path.</> [Path.relfile|construct|])
+      case hook of
+        Just script -> withStagedOutput journalOut (customConstruct opts ch script importDirs csvFile)
+        Nothing -> hledgerImport opts ch importDirs csvFile journalOut
     else logNewFileSkip opts ch "import" journalOut
   return (journalOut, shouldImport)
 
@@ -103,24 +104,48 @@ outputFile dirs stage ext source = do
 
 preprocessIfNeeded :: RuntimeOptions -> TChan FlowTypes.LogMessage -> ImportDirs Path.Abs -> AbsFile -> AbsFile -> IO (AbsFile, Bool)
 preprocessIfNeeded opts ch dirs src csvOut = do
-  let script = accountDir dirs Path.</> [Path.relfile|preprocess|]
-  scriptExists <- verboseTestFile opts ch script
-  targetExists <- verboseTestFile opts ch csvOut
-  shouldProceed <-
-    if onlyNewFiles opts && scriptExists
-      then do
-        needsRegen <- needsRegeneration src csvOut
-        Control.Monad.unless needsRegen $ logNewFileSkip opts ch "preprocess" csvOut
-        return needsRegen
-      else return scriptExists
-  if shouldProceed
-    then do
-      withStagedOutput csvOut (preprocess opts ch script dirs src)
-      return (csvOut, True)
-    else do
-      if targetExists
-        then return (csvOut, False)
-        else return (src, False)
+  hook <- findHook opts ch (accountDir dirs Path.</> [Path.relfile|preprocess|])
+  case hook of
+    Nothing -> do
+      cached <- verboseTestFile opts ch csvOut
+      return (if cached then csvOut else src, False)
+    Just script -> do
+      regenerate <- if onlyNewFiles opts then needsRegeneration src csvOut else return True
+      if regenerate
+        then withStagedOutput csvOut (preprocess opts ch script dirs src)
+        else logNewFileSkip opts ch "preprocess" csvOut
+      return (csvOut, regenerate)
+
+findHook :: RuntimeOptions -> TChan FlowTypes.LogMessage -> AbsFile -> IO (Maybe AbsFile)
+findHook opts ch base = do
+  alternatives <- if Sys.os == "mingw32"
+    then mapM (`Path.addExtension` base) [".ps1", ".exe"]
+    else return []
+  first (base : alternatives)
+  where
+    first [] = return Nothing
+    first (file : rest) = do
+      exists <- verboseTestFile opts ch file
+      if exists then return (Just file) else first rest
+
+hookCommand :: AbsFile -> [T.Text] -> IO (T.Text, [T.Text])
+hookCommand script args
+  | Sys.os == "mingw32" && takeExtension path == ".ps1" = do
+      root <- getEnv "SystemRoot"
+      let shell = root </> "System32" </> "WindowsPowerShell" </> "v1.0" </> "powershell.exe"
+      -- Windows PowerShell -File treats construct's literal "-" as an option.
+      -- Invoke the script with literal strings and propagate its exit status.
+      let command = "[Console]::OutputEncoding = New-Object Text.UTF8Encoding($false); & "
+            <> T.unwords (map literal (T.pack path : args))
+            <> "; if (!$?) { if ($LASTEXITCODE) { exit $LASTEXITCODE }; exit 1 }"
+      return (T.pack shell, ["-NoProfile", "-NonInteractive", "-OutputFormat", "Text", "-Command", command])
+  | otherwise = return (T.pack path, args)
+  where
+    path = Path.toFilePath script
+    -- PowerShell also recognises typographic single quotes as delimiters.
+    literal s = "'" <> T.concatMap escape s <> "'"
+    escape c | c == '\'' || (c >= '\x2018' && c <= '\x201b') = T.replicate 2 (T.singleton c)
+             | otherwise = T.singleton c
 
 logNewFileSkip :: RuntimeOptions -> TChan FlowTypes.LogMessage -> T.Text -> AbsFile -> IO ()
 logNewFileSkip opts ch logIdentifier absTarget =
@@ -135,7 +160,8 @@ preprocess opts ch script dirs src csvOut = do
   let relScript = relativeToBase opts (Path.toFilePath script)
   let relSrc = relativeToBase opts (Path.toFilePath src)
   let cmdLabel = "executing '" <> T.pack relScript <> "' on '" <> T.pack relSrc <> "'"
-  _ <- timeAndExitOnErr opts ch cmdLabel channelOut channelErr (T.pack (Path.toFilePath script), args, Nothing)
+  (cmd, hookArgs) <- hookCommand script args
+  _ <- timeAndExitOnErr opts ch cmdLabel channelOut channelErr (cmd, hookArgs, Nothing)
   return ()
 
 hledgerImport :: RuntimeOptions -> TChan FlowTypes.LogMessage -> ImportDirs Path.Abs -> AbsFile -> AbsFile -> IO ()
@@ -197,7 +223,8 @@ customConstruct opts ch constructScript dirs csvFile journalOut = do
   let relScript = relativeToBase opts (Path.toFilePath constructScript)
   let constructArgs = [T.pack csvSrc, "-"] ++ hookDirArgs dirs
   let constructCmdText = "Running: " <> T.pack relScript <> " " <> showCmdArgs constructArgs
-  let hook = (Process.proc (Path.toFilePath constructScript) (map T.unpack constructArgs))
+  (cmd, hookArgs) <- hookCommand constructScript constructArgs
+  let hook = (Process.proc (T.unpack cmd) (map T.unpack hookArgs))
         { Process.std_in = Process.CreatePipe, Process.std_out = Process.CreatePipe }
   let hledger = T.pack (Path.toFilePath (FlowTypes.hlPath (hledgerInfo opts)))
   let args =

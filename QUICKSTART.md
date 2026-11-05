@@ -83,12 +83,14 @@ hledger-flow report
 ```
 
 Import creates `all-years.journal`. Report writes files under `reports/`.
-To query the generated journal directly, run `hledger -f all-years.journal bal`.
+On Windows, run `chcp 65001` in your terminal before querying that journal
+with standalone hledger. Then run `hledger -f all-years.journal bal`.
 If you use `LEDGER_FILE`, point it at this journal. On Linux or macOS, use
 `export LEDGER_FILE="$PWD/all-years.journal"` in a POSIX shell. On Windows,
 use `$env:LEDGER_FILE = (Resolve-Path .\all-years.journal).Path` in PowerShell.
 
-Rules-based imports work on all three platforms. If your workflow uses
-extensionless Unix `preprocess` or `construct` scripts, run it in a POSIX
-environment such as Linux, macOS, or WSL with Linux binaries. Native Windows
-launches hooks directly and Unix shell scripts rely on an interpreter.
+Rules-based imports work on all three platforms. On native Windows you can
+put `preprocess.ps1` and `construct.ps1`, or their `.exe` equivalents, in
+the account directory. See [Windows import hooks](https://github.com/apauley/hledger-flow/blob/master/docs/README.md#windows-import-hooks)
+for the arguments and commands to use from Command Prompt or PowerShell.
+For extensionless Unix shell scripts, use Linux, macOS, or WSL with Linux binaries.

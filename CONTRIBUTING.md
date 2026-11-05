@@ -100,8 +100,8 @@ On Windows, run the Stack commands directly from PowerShell. Stack installs
 the required GHC and MSYS2 toolchain automatically. Use
 `stack path --local-bin` to find the directory containing `hledger-flow.exe`.
 Running imports and reports also requires `hledger` on `PATH` (or the
-`--hledger-path` option). Any account-specific `preprocess` or `construct`
-scripts need an interpreter that is available on Windows.
+`--hledger-path` option). The [Windows hook reference](docs/README.md#windows-import-hooks)
+describes PowerShell scripts, native executables, and the order of discovery.
 
 ### Run the command-line scenarios
 
@@ -122,12 +122,21 @@ from this checkout and run the same scenarios as Windows CI:
 ``` bash
 stack install hledger-flow shelltestrunner --local-bin-path dist
 export PATH="$PWD/dist:$PATH"
-shelltest --shell=sh --exclude=posix-preprocess.test test/shell
+shelltest --shell=sh --exclude=posix-preprocess.test test/shell test/windows
 ```
 
-The excluded case creates an executable `#!/bin/sh` hook. The native
-Windows executable launches hooks directly, so this Unix shell script
-is exercised by the Linux and macOS jobs.
+The Linux and macOS jobs exercise the `#!/bin/sh` hook. The Windows case
+starts on code page 850, runs both PowerShell hooks with spaces and
+apostrophes in their arguments, generates reports, and checks that a failed
+construct preserves the previous journal.
+
+For an end-to-end comparison with real statements, import the same annual
+CSVs into a rules-only base and a separate base with both hooks. In a UTF-8
+terminal, compare `hledger -f all-years.journal print -O csv` and
+`hledger -f all-years.journal balance -O csv` between bases. Repeat for
+each annual journal, and run `hledger -f all-years.journal check` in both
+bases. The Windows ING test covered three years, 290 transactions, and 580
+postings. Every posting and each annual and combined balance matched.
 
 ### Find an Issue
 

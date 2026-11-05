@@ -78,6 +78,9 @@ executable hledger-flow
     , path >=0.9.6 && <0.10
     , text >=2.1.3 && <2.2
   default-language: Haskell2010
+  if os(windows)
+    build-depends:
+        code-page >=0.2.1 && <0.3
 
 test-suite hledger-flow-test
   type: exitcode-stdio-1.0

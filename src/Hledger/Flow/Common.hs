@@ -34,6 +34,7 @@ import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
 import System.Exit (ExitCode (..), exitWith)
 import System.IO (hClose)
+import qualified System.Info as Sys
 import qualified System.Process as Process
 import System.IO.Error (tryIOError)
 import System.FilePath ((<.>))
@@ -133,7 +134,10 @@ logTimedAction opts ch cmdLabel extraCmdLabels cmd args stdoutLogger stderrLogge
 runProcessCaptured :: ProcInput -> IO FullOutput
 runProcessCaptured (cmd, args, input) = do
   let process = (Process.proc (T.unpack cmd) (map T.unpack args))
-        { Process.std_in = maybe Process.CreatePipe Process.UseHandle input,
+        { -- With all three streams redirected, process otherwise starts a
+          -- Windows child without our console, losing its UTF-8 code page.
+          Process.create_group = Sys.os == "mingw32",
+          Process.std_in = maybe Process.CreatePipe Process.UseHandle input,
           Process.std_out = Process.CreatePipe,
           Process.std_err = Process.CreatePipe
         }

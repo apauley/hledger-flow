@@ -28,6 +28,14 @@ How to keep this ChangeLog
 
 ## Unreleased
 
+- Windows imports and reports now use UTF-8, including for account names
+  such as `Morgan’s Current`. If your CSV statements use a legacy encoding,
+  specify it in their rules file. Run `chcp 65001` before using standalone
+  `hledger` to read the generated journals on Windows.
+- Windows imports now run `preprocess.ps1` and `construct.ps1` directly
+  with PowerShell. Native hooks can use `preprocess.exe` and `construct.exe`.
+  Existing extensionless hooks take precedence. See
+  [Windows import hooks](https://github.com/apauley/hledger-flow/blob/master/docs/README.md#windows-import-hooks).
 - You can now install hledger-flow on macOS and Linux with [Homebrew](https://github.com/apauley/hledger-flow/blob/master/README.md#install-with-homebrew).
 
 ## 0.17.0

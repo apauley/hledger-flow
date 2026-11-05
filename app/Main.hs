@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes #-}
 
@@ -41,6 +42,9 @@ import Hledger.Flow.Reports ( generateReports )
 import Hledger.Flow.Import.CSVImport ( importCSVs )
 
 import qualified Data.Text.IO as T
+#ifdef mingw32_HOST_OS
+import System.IO.CodePage (withCP65001)
+#endif
 
 data ImportParams = ImportParams { maybeImportBaseDir :: Maybe FilePath
                                  , importStartYear :: Maybe String
@@ -63,7 +67,16 @@ data MainParams = MainParams { verbosity :: Int
 data BaseCommand = Version | Command { mainParams :: MainParams, command :: Command } deriving (Show)
 
 main :: IO ()
-main = do
+#ifdef mingw32_HOST_OS
+-- hledger inherits the console code page; generated journals, pipes and
+-- diagnostics must use the same encoding for the whole run.
+main = withCP65001 runCLI
+#else
+main = runCLI
+#endif
+
+runCLI :: IO ()
+runCLI = do
   let description = "An hledger workflow focusing on automated statement import and classification:\nhttps://github.com/apauley/hledger-flow#readme"
   cmd <- customExecParser (prefs (showHelpOnError <> showHelpOnEmpty))
     (info (helper <*> baseCommandParser) (headerDoc (Just description)))

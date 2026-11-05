@@ -1,0 +1,46 @@
+# Windows PowerShell hooks receive literal arguments, including construct's "-".
+<
+. ./test/shell/setup.sh
+export PSExecutionPolicyPreference=RemoteSigned
+chcp_cmd() { MSYS2_ARG_CONV_EXCL='*' cmd.exe /d /c "chcp $*"; }
+original_cp=$(chcp_cmd | tr -cd '0-9')
+trap 'chcp_cmd "$original_cp" >/dev/null; cd "$finance/.." && rm -rf "$finance"' EXIT
+chcp_cmd 850 >/dev/null
+owner="Morgan's Saturday"
+bank='Bank $(throw 1)'
+name='Morgan’s Current'
+mkdir -p "import/$owner/$bank"
+mv "$account" "import/$owner/$bank/$name"
+rmdir import/gawie/bogart import/gawie
+account="import/$owner/$bank/$name"
+mv "$account/1-in/2016/march.csv" "$account/1-in/2016/march.bank’s-export"
+# The PowerShell hooks must take precedence over a competing .exe.
+touch "$account/preprocess.exe" "$account/construct.exe"
+cat > "$account/preprocess.ps1" <<'PS'
+param($src, $out, $bank, $account, $owner)
+if ($owner -cne "Morgan's Saturday" -or $bank -cne 'Bank $(throw 1)' -or
+    $account -cne ('Morgan' + [char]0x2019 + 's Current')) { throw 'Incorrect arguments' }
+[IO.File]::WriteAllText($out, [IO.File]::ReadAllText($src).Replace('Monthly bank fee','Hook result'))
+PS
+cat > "$account/construct.ps1" <<'PS'
+param($src, $out, $bank, $account, $owner)
+if ($out -ne '-' -or $src -notlike '*\2-preprocessed\*') { throw 'Incorrect construct input' }
+hledger print -f $src --rules-file import/bogart.rules
+exit $LASTEXITCODE
+PS
+flow --verbose import
+test "$(chcp_cmd | tr -cd '0-9')" = 850
+grep -Fq "include $name/2016-include.journal" "import/$owner/$bank/2016-include.journal"
+flow report --ascii-reports
+grep -Fq expenses:bank-fees "reports/$owner/2016/accounts.txt"
+# Standalone hledger also reads journals in its console's encoding.
+chcp_cmd 65001 >/dev/null
+hledger -f all-years.journal descriptions
+printf '%s\n' 'exit 17' > "$account/construct.ps1"
+rc=0
+hledger-flow import > "$finance/failure.log" 2>&1 || rc=$?
+test "$rc" = 17
+hledger -f all-years.journal descriptions
+$ sh -eu
+Hook result
+Hook result
