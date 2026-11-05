@@ -293,6 +293,8 @@ The `preprocess` script will be called with 5 positional parameters:
     `import/john/mybank/savings/1-in/2018/123456789_2018-06-30.csv`
 2.  A temporary output path. Its filename and extension match the final CSV,
     e.g. `123456789_2018-06-30.csv`. Write to the supplied path directly.
+    Its parent is a temporary directory, so don't derive the year or any
+    other information from the output path.
 3.  The name of the bank, e.g. `mybank`
 4.  The name of the account, e.g. `savings`
 5.  The name of the owner, e.g. `john`
