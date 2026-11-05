@@ -19,6 +19,8 @@ How to keep this ChangeLog. The first section is always "## Unreleased".
 - Leave out changes users can't notice, such as refactoring, tests and CI.
 -->
 
+## Unreleased
+
 ## 0.17.0
 
 - If you use a custom `preprocess` hook, write to the path supplied as its
