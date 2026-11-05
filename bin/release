@@ -63,8 +63,7 @@ repo_settings_ok() {
 
 # Every asset must carry a build provenance attestation from this repository's
 # workflow, built from the release tag.
-verify_provenance() {
-  local v dir a
+verify_provenance() (
   v=$(version)
   dir=$(mktemp -d)
   trap 'rm -rf "$dir"' EXIT
@@ -75,7 +74,7 @@ verify_provenance() {
       || die "$a has no valid build provenance for v$v"
   done
   say "All assets have build provenance from refs/tags/v$v"
-}
+)
 
 # PVP levels for A.B.C.D: major -> A.(B+1).0, minor -> A.B.(C+1), patch -> A.B.C.(D+1)
 next_version() {
