@@ -1,0 +1,23 @@
+// Compiled with the package version from package.yaml (see build.yaml).
+1 VERSIONINFO
+ FILEVERSION NUMERIC_VERSION
+ PRODUCTVERSION NUMERIC_VERSION
+ FILEOS 0x40004
+ FILETYPE 1
+BEGIN
+  BLOCK "StringFileInfo"
+  BEGIN
+    BLOCK "040904b0"
+    BEGIN
+      VALUE "ProductName", "hledger-flow"
+      VALUE "FileDescription", "hledger statement import and reporting"
+      VALUE "ProductVersion", VERSION_STRING
+      VALUE "FileVersion", VERSION_STRING
+      VALUE "OriginalFilename", "hledger-flow.exe"
+    END
+  END
+  BLOCK "VarFileInfo"
+  BEGIN
+    VALUE "Translation", 0x0409, 1200
+  END
+END
