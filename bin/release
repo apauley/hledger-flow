@@ -4,7 +4,8 @@
 # Usage: bin/release COMMAND [ARGS]
 #
 #   deps [RESOLVER]  Update stack.yaml (default: latest LTS) and cabal bounds, test, commit
-#   bump VERSION     Rename '## Unreleased' in ChangeLog.md, set package.yaml version, commit
+#   precheck         Local checks, review '## Unreleased' against the commits, suggest versions
+#   bump LEVEL|VER   LEVEL is major, minor or patch. Rename '## Unreleased', set version, commit
 #   ci               Push master and wait for its CI run
 #   changelog        Verify ChangeLog.md is up to date for the package.yaml version
 #   check            All pre-tag checks (clean synced master, green CI, secrets, cabal, changelog)
@@ -25,9 +26,15 @@ die() { printf 'error: %b\n' "$*" >&2; exit 1; }
 say() { printf '\n==> %s\n' "$*"; }
 version() { awk '/^version:/ {print $2}' package.yaml; }
 tag_exists() { git rev-parse -q --verify "refs/tags/$1" >/dev/null; }
-# hledger-flow.cabal is generated and gitignored. hpack refuses to overwrite one it
-# thinks was edited (e.g. written by another hpack version), so always start fresh.
+# hledger-flow.cabal is generated from package.yaml and committed with it. hpack
+# refuses to overwrite one it thinks was edited (e.g. written by another hpack
+# version), so always start fresh; git shows any real difference.
 regen_cabal() { rm -f hledger-flow.cabal; stack build --only-configure; }
+cabal_in_sync() {
+  regen_cabal
+  git diff --quiet -- hledger-flow.cabal \
+    || die "hledger-flow.cabal does not match package.yaml: commit the regenerated file"
+}
 confirm() {
   [ -t 0 ] || die "'$1' needs an interactive terminal"
   read -r -p "$1 [y/N] " answer
@@ -41,6 +48,51 @@ notes() {
 clean_master() {
   [ "$(git branch --show-current)" = master ] || die "not on master"
   [ -z "$(git status --porcelain)" ] || die "working tree not clean:\n$(git status --short)"
+}
+
+repo_settings_ok() {
+  local have n
+  have=$({ gh secret list -R "$REPO"; gh variable list -R "$REPO"; } | cut -f1)
+  for n in $CI_SECRETS; do grep -qx "$n" <<<"$have" || die "missing GitHub secret or variable $n"; done
+  [ "$(gh api "repos/$REPO/immutable-releases" -q .enabled)" = true ] \
+    || die "immutable releases are disabled: enable them in the repository's General settings"
+}
+
+# Every asset must carry a build provenance attestation from this repository's
+# workflow, built from the release tag.
+verify_provenance() {
+  local v dir a
+  v=$(version)
+  dir=$(mktemp -d)
+  trap 'rm -rf "$dir"' EXIT
+  gh release download "v$v" -R "$REPO" --dir "$dir"
+  for a in $ASSETS; do
+    gh attestation verify "$dir/$a" -R "$REPO" --deny-self-hosted-runners \
+      --signer-workflow "$REPO/.github/workflows/build.yaml" --source-ref "refs/tags/v$v" >/dev/null \
+      || die "$a has no valid build provenance for v$v"
+  done
+  say "All assets have build provenance from refs/tags/v$v"
+}
+
+# PVP levels for A.B.C.D: major -> A.(B+1).0, minor -> A.B.(C+1), patch -> A.B.C.(D+1)
+next_version() {
+  awk -F. -v level="$1" '{
+    if (level == "major") print $1 "." $2 + 1 ".0"
+    else if (level == "minor") print $1 "." $2 "." $3 + 1
+    else print $1 "." $2 "." $3 + 0 "." $4 + 1
+  }' <<<"$(version)"
+}
+
+unreleased_ok() {
+  [ "$(grep -m1 '^## ' ChangeLog.md)" = "## Unreleased" ] || die "ChangeLog.md must start with '## Unreleased'"
+  notes Unreleased | grep -q '[^[:space:]]' || die "'## Unreleased' is empty: describe the changes first"
+}
+
+show_changes() { # PREV_TAG SECTION
+  say "Commits since $1"
+  git log --no-merges --format='  %h %s' "$1..HEAD"
+  say "ChangeLog.md '## $2'"
+  notes "$2"
 }
 
 # Wait for the Build & Release run of HEAD on a branch or tag. Notarization
@@ -78,29 +130,46 @@ cmd_deps() {
   regen_cabal
   bin/build-and-test
   cabal check
-  if git diff --quiet -- stack.yaml stack.yaml.lock package.yaml; then
+  if git diff --quiet -- stack.yaml stack.yaml.lock package.yaml hledger-flow.cabal; then
     say "Already on $resolver with current bounds"; return
   fi
   git diff -- stack.yaml package.yaml
   confirm "Commit dependency update?"
-  git commit -m "Update stackage to $resolver" -- stack.yaml stack.yaml.lock package.yaml
+  git commit -m "Update stackage to $resolver" -- stack.yaml stack.yaml.lock package.yaml hledger-flow.cabal
+}
+
+cmd_precheck() {
+  local prev level
+  clean_master
+  repo_settings_ok
+  cabal_in_sync
+  cabal check
+  unreleased_ok
+  prev=$(git describe --tags --abbrev=0 --match 'v*' HEAD) || die "no previous release tag"
+  show_changes "$prev" Unreleased
+  echo
+  confirm "Does '## Unreleased' cover every user-visible change above?"
+  say "Choose the next version (see 'Choose the version number' in release-procedure.md)"
+  for level in major minor patch; do
+    printf '  bin/release bump %-5s  # %s\n' "$level" "$(next_version "$level")"
+  done
 }
 
 cmd_bump() {
-  local new=${1:?usage: bin/release bump VERSION} old
+  local new=${1:?usage: bin/release bump major|minor|patch|VERSION} old
+  case "$new" in major|minor|patch) new=$(next_version "$new") ;; esac
   old=$(version)
   clean_master
   [ "$new" != "$old" ] && [ "$(printf '%s\n%s\n' "$old" "$new" | sort -V | tail -1)" = "$new" ] \
     || die "$new is not greater than $old"
   tag_exists "v$new" && die "tag v$new already exists"
-  [ "$(grep -m1 '^## ' ChangeLog.md)" = "## Unreleased" ] || die "ChangeLog.md must start with '## Unreleased'"
-  notes Unreleased | grep -q '[^[:space:]]' || die "'## Unreleased' is empty: describe the changes first"
+  unreleased_ok
   perl -pi -e "s/^version: .*/version: $new/" package.yaml
   perl -pi -e "s/^## Unreleased\$/## $new/" ChangeLog.md
   regen_cabal
   cmd_changelog
   confirm "Commit version bump $old -> $new?"
-  git commit -m "Bump version to $new" -- package.yaml ChangeLog.md
+  git commit -m "Bump version to $new" -- package.yaml hledger-flow.cabal ChangeLog.md
 }
 
 cmd_ci() {
@@ -117,14 +186,11 @@ cmd_changelog() {
   notes "$v" | grep -q '[^[:space:]]' || die "ChangeLog.md: section '## $v' is empty"
   prev=$(git describe --tags --abbrev=0 --match 'v*' --exclude "v$v" HEAD) || die "no previous release tag"
   [ -n "$(git diff --name-only "$prev" HEAD -- ChangeLog.md)" ] || die "ChangeLog.md unchanged since $prev"
-  say "Commits since $prev"
-  git log --no-merges --format='  %h %s' "$prev..HEAD"
-  say "ChangeLog.md entry for $v"
-  notes "$v"
+  show_changes "$prev" "$v"
 }
 
 cmd_check() {
-  local v ci have n
+  local v ci late
   v=$(version)
   clean_master
   git fetch -q origin master
@@ -133,14 +199,19 @@ cmd_check() {
   ci=$(gh run list -R "$REPO" --workflow build.yaml --commit "$(git rev-parse HEAD)" --branch master \
          --json conclusion -q '.[0].conclusion')
   [ "$ci" = success ] || die "CI for HEAD is '${ci:-missing}' (run: bin/release ci)"
-  have=$({ gh secret list -R "$REPO"; gh variable list -R "$REPO"; } | cut -f1)
-  for n in $CI_SECRETS; do grep -qx "$n" <<<"$have" || die "missing GitHub secret or variable $n"; done
-  regen_cabal
+  repo_settings_ok
+  cabal_in_sync
   cabal check
   cabal sdist
   cmd_changelog
-  echo
-  confirm "Does the $v entry cover every user-visible change above?"
+  # precheck reviewed everything up to the bump; only ask about commits made since.
+  late=$(git log --no-merges --format='  %h %s' "$(git log -1 --format=%H -- ChangeLog.md)..HEAD")
+  if [ -n "$late" ]; then
+    say "Commits after the last ChangeLog.md change"
+    echo "$late"
+    echo
+    confirm "Is the $v entry still complete with these commits?"
+  fi
 }
 
 cmd_tag() {
@@ -151,6 +222,7 @@ cmd_tag() {
   git push origin "v$v"
   watch_run "v$v"
   cmd_verify
+  verify_provenance
 }
 
 cmd_verify() {
@@ -166,7 +238,7 @@ cmd_hackage() {
   v=$(version)
   tarball=dist-newstyle/sdist/hledger-flow-$v.tar.gz
   cmd_verify
-  regen_cabal
+  cabal_in_sync
   cabal sdist
   cabal upload "$tarball"
   say "Review the candidate: https://hackage.haskell.org/package/hledger-flow-$v/candidate"
@@ -181,11 +253,17 @@ cmd_publish() {
   curl -sfo /dev/null "https://hackage.haskell.org/package/hledger-flow-$v" \
     || die "hledger-flow-$v is not published on Hackage (run: bin/release hackage)"
   gh release edit "v$v" -R "$REPO" --draft=false --latest
+  # GitHub attests an immutable release when it is published.
+  for _ in $(seq 12); do
+    gh release verify "v$v" -R "$REPO" >/dev/null 2>&1 && break
+    sleep 5
+  done
+  gh release verify "v$v" -R "$REPO" || die "v$v is published but has no release attestation"
   gh release view "v$v" -R "$REPO" --json url -q .url
 }
 
 case "${1:-}" in
-  deps|bump|ci|changelog|check|tag|verify|hackage|publish) c=$1; shift; "cmd_$c" "$@" ;;
+  deps|precheck|bump|ci|changelog|check|tag|verify|hackage|publish) c=$1; shift; "cmd_$c" "$@" ;;
   notes) shift; notes "$@" ;;
-  *) sed -n '4,15s/^# \{0,1\}//p' "$0"; exit 1 ;;
+  *) sed -n '4,16s/^# \{0,1\}//p' "$0"; exit 1 ;;
 esac

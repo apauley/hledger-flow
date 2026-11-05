@@ -74,6 +74,20 @@ Install `hledger` separately and ensure it is on `PATH`, or supply
 `--hledger-path`. Account-specific `preprocess` and `construct` scripts need
 an available interpreter; on Windows, Unix shell scripts may need adapting.
 
+### Verifying a download
+
+Releases from 0.17 onwards are immutable and attested by GitHub. With the
+[GitHub CLI](https://cli.github.com/), check that a downloaded archive is the
+one published in the release, and that it was built by this project's GitHub
+Actions workflow from the release tag:
+
+``` bash
+gh release verify-asset v0.17.0 hledger-flow-macos-arm64.tar.gz -R apauley/hledger-flow
+gh attestation verify hledger-flow-macos-arm64.tar.gz -R apauley/hledger-flow
+```
+
+The macOS binaries are also signed with a Developer ID and notarized by Apple.
+
 ## Getting Started
 
 Have a look at the [detailed step-by-step instructions](step-by-step/README.md) and the [feature reference](docs/README.md).
