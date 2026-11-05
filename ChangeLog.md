@@ -21,43 +21,44 @@ How to keep this ChangeLog. The first section is always "## Unreleased".
 
 ## Unreleased
 
-- Sign and notarize the macOS release binaries, so Gatekeeper no longer
-  blocks them.
-- Add Windows x64 CI builds and a `hledger-flow-windows-x64.zip` release archive.
-- Handle native Windows separators when replacing import directories and
-  generating relative journal includes. Generated includes use forward slashes.
-- Fix Windows compilation and make the test suite portable.
-- Publish preprocessed CSVs and constructed journals only after successful
-  processing. Failed hooks leave any previous output intact. The second
-  argument to `preprocess` is now a temporary path with the final filename
-  and extension.
-- Fix `--sequential import`, which could print transactions to the terminal
-  and overwrite the generated journal with an empty file. It now writes the
-  same journal as a parallel import and keeps diagnostics visible.
-- Refresh the root ledger after a partial import, including newly imported
-  years. Ancestor includes are rebuilt from journals already on disk.
-  Statements outside the selected directory are still left for a later import.
-- Use the full owner directory name when generating reports. Owners such as
-  `gawie` and `gawie.jr` now each get reports from their own journal.
-- Keep generated files under the correct account when an owner, bank, or
-  account is named `1-in` or `2-preprocessed`. Include those journals in the
-  root ledger.
-- Keep generated includes within the requested directory, even when Windows
-  paths use different separators. An empty import index is now readable.
-- Keep aggregate reports in `reports/all/` unless an owner is named `all`
-  (in any capitalization). In that case, write aggregates to `reports/_all_/`
-  so the owner's reports and the aggregate reports are both available.
-- Discover report owners when `import` is a Windows directory junction.
-  Reports now follow the linked directory as they do for a Unix symbolic link.
-- Report an error for a nonpositive `--batch-size` in parallel mode.
-  Previously, processing could hang. Sequential mode still ignores the batch size.
-- Declare tested dependency bounds for Hackage builds. Building from source now
-  requires GHC 9.10 or 9.12.
-- Update the Stack resolver to LTS 24.65 (GHC 9.10.3).
-- Remove the `turtle` dependency. The command-line tool is unaffected, but
-  the `Hledger.Flow.*` library API changes: functions now take and return
-  `path` and `Text` types instead of Turtle types, and the `TurtlePath` alias
-  is gone.
+- If you use a custom `preprocess` hook, write to the path supplied as its
+  second argument. It now points into a temporary directory and keeps the
+  final filename and extension. Failed hooks preserve the previous
+  preprocessed CSV or constructed journal.
+- If you use the `Hledger.Flow.*` library, update calls that use Turtle
+  types to use `path` and `Text` types. The `TurtlePath` alias has been
+  removed.
+- Building from source now requires GHC 9.10 or 9.12. Stack builds use
+  LTS 24.65 (GHC 9.10.3), and Hackage builds use tested dependency bounds.
+- Windows x64 users can download `hledger-flow-windows-x64.zip` and extract
+  `hledger-flow.exe`.
+- macOS release binaries are signed with a Developer ID and submitted to
+  Apple for notarization so Gatekeeper can verify them.
+- You can now use the GitHub CLI to verify a downloaded release archive and
+  check that it was built from the release tag. See “Verifying a download”
+  in the README.
+- Sequential imports now write the same journal as parallel imports and
+  keep diagnostics visible. Previously, `--sequential import` could print
+  transactions to the terminal and overwrite the journal with an empty file.
+- Importing a single account or year now refreshes the root ledger from
+  journals already on disk, including newly imported years. Statements
+  outside the selected directory are left for a later import.
+- When an owner, bank, or account is named `1-in` or `2-preprocessed`,
+  generated files now go under the correct account and the root ledger
+  includes its journals.
+- On Windows, imports now handle native path separators, preserve the year
+  in include filenames, and write relative journal paths with forward slashes.
+- Include generation stays within the requested directory, and an empty
+  import index can now be read by hledger.
+- Reports use the full owner directory name. Owners such as `gawie` and
+  `gawie.jr` each get reports from their own journal.
+- If an owner is named `all` in any capitalization, aggregate reports now go
+  in `reports/_all_/` so both sets of reports are available. Otherwise,
+  aggregate reports go in `reports/all/`.
+- Reports now discover owners when `import` is a Windows directory junction,
+  as they do for a Unix symbolic link.
+- Parallel imports now report an error for a zero or negative `--batch-size`
+  instead of hanging. Sequential imports still ignore the batch size.
 
 ## 0.16.4
 
