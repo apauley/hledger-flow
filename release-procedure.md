@@ -22,7 +22,7 @@ For Hackage, create a dedicated token on the maintainer's
 [Hackage account management page](https://hackage.haskell.org/users/account-management).
 Store it as the repository Actions secret `HACKAGE_TOKEN`, for example with
 `gh secret set HACKAGE_TOKEN -R apauley/hledger-flow` (paste at the prompt).
-Steps 7 and 8 use that secret on a GitHub-hosted runner. Local Cabal
+Candidate upload and Hackage publication use that secret on a GitHub-hosted runner. Local Cabal
 credentials are optional.
 
 ## Quick reference
@@ -35,11 +35,9 @@ bin/release bump major        # major|minor|patch|<version>: ChangeLog + package
 bin/release ci                # push master, wait for green CI
 bin/release tag               # all checks, then create the signed tag locally
 #   Review: the tagged commit and its release notes
-bin/release push-tag          # PERMANENT: push the tag, wait for the release build, verify
-bin/release hackage           # upload a Hackage candidate
-#   Review: the candidate page
-bin/release hackage-publish SHA256  # PERMANENT: publish the reviewed candidate
-bin/release publish           # PERMANENT: publish the GitHub draft release
+bin/release push-tag          # PERMANENT: push the tag, verify binaries, upload the candidate
+#   Review: the GitHub draft and the Hackage candidate
+bin/release publish           # PERMANENT: publish on Hackage, then publish the GitHub release
 ```
 
 ## The ChangeLog
@@ -205,7 +203,7 @@ tag's `Build & Release` run, and verifies the draft release has all of
 `hledger-flow-windows-x64.zip`. Like `ci`, it can be re-run to keep waiting, and
 reports failed jobs with the commands to inspect and rerun them.
 
-The `release` job attests the build provenance of every archive before
+The `release` job attests the build provenance of each binary archive before
 uploading it. `bin/release push-tag` downloads each asset and checks with
 `gh attestation verify` that it was built by `build.yaml` in this repository
 from `refs/tags/v<version>` on a GitHub-hosted runner.
@@ -223,55 +221,46 @@ The Windows ZIP contains `hledger-flow.exe`; CI checks its `--help` and
 
 macOS signing is made possible by [FernTrail B.V.](https://ferntrail.tech/)
 
-## Step 7: Upload a Hackage candidate
+After verifying the five binaries, `push-tag` dispatches the Hackage candidate
+build at the same tag and waits for it. CI attaches the Cabal source archive to
+the GitHub draft as `hledger-flow-<version>.tar.gz`. GitHub records its SHA-256.
+CI uploads those bytes as the Hackage candidate and checks the download against
+the recorded digest. Retries reuse the existing source asset.
 
-``` bash
-bin/release hackage
-```
+**Review** both links printed by `push-tag`: the GitHub draft's notes and
+archives, and the candidate page's metadata, README, ChangeLog and file list.
+If the candidate build fails, retry just `bin/release hackage`.
 
-Dispatches the Hackage workflow at the release tag and waits for it. The job
-checks the GitHub release assets, builds the source package from the tagged
-commit, and uploads a candidate. It downloads the candidate and compares it
-with the built archive. The run summary links to the candidate and gives the
-SHA-256 to use in step 8. Keep that digest with the candidate you review.
-
-**Review** the candidate page: the package metadata, README, ChangeLog and
-file list. The tag is already pushed, so a problem found here needs a fix and
-a new version.
-
-## Step 8: Publish on Hackage
-
-``` bash
-bin/release hackage-publish SHA256
-```
-
-**Permanent**: after maintainer approval, replace `SHA256` with the digest
-from step 7. This dispatches a separate run at the same tag. The job downloads
-the candidate and publishes those bytes only if the checksum matches.
-Hackage releases can't be removed.
-
-### Local Hackage fallback
-
-If the Hackage workflow is unavailable, use a clean checkout of the pushed
-release tag and prefix the step 7 or 8 command with `HACKAGE_MODE=local`.
-The same candidate review and checksum checks apply. To select this route
-before a release, also set `HACKAGE_MODE=local` for `precheck` and `tag`.
-The local check accepts a Hackage token or a username together with a
-password or password command in the active Cabal configuration. The default
-precheck looks for the repository secret by name. The candidate upload confirms that Hackage still accepts the credential.
-
-## Step 9: Publish the GitHub release
+## Step 7: Publish both releases
 
 ``` bash
 bin/release publish
 ```
 
-**Permanent**: an immutable release's tag and assets can't be changed or
-replaced after publication. A problem found later needs a new version.
+**Permanent**: after the maintainer approves both releases, this command reads
+the source checksum from the tagged GitHub release. CI downloads the Hackage
+candidate, verifies it against that checksum, and publishes it. The command
+checks the public Hackage archive before publishing the GitHub draft as latest,
+then verifies GitHub's release attestation. A digest mismatch stops publication.
 
-Verifies the assets and that the version is live on Hackage, then publishes the
-draft as the latest release, checks the release attestation GitHub creates on
-publication (`gh release verify`), and prints its URL.
+If publication is interrupted, run `bin/release publish` again. It verifies an
+already-published Hackage archive and finishes any remaining GitHub work.
+Hackage uploads are permanent and GitHub publication makes the tag and assets
+immutable.
+
+### Hackage recovery and local fallback
+
+`bin/release hackage` prepares only the candidate. After explicit approval,
+`bin/release hackage-publish` can recover just the Hackage publication. Both
+use the source asset and checksum from the same GitHub release.
+
+If the Hackage workflow is unavailable, use a clean checkout of the pushed
+release tag and prefix the command with `HACKAGE_MODE=local`. The same review
+and checksum checks apply. To select this route for the whole release, export
+`HACKAGE_MODE=local` before `precheck`. The local check accepts a Hackage
+token or a username together with a password or password command in the active
+Cabal configuration. The default precheck looks for the repository secret by
+name. The candidate upload confirms that Hackage still accepts the credential.
 
 Download counts: `bin/show-release-downloads`.
 

@@ -10,11 +10,11 @@
 #   changelog        Verify ChangeLog.md is up to date for the package.yaml version
 #   check            All pre-tag checks (clean synced master, green CI, secrets, cabal, changelog)
 #   tag              check, then create the signed tag locally
-#   push-tag         PERMANENT: push the tag, wait for the release build, verify assets
+#   push-tag         PERMANENT: push the tag, verify binaries and prepare the Hackage candidate
 #   verify           Verify the GitHub release has every expected asset
 #   hackage          Upload a Hackage candidate
-#   hackage-publish SHA256  PERMANENT: publish the candidate matching the reviewed digest
-#   publish          PERMANENT: publish the GitHub draft release
+#   hackage-publish  PERMANENT: publish just the reviewed candidate (recovery)
+#   publish          PERMANENT: publish the reviewed Hackage and GitHub releases
 #   notes [VERSION]  Print the ChangeLog.md section for VERSION
 #
 # Commands never prompt. Each one stops with an error naming the fix, and can be
@@ -95,7 +95,7 @@ verify_provenance() (
       --signer-workflow "$REPO/.github/workflows/build.yaml" --source-ref "refs/tags/v$v" >/dev/null \
       || die "$a has no valid build provenance for v$v"
   done
-  say "All assets have build provenance from refs/tags/v$v"
+  say "All five binary archives have build provenance from refs/tags/v$v"
 )
 
 # PVP levels for A.B.C.D: major -> A.(B+1).0, minor -> A.B.(C+1), patch -> A.B.C.(D+1)
@@ -265,6 +265,9 @@ cmd_push_tag() {
   watch_run "v$v" "$sha"
   cmd_verify
   verify_provenance
+  cmd_hackage
+  gh release view "v$v" -R "$REPO" --json url -q .url
+  say "Review the GitHub draft and $(candidate_url) before running bin/release publish"
 }
 
 cmd_verify() {
@@ -272,14 +275,14 @@ cmd_verify() {
   v=$(version)
   have=$(gh release view "v$v" -R "$REPO" --json assets -q '.assets[].name')
   for a in $ASSETS; do grep -qx "$a" <<<"$have" || die "release v$v is missing $a"; done
-  say "Release v$v has all $(wc -w <<<"$ASSETS" | tr -d ' ') assets"
+  say "Release v$v has all five binary archives"
 }
 
 dispatch_hackage() {
-  local stage=$1 digest=${2:-} run_id
+  local stage=$1 run_id
   run_id=$(gh api -X POST "repos/$REPO/actions/workflows/hackage.yaml/dispatches" \
     -H 'X-GitHub-Api-Version: 2026-03-10' -f ref="v$(version)" \
-    -f "inputs[stage]=$stage" -f "inputs[sha256]=$digest" --jq '.workflow_run_id')
+    -f "inputs[stage]=$stage" --jq '.workflow_run_id')
   say "Waiting for https://github.com/$REPO/actions/runs/$run_id"
   gh run watch "$run_id" -R "$REPO" --exit-status
 }
@@ -290,8 +293,31 @@ hackage_upload() {
 }
 
 candidate_url() { echo "https://hackage.haskell.org/package/hledger-flow-$(version)/candidate"; }
-candidate_digest() {
-  curl -fsSL "$(candidate_url)/hledger-flow-$(version).tar.gz" | shasum -a 256 | cut -d' ' -f1
+package_url() { echo "https://hackage.haskell.org/package/hledger-flow-$(version)"; }
+
+# GitHub records the digest of the source archive attached to this release.
+source_digest() {
+  local name
+  name=$(basename "$(sdist_tarball)")
+  gh release view "v$(version)" -R "$REPO" --json assets |
+    jq -r --arg name "$name" '.assets[] | select(.name == $name) | .digest'
+}
+
+# Only 404 means the package is absent. Fail closed on network or server errors.
+fetch_archive() {
+  local status
+  status=$(curl -sSL -w '%{http_code}' -o "$2" "$1") || die "could not download $1"
+  case "$status" in
+    200) echo present ;;
+    404) echo absent ;;
+    *) die "downloading $1 returned HTTP $status" ;;
+  esac
+}
+
+check_digest() {
+  local actual
+  actual=$(shasum -a 256 "$1" | cut -d' ' -f1)
+  [ "sha256:$actual" = "$2" ] || die "$1 differs from the source archive recorded on the GitHub release"
 }
 
 check_hackage_tag() {
@@ -302,55 +328,73 @@ check_hackage_tag() {
   cmd_verify
 }
 
-cmd_hackage() {
-  local digest
+cmd_hackage() (
   hackage_credentials_ok
   if [ "${HACKAGE_MODE:-ci}" = ci ]; then
     dispatch_hackage candidate
-    say "Review $(candidate_url) and use the SHA-256 in the run summary to publish"
+    say "Review $(candidate_url)"
     return
   fi
   check_hackage_tag
-  cabal check
-  cabal sdist
-  hackage_upload "$(sdist_tarball)"
-  digest=$(candidate_digest)
-  [ "$digest" = "$(shasum -a 256 "$(sdist_tarball)" | cut -d' ' -f1)" ] || die "Hackage candidate differs from the uploaded source package"
-  if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
-    printf 'Review [%s](%s), then run this command after approval.\n\n    bin/release hackage-publish %s\n' \
-      "hledger-flow $(version)" "$(candidate_url)" "$digest" >> "$GITHUB_STEP_SUMMARY"
+  dir=$(mktemp -d)
+  trap 'rm -rf "$dir"' EXIT
+  tarball=$(sdist_tarball)
+  name=$(basename "$tarball")
+  digest=$(source_digest)
+  if [ -z "$digest" ]; then
+    cabal check
+    cabal sdist
+    # Never overwrite the release's source archive, including on a retry.
+    gh release upload "v$(version)" "$tarball" -R "$REPO"
+    digest=$(source_digest)
+    check_digest "$tarball" "$digest"
   fi
+  [[ $digest =~ ^sha256:[0-9a-f]{64}$ ]] || die "missing SHA-256 for $name on the GitHub draft"
+  url="$(candidate_url)/$name"
+  state=$(fetch_archive "$url" "$dir/candidate")
+  if [ "$state" = absent ]; then
+    gh release download "v$(version)" -R "$REPO" --pattern "$name" --dir "$dir"
+    check_digest "$dir/$name" "$digest"
+    hackage_upload "$dir/$name"
+    curl -fsSL "$url" -o "$dir/candidate"
+  fi
+  check_digest "$dir/candidate" "$digest"
   say "Review the candidate: $(candidate_url)"
-  say "After review: bin/release hackage-publish $digest (permanent)"
-}
+)
 
-cmd_hackage_publish() {
-  local digest=${1:-}
-  [[ $digest =~ ^[0-9a-f]{64}$ ]] || die "pass the SHA-256 printed when the candidate was uploaded: bin/release hackage-publish SHA256"
-  hackage_credentials_ok
-  if [ "${HACKAGE_MODE:-ci}" = ci ]; then
-    dispatch_hackage publish "$digest"
-    return
+cmd_hackage_publish() (
+  dir=$(mktemp -d)
+  trap 'rm -rf "$dir"' EXIT
+  name=$(basename "$(sdist_tarball)")
+  digest=$(source_digest)
+  [[ $digest =~ ^sha256:[0-9a-f]{64}$ ]] || die "missing source archive for v$(version) (run: bin/release hackage and review the candidate)"
+  public_url="$(package_url)/$name"
+  state=$(fetch_archive "$public_url" "$dir/$name")
+  if [ "$state" = absent ]; then
+    hackage_credentials_ok
+    if [ "${HACKAGE_MODE:-ci}" = ci ]; then
+      dispatch_hackage publish
+    else
+      check_hackage_tag
+      curl -fsSL "$(candidate_url)/$name" -o "$dir/$name"
+      check_digest "$dir/$name" "$digest"
+      hackage_upload --publish "$dir/$name"
+    fi
+    curl -fsSL "$public_url" -o "$dir/$name"
   fi
-  check_hackage_tag
-  # Publish the bytes actually reviewed, even on a fresh CI runner.
-  (
-    dir=$(mktemp -d)
-    trap 'rm -rf "$dir"' EXIT
-    tarball="$dir/hledger-flow-$(version).tar.gz"
-    curl -fsSL "$(candidate_url)/hledger-flow-$(version).tar.gz" -o "$tarball"
-    [ "$(shasum -a 256 "$tarball" | cut -d' ' -f1)" = "$digest" ] || die "candidate differs from the reviewed SHA-256; review it again"
-    hackage_upload --publish "$tarball"
-  )
-}
+  check_digest "$dir/$name" "$digest"
+  say "Verified published package: $(package_url)"
+)
 
 cmd_publish() {
-  local v
+  local v draft
   v=$(version)
   cmd_verify
-  curl -sfo /dev/null "https://hackage.haskell.org/package/hledger-flow-$v" \
-    || die "hledger-flow-$v is not published on Hackage (run: bin/release hackage-publish SHA256 after candidate review)"
-  gh release edit "v$v" -R "$REPO" --draft=false --latest
+  draft=$(gh release view "v$v" -R "$REPO" --json isDraft -q .isDraft)
+  cmd_hackage_publish
+  if [ "$draft" = true ]; then
+    gh release edit "v$v" -R "$REPO" --draft=false --latest
+  fi
   # GitHub attests an immutable release when it is published.
   for _ in $(seq 12); do
     gh release verify "v$v" -R "$REPO" >/dev/null 2>&1 && break

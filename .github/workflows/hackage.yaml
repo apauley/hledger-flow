@@ -9,9 +9,6 @@ on:
         required: true
         type: choice
         options: [candidate, publish]
-      sha256:
-        description: SHA-256 of the reviewed candidate (required to publish)
-        type: string
 
 permissions:
   contents: write  # GitHub requires push access to see draft release assets.
@@ -46,11 +43,10 @@ jobs:
           HACKAGE_MODE: local
           HACKAGE_TOKEN: ${{ secrets.HACKAGE_TOKEN }}
           STAGE: ${{ inputs.stage }}
-          SHA256: ${{ inputs.sha256 }}
         run: |
           : "${HACKAGE_TOKEN:?Set the HACKAGE_TOKEN repository secret}"
           case "$STAGE" in
             candidate) bin/release hackage ;;
-            publish) bin/release hackage-publish "$SHA256" ;;
+            publish) bin/release hackage-publish ;;
             *) exit 1 ;;
           esac

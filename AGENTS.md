@@ -70,6 +70,6 @@
 
 **Releases (maintainers only)**
 - Follow `release-procedure.md`. Every step is a `bin/release` command; commands never prompt, and their errors name the fix.
-- Stop at each **Review** point in the procedure and wait for the maintainer's approval before continuing: the ChangeLog wording and the proposed version number before `bump`, the local tag before `push-tag`, and the Hackage candidate before `hackage-publish`.
+- Stop at each **Review** point in the procedure and wait for the maintainer's approval before continuing: the ChangeLog wording and the proposed version number before `bump`, the local tag before `push-tag`, and both the GitHub draft and the Hackage candidate before `publish` (or `hackage-publish` for recovery).
 - Run the permanent commands (`push-tag`, `hackage-publish`, `publish`) only when the maintainer explicitly asks.
 - `ci` and `push-tag` wait for GitHub Actions runs that can take over 30 minutes. Run them in the background; re-running either one resumes waiting.

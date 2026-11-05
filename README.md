@@ -77,7 +77,7 @@ an available interpreter; on Windows, Unix shell scripts may need adapting.
 ### Verifying a download
 
 Releases from 0.17 onwards are immutable and attested by GitHub. With the
-[GitHub CLI](https://cli.github.com/), check that a downloaded archive is the
+[GitHub CLI](https://cli.github.com/), check that a downloaded binary archive is the
 one published in the release, and that it was built by this project's GitHub
 Actions workflow from the release tag:
 
