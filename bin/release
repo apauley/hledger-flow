@@ -13,7 +13,7 @@
 #   push-tag         PERMANENT: push the tag, wait for the release build, verify assets
 #   verify           Verify the GitHub release has every expected asset
 #   hackage          Upload a Hackage candidate
-#   hackage-publish  PERMANENT: publish the reviewed candidate tarball on Hackage
+#   hackage-publish SHA256  PERMANENT: publish the candidate matching the reviewed digest
 #   publish          PERMANENT: publish the GitHub draft release
 #   notes [VERSION]  Print the ChangeLog.md section for VERSION
 #
@@ -59,6 +59,28 @@ repo_settings_ok() {
   for n in $CI_SECRETS; do grep -qx "$n" <<<"$have" || die "missing GitHub secret or variable $n"; done
   [ "$(gh api "repos/$REPO/immutable-releases" -q .enabled)" = true ] \
     || die "immutable releases are disabled: enable them in the repository's General settings"
+}
+
+# The CI path checks the secret name only. Cabal reads local credentials only
+# when the maintainer explicitly chooses the fallback.
+hackage_credentials_ok() {
+  case ${HACKAGE_MODE:-ci} in
+    ci)
+      local secrets
+      secrets=$(gh secret list -R "$REPO" --json name --jq '.[].name')
+      grep -qx HACKAGE_TOKEN <<<"$secrets" || die "set the HACKAGE_TOKEN repository Actions secret to a Hackage API token, or use HACKAGE_MODE=local with configured Cabal credentials"
+      ;;
+    local)
+      [ -n "${HACKAGE_TOKEN:-}" ] && return
+      cabal user-config diff | awk '
+        /^\+ token: [^[:space:]]/ { token=1 }
+        /^\+ username: [^[:space:]]/ { user=1 }
+        /^\+ (password|password-command): [^[:space:]]/ { password=1 }
+        END { exit !(token || (user && password)) }
+      ' || die "configure a token or username and password-command in your Cabal config for HACKAGE_MODE=local"
+      ;;
+    *) die "HACKAGE_MODE must be ci or local" ;;
+  esac
 }
 
 # Every asset must carry a build provenance attestation from this repository's
@@ -148,6 +170,7 @@ cmd_precheck() {
   local prev level
   clean_master
   repo_settings_ok
+  hackage_credentials_ok
   cabal_in_sync
   cabal check
   unreleased_ok
@@ -207,6 +230,7 @@ cmd_check() {
          --json conclusion -q '.[0].conclusion')
   [ "$ci" = success ] || die "CI for HEAD is '${ci:-missing}' (run: bin/release ci)"
   repo_settings_ok
+  hackage_credentials_ok
   cabal_in_sync
   cabal check
   cabal sdist
@@ -251,20 +275,73 @@ cmd_verify() {
   say "Release v$v has all $(wc -w <<<"$ASSETS" | tr -d ' ') assets"
 }
 
-cmd_hackage() {
+dispatch_hackage() {
+  local stage=$1 digest=${2:-} run_id
+  run_id=$(gh api -X POST "repos/$REPO/actions/workflows/hackage.yaml/dispatches" \
+    -H 'X-GitHub-Api-Version: 2026-03-10' -f ref="v$(version)" \
+    -f "inputs[stage]=$stage" -f "inputs[sha256]=$digest" --jq '.workflow_run_id')
+  say "Waiting for https://github.com/$REPO/actions/runs/$run_id"
+  gh run watch "$run_id" -R "$REPO" --exit-status
+}
+
+hackage_upload() {
+  if [ -n "${HACKAGE_TOKEN:-}" ]; then set -- --token="$HACKAGE_TOKEN" "$@"; fi
+  cabal upload "$@" </dev/null
+}
+
+candidate_url() { echo "https://hackage.haskell.org/package/hledger-flow-$(version)/candidate"; }
+candidate_digest() {
+  curl -fsSL "$(candidate_url)/hledger-flow-$(version).tar.gz" | shasum -a 256 | cut -d' ' -f1
+}
+
+check_hackage_tag() {
+  local tag
+  tag="v$(version)"
+  [ "$(git rev-parse HEAD)" = "$(git rev-parse "$tag^{commit}")" ] && [ -z "$(git status --porcelain)" ] \
+    || die "start from a clean checkout of $tag"
   cmd_verify
-  cabal_in_sync
+}
+
+cmd_hackage() {
+  local digest
+  hackage_credentials_ok
+  if [ "${HACKAGE_MODE:-ci}" = ci ]; then
+    dispatch_hackage candidate
+    say "Review $(candidate_url) and use the SHA-256 in the run summary to publish"
+    return
+  fi
+  check_hackage_tag
+  cabal check
   cabal sdist
-  cabal upload "$(sdist_tarball)"
-  say "Review the candidate: https://hackage.haskell.org/package/hledger-flow-$(version)/candidate"
-  say "Next: bin/release hackage-publish (permanent)"
+  hackage_upload "$(sdist_tarball)"
+  digest=$(candidate_digest)
+  [ "$digest" = "$(shasum -a 256 "$(sdist_tarball)" | cut -d' ' -f1)" ] || die "Hackage candidate differs from the uploaded source package"
+  if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+    printf 'Review [%s](%s), then run this command after approval.\n\n    bin/release hackage-publish %s\n' \
+      "hledger-flow $(version)" "$(candidate_url)" "$digest" >> "$GITHUB_STEP_SUMMARY"
+  fi
+  say "Review the candidate: $(candidate_url)"
+  say "After review: bin/release hackage-publish $digest (permanent)"
 }
 
 cmd_hackage_publish() {
-  local tarball
-  tarball=$(sdist_tarball)
-  [ -f "$tarball" ] || die "$tarball not found (run: bin/release hackage)"
-  cabal upload --publish "$tarball"
+  local digest=${1:-}
+  [[ $digest =~ ^[0-9a-f]{64}$ ]] || die "pass the SHA-256 printed when the candidate was uploaded: bin/release hackage-publish SHA256"
+  hackage_credentials_ok
+  if [ "${HACKAGE_MODE:-ci}" = ci ]; then
+    dispatch_hackage publish "$digest"
+    return
+  fi
+  check_hackage_tag
+  # Publish the bytes actually reviewed, even on a fresh CI runner.
+  (
+    dir=$(mktemp -d)
+    trap 'rm -rf "$dir"' EXIT
+    tarball="$dir/hledger-flow-$(version).tar.gz"
+    curl -fsSL "$(candidate_url)/hledger-flow-$(version).tar.gz" -o "$tarball"
+    [ "$(shasum -a 256 "$tarball" | cut -d' ' -f1)" = "$digest" ] || die "candidate differs from the reviewed SHA-256; review it again"
+    hackage_upload --publish "$tarball"
+  )
 }
 
 cmd_publish() {
@@ -272,7 +349,7 @@ cmd_publish() {
   v=$(version)
   cmd_verify
   curl -sfo /dev/null "https://hackage.haskell.org/package/hledger-flow-$v" \
-    || die "hledger-flow-$v is not published on Hackage (run: bin/release hackage-publish)"
+    || die "hledger-flow-$v is not published on Hackage (run: bin/release hackage-publish SHA256 after candidate review)"
   gh release edit "v$v" -R "$REPO" --draft=false --latest
   # GitHub attests an immutable release when it is published.
   for _ in $(seq 12); do

@@ -16,8 +16,14 @@ points to stop and check the results before going further.
 
 Requirements: `stack`, `cabal`, `gh` (authenticated), `jq`, `perl`, a GPG or
 SSH signing key for the tag (creating the tag may ask you to unlock it), and
-Hackage credentials that `cabal upload` can use without prompting, such as
-`username` and `password-command` in cabal's config file.
+permission to dispatch GitHub Actions workflows.
+
+For Hackage, create a dedicated token on the maintainer's
+[Hackage account management page](https://hackage.haskell.org/users/account-management).
+Store it as the repository Actions secret `HACKAGE_TOKEN`, for example with
+`gh secret set HACKAGE_TOKEN -R apauley/hledger-flow` (paste at the prompt).
+Steps 7 and 8 use that secret on a GitHub-hosted runner. Local Cabal
+credentials are optional.
 
 ## Quick reference
 
@@ -32,7 +38,7 @@ bin/release tag               # all checks, then create the signed tag locally
 bin/release push-tag          # PERMANENT: push the tag, wait for the release build, verify
 bin/release hackage           # upload a Hackage candidate
 #   Review: the candidate page
-bin/release hackage-publish   # PERMANENT: publish the candidate on Hackage
+bin/release hackage-publish SHA256  # PERMANENT: publish the reviewed candidate
 bin/release publish           # PERMANENT: publish the GitHub draft release
 ```
 
@@ -76,7 +82,8 @@ It does the checks that don't depend on the version:
 
 1.  On `master` with a clean working tree.
 2.  The signing secrets and variables exist and immutable releases are enabled
-    in the repository (see step 5).
+    in the repository (see step 5). The Hackage credential for the selected
+    upload method is configured.
 3.  The committed `hledger-flow.cabal` matches `package.yaml`, and `cabal check` passes.
 4.  `ChangeLog.md` starts with a non-empty `## Unreleased` section.
 
@@ -162,7 +169,7 @@ This first runs `bin/release check`, which stops on the first failure:
 4.  The signing secrets (`MACOS_CERTIFICATE_BASE64`, `MACOS_CERTIFICATE_PASSWORD`,
     `APPLE_API_KEY_BASE64`) and variables (`APPLE_API_KEY_ID`, `APPLE_API_ISSUER_ID`)
     exist in the repository, and immutable releases are enabled
-    (Settings → General → Releases).
+    (Settings → General → Releases). The Hackage credential check from step 2 runs again.
 5.  The committed `hledger-flow.cabal` matches `package.yaml`; `cabal check` and `cabal sdist` pass.
 6.  **ChangeLog.md is up to date** (`bin/release changelog`):
     - the first section is `## <version>`, matching `package.yaml`
@@ -222,8 +229,11 @@ macOS signing is made possible by [FernTrail B.V.](https://ferntrail.tech/)
 bin/release hackage
 ```
 
-Verifies the GitHub release assets, builds the sdist, uploads it as a Hackage
-candidate, and prints the candidate's URL.
+Dispatches the Hackage workflow at the release tag and waits for it. The job
+checks the GitHub release assets, builds the source package from the tagged
+commit, and uploads a candidate. It downloads the candidate and compares it
+with the built archive. The run summary links to the candidate and gives the
+SHA-256 to use in step 8. Keep that digest with the candidate you review.
 
 **Review** the candidate page: the package metadata, README, ChangeLog and
 file list. The tag is already pushed, so a problem found here needs a fix and
@@ -232,11 +242,23 @@ a new version.
 ## Step 8: Publish on Hackage
 
 ``` bash
-bin/release hackage-publish
+bin/release hackage-publish SHA256
 ```
 
-**Permanent**: publishes the tarball uploaded as the candidate in step 7.
+**Permanent**: after maintainer approval, replace `SHA256` with the digest
+from step 7. This dispatches a separate run at the same tag. The job downloads
+the candidate and publishes those bytes only if the checksum matches.
 Hackage releases can't be removed.
+
+### Local Hackage fallback
+
+If the Hackage workflow is unavailable, use a clean checkout of the pushed
+release tag and prefix the step 7 or 8 command with `HACKAGE_MODE=local`.
+The same candidate review and checksum checks apply. To select this route
+before a release, also set `HACKAGE_MODE=local` for `precheck` and `tag`.
+The local check accepts a Hackage token or a username together with a
+password or password command in the active Cabal configuration. The default
+precheck looks for the repository secret by name. The candidate upload confirms that Hackage still accepts the credential.
 
 ## Step 9: Publish the GitHub release
 
@@ -257,10 +279,13 @@ Download counts: `bin/show-release-downloads`.
 
 ### Retry in GitHub Actions
 
-1.  Inspect the failed `Notarize` job's submission ID and Apple log. For a timeout, check the existing submission before retrying.
-2.  Confirm the original run is within GitHub's 30-day rerun window and its `signed-hledger-flow-*` artifacts have not expired. Otherwise, use the Mac procedure below.
-3.  Re-run only the failed jobs. After publication, never select `Re-run all jobs`.
-4.  Confirm both `Notarize` jobs pass: look for `Apple notarization ticket is already available` or a new `Accepted` submission.
+1.  After Apple accepts a submission, CI checks for the online ticket every
+    30 seconds for up to five minutes. If it times out, verify the existing
+    ticket on the signed executable before resubmitting.
+2.  Inspect the failed `Notarize` job's submission ID and Apple log. For a timeout, check the existing submission before retrying.
+3.  Confirm the original run is within GitHub's 30-day rerun window and its `signed-hledger-flow-*` artifacts have not expired. Otherwise, use the Mac procedure below.
+4.  Re-run only the failed jobs. After publication, never select `Re-run all jobs`.
+5.  Confirm both `Notarize` jobs pass: look for `Apple notarization ticket is already available` or a new `Accepted` submission.
 
 ``` bash
 gh run rerun RUN_ID --failed --repo apauley/hledger-flow

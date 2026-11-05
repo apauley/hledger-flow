@@ -1,0 +1,56 @@
+name: Hackage
+run-name: Hackage ${{ inputs.stage }} for ${{ github.ref_name }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      stage:
+        description: Release step
+        required: true
+        type: choice
+        options: [candidate, publish]
+      sha256:
+        description: SHA-256 of the reviewed candidate (required to publish)
+        type: string
+
+permissions:
+  contents: write  # GitHub requires push access to see draft release assets.
+
+concurrency:
+  group: hackage-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require a release tag
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          [[ "$REF_TYPE" == tag && "$TAG" =~ ^v[0-9]+(\.[0-9]+)+$ ]]
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Check tag against package version
+        run: test "$GITHUB_REF_NAME" = "v$(awk '/^version:/ {print $2}' package.yaml)"
+      - uses: haskell-actions/setup@v2
+        with:
+          ghc-version: '9.10.3'
+          cabal-version: '3.16.1.0'
+      - name: Run selected Hackage step
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HACKAGE_MODE: local
+          HACKAGE_TOKEN: ${{ secrets.HACKAGE_TOKEN }}
+          STAGE: ${{ inputs.stage }}
+          SHA256: ${{ inputs.sha256 }}
+        run: |
+          : "${HACKAGE_TOKEN:?Set the HACKAGE_TOKEN repository secret}"
+          case "$STAGE" in
+            candidate) bin/release hackage ;;
+            publish) bin/release hackage-publish "$SHA256" ;;
+            *) exit 1 ;;
+          esac

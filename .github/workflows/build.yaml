@@ -117,6 +117,10 @@ jobs:
       - name: Stack Setup
         run: stack setup --interleaved-output
 
+      - name: Test Hackage release steps offline
+        if: matrix.os == 'ubuntu-latest'
+        run: bash test/release/hackage.sh
+
       - name: Build and Test
         run: stack test --interleaved-output && stack install
 
@@ -328,8 +332,11 @@ jobs:
           set -euo pipefail
           tar -xf "signed/hledger-flow-${PLATFORM}.tar" -C signed
           test -x signed/hledger-flow
-          if codesign --verify --strict --verbose=4 \
-            --test-requirement '=notarized' --check-notarization signed/hledger-flow; then
+          verify_ticket() {
+            codesign --verify --strict --verbose=4 \
+              --test-requirement '=notarized' --check-notarization signed/hledger-flow
+          }
+          if verify_ticket; then
             echo "Apple notarization ticket is already available"
             exit 0
           fi
@@ -362,9 +369,13 @@ jobs:
             exit "$notarization_exit"
           fi
           test "$(plutil -extract status raw -o - "$result")" = Accepted
-          # Bare CLI executables cannot be stapled; verify Apple's online ticket.
-          codesign --verify --strict --verbose=4 \
-            --test-requirement '=notarized' --check-notarization signed/hledger-flow
+          # Apple may accept the submission before the ticket reaches this runner.
+          for attempt in {1..11}; do
+            if verify_ticket; then exit 0; fi
+            if (( attempt < 11 )); then sleep 30; fi
+          done
+          echo "::error::Apple accepted submission $submission_id but its ticket is still unavailable after five minutes. Check the existing ticket before resubmitting."
+          exit 1
 
       - name: Clean up notarization key
         if: always()
