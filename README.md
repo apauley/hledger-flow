@@ -64,34 +64,80 @@ diff.
 
 ## How do I install it?
 
-If you can compile it yourself, please do so by following the [build instructions](https://github.com/apauley/hledger-flow/blob/master/CONTRIBUTING.md#build-the-project).
+| Installation method | Platforms | Choose this if you want to… |
+| --- | --- | --- |
+| [Download a GitHub release](#download-a-github-release) | Windows, macOS, Linux | Run a prebuilt executable. |
+| [Install with Homebrew](#install-with-homebrew) | macOS, Linux | Install and upgrade with `brew`. |
+| [Build from source](#build-from-source) | Windows, macOS, Linux | Compile the project yourself with Stack. |
 
-Otherwise download [the latest release](https://github.com/apauley/hledger-flow/releases) for your OS, extract the archive, and copy the `hledger-flow` executable (`hledger-flow.exe` on Windows) to a directory in your PATH.
+### Download a GitHub release
 
-On Mac you may see a warning.
+1. Download the archive for your OS and processor from the [latest GitHub release](https://github.com/apauley/hledger-flow/releases/latest).
+2. Extract it and copy `hledger-flow` (or `hledger-flow.exe` on Windows) to a directory on your `PATH`.
+3. [Install hledger](https://hledger.org/install.html) for imports and reports.
 
-The [quick-start](QUICKSTART.md) covers installation, download verification,
-and your first import on Windows, macOS, and Linux. It ships in each binary archive.
+The [quick-start guide](QUICKSTART.md) lists the archive names and walks through installation and your first import on each platform.
 
-Install `hledger` separately and ensure it is on `PATH`, or supply
-`--hledger-path`. Account-specific `preprocess` and `construct` scripts need
-an available interpreter; on Windows, Unix shell scripts may need adapting.
+#### Verifying a download
 
-### Verifying a download
+From v0.17.0 onward, GitHub releases are immutable and the archives carry build
+attestations. To verify a download, substitute its release tag and archive name
+in both [GitHub CLI](https://cli.github.com/) commands:
 
-Releases from 0.17 onwards are immutable and attested by GitHub. With the
-[GitHub CLI](https://cli.github.com/), check that a downloaded binary archive is the
-one published in the release, and that it was built by this project's GitHub
-Actions workflow from the release tag:
-
-``` bash
+```sh
 gh release verify-asset v0.17.0 hledger-flow-macos-arm64.tar.gz -R apauley/hledger-flow
 gh attestation verify hledger-flow-macos-arm64.tar.gz -R apauley/hledger-flow
 ```
 
-The macOS binaries are also signed with a Developer ID and notarized by Apple.
+The first command checks that the archive matches the published release. The
+second checks its build provenance. The macOS binaries are signed with a
+Developer ID and submitted to Apple for notarization.
+
+### Install with Homebrew
+
+On a [supported Mac or Linux system](https://github.com/FernTrail/homebrew-tap#supported-platforms),
+check that `brew --version` works in your terminal. If you’re new to Homebrew,
+[install Homebrew](https://brew.sh/) and follow the installer’s instructions to add `brew` to your `PATH`.
+
+To set up FernTrail’s package repository (its *tap*) for the first time:
+
+```sh
+brew tap ferntrail/tap
+```
+
+Optionally, to inspect the package before installing it, trust just the
+hledger-flow formula and show its details (Homebrew 6 or newer):
+
+```sh
+brew trust --formula ferntrail/tap/hledger-flow
+brew info ferntrail/tap/hledger-flow
+```
+
+Install hledger-flow and its `hledger` dependency:
+
+```sh
+brew install ferntrail/tap/hledger-flow
+```
+
+If you don’t want Homebrew to install `hledger`, add `--without-hledger` to the install command.
+The fully qualified install command also works on its own: Homebrew adds the tap
+automatically and trusts only the named formula. See [Homebrew’s tap trust guide](https://docs.brew.sh/Tap-Trust).
+
+For later releases, run `brew update` and `brew upgrade ferntrail/tap/hledger-flow`.
+
+### Build from source
+
+From a checkout of this repository, run `stack install`. Add the directory
+reported by `stack path --local-bin` to your `PATH` and [install hledger](https://hledger.org/install.html).
+See the [build instructions](CONTRIBUTING.md#build-the-project) for prerequisites and tests.
 
 ## Getting Started
+
+Check that both commands are available with `hledger-flow --version` and
+`hledger --version`. To select a specific copy of hledger, use
+`hledger-flow --hledger-path /path/to/hledger import`. Account-specific
+`preprocess` and `construct` scripts need an available interpreter. On
+Windows, Unix shell scripts may need adapting.
 
 Have a look at the [detailed step-by-step instructions](step-by-step/README.md) and the [feature reference](docs/README.md).
 

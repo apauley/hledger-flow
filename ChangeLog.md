@@ -1,25 +1,34 @@
 # Changelog for [hledger-flow](https://github.com/apauley/hledger-flow)
 
 <!--
-How to keep this ChangeLog. The first section is always "## Unreleased".
+How to keep this ChangeLog
 
-- Add or update an entry in the same commit as any change a user could notice:
-  behaviour, options, output, generated files, platforms, installation or
-  build requirements, and the Hackage library API.
-- Write from the user's point of view: what changes for them, and how it
-  affects or benefits them. Use the names they see (commands, options, files,
-  output), not how it was implemented.
-- Order entries by impact on users, highest first:
+- During development, keep "## Unreleased" first and leave it empty until
+  something changes for someone installing, building or using hledger-flow
+  or its library. Add or update the entry in the same commit as the change.
+- Say what users can now do, what behaves differently or what action they
+  need to take. Name the affected platform, command, option, file, output
+  or library API when it helps readers recognise the change.
+- Keep each entry brief. Put commands and step-by-step instructions in the
+  relevant guide. Link directly to that section when readers need details.
+  Use a full URL so the link also works in the GitHub release notes.
+- Keep one entry per user-visible change. If several changes add ways to do
+  the same thing, update the existing entry. For example, list new installation
+  options together and link each option to its instructions.
+- Order entries by impact on users, highest first.
   1. Changes users must act on, saying what they need to do.
   2. New features and capabilities.
   3. Behaviour changes and fixes, the most noticeable first.
   4. Build, packaging and dependency changes.
-- Keep one entry per change. Update an existing entry rather than adding
-  another, and merge entries that describe the same change.
-- Leave out changes users can't notice, such as refactoring, tests and CI.
+- Skip changes that affect only maintainers, such as refactoring, test
+  infrastructure, CI or release automation. A new Windows download belongs
+  here because Windows users can install it. Automating publication to an
+  existing destination belongs in release-procedure.md.
 -->
 
 ## Unreleased
+
+- You can now install hledger-flow on macOS and Linux with [Homebrew](https://github.com/apauley/hledger-flow/blob/master/README.md#install-with-homebrew).
 
 ## 0.17.0
 

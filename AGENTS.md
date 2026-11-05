@@ -50,8 +50,7 @@
 - `bin/` contains helper scripts for build/test and releases.
 
 **Implementation notes and conventions**
-- For the ChangeLog, ask what changes for someone installing, building, or using `hledger-flow` or its library. If they get a new capability, see different behavior or output, or need to do something differently, add or update an entry under `## Unreleased` in `ChangeLog.md` in the same commit. Describe that effect and order entries by impact, following the guidelines at the top of the file.
-- Skip the ChangeLog when a change affects only maintainers, such as refactoring, test infrastructure, CI, or release automation. For example, adding a Windows download belongs in the ChangeLog because users gain a supported platform. Automating publication to the existing GitHub and Hackage destinations belongs in `release-procedure.md`. Leave `## Unreleased` empty until there is a user-facing change.
+- Follow the writing guidelines at the top of [ChangeLog.md](ChangeLog.md?plain=1).
 - Paths are handled using `path` and `path-io` with helpers in `Hledger.Flow.PathHelpers`. Prefer those helpers for new filesystem code.
 - `RuntimeOptions` is the primary config type; new CLI flags typically require adding fields to `RuntimeOptions` and wiring them through `app/Main.hs`.
 - Import flow is orchestrated in `Hledger.Flow.Import.CSVImport`:

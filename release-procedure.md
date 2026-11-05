@@ -1,9 +1,10 @@
 # Release Procedure
 
-This project has 2 release outputs:
+Users can get a release through three channels:
 
 - GitHub releases with prebuilt binaries for Linux, macOS (signed and notarized), and Windows
 - A source package on [Hackage](https://hackage.haskell.org/package/hledger-flow)
+- The `ferntrail/tap/hledger-flow` formula in the [FernTrail Homebrew tap](https://github.com/FernTrail/homebrew-tap)
 
 Every step is a `bin/release` command. Commands never prompt: each one checks
 its preconditions, stops with an error that names the fix, and can be re-run
@@ -14,9 +15,12 @@ Everything before `push-tag` is local or an ordinary commit on `master`, so a
 problem is fixed with another commit. The steps marked **Review** are the
 points to stop and check the results before going further.
 
-Requirements: `stack`, `cabal`, `gh` (authenticated), `jq`, `perl`, a GPG or
+Requirements: `stack`, `cabal`, `gh` (authenticated), `jq`, `perl`, Python 3, a GPG or
 SSH signing key for the tag (creating the tag may ask you to unlock it), and
-permission to dispatch GitHub Actions workflows.
+permission to dispatch GitHub Actions workflows, and permission to push to
+`FernTrail/homebrew-tap` on `main`. Configure your Git commit identity and
+credentials for the protocol used by `gh repo clone`. The release command
+clones the tap into a temporary directory and leaves your local tap checkout alone.
 
 For Hackage, create a dedicated token on the maintainer's
 [Hackage account management page](https://hackage.haskell.org/users/account-management).
@@ -37,18 +41,8 @@ bin/release tag               # all checks, then create the signed tag locally
 #   Review: the tagged commit and its release notes
 bin/release push-tag          # PERMANENT: push the tag, verify binaries, upload the candidate
 #   Review: the GitHub draft and the Hackage candidate
-bin/release publish           # PERMANENT: publish on Hackage, then publish the GitHub release
+bin/release publish           # PERMANENT: publish on Hackage and GitHub, update the tap, wait for tap CI
 ```
-
-## The ChangeLog
-
-`ChangeLog.md` is kept current during development, not written at release
-time. Every user-visible change adds or updates an entry under
-`## Unreleased` in the same commit. The guidelines for writing and ordering
-entries are at the top of `ChangeLog.md`; in short, entries describe what
-changes for users and how it affects them, ordered by impact on users.
-
-Step 2 checks the section once more before the release.
 
 ## Step 1: Update dependencies (optional)
 
@@ -81,20 +75,16 @@ It does the checks that don't depend on the version:
 1.  On `master` with a clean working tree.
 2.  The signing secrets and variables exist and immutable releases are enabled
     in the repository (see step 5). The Hackage credential for the selected
-    upload method is configured.
+    upload method is configured. Python 3 is available and the authenticated
+    GitHub account has write access to the tap.
 3.  The committed `hledger-flow.cabal` matches `package.yaml`, and `cabal check` passes.
 4.  `ChangeLog.md` starts with a non-empty `## Unreleased` section.
 
 It then prints every commit since the previous release tag next to the
 `## Unreleased` section, followed by the candidate version numbers.
 
-**Review** the section against the commits and the guidelines at the top of
-`ChangeLog.md`:
-
-- Every user-visible change in the commits has an entry, and no entry describes
-  a change users can't notice.
-- Each entry says what changes for users and how it affects or benefits them.
-- Entries are ordered by impact on users, highest first.
+**Review** the section against the commits using the
+[writing guidelines at the top of ChangeLog.md](ChangeLog.md?plain=1).
 
 Commit any changes to `ChangeLog.md` and run `precheck` again, then choose the
 version number.
@@ -229,9 +219,12 @@ the recorded digest. Retries reuse the existing source asset.
 
 **Review** both links printed by `push-tag`: the GitHub draft's notes and
 archives, and the candidate page's metadata, README, ChangeLog and file list.
-If the candidate build fails, retry just `bin/release hackage`.
+If the candidate build fails, retry just `bin/release hackage`. At this review,
+check that the new binaries still meet the platform and library requirements in
+the tap formula. If they change, prepare the corresponding tap changes before
+publication.
 
-## Step 7: Publish both releases
+## Step 7: Publish the release and update Homebrew
 
 ``` bash
 bin/release publish
@@ -243,10 +236,21 @@ candidate, verifies it against that checksum, and publishes it. The command
 checks the public Hackage archive before publishing the GitHub draft as latest,
 then verifies GitHub's release attestation. A digest mismatch stops publication.
 
-If publication is interrupted, run `bin/release publish` again. It verifies an
-already-published Hackage archive and finishes any remaining GitHub work.
-Hackage uploads are permanent and GitHub publication makes the tag and assets
-immutable.
+After GitHub verification, the command reads the four macOS and Linux archive
+checksums from the published release and hashes the license from the same tag.
+It updates the formula and release references in the tap README, pushes a
+commit to `FernTrail/homebrew-tap` on `main`, and waits for the tap’s
+`Test formulae` workflow on macOS and Linux. Success means users can upgrade
+with `brew update` and `brew upgrade ferntrail/tap/hledger-flow`.
+
+If publication is interrupted, re-run `bin/release publish`. It verifies the
+public Hackage and GitHub releases and resumes the tap update. A concurrent
+tap push can reject the update. A retry reads the latest tap commit and
+preserves the other maintainer’s changes. If the formula already matches,
+the command checks CI for the current tap revision. If tap CI fails, inspect the
+linked run, fix the tap or rerun the failed jobs, then retry publication.
+The command refuses to downgrade a newer formula. Hackage and GitHub releases
+remain public while a tap update is being retried.
 
 ### Hackage recovery and local fallback
 

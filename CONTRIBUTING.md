@@ -201,9 +201,9 @@ Contributors are not expected to publish releases, push release tags, or upload 
 
 What is helpful in contributor pull requests:
 
-- keep changes releasable: tests passing, docs updated, and user-visible changes described in `ChangeLog.md`, following the guidelines at the top of that file
+- keep tests passing, update the docs and follow the [ChangeLog writing guidelines](ChangeLog.md?plain=1)
 - see if it is possible to update the stack dependencies: update `resolver` in `stack.yaml` with a newer version from [Stackage](https://www.stackage.org/)
-- if you are preparing a release-related pull request, update `package.yaml` and `ChangeLog.md` together
+- for a version bump, follow the [release procedure](release-procedure.md)
 - if you want to help validate Hackage packaging, also verify that a source tarball can be produced locally:
 
 ``` bash

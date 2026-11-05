@@ -14,7 +14,7 @@
 #   verify           Verify the GitHub release has every expected asset
 #   hackage          Upload a Hackage candidate
 #   hackage-publish  PERMANENT: publish just the reviewed candidate (recovery)
-#   publish          PERMANENT: publish the reviewed Hackage and GitHub releases
+#   publish          PERMANENT: publish on Hackage and GitHub, then update the Homebrew tap
 #   notes [VERSION]  Print the ChangeLog.md section for VERSION
 #
 # Commands never prompt. Each one stops with an error naming the fix, and can be
@@ -25,6 +25,7 @@ cd "$(dirname "$0")/.."
 export GIT_PAGER=cat  # git output is part of the report, never paged
 
 REPO=apauley/hledger-flow
+TAP=FernTrail/homebrew-tap
 ASSETS="hledger-flow-linux-x64.tar.gz hledger-flow-linux-arm64.tar.gz hledger-flow-macos-x64.tar.gz hledger-flow-macos-arm64.tar.gz hledger-flow-windows-x64.zip"
 CI_SECRETS="MACOS_CERTIFICATE_BASE64 MACOS_CERTIFICATE_PASSWORD APPLE_API_KEY_BASE64 APPLE_API_KEY_ID APPLE_API_ISSUER_ID"
 
@@ -53,7 +54,14 @@ clean_master() {
   [ -z "$(git status --porcelain)" ] || die "working tree not clean:\n$(git status --short)"
 }
 
+tap_access_ok() {
+  command -v python3 >/dev/null || die "install Python 3 for the Homebrew tap update"
+  [ "$(gh api "repos/$TAP" -q .permissions.push)" = true ] \
+    || die "authenticate gh with write access to $TAP before publishing"
+}
+
 repo_settings_ok() {
+  tap_access_ok
   local have n
   have=$({ gh secret list -R "$REPO"; gh variable list -R "$REPO"; } | cut -f1)
   for n in $CI_SECRETS; do grep -qx "$n" <<<"$have" || die "missing GitHub secret or variable $n"; done
@@ -119,17 +127,22 @@ show_changes() { # PREV_TAG SECTION
   notes "$2"
 }
 
-# Wait quietly for the Build & Release run of SHA on a branch or tag, then report.
-# Notarization failures are only warnings: they don't block the release.
-watch_run() { # REF SHA
-  local ref=$1 sha=$2 id="" url failed
+run_for_commit() { # REPO WORKFLOW REF SHA
+  local repo=$1 workflow=$2 ref=$3 sha=$4 id
   for _ in $(seq 30); do
-    id=$(gh run list -R "$REPO" --workflow build.yaml --commit "$sha" --branch "$ref" \
+    id=$(gh run list -R "$repo" --workflow "$workflow" --commit "$sha" --branch "$ref" \
            --json databaseId -q '.[0].databaseId')
     [ -n "$id" ] && break
     sleep 10
   done
-  [ -n "$id" ] || die "no Build & Release run found for $ref at $sha"
+  [ -n "$id" ] || die "no $workflow run in $repo for $ref at $sha; re-run this command to keep waiting"
+  echo "$id"
+}
+
+# Notarization failures are only warnings: they don't block the release.
+watch_run() { # REF SHA
+  local id url failed
+  id=$(run_for_commit "$REPO" build.yaml "$1" "$2")
   url=$(gh run view "$id" -R "$REPO" --json url -q .url)
   say "Waiting for $url"
   gh run watch "$id" -R "$REPO" --interval 30 >/dev/null 2>&1 || true
@@ -177,8 +190,7 @@ cmd_precheck() {
   prev=$(git describe --tags --abbrev=0 --match 'v*' HEAD) || die "no previous release tag"
   show_changes "$prev" Unreleased
   say "Review before bumping"
-  echo "  - Every user-visible change in the commits above has an entry."
-  echo "  - Entries follow the guidelines at the top of ChangeLog.md."
+  echo "  Compare the entries with the commits above using the writing guidelines at the top of ChangeLog.md."
   say "Next versions (choose with 'Choose the version number' in release-procedure.md)"
   for level in major minor patch; do
     printf '  bin/release bump %-5s  # %s\n' "$level" "$(next_version "$level")"
@@ -386,9 +398,35 @@ cmd_hackage_publish() (
   say "Verified published package: $(package_url)"
 )
 
+update_homebrew_tap() (
+  tag="v$(version)"
+  dir=$(mktemp -d)
+  trap 'rm -rf "$dir"' EXIT
+  export GIT_TERMINAL_PROMPT=0 GH_PROMPT_DISABLED=1
+  gh release view "$tag" -R "$REPO" --json assets > "$dir/assets.json"
+  curl -fsSL "https://raw.githubusercontent.com/$REPO/$tag/LICENSE" -o "$dir/LICENSE"
+  gh repo clone "$TAP" "$dir/tap" -- --branch main --single-branch
+  python3 bin/update-homebrew-formula.py "$tag" "$dir/assets.json" "$dir/LICENSE" "$dir/tap"
+
+  cd "$dir/tap"
+  if ! git diff --quiet -- Formula/hledger-flow.rb README.md; then
+    git diff --check
+    git commit -m "Update hledger-flow to $tag" -- Formula/hledger-flow.rb README.md
+    git push origin HEAD:main || die "tap push failed; check access to $TAP/main and re-run bin/release publish"
+  fi
+
+  # On a retry, CI for the current tap revision tests the already-published formula.
+  sha=$(git rev-parse HEAD)
+  id=$(run_for_commit "$TAP" test.yml main "$sha")
+  say "Checking $TAP at $sha: https://github.com/$TAP/actions/runs/$id"
+  gh run watch "$id" -R "$TAP" --exit-status || die "inspect tap CI with gh run view $id -R $TAP --log-failed; fix the tap or rerun failed jobs, then re-run bin/release publish"
+  say "Published $tag to $TAP"
+)
+
 cmd_publish() {
   local v draft
   v=$(version)
+  tap_access_ok
   cmd_verify
   draft=$(gh release view "v$v" -R "$REPO" --json isDraft -q .isDraft)
   cmd_hackage_publish
@@ -402,6 +440,7 @@ cmd_publish() {
   done
   gh release verify "v$v" -R "$REPO" || die "v$v is published but has no release attestation"
   gh release view "v$v" -R "$REPO" --json url -q .url
+  update_homebrew_tap
 }
 
 case "${1:-}" in
