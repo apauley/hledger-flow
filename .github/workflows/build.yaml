@@ -203,7 +203,19 @@ jobs:
         run: |
           stack test --interleaved-output
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          stack install hledger-flow shelltestrunner --local-bin-path dist
+          stack install shelltestrunner --local-bin-path dist
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $version = ((Select-String '^version: (\S+)$' package.yaml).Matches.Groups[1]).Value
+          "HLEDGER_FLOW_VERSION=$version" >> $env:GITHUB_ENV
+          $parts = @($version.Split('.'))
+          while ($parts.Count -lt 4) { $parts += '0' }
+          $ghc = stack path --compiler-exe
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $windres = Join-Path (Split-Path (Split-Path $ghc)) 'mingw/bin/windres.exe'
+          & $windres "-DNUMERIC_VERSION=$($parts -join ',')" "-DVERSION_STRING=`"$version`"" -i bin/windows-version.rc -o dist/version.o -O coff
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          # Relink even if the Stack cache contains a build without this resource.
+          stack install hledger-flow --force-dirty --ghc-options="-fforce-recomp -optldist/version.o" --local-bin-path dist
 
       - name: Test native Windows CLI scenarios with Git Bash
         shell: bash
@@ -215,11 +227,17 @@ jobs:
 
       - name: Package Windows binary
         run: |
-          Compress-Archive -LiteralPath dist/hledger-flow.exe -DestinationPath dist/hledger-flow-windows-x64.zip
+          Compress-Archive -LiteralPath dist/hledger-flow.exe,QUICKSTART.md -DestinationPath dist/hledger-flow-windows-x64.zip
 
       - name: Smoke-test packaged Windows binary
         run: |
           Expand-Archive -LiteralPath dist/hledger-flow-windows-x64.zip -DestinationPath tmp/windows-release
+          if (!(Test-Path -LiteralPath tmp/windows-release/QUICKSTART.md)) { throw 'Quick-start missing from release ZIP' }
+          $info = (Get-Item tmp/windows-release/hledger-flow.exe).VersionInfo
+          $expected = $env:HLEDGER_FLOW_VERSION
+          if ($info.ProductName -ne 'hledger-flow' -or $info.ProductVersion -ne $expected -or $info.FileVersion -ne $expected) {
+            throw "Incorrect version metadata: $info"
+          }
           # Check that the release runs without Stack or GHC on PATH.
           $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot"
           ./tmp/windows-release/hledger-flow.exe --help
@@ -436,6 +454,7 @@ jobs:
           for platform in linux-x64 linux-arm64 macos-x64 macos-arm64; do
             archive="hledger-flow-${platform}.tar"
             test "$(tar -tf "$archive")" = hledger-flow
+            tar -rf "$archive" -C .. QUICKSTART.md
             gzip "$archive"
           done
 

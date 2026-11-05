@@ -70,6 +70,9 @@ Otherwise download [the latest release](https://github.com/apauley/hledger-flow/
 
 On Mac you may see a warning.
 
+The [quick-start](QUICKSTART.md) covers installation, download verification,
+and your first import on Windows, macOS, and Linux. It ships in each binary archive.
+
 Install `hledger` separately and ensure it is on `PATH`, or supply
 `--hledger-path`. Account-specific `preprocess` and `construct` scripts need
 an available interpreter; on Windows, Unix shell scripts may need adapting.
