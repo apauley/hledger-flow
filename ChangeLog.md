@@ -28,6 +28,8 @@ How to keep this ChangeLog
   existing destination belongs in release-procedure.md.
 -->
 
+## Unreleased
+
 ## 0.18.0
 
 - If you keep handwritten transactions in a journal under `3-journal`
