@@ -6,7 +6,9 @@ module Common.Integration (tests) where
 
 import Control.Concurrent.MVar (newEmptyMVar, putMVar, takeMVar, tryTakeMVar)
 import Control.Concurrent.STM (atomically, newTChanIO, tryReadTChan)
-import qualified Data.List as List (sort)
+import Control.Exception (bracket)
+import Control.Monad (forM_, unless)
+import qualified Data.List as List (intercalate, isInfixOf, sort)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import Data.Time.Clock (UTCTime(..), addUTCTime, secondsToDiffTime)
@@ -18,11 +20,63 @@ import Hledger.Flow.Types (LogMessage (StdErr))
 import qualified Path
 import qualified Path.IO as PathIO
 import System.Directory (doesFileExist)
+import qualified System.Directory as Directory
+import System.Environment (lookupEnv, setEnv, unsetEnv)
+import System.IO.Error (tryIOError)
+import qualified System.Info as Sys
 import System.Timeout (timeout)
 import Test.HUnit
 import TestHelpers (defaultOpts, withTestDir)
 import TestHelpersTurtle
-import System.FilePath ((</>), normalise)
+import System.FilePath ((</>), normalise, searchPathSeparator)
+
+-- HUnit runs these cases sequentially; restore process-wide PATH even on failure.
+withSearchPath :: [FilePath] -> IO a -> IO a
+withSearchPath dirs action = bracket (lookupEnv "PATH") restore $ \_ -> do
+  setEnv "PATH" (List.intercalate [searchPathSeparator] dirs)
+  action
+  where
+    restore = maybe (unsetEnv "PATH") (setEnv "PATH")
+
+testHledgerLookup :: Test
+testHledgerLookup = TestLabel "hledger executable lookup" $ TestCase $ withTestDir $ \base -> do
+  let root = Path.toFilePath base
+      name = "hledger" ++ Directory.exeExtension
+      first = root </> "first bin" </> name
+      second = root </> "second" </> name
+      check dirs expected = withSearchPath dirs $ do
+        result <- tryIOError (hledgerPathFromOption Nothing)
+        case result of
+          Left err -> assertFailure ("lookup in " ++ show dirs ++ ": " ++ show err)
+          Right actual -> do
+            expectedPath <- Directory.canonicalizePath expected
+            assertEqual ("lookup in " ++ show dirs) expectedPath (Path.toFilePath actual)
+  forM_ (["first bin", "second", "work", "empty"] :: [FilePath]) $ \dir ->
+    Directory.createDirectory (root </> dir)
+  forM_ ([first, second] :: [FilePath]) $ \file -> do
+    writeFile file ""
+    perms <- Directory.getPermissions file
+    Directory.setPermissions file (Directory.setOwnerExecutable True perms)
+  Directory.withCurrentDirectory root $ do
+    check ["first bin"] first
+    check [root </> "first bin"] first
+    check ["first bin", root </> "second"] first
+    check ["second", "first bin"] second
+    Directory.withCurrentDirectory (root </> "first bin") $ check ["."] first
+    Directory.withCurrentDirectory (root </> "work") $ check [".." </> "first bin"] first
+    withSearchPath ["second"] $ do
+      actual <- hledgerPathFromOption (Just first)
+      assertEqual "explicit path overrides PATH" first (Path.toFilePath actual)
+    withSearchPath ["empty"] $ do
+      result <- tryIOError (hledgerPathFromOption Nothing)
+      case result of
+        Left err -> assertBool "missing executable diagnostic"
+          ("Unable to find hledger" `List.isInfixOf` show err)
+        Right actual -> assertFailure ("unexpected executable: " ++ show actual)
+    -- Windows symlinks require privileges; .exe lookup above runs on every OS.
+    unless (Sys.os == "mingw32") $ do
+      Directory.createFileLink ("first bin" </> name) (root </> name)
+      check ["."] first
 
 testHiddenFiles :: Test
 testHiddenFiles = TestCase $ withTestDir $ \base -> do
@@ -119,4 +173,4 @@ testBatchOrder = TestCase $ do
   assertEqual "preserve input order across parallel batches" (Just [0, 1, 2, 3]) result
 
 tests :: Test
-tests = TestList [testHiddenFiles, testFilterPaths, testFirstExistingFile, testVerboseTestFile, testNeedsRegeneration, testBatchOrder]
+tests = TestList [testHledgerLookup, testHiddenFiles, testFilterPaths, testFirstExistingFile, testVerboseTestFile, testNeedsRegeneration, testBatchOrder]

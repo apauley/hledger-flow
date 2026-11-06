@@ -43,6 +43,9 @@ How to keep this ChangeLog
 - Owner reports now load `directives.journal` when present, so custom account
   types and currency formatting apply to individual owners as well as combined
   reports. Fixes [#112](https://github.com/apauley/hledger-flow/issues/112).
+- Imports and reports now find `hledger` through relative `PATH` entries
+  such as `.` and `../bin`, including symlinked executables.
+  Fixes [#95](https://github.com/apauley/hledger-flow/issues/95).
 - Windows imports and reports now use UTF-8, including for account names
   such as `Morgan’s Current`. If your CSV statements use a legacy encoding,
   specify it in their rules file. Run `chcp 65001` before using standalone

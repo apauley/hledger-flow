@@ -52,9 +52,10 @@ hledgerPathFromOption pathOption = do
           let msg = "Unable to find hledger at " <> T.pack h
           errExit' 1 (T.hPutStrLn H.stderr) msg hlAbs
     Nothing -> do
-      maybeH <- Path.findExecutable [relfile|hledger|]
+      maybeH <- Directory.findExecutable "hledger"
       case maybeH of
-        Just h -> return h
+        -- Relative PATH entries can produce relative executable paths.
+        Just h -> Path.resolveFile' h
         Nothing -> do
           let msg =
                 "Unable to find hledger in your path.\n"
