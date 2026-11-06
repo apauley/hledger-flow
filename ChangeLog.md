@@ -28,7 +28,7 @@ How to keep this ChangeLog
   existing destination belongs in release-procedure.md.
 -->
 
-## Unreleased
+## 0.18.0
 
 - If you keep handwritten transactions in a journal under `3-journal`
   without a matching input in `1-in`, move them to `_manual_`. `import`
