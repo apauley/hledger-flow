@@ -87,6 +87,9 @@ to regenerate its outputs, or recover handwritten transactions from a
 trashed journal into `_manual_`. Restoring just the generated file without
 its input will cause it to be retired again.
 
+If you keep your base directory in Git, add `.trash/` to your `.gitignore`
+so retired outputs stay out of version control.
+
 Trash moves use an account-local `.trash/.move-lock` directory to prevent
 concurrent imports from overwriting recovery files. If an interrupted
 process leaves this lock behind, the error explains how to remove the

@@ -4,11 +4,12 @@
 How to keep this ChangeLog
 
 - During development, keep "## Unreleased" first and leave it empty until
-  something changes for someone installing, building or using hledger-flow
-  or its library. Add or update the entry in the same commit as the change.
+  something changes for someone installing, building or running the
+  hledger-flow executable. Add or update the entry in the same commit as
+  the change.
 - Say what users can now do, what behaves differently or what action they
-  need to take. Name the affected platform, command, option, file, output
-  or library API when it helps readers recognise the change.
+  need to take. Name the affected platform, command, option, file or output
+  when it helps readers recognise the change.
 - Keep each entry brief. Put commands and step-by-step instructions in the
   relevant guide. Link directly to that section when readers need details.
   Use a full URL so the link also works in the GitHub release notes.
@@ -20,51 +21,51 @@ How to keep this ChangeLog
   2. New features and capabilities.
   3. Behaviour changes and fixes, the most noticeable first.
   4. Build, packaging and dependency changes.
-- Skip changes that affect only maintainers, such as refactoring, test
-  infrastructure, CI or release automation. A new Windows download belongs
+- Skip changes that affect only maintainers, such as refactoring, changes
+  to the internal Haskell API, test infrastructure, CI or release automation.
+  hledger-flow supports only users who run the executable, not library users. A new Windows download belongs
   here because Windows users can install it. Automating publication to an
   existing destination belongs in release-procedure.md.
 -->
 
 ## Unreleased
 
-- Library users: replace the retired `findInputFiles`/`findJournalFiles` and
-  path-rewriting helpers with `Hledger.Flow.Import.Inventory`. Use
-  `groupIncludesUpTo` and `writeIncludesFromInventory` instead of the old
-  `groupIncludeFiles`/`groupAndWriteIncludeFiles`/`writeIncludesUpTo` path.
-  The unused recursive-discovery helpers in `Hledger.Flow.PathHelpers`
-  and `allYearIncludeFiles` have also been removed.
-- Commands printed in reports now preserve apostrophes and shell-special
-  characters in filenames when replayed in a POSIX shell or Git Bash.
-- Parallel imports and reports now stop the current batch when any task
-  fails, even if an earlier task is still waiting on an external command.
-- `import` now treats `1-in` as the sole source of generated files. After
+- If you keep handwritten transactions in a journal under `3-journal`
+  without a matching input in `1-in`, move them to `_manual_`. `import`
+  now treats `1-in` as the sole source of generated files. After
   successful conversion, orphaned preprocessed CSVs and journals in the
   selected account/year scope move to `.trash` instead of being counted
-  again after an input is renamed or removed. Journals without inputs are
-  excluded from the ledger; keep handwritten transactions in `_manual_`.
-  See [generated files and recovery](https://github.com/apauley/hledger-flow/blob/master/docs/README.md#generated-files-and-recovery).
+  again after an input is renamed or removed. Add `.trash/` to your
+  `.gitignore`. See [generated files and recovery](https://github.com/apauley/hledger-flow/blob/master/docs/README.md#generated-files-and-recovery).
   Fixes [#108](https://github.com/apauley/hledger-flow/issues/108).
+- Windows imports and reports now use UTF-8, including for account names
+  such as `Morgan’s Current`. If your CSV statements use a legacy encoding,
+  specify it in their rules file. Run `chcp 65001` before using standalone
+  `hledger` to read the generated journals on Windows.
+- You can now install hledger-flow on macOS and Linux with [Homebrew](https://github.com/apauley/hledger-flow/blob/master/README.md#install-with-homebrew).
+  Each binary archive now includes a [quick-start](https://github.com/apauley/hledger-flow/blob/master/QUICKSTART.md)
+  covering installation, download verification and a first import.
+- Windows imports now run `preprocess.ps1` and `construct.ps1` directly
+  with PowerShell. Native hooks can use `preprocess.exe` and `construct.exe`.
+  Existing extensionless hooks take precedence. See
+  [Windows import hooks](https://github.com/apauley/hledger-flow/blob/master/docs/README.md#windows-import-hooks).
 - Manual-only years and ledgers now get include files without dummy inputs,
   including `_manual_` files at the import, owner, bank, and account levels.
   Fixes [#103](https://github.com/apauley/hledger-flow/issues/103).
-- Imports reject input filenames that produce the same generated output
-  before converting or moving files.
 - Owner reports now load `directives.journal` when present, so custom account
   types and currency formatting apply to individual owners as well as combined
   reports. Fixes [#112](https://github.com/apauley/hledger-flow/issues/112).
 - Imports and reports now find `hledger` through relative `PATH` entries
   such as `.` and `../bin`, including symlinked executables.
   Fixes [#95](https://github.com/apauley/hledger-flow/issues/95).
-- Windows imports and reports now use UTF-8, including for account names
-  such as `Morgan’s Current`. If your CSV statements use a legacy encoding,
-  specify it in their rules file. Run `chcp 65001` before using standalone
-  `hledger` to read the generated journals on Windows.
-- Windows imports now run `preprocess.ps1` and `construct.ps1` directly
-  with PowerShell. Native hooks can use `preprocess.exe` and `construct.exe`.
-  Existing extensionless hooks take precedence. See
-  [Windows import hooks](https://github.com/apauley/hledger-flow/blob/master/docs/README.md#windows-import-hooks).
-- You can now install hledger-flow on macOS and Linux with [Homebrew](https://github.com/apauley/hledger-flow/blob/master/README.md#install-with-homebrew).
+- Imports reject input filenames that produce the same generated output
+  before converting or moving files.
+- Parallel imports and reports now stop the current batch when any task
+  fails, even if an earlier task is still waiting on an external command.
+- Commands printed in reports now preserve apostrophes and shell-special
+  characters in filenames when replayed in a POSIX shell or Git Bash.
+- The Windows executable now shows its product name and version in its
+  file properties.
 
 ## 0.17.0
 
