@@ -28,13 +28,13 @@ import System.Environment (lookupEnv)
 import Prelude hiding (putStrLn, readFile, writeFile)
 
 data ReportParams = ReportParams
-  { ledgerFile :: FilePath,
+  { ledgerFiles :: [FilePath],
     reportYears :: [Integer],
     outputDir :: AbsDir
   }
   deriving (Show)
 
-type ReportGenerator = RuntimeOptions -> TChan FlowTypes.LogMessage -> FilePath -> AbsDir -> Integer -> IO (Either AbsFile AbsFile)
+type ReportGenerator = RuntimeOptions -> TChan FlowTypes.LogMessage -> [FilePath] -> AbsDir -> Integer -> IO (Either AbsFile AbsFile)
 
 generateReports :: RuntimeOptions -> IO ()
 generateReports opts = withConsoleLogging $ \ch -> do
@@ -63,7 +63,7 @@ generateReports' opts ch = do
   aggregateYears <- includeYears ch journalWithYears
   let aggregateParams =
         ReportParams
-          { ledgerFile = hledgerJournal,
+          { ledgerFiles = [hledgerJournal],
             reportYears = aggregateYears,
             outputDir = aggregateReportDir
           }
@@ -76,50 +76,52 @@ generateReports' opts ch = do
   parAwareActions opts (aggregateOnlyReports ++ ownerWithAggregateReports ++ ownerOnlyReports)
 
 reportActions :: RuntimeOptions -> TChan FlowTypes.LogMessage -> [ReportGenerator] -> ReportParams -> [IO (Either AbsFile AbsFile)]
-reportActions opts ch reports (ReportParams journal years reportsDir) = do
+reportActions opts ch reports (ReportParams journals years reportsDir) = do
   y <- years
-  map (\r -> r opts ch journal reportsDir y) reports
+  map (\r -> r opts ch journals reportsDir y) reports
 
 accountList :: ReportGenerator
-accountList opts ch journal baseOutDir year = do
+accountList opts ch journals baseOutDir year = do
   let reportArgs = ["accounts"]
-  generateReport opts ch journal year baseOutDir [relfile|accounts.txt|] reportArgs (not . T.null)
+  generateReport opts ch journals year baseOutDir [relfile|accounts.txt|] reportArgs (not . T.null)
 
 unknownTransactions :: ReportGenerator
-unknownTransactions opts ch journal baseOutDir year = do
+unknownTransactions opts ch journals baseOutDir year = do
   let reportArgs = ["print", "unknown"]
-  generateReport opts ch journal year baseOutDir [relfile|unknown-transactions.txt|] reportArgs (not . T.null)
+  generateReport opts ch journals year baseOutDir [relfile|unknown-transactions.txt|] reportArgs (not . T.null)
 
 incomeStatement :: [T.Text] -> ReportGenerator
-incomeStatement sharedOptions opts ch journal baseOutDir year = do
+incomeStatement sharedOptions opts ch journals baseOutDir year = do
   let reportArgs = ["incomestatement"] ++ sharedOptions
-  generateReport opts ch journal year baseOutDir [relfile|income-expenses.txt|] reportArgs (not . T.null)
+  generateReport opts ch journals year baseOutDir [relfile|income-expenses.txt|] reportArgs (not . T.null)
 
 incomeMonthlyStatement :: [T.Text] -> ReportGenerator
-incomeMonthlyStatement sharedOptions opts ch journal baseOutDir year = do
+incomeMonthlyStatement sharedOptions opts ch journals baseOutDir year = do
   let reportArgs = ["incomestatement"] ++ sharedOptions ++ ["--monthly"]
-  generateReport opts ch journal year baseOutDir [relfile|monthly/income-expenses.txt|] reportArgs (not . T.null)
+  generateReport opts ch journals year baseOutDir [relfile|monthly/income-expenses.txt|] reportArgs (not . T.null)
 
 balanceSheet :: [T.Text] -> ReportGenerator
-balanceSheet sharedOptions opts ch journal baseOutDir year = do
+balanceSheet sharedOptions opts ch journals baseOutDir year = do
   let reportArgs = ["balancesheet"] ++ sharedOptions ++ ["--flat"]
-  generateReport opts ch journal year baseOutDir [relfile|balance-sheet.txt|] reportArgs (not . T.null)
+  generateReport opts ch journals year baseOutDir [relfile|balance-sheet.txt|] reportArgs (not . T.null)
 
 transferBalance :: ReportGenerator
-transferBalance opts ch journal baseOutDir year = do
+transferBalance opts ch journals baseOutDir year = do
   let reportArgs = ["balance"] ++ (if prettyReports opts then ["--pretty-tables"] else []) ++ ["--quarterly", "--flat", "--no-total", "transfer"]
-  generateReport opts ch journal year baseOutDir [relfile|transfer-balance.txt|] reportArgs (\txt -> (length $ T.lines txt) > 4)
+  generateReport opts ch journals year baseOutDir [relfile|transfer-balance.txt|] reportArgs (\txt -> (length $ T.lines txt) > 4)
 
-generateReport :: RuntimeOptions -> TChan FlowTypes.LogMessage -> FilePath -> Integer -> AbsDir -> RelFile -> [T.Text] -> (T.Text -> Bool) -> IO (Either AbsFile AbsFile)
-generateReport opts ch journal year reportsDir fileName args successCheck = do
+generateReport :: RuntimeOptions -> TChan FlowTypes.LogMessage -> [FilePath] -> Integer -> AbsDir -> RelFile -> [T.Text] -> (T.Text -> Bool) -> IO (Either AbsFile AbsFile)
+generateReport opts ch journals year reportsDir fileName args successCheck = do
   yearDir <- parseRelDir (show year)
   let outputFile = reportsDir </> yearDir </> fileName
   PathIO.createDirIfMissing True (parent outputFile)
-  let relativeJournal = relativeToBase opts journal
+  let relativeJournals = map (relativeToBase opts) journals
   let relativeOutputFile = relativeToBase opts (toFilePath outputFile)
   let confArgs = hledgerConfArgs opts
-  let reportArgs = confArgs ++ ["--file", T.pack journal, "--period", T.pack (show year)] ++ args
-  let reportDisplayArgs = confArgs ++ ["--file", T.pack relativeJournal, "--period", T.pack (show year)] ++ args
+  let fileArgs = concatMap (\file -> ["--file", T.pack file])
+  let periodArgs = ["--period", T.pack (show year)]
+  let reportArgs = confArgs ++ fileArgs journals ++ periodArgs ++ args
+  let reportDisplayArgs = confArgs ++ fileArgs relativeJournals ++ periodArgs ++ args
   let hledger = T.pack (toFilePath (FlowTypes.hlPath (hledgerInfo opts)))
   let cmdLabel = "hledger " <> showCmdArgs reportDisplayArgs
   ((exitCode, stdOut, _), _) <- timeAndExitOnErr opts ch cmdLabel dummyLogger channelErr (hledger, reportArgs, Nothing)
@@ -144,4 +146,7 @@ ownerParameters' opts ch owner = do
   let ownerJournal = baseDir opts </> [reldir|import|] </> owner </> [relfile|all-years.journal|]
       reportsDir = baseDir opts </> [reldir|reports|] </> owner
   years <- includeYears ch ownerJournal
-  return $ ReportParams (toFilePath ownerJournal) years reportsDir
+  let directives = directivesFile opts
+  directivesExist <- PathIO.doesFileExist directives
+  let journals = [toFilePath directives | directivesExist] ++ [toFilePath ownerJournal]
+  return $ ReportParams journals years reportsDir

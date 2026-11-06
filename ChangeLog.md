@@ -40,6 +40,9 @@ How to keep this ChangeLog
   Fixes [#103](https://github.com/apauley/hledger-flow/issues/103).
 - Imports reject input filenames that produce the same generated output
   before converting or moving files.
+- Owner reports now load `directives.journal` when present, so custom account
+  types and currency formatting apply to individual owners as well as combined
+  reports. Fixes [#112](https://github.com/apauley/hledger-flow/issues/112).
 - Windows imports and reports now use UTF-8, including for account names
   such as `Morgan’s Current`. If your CSV statements use a legacy encoding,
   specify it in their rules file. Run `chcp 65001` before using standalone

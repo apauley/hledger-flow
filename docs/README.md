@@ -323,6 +323,9 @@ cat all-years.journal
     include directives.journal
     include import/all-years.journal
 
+The `report` command also loads this file for each owner's reports, so account
+types and commodity formatting apply even when reporting on one owner alone.
+
 ## Windows import hooks
 
 In the account directory, Windows checks each hook name in this order:
