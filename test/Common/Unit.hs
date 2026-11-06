@@ -10,6 +10,7 @@ import Hledger.Flow.DocHelpers (docURL)
 import Hledger.Flow.RuntimeOptions (RuntimeOptions (hledgerConf))
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
+import qualified Data.Text as T
 import Path ((</>), reldir)
 import Test.HUnit
 import TestHelpers (defaultOpts, testRoot)
@@ -29,6 +30,16 @@ testShowCmdArgs =
         let expected = "--number '/tmp/file with spaces'"
         let actual = showCmdArgs opts
         assertEqual "Convert command-line arguments to text" expected actual
+        mapM_ (\(arg, quoted) -> assertEqual ("Quote literal argument " ++ show arg) quoted (escapeArg arg))
+          ([ ("", "''"),
+            ("Morgan's Saturday", "'Morgan'\"'\"'s Saturday'"),
+            ("O'Brien", "'O'\"'\"'Brien'"),
+            ("$(echo injected);*", "'$(echo injected);*'"),
+            ("a\tb\nc", "'a\tb\nc'"),
+            ("a\"b", "'a\"b'"),
+            ("a\\b", "'a\\b'"),
+            ("--file=import/2016-include.journal", "--file=import/2016-include.journal")
+          ] :: [(T.Text, T.Text)])
     )
 
 testHledgerConfArgs :: Test
@@ -98,31 +109,6 @@ testExtractDigits =
         assertEqual "Extract digits from text 2" expected2 actual2
     )
 
-testChangePathAndExtension :: Test
-testChangePathAndExtension =
-  TestCase
-    ( do
-        let src1 = "import/john/bank/acc/1-in/2018/2018-06-30.csv"
-        let expected1 = "import/john/bank/acc/3-journal/2018/2018-06-30.journal"
-        let actual1 = changePathAndExtension "3-journal/" "journal" src1
-        assertEqual "Change 1-in to 3-journal and extension" expected1 actual1
-
-        let src2 = "import/john/bank/acc/2-preprocessed/2018/2018-06-30.csv"
-        let expected2 = "import/john/bank/acc/3-journal/2018/2018-06-30.journal"
-        let actual2 = changePathAndExtension "3-journal/" "journal" src2
-        assertEqual "Change 2-preprocessed to 3-journal and extension" expected2 actual2
-
-        let src3 = "import/john/bank/acc/3-journal/2018/2018-06-30.csv"
-        let expected3 = "import/john/bank/acc/3-journal/2018/2018-06-30.journal"
-        let actual3 = changePathAndExtension "3-journal/" "journal" src3
-        assertEqual "Leave other directories intact, only change extension" expected3 actual3
-
-        let nativeInput = FilePath.joinPath ["import", "john", "bank", "acc", "1-in", "2018", "statement.csv"]
-        let nativeExpected = FilePath.joinPath ["import", "john", "bank", "acc", "3-journal", "2018", "statement.journal"]
-        assertEqual "Change the input directory with native path separators" nativeExpected
-          (FilePath.normalise $ changePathAndExtension "3-journal/" "journal" nativeInput)
-    )
-
 testGroupValuesBy :: Test
 testGroupValuesBy =
   TestCase
@@ -135,4 +121,4 @@ testGroupValuesBy =
     )
 
 tests :: Test
-tests = TestList [testDocURL, testShowCmdArgs, testHledgerConfArgs, testRelativeToBase, testExtractDigits, testChangePathAndExtension, testGroupValuesBy]
+tests = TestList [testDocURL, testShowCmdArgs, testHledgerConfArgs, testRelativeToBase, testExtractDigits, testGroupValuesBy]

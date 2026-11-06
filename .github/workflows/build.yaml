@@ -128,14 +128,14 @@ jobs:
         if: ${{ steps.global-variables.outputs.platform != 'linux-arm64' }}
         run: |
           stack build shelltestrunner
-          stack exec -- shelltest test/shell
+          stack exec -- shelltest --timeout=120 test/shell
 
       - name: Check hledger-flow info
         run: |
-          ~/.local/bin/hledger-flow --help && \
-          ~/.local/bin/hledger-flow --version && \
+          ~/.local/bin/hledger-flow --help
+          ~/.local/bin/hledger-flow --version
           # Check hledger-flow binary exists & its dynamically linked
-          file ~/.local/bin/hledger-flow && \
+          file ~/.local/bin/hledger-flow
           # List hledger-flow shared object dependencies - should be dynamic
           ldd ~/.local/bin/hledger-flow || true
 
@@ -223,7 +223,7 @@ jobs:
           export PATH="$PWD/dist:$PATH"
           hledger --version
           ./dist/hledger-flow.exe --version
-          shelltest --shell=sh --exclude=posix-preprocess.test test/shell test/windows
+          shelltest --timeout=120 --shell=sh --exclude=posix-preprocess.test test/shell test/windows
 
       - name: Package Windows binary
         run: |

@@ -24,3 +24,8 @@ flow() {
         return "$status"
     }
 }
+
+# Ignore table padding and Windows line endings, but preserve complete values.
+report_row() {
+    awk -v account="$2" '{ sub(/\r$/, ""); if ($1 == account) { $1=$1; print } }' "$1"
+}

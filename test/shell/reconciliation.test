@@ -80,6 +80,34 @@ test ! -e "$account/.trash"
 cmp before.journal import/2016-include.journal
 $ sh -eu
 
+# A successful earlier batch cannot trigger reconciliation after a later conversion fails.
+<
+. ./test/shell/setup.sh
+flow import
+cp "$journal" good.journal
+cp import/2016-include.journal old-year.journal
+cp "$account/2016-include.journal" old-account.journal
+cp all-years.journal old-root.journal
+rm "$inbox/march.csv"
+printf '%s\n' '2016-03-02,Success before failure,-7' > "$inbox/a-success.csv"
+printf '%s\n' 'not-a-date,Broken statement,-9' > "$inbox/z-failure.csv"
+if hledger-flow --batch-size 1 import > failure.log 2>&1; then exit 1; fi
+grep -q 'z-failure.csv' failure.log
+hledger -f "$account/3-journal/2016/a-success.journal" descriptions
+cmp good.journal "$journal"
+cmp old-year.journal import/2016-include.journal
+cmp old-account.journal "$account/2016-include.journal"
+cmp old-root.journal all-years.journal
+test ! -e "$account/.trash"
+test ! -e "$account/3-journal/2016/z-failure.journal"
+printf '%s\n' '2016-03-03,Repaired statement,-9' > "$inbox/z-failure.csv"
+flow --batch-size 2 import --new-files-only
+cmp good.journal "$account/.trash/2016/3-journal/march.journal"
+hledger -f all-years.journal balance expenses --flat --no-total --format '%(total)'
+$ sh -eu
+Success before failure
+16
+
 # Colliding source names fail before any conversion or retirement.
 <
 . ./test/shell/setup.sh

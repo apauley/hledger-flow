@@ -43,7 +43,7 @@ assertDetermineBaseDir initialPwd expectedBaseDir subDir = do
 assertFindTestFileUsingRundir :: BaseDir -> RunDir -> IO ()
 assertFindTestFileUsingRundir baseDir runDir = do
   let absRunDir = baseDir </> runDir
-  foundFiles <- findFilesIn (const True) [] absRunDir
+  (_, foundFiles) <- listDirRecur absRunDir
   case filter ((== [relfile|test-file.txt|]) . filename) foundFiles of
     (found : _) -> do
       fileContents <- T.readFile (toFilePath found)

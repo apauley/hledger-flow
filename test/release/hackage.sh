@@ -3,7 +3,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 work=$(mktemp -d)
-trap 'rm -rf "$work"' EXIT
+trap 'status=$?; if [ "$status" -ne 0 ] && [ -f "$work/result" ]; then cat "$work/result" >&2; fi; rm -rf "$work"' EXIT
 mkdir -p "$work/bin" "$work/mock"
 cp bin/release bin/update-homebrew-formula.py "$work/bin/"
 printf 'version: 1.2.3\n' > "$work/package.yaml"

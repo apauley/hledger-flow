@@ -6,7 +6,6 @@ import Control.Monad.Catch (Exception, MonadThrow, throwM)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import qualified Data.Text as T
 import Hledger.Flow.DocHelpers (docURL)
-import Path ((</>))
 import qualified Path
 import qualified Path.IO as Path
 import System.Directory (doesDirectoryExist)
@@ -64,33 +63,3 @@ pathSize p = pathSize' p 0
 
 pathSize' :: Path.Path b Path.Dir -> Int -> Int
 pathSize' p count = if Path.parent p == p then count else pathSize' (Path.parent p) (count + 1)
-
--- | Do a recursive search starting from the given directory.
--- Return all files contained in each directory which matches the given predicate.
-findFilesIn ::
-  (MonadIO m) =>
-  -- | Do we want the files in this directory?
-  (AbsDir -> Bool) ->
-  -- | Exclude these directory names
-  [RelDir] ->
-  -- | Top of the search tree
-  AbsDir ->
-  -- | Absolute paths to all files in the directories which match the predicate
-  m [AbsFile]
-findFilesIn includePred excludeDirs = findFilesInWith includePred (const excludeDirs)
-
-findFilesInWith :: MonadIO m => (AbsDir -> Bool) -> (AbsDir -> [RelDir]) -> AbsDir -> m [AbsFile]
-findFilesInWith includePred excludeDirs = Path.walkDirAccum (Just excludeHandler) accumulator
-  where
-    excludeHandler currentDir _ _ = return $ Path.WalkExclude (map (currentDir </>) (excludeDirs currentDir))
-    accumulator currentDir _ files =
-      if includePred currentDir
-        then return $ excludeHiddenFiles files
-        else return []
-
-excludeHiddenFiles :: [AbsFile] -> [AbsFile]
-excludeHiddenFiles = filter (not . isHiddenFile)
-  where
-    isHiddenFile f = case Path.toFilePath (Path.filename f) of
-      '.':_ -> True
-      _ -> False

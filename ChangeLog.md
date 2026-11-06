@@ -28,6 +28,16 @@ How to keep this ChangeLog
 
 ## Unreleased
 
+- Library users: replace the retired `findInputFiles`/`findJournalFiles` and
+  path-rewriting helpers with `Hledger.Flow.Import.Inventory`. Use
+  `groupIncludesUpTo` and `writeIncludesFromInventory` instead of the old
+  `groupIncludeFiles`/`groupAndWriteIncludeFiles`/`writeIncludesUpTo` path.
+  The unused recursive-discovery helpers in `Hledger.Flow.PathHelpers`
+  and `allYearIncludeFiles` have also been removed.
+- Commands printed in reports now preserve apostrophes and shell-special
+  characters in filenames when replayed in a POSIX shell or Git Bash.
+- Parallel imports and reports now stop the current batch when any task
+  fails, even if an earlier task is still waiting on an external command.
 - `import` now treats `1-in` as the sole source of generated files. After
   successful conversion, orphaned preprocessed CSVs and journals in the
   selected account/year scope move to `.trash` instead of being counted

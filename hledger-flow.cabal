@@ -97,7 +97,6 @@ test-suite hledger-flow-test
       ImportHelpers.Integration
       PathHelpers.Unit
       TestHelpers
-      TestHelpersTurtle
       Paths_hledger_flow
   hs-source-dirs:
       test

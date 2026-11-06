@@ -105,6 +105,20 @@ describes PowerShell scripts, native executables, and the order of discovery.
 
 ### Run the command-line scenarios
 
+For the complete local check, run `./bin/build-and-test` from Bash (Git Bash
+on Windows). It runs HUnit, builds this checkout and shelltestrunner, runs all
+CLI scenarios supported by the platform, runs the offline release checks,
+and installs hledger-flow only after everything passes. Put Stack, hledger,
+Git, jq and a working Python 3 command named `python3` on `PATH` first.
+The release checks use temporary repositories and fake services; they do not
+publish anything or need credentials.
+
+For a fast development check, `stack test` runs HUnit only. Keep exact path,
+include-ordering and concurrency checks there. Use shell scenarios for CLI
+options, real hledger results, reports, hooks, and recovery after failures.
+Each shell scenario has a 120-second timeout so a blocked child process fails
+the test rather than hanging the suite.
+
 The shelltest suite exercises imports and reports with real `hledger` and
 `hledger-flow` executables. Each scenario creates its own temporary finance
 directory. From the repository root on macOS or Linux, with `hledger` on
@@ -112,7 +126,7 @@ your `PATH`, run:
 
 ``` bash
 stack build hledger-flow shelltestrunner
-stack exec -- shelltest test/shell
+stack exec -- shelltest --timeout=120 test/shell
 ```
 
 On Windows, install the [latest upstream hledger release](https://hledger.org/get-hledger-installed.html) and put `hledger.exe`
@@ -122,7 +136,7 @@ from this checkout and run the same scenarios as Windows CI:
 ``` bash
 stack install hledger-flow shelltestrunner --local-bin-path dist
 export PATH="$PWD/dist:$PATH"
-shelltest --shell=sh --exclude=posix-preprocess.test test/shell test/windows
+shelltest --timeout=120 --shell=sh --exclude=posix-preprocess.test test/shell test/windows
 ```
 
 The Linux and macOS jobs exercise the `#!/bin/sh` hook. The Windows case

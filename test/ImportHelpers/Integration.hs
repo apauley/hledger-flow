@@ -6,11 +6,13 @@ module ImportHelpers.Integration (tests) where
 import qualified Data.List as List
 import Data.Either (isLeft)
 import qualified Data.Text.IO as T
-import Hledger.Flow.Import.ImportHelpers (findInputFiles, findJournalFiles, withStagedOutput)
-import Hledger.Flow.Import.Inventory (moveToTrash)
+import Hledger.Flow.Import.ImportHelpers (withStagedOutput)
+import Hledger.Flow.Import.Inventory
+import TestHelpers (withTestDir, touchAll)
 import Hledger.Flow.PathHelpers (AbsFile)
 import Path
 import Path.IO
+import qualified System.FilePath
 import System.IO.Error (tryIOError)
 import Test.HUnit
 
@@ -19,53 +21,43 @@ touchFile f = do
   createDirIfMissing True (parent f)
   T.writeFile (toFilePath f) "x"
 
-testFindInputFiles :: Test
-testFindInputFiles =
-  TestCase
-    ( do
-        cwd <- getCurrentDir
-        let tmpbase = cwd </> [reldir|test|] </> [reldir|tmp|]
-        createDirIfMissing True tmpbase
-        withTempDir tmpbase "hlflowtest" $ \tmpdir -> do
-          let file2018 = tmpdir </> [relfile|import/john/mybank/checking/1-in/2018/2018-01-01.csv|]
-          let file2019 = tmpdir </> [relfile|import/john/mybank/checking/1-in/2019/2019-01-01.csv|]
-          let file2020 = tmpdir </> [relfile|import/john/mybank/checking/1-in/2020/2020-01-01.csv|]
-          let hidden = tmpdir </> [relfile|import/john/mybank/checking/1-in/2019/.hidden.csv|]
-          let wrongYear = tmpdir </> [relfile|import/john/mybank/checking/1-in/20a0/20a0-01-01.csv|]
-          let nested = tmpdir </> [relfile|import/john/mybank/checking/1-in/2019/subdir/2019-02-01.csv|]
-          let preprocessed = tmpdir </> [relfile|import/john/mybank/checking/2-preprocessed/2019/pre.csv|]
-          let manual = tmpdir </> [relfile|import/john/_manual_/2019/manual.journal|]
-          let journal = tmpdir </> [relfile|import/john/mybank/checking/3-journal/2019/2019-01-01.journal|]
-
-          mapM_ touchFile [file2018, file2019, file2020, hidden, wrongYear, nested, preprocessed, manual, journal]
-
-          actual <- findInputFiles 2019 tmpdir
-          let expected = List.sort [file2019, file2020]
-          assertEqual "findInputFiles should return only year directories >= startYear, excluding hidden and excluded dirs" expected (List.sort actual)
-    )
-
-testFindJournalFiles :: Test
-testFindJournalFiles =
-  TestCase
-    ( do
-        cwd <- getCurrentDir
-        let tmpbase = cwd </> [reldir|test|] </> [reldir|tmp|]
-        createDirIfMissing True tmpbase
-        withTempDir tmpbase "hlflowtest" $ \tmpdir -> do
-          let journal2018 = tmpdir </> [relfile|import/john/mybank/checking/3-journal/2018/2018-01-01.journal|]
-          let journal2019 = tmpdir </> [relfile|import/john/mybank/checking/3-journal/2019/2019-01-01.journal|]
-          let hidden = tmpdir </> [relfile|import/john/mybank/checking/3-journal/2019/.hidden.journal|]
-          let wrongYear = tmpdir </> [relfile|import/john/mybank/checking/3-journal/20a0/20a0-01-01.journal|]
-          let nested = tmpdir </> [relfile|import/john/mybank/checking/3-journal/2019/subdir/2019-02-01.journal|]
-          let input = tmpdir </> [relfile|import/john/mybank/checking/1-in/2019/2019-01-01.csv|]
-          let preprocessed = tmpdir </> [relfile|import/john/mybank/checking/2-preprocessed/2019/pre.csv|]
-
-          mapM_ touchFile [journal2018, journal2019, hidden, wrongYear, nested, input, preprocessed]
-
-          actual <- findJournalFiles tmpdir
-          let expected = List.sort [journal2018, journal2019]
-          assertEqual "findJournalFiles should return only journal directory files, excluding hidden and excluded dirs" expected (List.sort actual)
-    )
+testInventory :: Test
+testInventory = TestLabel "active inventory discovery and scope" $ TestCase $ withTestDir $ \base -> do
+  let root = base </> [reldir|import|]
+      account = root </> [reldir|owner/bank/checking|]
+      inputs = [ "owner/bank/checking/1-in/2018/old.csv",
+                 "owner/bank/checking/1-in/2019/march.bank.txt",
+                 "owner/bank/checking/1-in/2020/new.csv",
+                 "2-preprocessed/3-journal/1-in/1-in/2019/reserved.csv" ]
+      others = [ "owner/bank/checking/2-preprocessed/2019/march.bank.csv",
+                 "owner/bank/checking/3-journal/2019/march.bank.journal",
+                 "owner/_manual_/2019/post-import.journal",
+                 "owner/bank/checking/1-in/20a0/bad.csv",
+                 "owner/bank/checking/1-in/20190/bad.csv",
+                 "owner/bank/checking/1-in/2019/nested/bad.csv" ]
+      hidden = [ "owner/bank/checking/1-in/2019/.hidden.csv",
+                 ".hidden/bank/account/1-in/2019/bad.csv",
+                 "owner/bank/checking/.trash/1-in/2019/bad.csv",
+                 "owner/bank/checking/1-in/__pycache__/2019/bad.csv" ]
+      absolute = (toFilePath root System.FilePath.</>)
+  touchAll (map absolute (inputs ++ others ++ hidden))
+  inventory <- findImportFiles root
+  expected <- mapM (parseAbsFile . absolute) (inputs ++ others)
+  assertEqual "exclude hidden files, hidden directories and Python cache" (List.sort expected) inventory
+  sources <- mapM (parseAbsFile . absolute) inputs
+  assertEqual "only direct children of a valid input year" (List.sort sources)
+    (stageFiles root [reldir|1-in|] inventory)
+  selected <- mapM (parseAbsFile . absolute) (take 2 (drop 1 inputs))
+  assertEqual "account scope and inclusive start year" selected
+    (filter (inImportScope account 2019) (stageFiles root [reldir|1-in|] inventory))
+  let source = account </> [relfile|1-in/2019/march.bank.txt|]
+  generatedOutput [reldir|2-preprocessed|] ".csv" source >>= assertEqual "keep earlier filename extensions"
+    (account </> [relfile|2-preprocessed/2019/march.bank.csv|])
+  generatedOutput [reldir|3-journal|] ".journal" source >>= assertEqual "journal destination"
+    (account </> [relfile|3-journal/2019/march.bank.journal|])
+  assertEqual "discover generated journals separately"
+    [account </> [relfile|3-journal/2019/march.bank.journal|]]
+    (stageFiles root [reldir|3-journal|] inventory)
 
 testStagedOutput :: Test
 testStagedOutput = TestCase $ withSystemTempDir "hlflow-output" $ \dir -> do
@@ -89,7 +81,7 @@ testStagedOutput = TestCase $ withSystemTempDir "hlflow-output" $ \dir -> do
   T.readFile (toFilePath target) >>= assertEqual "publish successful retry" "complete"
 
 tests :: Test
-tests = TestList [testFindInputFiles, testFindJournalFiles, testStagedOutput, testTrashLock]
+tests = TestList [testInventory, testStagedOutput, testTrashLock]
 
 testTrashLock :: Test
 testTrashLock = TestCase $ withSystemTempDir "hlflow-trash" $ \root -> do

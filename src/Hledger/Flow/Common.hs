@@ -6,9 +6,9 @@ module Hledger.Flow.Common where
 import Control.Concurrent (threadDelay)
 import Control.Monad (filterM, forM_, when)
 import Control.Monad.IO.Class (MonadIO, liftIO)
-import Control.Concurrent.Async (concurrently, wait, withAsync)
+import Control.Concurrent.Async (concurrently, mapConcurrently)
 import Control.Concurrent.STM
-import Data.Char (isDigit)
+import Data.Char (isAlphaNum, isAscii, isDigit)
 import Data.Either
 import Data.Function (on)
 import qualified Data.List as List (groupBy, isPrefixOf, isSuffixOf, null, sortBy)
@@ -19,7 +19,6 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import qualified Data.Text.Read as T
 import Data.Time.Clock.POSIX (utcTimeToPOSIXSeconds)
-import Foreign.Marshal.Utils (withMany)
 import qualified GHC.IO.Handle.FD as H
 import Hledger.Flow.DateTime (timeAction)
 import Hledger.Flow.BaseDir (relativeToBase)
@@ -92,7 +91,11 @@ showCmdArgs :: [T.Text] -> T.Text
 showCmdArgs args = T.intercalate " " (map escapeArg args)
 
 escapeArg :: T.Text -> T.Text
-escapeArg a = if T.count " " a > 0 then "'" <> a <> "'" else a
+escapeArg a
+  | not (T.null a) && T.all safe a = a
+  | otherwise = "'" <> T.replace "'" "'\"'\"'" a <> "'"
+  where
+    safe c = isAscii c && (isAlphaNum c || c `elem` ("-_./:=+,@%" :: String))
 
 errExit :: Int -> TChan LogMessage -> T.Text -> a -> IO a
 errExit exitStatus ch = errExit' exitStatus (channelErrLn ch)
@@ -198,8 +201,8 @@ parBatchedActions batch done todo
     runBatches [] = return []
     runBatches actions = do
       let (current, remaining) = splitAt batch actions
-      -- Start the whole batch, then collect results and exceptions in input order.
-      results <- withMany withAsync current (mapM wait)
+      -- Keep result order, but cancel the batch as soon as any action fails.
+      results <- mapConcurrently id current
       (results ++) <$> runBatches remaining
 
 verboseTestFile :: (HasVerbosity o, HasBaseDir o) => o -> TChan LogMessage -> AbsFile -> IO Bool
@@ -278,21 +281,6 @@ writeTextMap :: Map.Map FilePath T.Text -> IO ()
 writeTextMap files = forM_ (Map.toList files) $ \(path, contents) -> do
   current <- tryIOError (T.readFile path)
   when (either (const True) (/= contents) current) $ T.writeFile path contents
-
-changeExtension :: T.Text -> FilePath -> FilePath
-changeExtension ext path = (FilePath.dropExtension path) <.> (T.unpack ext)
-
-changePathAndExtension :: FilePath -> T.Text -> FilePath -> FilePath
-changePathAndExtension newOutputLocation newExt = (changeOutputPath newOutputLocation) . (changeExtension newExt)
-
-changeOutputPath :: FilePath -> FilePath -> FilePath
-changeOutputPath newOutputLocation = concatMap changeSrcDir . FilePath.splitPath
-  where
-    changeSrcDir "." = "./"
-    changeSrcDir ".." = "../"
-    changeSrcDir part
-      | FilePath.dropTrailingPathSeparator part `elem` ["1-in", "2-preprocessed"] = newOutputLocation
-      | otherwise = part
 
 listOwners :: HasBaseDir o => o -> IO [RelDir]
 listOwners opts = do

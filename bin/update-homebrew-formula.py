@@ -23,7 +23,7 @@ def update(tag, assets, license_bytes, tap):
     if not re.fullmatch(version_pattern, tag):
         raise ValueError(f"invalid release tag {tag!r}")
     formula = tap / "Formula/hledger-flow.rb"
-    text = formula.read_text()
+    text = formula.read_text(encoding="utf-8")
     tags = re.findall(r'^  tag = "' + version_pattern + r'"$', text, re.MULTILINE)
     if len(tags) != 1:
         raise ValueError("expected one release tag in the tap formula")
@@ -42,12 +42,13 @@ def update(tag, assets, license_bytes, tap):
                hashlib.sha256(license_bytes).hexdigest())
 
     readme = tap / "README.md"
-    docs = readme.read_text().replace(f"**hledger-flow {old}**", f"**hledger-flow {tag[1:]}**")
+    docs = readme.read_text(encoding="utf-8").replace(f"**hledger-flow {old}**", f"**hledger-flow {tag[1:]}**")
     upstream = "https://github.com/apauley/hledger-flow"
     docs = docs.replace(f"{upstream}/releases/tag/v{old})", f"{upstream}/releases/tag/{tag})")
     docs = docs.replace(f"{upstream}/blob/v{old}/LICENSE", f"{upstream}/blob/{tag}/LICENSE")
-    formula.write_text(text)
-    readme.write_text(docs)
+    # Keep repository text UTF-8 with LF even when the release runs on Windows.
+    formula.write_bytes(text.encode("utf-8"))
+    readme.write_bytes(docs.encode("utf-8"))
 
 
 if __name__ == "__main__":

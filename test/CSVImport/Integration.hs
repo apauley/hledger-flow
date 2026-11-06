@@ -4,10 +4,12 @@
 module CSVImport.Integration (tests) where
 
 import Control.Concurrent.STM
-import qualified Data.List as List (sort)
 import qualified Data.Map.Strict as Map
 import qualified Data.Text.IO as T
-import Hledger.Flow.Import.ImportHelpersTurtle (extraIncludesForFile, groupAndWriteIncludeFiles, includePreamble, toIncludeFiles, writeIncludesUpTo, writeToplevelAllYearsInclude)
+import Hledger.Flow.Import.ImportHelpersTurtle (extraIncludesForFile, includePreamble, toIncludeFiles, writeIncludesFromInventory, writeToplevelAllYearsInclude)
+import Hledger.Flow.Import.Inventory (findImportFiles)
+import Hledger.Flow.RuntimeOptions (RuntimeOptions)
+import Hledger.Flow.Types (LogMessage)
 import Hledger.Flow.PathHelpers
 import qualified Path
 import qualified Path.IO as PathIO
@@ -16,21 +18,23 @@ import System.IO.Error (tryIOError)
 import System.FilePath ((</>))
 import qualified System.FilePath as FilePath
 import Test.HUnit
-import TestHelpers (defaultOpts, withTestDir)
-import TestHelpersTurtle (extraFiles, hiddenFiles, journalFiles, touchAll)
+import TestHelpers (defaultOpts, withTestDir, touchAll)
 import Prelude hiding (readFile, writeFile)
+
+-- Refresh the inventory exactly as the CLI does before writing includes.
+writeIncludes :: RuntimeOptions -> TChan LogMessage -> AbsDir -> [AbsFile] -> IO [AbsFile]
+writeIncludes opts ch stopAt journals = do
+  inventory <- findImportFiles stopAt
+  writeIncludesFromInventory opts ch stopAt inventory journals
 
 testExtraIncludesForFile :: Test
 testExtraIncludesForFile =
   TestCase $ withTestDir $ \tmpdirAbsPath -> do
     let tmpdir = Path.toFilePath tmpdirAbsPath
 
-    let importedJournals = map (tmpdir </>) journalFiles :: [FilePath]
     let accountDir = "import/john/bogartbank/savings"
     let opening = tmpdir </> accountDir </> "2017-opening.journal"
     let closing = tmpdir </> accountDir </> "2017-closing.journal"
-    let hidden = map (tmpdir </>) hiddenFiles :: [FilePath]
-    touchAll $ importedJournals ++ hidden
 
     let accountInclude = tmpdir </> accountDir </> "2017-include.journal"
     let expectedEmpty = [(accountInclude, [])]
@@ -56,14 +60,13 @@ testExtraIncludesPrices =
   TestCase $ withTestDir $ \tmpdirAbsPath -> do
     let tmpdir = Path.toFilePath tmpdirAbsPath
 
-    let importedJournals = map (tmpdir </>) journalFiles :: [FilePath]
-    touchAll $ importedJournals
 
     let priceFile = "prices" </> "2020" </> "prices.journal"
 
     let includeFile = tmpdir </> "import" </> "2020-include.journal"
     let expectedEmpty = [(includeFile, [])]
 
+    Path.parseAbsDir (tmpdir </> "import") >>= PathIO.createDir
     ch <- newTChanIO
 
     price1 <- extraIncludesForFile (defaultOpts tmpdirAbsPath) ch includeFile [] [] ["prices.journal"]
@@ -156,112 +159,6 @@ testIncludesPrices =
     let expectedMap = Map.singleton includeFile expectedText
     assertEqual "The price file should be included together with any pre/post files" expectedMap fileMap
 
-testWriteIncludeFiles :: Test
-testWriteIncludeFiles =
-  TestCase $ withTestDir $ \tmpdirAbsPath -> do
-    let tmpdir = Path.toFilePath tmpdirAbsPath
-
-    let importedJournals = map (tmpdir </>) journalFiles :: [FilePath]
-    let extras = map (tmpdir </>) extraFiles :: [FilePath]
-    let hidden = map (tmpdir </>) hiddenFiles :: [FilePath]
-    touchAll $ importedJournals ++ extras ++ hidden
-
-    let jane1 = tmpdir </> "import/jane/bogartbank/checking/2018-include.journal"
-    let jane2 = tmpdir </> "import/jane/bogartbank/checking/2019-include.journal"
-    let jane3 = tmpdir </> "import/jane/bogartbank/savings/2017-include.journal"
-    let jane4 = tmpdir </> "import/jane/bogartbank/savings/2018-include.journal"
-    let jane5 = tmpdir </> "import/jane/otherbank/creditcard/2017-include.journal"
-    let jane6 = tmpdir </> "import/jane/otherbank/creditcard/2018-include.journal"
-    let jane7 = tmpdir </> "import/jane/otherbank/investments/2018-include.journal"
-    let jane8 = tmpdir </> "import/jane/otherbank/investments/2019-include.journal"
-
-    let john1 = tmpdir </> "import/john/bogartbank/checking/2018-include.journal"
-    let john2 = tmpdir </> "import/john/bogartbank/checking/2019-include.journal"
-    let john3 = tmpdir </> "import/john/bogartbank/savings/2017-include.journal"
-    let john4 = tmpdir </> "import/john/bogartbank/savings/2018-include.journal"
-    let john5 = tmpdir </> "import/john/otherbank/creditcard/2017-include.journal"
-    let john6 = tmpdir </> "import/john/otherbank/creditcard/2018-include.journal"
-    let john7 = tmpdir </> "import/john/otherbank/investments/2018-include.journal"
-    let john8 = tmpdir </> "import/john/otherbank/investments/2019-include.journal"
-    let expectedIncludes =
-          [ jane1,
-            jane2,
-            jane3,
-            jane4,
-            jane5,
-            jane6,
-            jane7,
-            jane8,
-            john1,
-            john2,
-            john3,
-            john4,
-            john5,
-            john6,
-            john7,
-            john8
-          ]
-
-    ch <- newTChanIO
-    reportedAsWritten <- groupAndWriteIncludeFiles (defaultOpts tmpdirAbsPath) ch importedJournals
-    assertEqual "groupAndWriteIncludeFiles should return which files it wrote" expectedIncludes reportedAsWritten
-
-    let allYears =
-          [ tmpdir </> "import/jane/bogartbank/checking/all-years.journal",
-            tmpdir </> "import/jane/bogartbank/savings/all-years.journal",
-            tmpdir </> "import/jane/otherbank/creditcard/all-years.journal",
-            tmpdir </> "import/jane/otherbank/investments/all-years.journal",
-            tmpdir </> "import/john/bogartbank/checking/all-years.journal",
-            tmpdir </> "import/john/bogartbank/savings/all-years.journal",
-            tmpdir </> "import/john/otherbank/creditcard/all-years.journal",
-            tmpdir </> "import/john/otherbank/investments/all-years.journal"
-          ]
-    let expectedOnDisk = List.sort $ reportedAsWritten ++ extras ++ importedJournals ++ allYears
-    (_, allFiles) <- PathIO.listDirRecur tmpdirAbsPath
-    let allFilesOnDisk = map Path.toFilePath (excludeHiddenFiles allFiles)
-    assertEqual "The actual files on disk should match what groupAndWriteIncludeFiles reported" (List.sort $ map FilePath.normalise expectedOnDisk) (List.sort $ map FilePath.normalise allFilesOnDisk)
-
-    let expectedJohn1Contents =
-          includePreamble
-            <> "\n"
-            <> "include 3-journal/2018/2018-10-30.journal\n"
-            <> "include 3-journal/2018/2018-11-30.journal\n"
-            <> "include 3-journal/2018/2018-12-30.journal\n"
-    actualJohn1Contents <- T.readFile john1
-    assertEqual "John1: The include file contents should be the journal files" expectedJohn1Contents actualJohn1Contents
-
-    let expectedJohn2Contents =
-          includePreamble
-            <> "\n"
-            <> "include 3-journal/2019/2019-01-30.journal\n"
-            <> "include 3-journal/2019/2019-02-30.journal\n"
-    actualJohn2Contents <- T.readFile john2
-    assertEqual "John2: The include file contents should be the journal files" expectedJohn2Contents actualJohn2Contents
-
-    let expectedJohn3Contents =
-          includePreamble
-            <> "\n"
-            <> "include 2017-opening.journal\n"
-            <> "include 3-journal/2017/2017-11-30.journal\n"
-            <> "include 3-journal/2017/2017-12-30.journal\n"
-    actualJohn3Contents <- T.readFile john3
-    assertEqual "John3: The include file contents should be the journal files" expectedJohn3Contents actualJohn3Contents
-
-    let expectedJohn4Contents =
-          includePreamble
-            <> "\n"
-            <> "include 3-journal/2018/2018-01-30.journal\n"
-            <> "include 3-journal/2018/2018-02-30.journal\n"
-    actualJohn4Contents <- T.readFile john4
-    assertEqual "John4: The include file contents should be the journal files" expectedJohn4Contents actualJohn4Contents
-
-    let expectedJane7Contents =
-          includePreamble
-            <> "\n"
-            <> "include 3-journal/2018/2018-12-30.journal\n"
-    actualJane7Contents <- T.readFile jane7
-    assertEqual "Jane7: The include file contents should be the journal files" expectedJane7Contents actualJane7Contents
-
 testWriteToplevelAllYearsInclude :: Test
 testWriteToplevelAllYearsInclude =
   TestCase $ withTestDir $ \tmpdirAbsPath -> do
@@ -289,8 +186,8 @@ testWriteToplevelAllYearsInclude =
     actualWithDirectives <- T.readFile expectedFile
     assertEqual "Top-level include should reference directives when present" expectedWithDirectives actualWithDirectives
 
-testWriteIncludesUpTo :: Test
-testWriteIncludesUpTo =
+testWriteIncludes :: Test
+testWriteIncludes =
   TestCase $ withTestDir $ \tmpdirAbsPath -> do
     let tmpdir = Path.toFilePath tmpdirAbsPath
 
@@ -302,12 +199,12 @@ testWriteIncludesUpTo =
     input <- Path.parseAbsFile journal
     expectedFinal <- Path.parseAbsFile (tmpdir </> "import/2019-include.journal")
     narrower <- Path.parseAbsDir (tmpdir </> "import" </> "other")
-    rejected <- tryIOError (writeIncludesUpTo (defaultOpts tmpdirAbsPath) ch narrower [input])
+    rejected <- tryIOError (writeIncludesFromInventory (defaultOpts tmpdirAbsPath) ch narrower [] [input])
     assertBool "Reject a journal outside the boundary before writing" (isLeft rejected)
     PathIO.doesFileExist expectedFinal >>= assertBool "No ancestor include written on rejection" . not
 
-    written <- writeIncludesUpTo (defaultOpts tmpdirAbsPath) ch stopAt [input]
-    assertEqual "writeIncludesUpTo should stop at the requested directory" [expectedFinal] written
+    written <- writeIncludes (defaultOpts tmpdirAbsPath) ch stopAt [input]
+    assertEqual "writeIncludes should stop at the requested directory" [expectedFinal] written
 
     finalContents <- T.readFile (Path.toFilePath expectedFinal)
     let expectedContents =
@@ -316,7 +213,7 @@ testWriteIncludesUpTo =
             <> "include john/2019-include.journal\n"
     assertEqual "Top-level year include should reference the owner include" expectedContents finalContents
 
-    _ <- writeIncludesUpTo (defaultOpts tmpdirAbsPath) ch stopAt []
+    _ <- writeIncludes (defaultOpts tmpdirAbsPath) ch stopAt []
     emptyIndex <- T.readFile (tmpdir </> "import" </> "all-years.journal")
     assertEqual "An empty import has a readable index" (includePreamble <> "\n") emptyIndex
 
@@ -337,7 +234,7 @@ testDiscoveredManualIncludes = TestCase $ withTestDir $ \base -> do
   stopAt <- Path.parseAbsDir root
   input <- Path.parseAbsFile journal
   ch <- newTChanIO
-  _ <- writeIncludesUpTo (defaultOpts base) ch stopAt [input]
+  _ <- writeIncludes (defaultOpts base) ch stopAt [input]
   contents <- T.readFile (owner </> "2020-include.journal")
   assertEqual "Discovered manual files surround generated children exactly once"
     (includePreamble <> "\ninclude _manual_/2020/pre-import.journal\ninclude bank/2020-include.journal\ninclude _manual_/2020/post-import.journal\n") contents
@@ -345,7 +242,7 @@ testDiscoveredManualIncludes = TestCase $ withTestDir $ \base -> do
   assertEqual "Only supported manual paths establish years"
     (includePreamble <> "\ninclude 2020-include.journal\n") index
   mapM_ (\file -> Path.parseAbsFile file >>= PathIO.removeFile) ([journal, pre, post] :: [FilePath])
-  _ <- writeIncludesUpTo (defaultOpts base) ch stopAt []
+  _ <- writeIncludes (defaultOpts base) ch stopAt []
   mapM_ (\file -> do
       actual <- T.readFile file
       assertEqual "Retired year and account ledgers become empty" (includePreamble <> "\n") actual)
@@ -360,8 +257,7 @@ tests =
       testIncludesPrePost,
       testIncludesOpeningClosing,
       testIncludesPrices,
-      testWriteIncludeFiles,
       testWriteToplevelAllYearsInclude,
-      testWriteIncludesUpTo,
+      testWriteIncludes,
       testDiscoveredManualIncludes
     ]

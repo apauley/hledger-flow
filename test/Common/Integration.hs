@@ -6,15 +6,14 @@ module Common.Integration (tests) where
 
 import Control.Concurrent.MVar (newEmptyMVar, putMVar, takeMVar, tryTakeMVar)
 import Control.Concurrent.STM (atomically, newTChanIO, tryReadTChan)
-import Control.Exception (bracket)
+import Control.Exception (bracket, finally)
 import Control.Monad (forM_, unless)
-import qualified Data.List as List (intercalate, isInfixOf, sort)
+import qualified Data.List as List (intercalate, isInfixOf)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import Data.Time.Clock (UTCTime(..), addUTCTime, secondsToDiffTime)
 import Data.Time.Calendar (fromGregorian)
 import Hledger.Flow.Common
-import qualified Hledger.Flow.PathHelpers as Paths
 import qualified Hledger.Flow.RuntimeOptions as RT
 import Hledger.Flow.Types (LogMessage (StdErr))
 import qualified Path
@@ -26,9 +25,8 @@ import System.IO.Error (tryIOError)
 import qualified System.Info as Sys
 import System.Timeout (timeout)
 import Test.HUnit
-import TestHelpers (defaultOpts, withTestDir)
-import TestHelpersTurtle
-import System.FilePath ((</>), normalise, searchPathSeparator)
+import TestHelpers (defaultOpts, withTestDir, touchAll)
+import System.FilePath ((</>), searchPathSeparator)
 
 -- HUnit runs these cases sequentially; restore process-wide PATH even on failure.
 withSearchPath :: [FilePath] -> IO a -> IO a
@@ -78,18 +76,9 @@ testHledgerLookup = TestLabel "hledger executable lookup" $ TestCase $ withTestD
       Directory.createFileLink ("first bin" </> name) (root </> name)
       check ["."] first
 
-testHiddenFiles :: Test
-testHiddenFiles = TestCase $ withTestDir $ \base -> do
-  let paths = map (Path.toFilePath base </>) (journalFiles ++ extraFiles ++ hiddenFiles)
-  touchAll paths
-  found <- Paths.findFilesIn (const True) [] base
-  let expected = map (Path.toFilePath base </>) (journalFiles ++ extraFiles)
-  assertEqual "Hidden files should be excluded"
-    (List.sort (map normalise expected)) (List.sort (map Path.toFilePath found))
-
 testFilterPaths :: Test
 testFilterPaths = TestCase $ withTestDir $ \base -> do
-  let onDisk = map (Path.toFilePath base </>) (journalFiles ++ extraFiles ++ hiddenFiles)
+  let onDisk = map (Path.toFilePath base </>) (["first.journal", "nested/second.journal"] :: [FilePath])
       missing = map (Path.toFilePath base </>) ["where", "is", "my", "mind"]
   touchAll onDisk
   filtered <- filterPaths doesFileExist (missing ++ onDisk)
@@ -172,5 +161,25 @@ testBatchOrder = TestCase $ do
   result <- timeout 10000000 (parBatchedActions 2 [0] [first, second, third])
   assertEqual "preserve input order across parallel batches" (Just [0, 1, 2, 3]) result
 
+testBatchFailure :: Test
+testBatchFailure = TestLabel "batch failure cancels siblings and stops later batches" $
+  TestList [TestCase (checkBatchFailure id), TestCase (checkBatchFailure reverse)]
+
+checkBatchFailure :: ([IO ()] -> [IO ()]) -> Assertion
+checkBatchFailure order = do
+  started <- newEmptyMVar
+  stopped <- newEmptyMVar
+  never <- newEmptyMVar
+  later <- newEmptyMVar
+  let failing = takeMVar started >> ioError (userError "conversion failed")
+      running = (putMVar started () >> takeMVar never) `finally` putMVar stopped ()
+      nextBatch = putMVar later ()
+  result <- timeout 10000000 (tryIOError (parBatchedActions 2 [] (order [failing, running] ++ [nextBatch])))
+  case result of
+    Just (Left err) -> assertBool "propagate the original failure" ("conversion failed" `List.isInfixOf` show err)
+    _ -> assertFailure ("expected a prompt batch failure, got " ++ show result)
+  tryTakeMVar stopped >>= assertEqual "cancel and join the running sibling" (Just ())
+  tryTakeMVar later >>= assertEqual "never start the next batch" Nothing
+
 tests :: Test
-tests = TestList [testHledgerLookup, testHiddenFiles, testFilterPaths, testFirstExistingFile, testVerboseTestFile, testNeedsRegeneration, testBatchOrder]
+tests = TestList [testHledgerLookup, testFilterPaths, testFirstExistingFile, testVerboseTestFile, testNeedsRegeneration, testBatchOrder, testBatchFailure]

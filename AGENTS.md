@@ -12,7 +12,7 @@
 
 **Core commands**
 - Build + test (from `CONTRIBUTING.md`):
-  - `./bin/build-and-test` (runs `stack test` then `stack install`).
+  - `./bin/build-and-test` (HUnit, platform CLI scenarios, offline release checks, then installation; requires Stack, hledger, Git, jq and Python 3).
 - Run locally without installing:
   - `stack exec hledger-flow -- import [DIR]`
   - `stack exec hledger-flow -- report [BASEDIR]`
@@ -61,7 +61,8 @@
 - Report flow is orchestrated in `Hledger.Flow.Reports` and depends on `LEDGER_FILE` (defaults to `all-years.journal` if not set).
 
 **Testing**
-- `stack test` (or `./bin/build-and-test`) runs HUnit tests.
+- `stack test` runs HUnit tests. `./bin/build-and-test` runs the full suite from Bash (Git Bash on Windows).
+- HUnit covers active inventory, filesystem, include rendering and concurrency behavior; shelltestrunner covers the CLI with real hledger and a 120-second scenario timeout.
 - Tests create temporary directories under `test/tmp` and do not require network access.
 
 **Recommended tooling (not yet enforced)**

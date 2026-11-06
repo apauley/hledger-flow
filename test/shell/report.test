@@ -1,41 +1,86 @@
-# Annual reports include both the bank statement and a manual cash expense.
+# Exact annual and monthly amounts, with unknown and transfer reports in two years.
 <
 . ./test/shell/setup.sh
-manual=import/gawie/_manual_/2016
-mkdir -p "$manual"
-printf '%s\n' '2016-03-02 Market' '    expenses:groceries  30' '    assets:cash' > "$manual/post-import.journal"
+mkdir -p import/gawie/_manual_/2016 import/gawie/_manual_/2017
+cat > import/gawie/_manual_/2016/post-import.journal <<'JOURNAL'
+2016-03-02 Market
+    expenses:groceries  30
+    assets:cash
+
+2016-03-03 Unknown purchase
+    expenses:unknown  11
+    assets:cash
+
+2016-03-04 Transfer sent
+    assets:transfer  17
+    assets:bank:cheque
+JOURNAL
+cat > import/gawie/_manual_/2017/post-import.journal <<'JOURNAL'
+2017-03-02 Later market
+    expenses:groceries  300
+    assets:cash
+
+2017-03-03 Later unknown
+    expenses:unknown  19
+    assets:cash
+
+2017-03-04 Later transfer
+    assets:transfer  23
+    assets:bank:cheque
+JOURNAL
 flow import
 flow report --ascii-reports
-tr -d '\r' < reports/gawie/2016/accounts.txt > accounts.txt
-grep -Fx expenses:groceries accounts.txt
-grep -Fx expenses:bank-fees accounts.txt
-grep -E 'groceries.*30' reports/gawie/2016/income-expenses.txt > /dev/null
+for year in 2016 2017; do
+    report_row "reports/gawie/$year/income-expenses.txt" expenses:groceries
+    report_row "reports/gawie/$year/monthly/income-expenses.txt" expenses:groceries
+    report_row "reports/all/$year/transfer-balance.txt" assets:transfer
+    tail -n +3 "reports/gawie/$year/unknown-transactions.txt" > unknown.journal
+    hledger -f unknown.journal descriptions
+    hledger -f unknown.journal balance expenses --flat --no-total --format '%(account) %(total)'
+done
+report_row reports/gawie/2016/balance-sheet.txt assets:cash
+report_row reports/gawie/2017/balance-sheet.txt assets:cash
+tr -d '\r' < reports/gawie/2016/accounts.txt | grep -Fx expenses:bank-fees
+if grep -q bank-fees reports/gawie/2017/accounts.txt; then exit 1; fi
 $ sh -eu
-expenses:groceries
+expenses:groceries || 30
+expenses:groceries || 0 0 30 0 0 0 0 0 0 0 0 0
+assets:transfer || 17 0 0 0
+Unknown purchase
+expenses:unknown 11
+expenses:groceries || 300
+expenses:groceries || 0 0 300 0 0 0 0 0 0 0 0 0
+assets:transfer || 23 0 0 0
+Later unknown
+expenses:unknown 19
+assets:cash || -41
+assets:cash || -360
 expenses:bank-fees
 
 # Owner reports inherit custom account types, with one or several owners.
 <
 . ./test/shell/setup.sh
+owner="Morgan's \$(echo injected)"
+mv import/gawie "import/$owner"
 sed -e 's/assets/aktiva/' -e 's/expenses/aufwendungen/' import/bogart.rules > custom.rules
 mv custom.rules import/bogart.rules
 printf '%s\n' 'account aktiva  ; type: A' 'account aufwendungen  ; type: X' > directives.journal
 flow import
 flow report --ascii-reports
-grep -E 'aufwendungen:bank-fees.*5' reports/gawie/2016/income-expenses.txt > /dev/null
-grep -E 'aufwendungen:bank-fees.*5' reports/gawie/2016/monthly/income-expenses.txt > /dev/null
-grep -E 'aktiva:bank.*-5' reports/gawie/2016/balance-sheet.txt > /dev/null
+report_row "reports/$owner/2016/income-expenses.txt" aufwendungen:bank-fees | grep -Fx 'aufwendungen:bank-fees || 5' > /dev/null
+report_row "reports/$owner/2016/monthly/income-expenses.txt" aufwendungen:bank-fees | grep -Fx 'aufwendungen:bank-fees || 0 0 5 0 0 0 0 0 0 0 0 0' > /dev/null
+report_row "reports/$owner/2016/balance-sheet.txt" aktiva:bank | grep -Fx 'aktiva:bank || -5' > /dev/null
 other=import/other/bogart/cheque/1-in/2016
 mkdir -p "$other"
 printf '%s\n' '2016-03-01,Other bank fee,-7' > "$other/march.csv"
 flow import
 flow report --ascii-reports
-grep -E 'aufwendungen:bank-fees.*5' reports/gawie/2016/income-expenses.txt > /dev/null
-grep -E 'aufwendungen:bank-fees.*7' reports/other/2016/income-expenses.txt > /dev/null
-grep -E 'aufwendungen:bank-fees.*12' reports/all/2016/income-expenses.txt > /dev/null
+report_row "reports/$owner/2016/income-expenses.txt" aufwendungen:bank-fees | grep -Fx 'aufwendungen:bank-fees || 5' > /dev/null
+report_row reports/other/2016/income-expenses.txt aufwendungen:bank-fees | grep -Fx 'aufwendungen:bank-fees || 7' > /dev/null
+report_row reports/all/2016/income-expenses.txt aufwendungen:bank-fees | grep -Fx 'aufwendungen:bank-fees || 12' > /dev/null
 # Normalize native Windows paths before replaying the command in sh.
-sed -n '1p' reports/gawie/2016/income-expenses.txt | tr -d '\r' | tr '\\' '/' | sh > replay.txt
-tail -n +3 reports/gawie/2016/income-expenses.txt > original.txt
+sed -n '1p' "reports/$owner/2016/income-expenses.txt" | tr -d '\r' | tr '\\' '/' | sh > replay.txt
+tail -n +3 "reports/$owner/2016/income-expenses.txt" > original.txt
 cmp original.txt replay.txt
 $ sh -eu
 
@@ -48,8 +93,8 @@ printf '%s\n' '2016-03-02 Market' '    expenses:groceries  UAH1759.71' '    asse
 printf '%s\n' 'commodity 1,000.00 UAH' > directives.journal
 flow import
 flow report --ascii-reports
-grep -E 'groceries.*1,759.71 UAH' reports/gawie/2016/income-expenses.txt > /dev/null
-grep -E 'assets:cash.*-1,759.71 UAH' reports/gawie/2016/balance-sheet.txt > /dev/null
+report_row reports/gawie/2016/income-expenses.txt expenses:groceries | grep -Fx 'expenses:groceries || 1,759.71 UAH' > /dev/null
+report_row reports/gawie/2016/balance-sheet.txt assets:cash | grep -Fx 'assets:cash || -1,759.71 UAH' > /dev/null
 $ sh -eu
 
 # A relative LEDGER_FILE may contain spaces; empty reports remove their stale output.

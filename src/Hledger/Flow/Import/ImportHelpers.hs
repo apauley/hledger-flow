@@ -1,16 +1,15 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes #-}
 
-module Hledger.Flow.Import.ImportHelpers (withStagedOutput, extractImportDirs, findInputFiles, findJournalFiles, groupIncludesUpTo, includeFileName) where
+module Hledger.Flow.Import.ImportHelpers (withStagedOutput, extractImportDirs, groupIncludesUpTo, includeFileName) where
 
-import Data.Char (isDigit)
 import qualified Data.Map.Strict as Map
 import Data.Maybe (fromMaybe)
 import qualified Data.Text as T
 import Hledger.Flow.Common (groupValuesBy)
 import Hledger.Flow.DocHelpers (docURL)
 import Hledger.Flow.Import.Types (ImportDirs (..), InputFileBundle)
-import Hledger.Flow.PathHelpers (AbsDir, AbsFile, RelDir, RelFile, findFilesInWith, pathSize)
+import Hledger.Flow.PathHelpers (AbsFile, RelDir, RelFile, pathSize)
 import Path
 import qualified Path.IO as PathIO
 import System.FilePath (dropTrailingPathSeparator)
@@ -42,37 +41,6 @@ extractImportDirs inputFile = walk (parent inputFile) []
       <> "import/owner/bank/account/filestate/year/trxfile\n\n"
       <> "Have a look at the documentation for a detailed explanation:\n"
       <> docURL "input-files"
-
-findInputFiles :: Integer -> AbsDir -> IO [AbsFile]
-findInputFiles startYear = do
-  let excludeDirs = excludeStageDirs [[reldir|2-preprocessed|], [reldir|3-journal|]]
-  findFilesInWith (includeYearFilesForParent [reldir|1-in|] startYear) excludeDirs
-
-findJournalFiles :: AbsDir -> IO [AbsFile]
-findJournalFiles = do
-  let excludeDirs = excludeStageDirs [[reldir|1-in|], [reldir|2-preprocessed|]]
-  findFilesInWith (includeYearFilesForParent [reldir|3-journal|] 0) excludeDirs
-
--- | Include only files directly underneath parentDir/yearDir, e.g. 1-in/2020/* or 3-journal/2020/*
-includeYearFilesForParent :: RelDir -> Integer -> AbsDir -> Bool
-includeYearFilesForParent parentDir startYear d =
-  (dirname . parent) d == parentDir
-    && length shortDirName == 4
-    && all isDigit shortDirName
-    && read shortDirName >= startYear
-  where
-    shortDirName = dirToStringNoSlash d
-
-dirToStringNoSlash :: AbsDir -> String
-dirToStringNoSlash = init . Path.toFilePath . Path.dirname
-
--- Stage names are reserved only directly below an account.
-excludeStageDirs :: [RelDir] -> AbsDir -> [RelDir]
-excludeStageDirs stages dir
-  | dirname (parent (parent (parent dir))) == [reldir|import|] = stages ++ common
-  | otherwise = common
-  where
-    common = [[reldir|_manual_|], [reldir|__pycache__|]]
 
 groupIncludesUpTo :: RelDir -> [RelFile] -> InputFileBundle
 groupIncludesUpTo stopAt = collect Map.empty
