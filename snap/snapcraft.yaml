@@ -1,0 +1,60 @@
+name: hledger-flow
+title: hledger-flow
+version: '0.18.0'
+summary: Automate statement imports and reports with hledger
+description: |
+  hledger-flow organises electronic statements, runs account-specific
+  preprocessing and journal construction scripts, and generates hledger
+  journals and reports.
+
+  Includes the upstream hledger 1.99.6 pre-release. Account scripts can
+  use the bundled hledger and other tools available inside the snap.
+license: GPL-3.0-only
+website: https://github.com/apauley/hledger-flow
+issues: https://github.com/apauley/hledger-flow/issues
+contact: https://github.com/apauley/hledger-flow/issues
+source-code: https://github.com/apauley/hledger-flow
+base: core24
+grade: stable
+confinement: strict
+
+# Upstream hledger 1.99.6 provides a Linux binary for amd64.
+platforms:
+  amd64:
+
+apps:
+  hledger-flow:
+    command: bin/hledger-flow
+    plugs: [home]
+    environment:
+      LD_LIBRARY_PATH: $SNAP/usr/lib/x86_64-linux-gnu
+
+parts:
+  changelog:
+    plugin: nil
+    override-build: |
+      docs="$CRAFT_PART_INSTALL/usr/share/doc/hledger-flow"
+      install -Dm644 "$CRAFT_PROJECT_DIR/ChangeLog.md" "$docs/ChangeLog.md"
+      "$CRAFT_PROJECT_DIR/bin/release" changelog-section "$(craftctl get version)" > "$docs/release-notes.md"
+
+  hledger-flow:
+    plugin: dump
+    source: https://github.com/apauley/hledger-flow/releases/download/v0.18.0/hledger-flow-linux-x64.tar.gz
+    source-checksum: sha256/bc7317bc8afe74cab4601724411bf74ba6d8688bfcb0fc86e0d754baa5a3fb2d
+    stage-packages:
+      - libgmp10
+    organize:
+      hledger-flow: bin/hledger-flow
+    stage:
+      - -QUICKSTART.md
+
+  hledger:
+    plugin: dump
+    source: https://github.com/hledgerorg/hledger/releases/download/1.99.6/hledger-linux-x64.tar.gz
+    source-checksum: sha256/c71ee88571ef2595ba11b84ba3e38f50fa930c85956a805155790f24ad318e15
+    organize:
+      hledger: bin/hledger
+      hledger.1: share/man/man1/hledger.1
+    stage:
+      - bin/hledger
+      - share/man/man1/hledger.1

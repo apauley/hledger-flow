@@ -8,6 +8,7 @@
 #   bump LEVEL|VER   LEVEL is major, minor or patch. Rename '## Unreleased', set version, commit
 #   ci               Push master and wait for its CI run
 #   changelog        Verify ChangeLog.md is up to date for the package.yaml version
+#   changelog-section VERSION  Print just the release's section from ChangeLog.md
 #   check            All pre-tag checks (clean synced master, green CI, secrets, cabal, changelog)
 #   tag              check, then create the signed tag locally
 #   push-tag         PERMANENT: push the tag, verify binaries and prepare the Hackage candidate
@@ -48,6 +49,14 @@ cabal_in_sync() {
 
 notes() {
   awk -v h="## ${1:-$(version)}" '$0 == h {f=1; next} /^## / {f=0} f' ChangeLog.md | sed '/./,$!d'
+}
+
+cmd_changelog_section() {
+  [ "$#" -eq 1 ] && [ -n "$1" ] || die "Usage: bin/release changelog-section VERSION"
+  local section
+  section=$(notes "$1")
+  [[ -n "${section//[[:space:]]/}" ]] || die "Add a non-empty '## $1' section to ChangeLog.md"
+  printf '%s\n' "$section"
 }
 
 release_notes() {
@@ -489,5 +498,6 @@ case "${1:-}" in
   deps|precheck|bump|ci|changelog|check|tag|push-tag|verify|hackage|hackage-publish|publish)
     c=${1//-/_}; shift; "cmd_$c" "$@" ;;
   notes) shift; release_notes "$@" ;;
-  *) sed -n '4,22s/^# \{0,1\}//p' "$0"; exit 1 ;;
+  changelog-section) shift; cmd_changelog_section "$@" ;;
+  *) sed -n '4,23s/^# \{0,1\}//p' "$0"; exit 1 ;;
 esac

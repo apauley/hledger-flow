@@ -30,6 +30,9 @@ How to keep this ChangeLog
 
 ## Unreleased
 
+- Linux x86-64 users can [build and install a strictly confined snap](https://github.com/apauley/hledger-flow/blob/master/snap/README.md)
+  that includes the hledger 1.99.6 pre-release for imports, reports, and account scripts.
+
 ## 0.18.0
 
 - If you keep handwritten transactions in a journal under `3-journal`
