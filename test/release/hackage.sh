@@ -64,6 +64,8 @@ case "$1 $2" in
   'release verify') test "$(cat draft)" = false ;;
   'secret list') printf '%s\n' "${CONFIGURED_SECRET:-}" ;;
   'api repos/FernTrail/homebrew-tap') echo true ;;
+  'api repos/FernTrail/homebrew-tap/commits/main') git --git-dir="$work/tap.git" log -1 --format='%an <%ae>' main ;;
+  'config get') echo https ;;
   'repo clone')
     test "$3" = FernTrail/homebrew-tap
     test "$(cat draft)" = false
@@ -133,10 +135,21 @@ fails bin/release publish
 grep -q 'SHA-256 for hledger-flow-macos-arm64' result
 test "$(git --git-dir=tap.git rev-list --count main)" = 1
 unset OMIT_PLATFORM
+# Tap commits use the identity of the tap checkout named by release.tapDir.
+git clone -q tap.git tap-checkout
+git -C tap-checkout remote set-url origin git@github.com:FernTrail/homebrew-tap.git
+git -C tap-checkout config user.name 'Tap owner'
+git -C tap-checkout config user.email tap@example.invalid
+git config --global release.tapDir "$work/seed"
+fails bin/release publish
+grep -q 'not a checkout of FernTrail/homebrew-tap' result
+git config --global release.tapDir "$work/tap-checkout"
 touch block-tap-ci
 fails bin/release publish
 grep -q 'inspect tap CI' result
+grep -q 'warning: the latest FernTrail/homebrew-tap commit is by Release test' result
 tap_commit=$(git --git-dir=tap.git rev-parse main)
+test "$(git --git-dir=tap.git log -1 --format='%an <%ae> %cn <%ce>' main)" = 'Tap owner <tap@example.invalid> Tap owner <tap@example.invalid>'
 rm block-tap-ci
 bin/release publish > result
 test "$(git --git-dir=tap.git rev-parse main)" = "$tap_commit"

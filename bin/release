@@ -61,10 +61,44 @@ clean_master() {
   [ -z "$(git status --porcelain)" ] || die "working tree not clean:\n$(git status --short)"
 }
 
+tap_url() {
+  if [ "$(gh config get git_protocol -h github.com 2>/dev/null)" = ssh ]; then
+    echo "git@github.com:$TAP.git"
+  else
+    echo "https://github.com/$TAP.git"
+  fi
+}
+
+# Tap commits use the identity of your tap checkout, named with
+# `git config release.tapDir PATH` in this checkout. Without it, Git resolves the
+# identity in a repository whose origin is the tap, e.g. through an includeIf.
+# $1 is such a repository. Sets TAP_NAME and TAP_EMAIL.
+tap_identity() {
+  local dir src=$1
+  dir=$(git config --type=path --get release.tapDir) || dir=
+  if [ -n "$dir" ]; then
+    case "$(git -C "$dir" remote get-url origin 2>/dev/null)" in
+      *[:/]"$TAP" | *[:/]"$TAP".git) src=$dir ;;
+      *) die "release.tapDir ($dir) is not a checkout of $TAP: run git config release.tapDir PATH-TO-TAP-CHECKOUT" ;;
+    esac
+  fi
+  TAP_NAME=$(git -C "$src" config user.name) && TAP_EMAIL=$(git -C "$src" config user.email) \
+    || die "no Git identity for commits to $TAP: see 'Homebrew tap identity' in release-procedure.md"
+}
+
 tap_access_ok() {
+  local scratch last
   command -v python3 >/dev/null || die "install Python 3 for the Homebrew tap update"
   [ "$(gh api "repos/$TAP" -q .permissions.push)" = true ] \
     || die "authenticate gh with write access to $TAP before publishing"
+  scratch=$(mktemp -d)
+  git init -q "$scratch"
+  git -C "$scratch" remote add origin "$(tap_url)"
+  tap_identity "$scratch"
+  rm -rf "$scratch"
+  last=$(gh api "repos/$TAP/commits/main" -q '.commit.author | "\(.name) <\(.email)>"')
+  say "Commits to $TAP will use $TAP_NAME <$TAP_EMAIL>"
+  [ "$TAP_NAME <$TAP_EMAIL>" = "$last" ] || echo "  warning: the latest $TAP commit is by $last"
 }
 
 repo_settings_ok() {
@@ -413,12 +447,13 @@ update_homebrew_tap() (
   gh release view "$tag" -R "$REPO" --json assets > "$dir/assets.json"
   curl -fsSL "https://raw.githubusercontent.com/$REPO/$tag/LICENSE" -o "$dir/LICENSE"
   gh repo clone "$TAP" "$dir/tap" -- --branch main --single-branch
+  tap_identity "$dir/tap"
   python3 bin/update-homebrew-formula.py "$tag" "$dir/assets.json" "$dir/LICENSE" "$dir/tap"
 
   cd "$dir/tap"
   if ! git diff --quiet -- Formula/hledger-flow.rb README.md; then
     git diff --check
-    git commit -m "Update hledger-flow to $tag" -- Formula/hledger-flow.rb README.md
+    git -c user.name="$TAP_NAME" -c user.email="$TAP_EMAIL" commit -m "Update hledger-flow to $tag" -- Formula/hledger-flow.rb README.md
     git push origin HEAD:main || die "tap push failed; check access to $TAP/main and re-run bin/release publish"
   fi
 

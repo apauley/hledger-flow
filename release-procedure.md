@@ -18,9 +18,35 @@ points to stop and check the results before going further.
 Requirements: `stack`, `cabal`, `gh` (authenticated), `jq`, `perl`, Python 3, a GPG or
 SSH signing key for the tag (creating the tag may ask you to unlock it), and
 permission to dispatch GitHub Actions workflows, and permission to push to
-`FernTrail/homebrew-tap` on `main`. Configure your Git commit identity and
-credentials for the protocol used by `gh repo clone`. The release command
-clones the tap into a temporary directory and leaves your local tap checkout alone.
+`FernTrail/homebrew-tap` on `main`. Configure Git credentials for the protocol
+used by `gh repo clone`. The release command clones the tap into a temporary
+directory and leaves your local tap checkout alone.
+
+### Homebrew tap identity
+
+The tap commit uses the tap's own Git identity, not this repository's. Tell
+`bin/release` where your tap checkout is, once, in this checkout:
+
+``` bash
+git config release.tapDir /path/to/homebrew-tap
+```
+
+It reads `user.name` and `user.email` from that checkout and only reads it.
+Without `release.tapDir`, Git resolves the identity as it would for any
+repository whose origin is the tap. To cover that case, and every other
+FernTrail repository on your machine, add a conditional include to
+`~/.gitconfig` (Git 2.36 or later):
+
+``` ini
+[includeIf "hasconfig:remote.*.url:git@github.com:FernTrail/**"]
+  path = ~/.gitconfig-ferntrail
+[includeIf "hasconfig:remote.*.url:https://github.com/FernTrail/**"]
+  path = ~/.gitconfig-ferntrail
+```
+
+with `~/.gitconfig-ferntrail` holding the `[user]` name and email. `precheck`,
+`check` and `publish` print the identity the tap commit will use, stop if there
+is none, and warn if it differs from the author of the tap's latest commit.
 
 For Hackage, create a dedicated token on the maintainer's
 [Hackage account management page](https://hackage.haskell.org/users/account-management).
