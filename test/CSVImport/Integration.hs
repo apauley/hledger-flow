@@ -320,6 +320,38 @@ testWriteIncludesUpTo =
     emptyIndex <- T.readFile (tmpdir </> "import" </> "all-years.journal")
     assertEqual "An empty import has a readable index" (includePreamble <> "\n") emptyIndex
 
+testDiscoveredManualIncludes :: Test
+testDiscoveredManualIncludes = TestCase $ withTestDir $ \base -> do
+  let root = Path.toFilePath base </> "import"
+      owner = root </> "john"
+      account = owner </> "bank" </> "checking"
+      journal = account </> "3-journal/2020/march.journal"
+      pre = owner </> "_manual_/2020/pre-import.journal"
+      post = owner </> "_manual_/2020/post-import.journal"
+      unrelated = owner </> "2021-include.journal"
+  touchAll [journal, pre, post, unrelated,
+            owner </> "_manual_/2022/notes.journal",
+            owner </> "_manual_/20x3/post-import.journal",
+            account </> ".trash/2024/_manual_/2024/post-import.journal"]
+  T.writeFile unrelated "; handwritten include, leave alone\n"
+  stopAt <- Path.parseAbsDir root
+  input <- Path.parseAbsFile journal
+  ch <- newTChanIO
+  _ <- writeIncludesUpTo (defaultOpts base) ch stopAt [input]
+  contents <- T.readFile (owner </> "2020-include.journal")
+  assertEqual "Discovered manual files surround generated children exactly once"
+    (includePreamble <> "\ninclude _manual_/2020/pre-import.journal\ninclude bank/2020-include.journal\ninclude _manual_/2020/post-import.journal\n") contents
+  index <- T.readFile (root </> "all-years.journal")
+  assertEqual "Only supported manual paths establish years"
+    (includePreamble <> "\ninclude 2020-include.journal\n") index
+  mapM_ (\file -> Path.parseAbsFile file >>= PathIO.removeFile) ([journal, pre, post] :: [FilePath])
+  _ <- writeIncludesUpTo (defaultOpts base) ch stopAt []
+  mapM_ (\file -> do
+      actual <- T.readFile file
+      assertEqual "Retired year and account ledgers become empty" (includePreamble <> "\n") actual)
+    ([owner </> "2020-include.journal", account </> "all-years.journal", root </> "2020-include.journal"] :: [FilePath])
+  T.readFile unrelated >>= assertEqual "Do not clear handwritten indexes" "; handwritten include, leave alone\n"
+
 tests :: Test
 tests =
   TestList
@@ -330,5 +362,6 @@ tests =
       testIncludesPrices,
       testWriteIncludeFiles,
       testWriteToplevelAllYearsInclude,
-      testWriteIncludesUpTo
+      testWriteIncludesUpTo,
+      testDiscoveredManualIncludes
     ]

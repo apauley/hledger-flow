@@ -8,7 +8,8 @@ where
 
 import Control.Concurrent.STM
 import Control.Monad
-import Data.Maybe (fromMaybe, isNothing)
+import Data.Maybe (fromMaybe)
+import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import Hledger.Flow.DateTime (timeAction)
@@ -16,10 +17,11 @@ import Hledger.Flow.BaseDir (effectiveRunDir, relativeToBase)
 import Hledger.Flow.Common
 import Hledger.Flow.DocHelpers (docURL)
 import Hledger.Flow.Import.ImportHelpers
-import Hledger.Flow.Import.ImportHelpersTurtle (writeIncludesUpTo, writeToplevelAllYearsInclude)
+import Hledger.Flow.Import.ImportHelpersTurtle (writeIncludesFromInventory, writeToplevelAllYearsInclude)
+import Hledger.Flow.Import.Inventory
 import Hledger.Flow.Import.Types
 import Hledger.Flow.Logging
-import Hledger.Flow.PathHelpers (AbsFile, RelDir)
+import Hledger.Flow.PathHelpers (AbsFile)
 import Hledger.Flow.RuntimeOptions
 import qualified Hledger.Flow.Types as FlowTypes
 import qualified Path
@@ -29,7 +31,7 @@ import System.Exit (ExitCode (..), exitWith)
 import System.IO (hClose)
 import qualified System.Info as Sys
 import qualified System.Process as Process
-import System.FilePath (dropExtensions, dropTrailingPathSeparator, replaceExtension, takeExtension, (<.>), (</>))
+import System.FilePath (dropExtensions, dropTrailingPathSeparator, takeExtension, (<.>), (</>))
 import Prelude hiding (putStrLn, take, writeFile)
 
 type FileWasGenerated = Bool
@@ -45,31 +47,43 @@ importCSVs opts = withConsoleLogging $ \ch -> do
 importCSVs' :: RuntimeOptions -> TChan FlowTypes.LogMessage -> IO [(AbsFile, FileWasGenerated)]
 importCSVs' opts ch = do
   let effectiveDir = effectiveRunDir (baseDir opts) (importRunDir opts)
+      importRoot = baseDir opts Path.</> [Path.reldir|import|]
+      selected = inImportScope effectiveDir (fromMaybe 0 (importStartYear opts))
   let startYearMsg = maybe " " (\y -> " (for the year " <> T.pack (show y) <> " and onwards) ") (importStartYear opts)
   let dirText = T.pack (Path.toFilePath effectiveDir)
   channelOutLn ch $ "Collecting input files" <> startYearMsg <> "from " <> dirText
-  (inputFiles, diff) <- timeAction $ findInputFiles (fromMaybe 0 $ importStartYear opts) effectiveDir
+  (inventory, diff) <- timeAction $ findImportFiles importRoot
+  let inputFiles = filter selected (stageFiles importRoot [Path.reldir|1-in|] inventory)
+      fileCount = length inputFiles
+  collisions <- conflictingOutputs inputFiles
+  let relative = T.pack . relativeToBase opts . Path.toFilePath
+  unless (null collisions) $
+    errExit 1 ch ("Multiple input files map to the same output:\n" <>
+      T.intercalate "\n" [relative output <> " <- " <> T.intercalate ", " (map relative sources)
+                         | (output, sources) <- collisions]) ()
+  channelOutLn ch $ "Found " <> T.pack (show fileCount) <> " input files" <> startYearMsg <> "in " <> T.pack (show diff) <> ". Proceeding with import..."
+  importedJournals <- parAwareActions opts (map (extractAndImport opts ch) inputFiles)
 
-  let fileCount = length inputFiles
-  if fileCount == 0 && isNothing (importStartYear opts)
-    then do
-      let msg =
-            "I couldn't find any input files underneath " <> dirText
-              <> "\n\nhledger-flow expects to find its input files in specifically\nnamed directories.\n\n"
-              <> "Have a look at the documentation for a detailed explanation:\n"
-              <> docURL "input-files"
-      errExit 1 ch msg []
-    else do
-      channelOutLn ch $ "Found " <> T.pack (show fileCount) <> " input files" <> startYearMsg <> "in " <> T.pack (show diff) <> ". Proceeding with import..."
-      let actions = map (extractAndImport opts ch) inputFiles
-      importedJournals <- parAwareActions opts actions
-      let importRoot = baseDir opts Path.</> [Path.reldir|import|]
-      (journalsOnDisk, journalFindTime) <- timeAction $ findJournalFiles importRoot
-      (_, writeIncludeTime1) <- timeAction $ writeIncludesUpTo opts ch importRoot journalsOnDisk
-      (_, writeIncludeTime2) <- timeAction $ writeToplevelAllYearsInclude opts
-      let includeGenTime = journalFindTime + writeIncludeTime1 + writeIncludeTime2
-      channelOutLn ch $ "Wrote include files for " <> T.pack (show (length journalsOnDisk)) <> " journals in " <> T.pack (show includeGenTime)
-      return importedJournals
+  -- Hooks may create files, so reconcile against a fresh inventory only after
+  -- every selected conversion succeeds. A cached CSV is never a source.
+  (refreshed, journalFindTime) <- timeAction $ findImportFiles importRoot
+  expected <- expectedOutputs (stageFiles importRoot [Path.reldir|1-in|] refreshed)
+  let stageWithExtension stage ext = filter ((== ext) . takeExtension . Path.toFilePath) (stageFiles importRoot stage refreshed)
+      journals = stageWithExtension [Path.reldir|3-journal|] ".journal"
+      generated = stageWithExtension [Path.reldir|2-preprocessed|] ".csv" ++ journals
+  classified <- forM generated $ \file -> do
+    key <- canonicalFile file
+    return (file, Map.member key expected)
+  let orphans = [file | (file, False) <- classified, selected file]
+      journalsOnDisk = [file | (file, True) <- classified, takeExtension (Path.toFilePath file) == ".journal"]
+  forM_ orphans $ \file -> do
+    target <- moveToTrash file
+    channelOutLn ch $ "Moved orphaned output " <> relative file <> " to " <> relative target
+  (_, writeIncludeTime1) <- timeAction $ writeIncludesFromInventory opts ch importRoot refreshed journalsOnDisk
+  (_, writeIncludeTime2) <- timeAction $ writeToplevelAllYearsInclude opts
+  let includeGenTime = journalFindTime + writeIncludeTime1 + writeIncludeTime2
+  channelOutLn ch $ "Wrote include files for " <> T.pack (show (length journalsOnDisk)) <> " generated journals in " <> T.pack (show includeGenTime)
+  return importedJournals
 
 extractAndImport :: RuntimeOptions -> TChan FlowTypes.LogMessage -> AbsFile -> IO (AbsFile, FileWasGenerated)
 extractAndImport opts ch inputFile = do
@@ -80,9 +94,9 @@ extractAndImport opts ch inputFile = do
 
 importCSV :: RuntimeOptions -> TChan FlowTypes.LogMessage -> ImportDirs Path.Abs -> AbsFile -> IO (AbsFile, FileWasGenerated)
 importCSV opts ch importDirs srcFile = do
-  csvOut <- outputFile importDirs [Path.reldir|2-preprocessed|] ".csv" srcFile
+  csvOut <- generatedOutput [Path.reldir|2-preprocessed|] ".csv" srcFile
   (csvFile, preprocessHappened) <- preprocessIfNeeded opts ch importDirs srcFile csvOut
-  journalOut <- outputFile importDirs [Path.reldir|3-journal|] ".journal" csvFile
+  journalOut <- generatedOutput [Path.reldir|3-journal|] ".journal" csvFile
   shouldImport <-
     if onlyNewFiles opts && not preprocessHappened
       then needsRegeneration csvFile journalOut
@@ -96,11 +110,6 @@ importCSV opts ch importDirs srcFile = do
         Nothing -> hledgerImport opts ch importDirs csvFile journalOut
     else logNewFileSkip opts ch "import" journalOut
   return (journalOut, shouldImport)
-
-outputFile :: ImportDirs Path.Abs -> RelDir -> String -> AbsFile -> IO AbsFile
-outputFile dirs stage ext source = do
-  name <- Path.parseRelFile (replaceExtension (Path.toFilePath (Path.filename source)) ext)
-  return (accountDir dirs Path.</> stage Path.</> Path.dirname (yearDir dirs) Path.</> name)
 
 preprocessIfNeeded :: RuntimeOptions -> TChan FlowTypes.LogMessage -> ImportDirs Path.Abs -> AbsFile -> AbsFile -> IO (AbsFile, Bool)
 preprocessIfNeeded opts ch dirs src csvOut = do

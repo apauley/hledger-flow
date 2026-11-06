@@ -28,6 +28,18 @@ How to keep this ChangeLog
 
 ## Unreleased
 
+- `import` now treats `1-in` as the sole source of generated files. After
+  successful conversion, orphaned preprocessed CSVs and journals in the
+  selected account/year scope move to `.trash` instead of being counted
+  again after an input is renamed or removed. Journals without inputs are
+  excluded from the ledger; keep handwritten transactions in `_manual_`.
+  See [generated files and recovery](https://github.com/apauley/hledger-flow/blob/master/docs/README.md#generated-files-and-recovery).
+  Fixes [#108](https://github.com/apauley/hledger-flow/issues/108).
+- Manual-only years and ledgers now get include files without dummy inputs,
+  including `_manual_` files at the import, owner, bank, and account levels.
+  Fixes [#103](https://github.com/apauley/hledger-flow/issues/103).
+- Imports reject input filenames that produce the same generated output
+  before converting or moving files.
 - Windows imports and reports now use UTF-8, including for account names
   such as `Morgan’s Current`. If your CSV statements use a legacy encoding,
   specify it in their rules file. Run `chcp 65001` before using standalone

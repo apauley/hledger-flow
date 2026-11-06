@@ -56,6 +56,55 @@ Under `1-in` you'll create a directory for the year, e.g. `2018`, and
 within that you can copy the statements for that year:
 `import/john/mybank/savings/1-in/2018/123456789_2018-06-30.csv`
 
+### Generated Files and Recovery
+
+`1-in` is the source of truth. Both `2-preprocessed` and `3-journal`
+contain generated output; user-supplied files in those stages are not
+supported. Use [manually managed journals](#manually-managed-journals)
+for transactions without an input statement.
+
+After all selected inputs have been converted successfully, import moves
+orphaned `2-preprocessed/YYYY/*.csv` and `3-journal/YYYY/*.journal` files
+into the account's `.trash` directory. A corresponding input must be in
+`1-in` for the same account and year, with a filename that produces that
+output when its extension is replaced. An old preprocessed CSV does not
+keep an orphaned journal active. If two inputs would produce the same
+output, import stops before converting or moving files and names the
+conflicting inputs.
+
+For example, removing or renaming `1-in/2026/march.csv` retires its old
+outputs to:
+
+```text
+.trash/2026/2-preprocessed/march.csv
+.trash/2026/3-journal/march.journal
+```
+
+Each move is reported. Existing trash entries are preserved, with `.1`,
+`.2`, and so on appended to subsequent filenames. The trash is never
+imported or emptied automatically. Restore the input and run import again
+to regenerate its outputs, or recover handwritten transactions from a
+trashed journal into `_manual_`. Restoring just the generated file without
+its input will cause it to be retired again.
+
+Trash moves use an account-local `.trash/.move-lock` directory to prevent
+concurrent imports from overwriting recovery files. If an interrupted
+process leaves this lock behind, the error explains how to remove the
+empty lock directory once no import is running and retry. A failed run may
+have moved some outputs already; they remain recoverable in `.trash`.
+
+Moves respect the selected import directory and `--start-year`, including
+when the last input has been removed. Include files are rebuilt globally
+from source-backed journals and supported manual files, so orphaned
+journals outside the cleanup scope are also excluded from the ledger.
+Obsolete generated year and account indexes are rewritten as empty ledgers.
+Manual-only and empty imports succeed without dummy input files.
+
+Only the documented stage/year layout is processed. Unrelated files such
+as PDFs are left untouched; hidden files and directories are ignored.
+Deleting an input can therefore remove its transactions from the ledger,
+but does not permanently delete the generated files.
+
 ### Stability of this Feature
 
 The basic owner/bank/account/year structure has been used and tested
@@ -405,8 +454,11 @@ Not every transaction in your life comes with CSV statements.
 Sometimes you just need to add a transaction for that time you loaned a
 friend some money.
 
-`hledger-flow` looks for `pre-import` and `post-import` files related to
-each generated include file as part of the import.
+`hledger-flow` independently discovers `_manual_/YYYY/pre-import.journal`
+and `_manual_/YYYY/post-import.journal` during import. You can place
+`_manual_` directly under `import`, an owner, a bank, or an account.
+Either file establishes that year's include files, even when there are no
+statements for that year or no statements anywhere in the ledger.
 
 You can enter your own transactions manually into these files.
 
@@ -414,9 +466,9 @@ You can run `hledger-flow import --verbose` to see exactly which files
 are being looked for.
 
 As an example, assuming that the relevant year is `2019` and
-`hledger-flow` is about to generate `import/john/2019-include.journal`,
-then one or both of the following files will be added to the include
-file if they exist:
+one or both of the following files will cause
+`import/john/2019-include.journal` to be generated and included in the
+root ledger:
 
 1.  `import/john/_manual_/2019/pre-import.journal`
 2.  `import/john/_manual_/2019/post-import.journal`

@@ -5,6 +5,8 @@ dist-newstyle/
 scratch
 scratch.org
 docs/my-finances
+/docs/superpowers/
+/docs/plans/
 releases/
 *.c.*
 .idea

@@ -7,6 +7,7 @@ import qualified Data.List as List
 import Data.Either (isLeft)
 import qualified Data.Text.IO as T
 import Hledger.Flow.Import.ImportHelpers (findInputFiles, findJournalFiles, withStagedOutput)
+import Hledger.Flow.Import.Inventory (moveToTrash)
 import Hledger.Flow.PathHelpers (AbsFile)
 import Path
 import Path.IO
@@ -88,4 +89,19 @@ testStagedOutput = TestCase $ withSystemTempDir "hlflow-output" $ \dir -> do
   T.readFile (toFilePath target) >>= assertEqual "publish successful retry" "complete"
 
 tests :: Test
-tests = TestList [testFindInputFiles, testFindJournalFiles, testStagedOutput]
+tests = TestList [testFindInputFiles, testFindJournalFiles, testStagedOutput, testTrashLock]
+
+testTrashLock :: Test
+testTrashLock = TestCase $ withSystemTempDir "hlflow-trash" $ \root -> do
+  let source = root </> [relfile|import/owner/bank/account/3-journal/2020/march.journal|]
+      lock = root </> [reldir|import/owner/bank/account/.trash/.move-lock|]
+      target = root </> [relfile|import/owner/bank/account/.trash/2020/3-journal/march.journal|]
+  touchFile source
+  createDirIfMissing True lock
+  result <- tryIOError (moveToTrash source)
+  assertBool "A concurrent trash move must not race for a destination" (isLeft result)
+  T.readFile (toFilePath source) >>= assertEqual "Busy trash leaves source intact" "x"
+  doesFileExist target >>= assertBool "Busy trash writes no destination" . not
+  removeDir lock
+  actual <- moveToTrash source
+  assertEqual "Retry after the other move completes succeeds" target actual

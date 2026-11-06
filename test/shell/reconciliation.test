@@ -1,0 +1,161 @@
+# Renaming a source retires both old outputs, without counting the fee twice.
+<
+. ./test/shell/setup.sh
+mkdir -p "$account/2-preprocessed/2016"
+cp "$inbox/march.csv" "$account/2-preprocessed/2016/march.csv"
+flow import
+cp "$journal" old.journal
+mv "$inbox/march.csv" "$inbox/renamed.csv"
+flow import --new-files-only
+test ! -e "$journal"
+test ! -e "$account/2-preprocessed/2016/march.csv"
+cmp old.journal "$account/.trash/2016/3-journal/march.journal"
+cmp "$inbox/renamed.csv" "$account/.trash/2016/2-preprocessed/march.csv"
+hledger -f all-years.journal balance expenses --flat --no-total --format '%(total)'
+$ sh -eu
+5
+
+# Removing the last source empties every old index; unrelated files and trash survive.
+<
+. ./test/shell/setup.sh
+flow import
+cp "$journal" old.journal
+printf 'unrelated PDF\n' > "$account/3-journal/2016/receipt.pdf"
+rm "$inbox/march.csv"
+flow import
+test ! -e "$journal"
+cmp old.journal "$account/.trash/2016/3-journal/march.journal"
+test -s "$account/3-journal/2016/receipt.pdf"
+for ledger in all-years.journal import/all-years.journal import/gawie/all-years.journal "$account/all-years.journal" "$account/2016-include.journal"; do
+    test -z "$(hledger -f "$ledger" print)"
+done
+flow import
+test -z "$(hledger -f all-years.journal print)"
+$ sh -eu
+
+# Repeated retirements preserve both versions rather than replacing a trash entry.
+<
+. ./test/shell/setup.sh
+flow import
+cp "$journal" first.journal
+rm "$inbox/march.csv"
+flow import
+printf '%s\n' '2016-03-01,Second version,-8' > "$inbox/march.csv"
+flow import
+cp "$journal" second.journal
+rm "$inbox/march.csv"
+flow import
+cmp first.journal "$account/.trash/2016/3-journal/march.journal"
+cmp second.journal "$account/.trash/2016/3-journal/march.journal.1"
+$ sh -eu
+
+# Cleanup obeys the account and start year, but source-less journals are not included.
+<
+. ./test/shell/setup.sh
+flow import
+mkdir -p "$account/3-journal/2017" "$account/2-preprocessed/2017" import/other/bank/account/3-journal/2017
+cp "$journal" "$account/3-journal/2017/stray.journal"
+cp "$inbox/march.csv" "$account/2-preprocessed/2017/stray.csv"
+cp "$journal" import/other/bank/account/3-journal/2017/stray.journal
+rm "$inbox/march.csv"
+(cd "$account" && flow import --start-year 2017)
+test -s "$journal"
+test -s import/other/bank/account/3-journal/2017/stray.journal
+test ! -e "$account/3-journal/2017/stray.journal"
+test -s "$account/.trash/2017/3-journal/stray.journal"
+test -s "$account/.trash/2017/2-preprocessed/stray.csv"
+test -z "$(hledger -f all-years.journal print)"
+$ sh -eu
+
+# Failed conversions do not retire old outputs or rewrite the last good includes.
+<
+. ./test/shell/setup.sh
+flow import
+cp import/2016-include.journal before.journal
+mv "$inbox/march.csv" "$inbox/renamed.csv"
+rm import/bogart.rules
+if hledger-flow import > failure.log 2>&1; then exit 1; fi
+test -s "$journal"
+test ! -e "$account/.trash"
+cmp before.journal import/2016-include.journal
+$ sh -eu
+
+# Colliding source names fail before any conversion or retirement.
+<
+. ./test/shell/setup.sh
+cp "$inbox/march.csv" "$inbox/march.txt"
+if hledger-flow import > failure.log 2>&1; then exit 1; fi
+grep -q 'same output' failure.log
+grep -q 'march.csv' failure.log
+grep -q 'march.txt' failure.log
+test ! -e "$journal"
+$ sh -eu
+
+# A manual-only ledger includes each supported level, without inputs or dummy files.
+<
+. ./test/shell/setup.sh
+rm "$inbox/march.csv"
+for level in import import/gawie import/gawie/bogart "$account"; do
+    mkdir -p "$level/_manual_/2018"
+    printf '2018-01-01 Manual entry\n    expenses:cash  2\n    assets:cash\n' > "$level/_manual_/2018/pre-import.journal"
+    printf '2018-01-02 Manual entry\n    expenses:cash  3\n    assets:cash\n' > "$level/_manual_/2018/post-import.journal"
+done
+mkdir -p "$account/.trash/2018/3-journal"
+printf 'not a journal\n' > "$account/.trash/2018/3-journal/broken.journal"
+flow import
+hledger -f all-years.journal balance expenses --flat --no-total --format '%(total)'
+flow import
+hledger -f all-years.journal balance expenses --flat --no-total --format '%(total)'
+$ sh -eu
+20
+20
+
+# A later manual-only year survives a scoped import and a start-year filter.
+<
+. ./test/shell/setup.sh
+mkdir -p import/gawie/_manual_/2018
+printf '2018-01-01 Cash only\n    expenses:cash  3\n    assets:cash\n' > import/gawie/_manual_/2018/post-import.journal
+(cd "$account" && flow import)
+test ! -e import/2017-include.journal
+hledger -f all-years.journal descriptions
+(cd "$account" && flow import --start-year 2020)
+hledger -f all-years.journal descriptions
+$ sh -eu
+Cash only
+Monthly bank fee
+Cash only
+Monthly bank fee
+
+# Failure to move an orphan is an import failure and preserves the source bytes.
+<
+. ./test/shell/setup.sh
+flow import
+cp "$journal" before.journal
+rm "$inbox/march.csv"
+printf 'blocks trash directory creation\n' > "$account/.trash"
+if hledger-flow import > failure.log 2>&1; then exit 1; fi
+cmp before.journal "$journal"
+test -f "$account/.trash"
+$ sh -eu
+
+# A case-only source rename must not retire the journal that was just regenerated.
+<
+. ./test/shell/setup.sh
+flow import
+mv "$inbox/march.csv" "$inbox/March.csv"
+flow import
+test -s "$account/3-journal/2016/March.journal"
+hledger -f all-years.journal balance expenses --flat --no-total --format '%(total)'
+$ sh -eu
+5
+
+# On case-insensitive filesystems, future output aliases collide before conversion.
+<
+. ./test/shell/setup.sh
+if test -f "$inbox/MARCH.CSV"; then
+    cp "$inbox/march.csv" "$inbox/March.txt"
+    if hledger-flow import > failure.log 2>&1; then exit 1; fi
+    grep -q 'same output' failure.log
+    test ! -e "$journal"
+fi
+$ sh -eu

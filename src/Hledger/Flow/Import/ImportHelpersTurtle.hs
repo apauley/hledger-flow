@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE QuasiQuotes #-}
 
 -- | Generate journal include files and their relative include directives.
 module Hledger.Flow.Import.ImportHelpersTurtle
@@ -11,6 +12,7 @@ module Hledger.Flow.Import.ImportHelpersTurtle
     toIncludeFiles,
     toIncludeLine,
     writeIncludesUpTo,
+    writeIncludesFromInventory,
     writeToplevelAllYearsInclude,
     yearsIncludeMap,
   )
@@ -23,9 +25,11 @@ import qualified Data.List as List (isPrefixOf, nub, sort)
 import qualified Data.Map.Strict as Map
 import Data.Maybe (fromMaybe)
 import qualified Data.Text as T
+import qualified Data.Text.IO as T
 import Hledger.Flow.BaseDir (relativeToBase, relativeToBase', turtleBaseDir)
 import Hledger.Flow.Common (allYearsFileName, directivesFile, filterPaths, groupValuesBy, writeFiles, writeFiles')
 import Hledger.Flow.Import.ImportHelpers (extractImportDirs, groupIncludesUpTo)
+import Hledger.Flow.Import.Inventory (findImportFiles, manualIncludeFiles, managedIncludeFiles)
 import Hledger.Flow.Import.Types
 import Hledger.Flow.Logging (logVerbose)
 import Hledger.Flow.PathHelpers (AbsDir, AbsFile)
@@ -118,19 +122,45 @@ writeFileMap opts ch (m, allYears) = do
 
 writeIncludesUpTo :: (HasBaseDir o, HasVerbosity o) => o -> TChan LogMessage -> AbsDir -> [AbsFile] -> IO [AbsFile]
 writeIncludesUpTo opts ch stopAt journals = do
+  inventory <- findImportFiles stopAt
+  writeIncludesFromInventory opts ch stopAt inventory journals
+
+writeIncludesFromInventory :: (HasBaseDir o, HasVerbosity o) => o -> TChan LogMessage -> AbsDir -> [AbsFile] -> [AbsFile] -> IO [AbsFile]
+writeIncludesFromInventory opts ch stopAt inventory journals = do
   let base = baseDir opts
+      importRoot = base Path.</> [Path.reldir|import|]
       journalFiles = filter (isJournalFile . Path.toFilePath) journals
   boundary <- Path.stripProperPrefix base stopAt
   unless (all (Path.isProperPrefixOf stopAt) journalFiles) $
     ioError (userError "Journal file outside the requested include directory")
   inputs <- mapM (Path.stripProperPrefix base) journalFiles
-  let groups = groupIncludesUpTo boundary inputs
+  manual <- manualIncludeFiles importRoot (filter (Path.isProperPrefixOf stopAt) inventory)
+  seeds <- mapM (Path.stripProperPrefix base) manual
+  let groups = Map.unionsWith (++)
+        [ groupIncludesUpTo boundary inputs,
+          groupIncludesUpTo boundary seeds,
+          Map.fromList [(seed, []) | seed <- seeds]
+        ]
       absolute file = Path.toFilePath (base Path.</> file)
       includes = Map.mapKeys absolute (Map.map (map absolute) groups)
       years = yearsIncludeMap (Map.keys includes)
       allAtStop = Path.toFilePath stopAt </> allYearsFileName
-  _ <- writeFileMap opts ch (includes, Map.insertWith (++) allAtStop [] years)
+      indexes = Map.insertWith (++) allAtStop [] years
+      current = Map.union includes indexes
+  -- Empty obsolete generated indexes as well as removing their parent links:
+  -- users can open an account or year ledger directly.
+  let old = managedIncludeFiles importRoot (filter (Path.isProperPrefixOf stopAt) inventory)
+  mapM_ (clearObsolete current) old
+  _ <- writeFileMap opts ch (includes, indexes)
   return [base Path.</> f | f <- Map.keys groups, Path.parent f == boundary]
+  where
+    clearObsolete current file = unless (Map.member (Path.toFilePath file) current) $ do
+      contents <- T.readFile (Path.toFilePath file)
+      if includePreamble `T.isPrefixOf` contents
+        then do
+          _ <- writeFiles' (Map.singleton (Path.toFilePath file) (includePreamble <> "\n"))
+          return ()
+        else return ()
 
 writeToplevelAllYearsInclude :: (HasBaseDir o, HasVerbosity o) => o -> IO [FilePath]
 writeToplevelAllYearsInclude opts = do
