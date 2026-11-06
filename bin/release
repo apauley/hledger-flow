@@ -15,7 +15,8 @@
 #   hackage          Upload a Hackage candidate
 #   hackage-publish  PERMANENT: publish just the reviewed candidate (recovery)
 #   publish          PERMANENT: publish on Hackage and GitHub, then update the Homebrew tap
-#   notes [VERSION]  Print the ChangeLog.md section for VERSION
+#   notes [VERSION]  Print the GitHub release notes: .github/release-notice.md, then
+#                    the ChangeLog.md section for VERSION
 #
 # Commands never prompt. Each one stops with an error naming the fix, and can be
 # re-run once the fix is in. Only the PERMANENT commands can't be undone.
@@ -47,6 +48,12 @@ cabal_in_sync() {
 
 notes() {
   awk -v h="## ${1:-$(version)}" '$0 == h {f=1; next} /^## / {f=0} f' ChangeLog.md | sed '/./,$!d'
+}
+
+release_notes() {
+  cat .github/release-notice.md
+  echo
+  notes "$@"
 }
 
 clean_master() {
@@ -261,7 +268,7 @@ cmd_tag() {
   cmd_check
   bin/tag-release
   say "Created local tag v$v at $(git rev-parse --short "v$v^{commit}"). Release notes:"
-  notes "$v"
+  release_notes "$v"
   say "Next: bin/release push-tag (permanent: starts the release build)"
   echo "  To change anything first: git tag -d v$v, commit the fix, then bin/release ci and tag again."
 }
@@ -446,6 +453,6 @@ cmd_publish() {
 case "${1:-}" in
   deps|precheck|bump|ci|changelog|check|tag|push-tag|verify|hackage|hackage-publish|publish)
     c=${1//-/_}; shift; "cmd_$c" "$@" ;;
-  notes) shift; notes "$@" ;;
-  *) sed -n '4,21s/^# \{0,1\}//p' "$0"; exit 1 ;;
+  notes) shift; release_notes "$@" ;;
+  *) sed -n '4,22s/^# \{0,1\}//p' "$0"; exit 1 ;;
 esac

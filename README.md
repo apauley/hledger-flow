@@ -78,6 +78,7 @@ The cash fare stays in the manual journal. If you booked it to
 
 1. Download the archive for your OS and processor from the [latest GitHub release](https://github.com/apauley/hledger-flow/releases/latest).
 2. Extract it and copy `hledger-flow` (or `hledger-flow.exe` on Windows) to a directory on your `PATH`.
+   On macOS, [extract and run it from your terminal](QUICKSTART.md#install-on-macos), not Finder.
 3. [Install hledger](https://hledger.org/install.html) for imports and reports.
 
 The [quick-start guide](QUICKSTART.md) lists the archive names and walks through installation and your first import on each platform.

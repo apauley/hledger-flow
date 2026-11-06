@@ -40,16 +40,21 @@ On ARM64, use `hledger-flow-linux-arm64.tar.gz`. Copy the extracted
 
 ## Install on macOS
 
-On a Mac with Apple silicon, run:
+Extract and run the download from your terminal, not Finder. `hledger-flow`
+is a command-line program, not an app bundle. If you open it from Finder,
+macOS refuses it with "Apple could not verify", even though it is signed with
+a Developer ID and notarized.
+
+On a Mac with Apple silicon, run this in the folder you downloaded to:
 
 ```sh
 tar -xzf hledger-flow-macos-arm64.tar.gz
 ./hledger-flow --version
 ```
 
-On an Intel Mac, use `hledger-flow-macos-x64.tar.gz`. Copy the extracted
-`hledger-flow` into a directory on your PATH. The macOS release binary is
-signed with a Developer ID and submitted to Apple for notarization.
+On an Intel Mac, use `hledger-flow-macos-x64.tar.gz`. If macOS asks whether
+to open a program downloaded from the Internet, click **Open**. After that it
+runs normally. Copy the extracted `hledger-flow` into a directory on your PATH.
 
 ## Install on Windows
 

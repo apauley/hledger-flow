@@ -199,8 +199,9 @@ uploading it. `bin/release push-tag` downloads each asset and checks with
 from `refs/tags/v<version>` on a GitHub-hosted runner.
 
 CI enforces the same ChangeLog check: the tag's `release` job fails if the tag,
-`package.yaml`, and `ChangeLog.md` disagree, and it uses the ChangeLog section
-as the GitHub release notes.
+`package.yaml`, and `ChangeLog.md` disagree. The GitHub release notes are
+the macOS download notice in `.github/release-notice.md` followed by the
+ChangeLog section (`bin/release notes`).
 
 A failed `Notarize` job is reported as a warning and does not block the
 release; follow [Retry notarization](#retry-in-github-actions). Any other failed job stops the command.
