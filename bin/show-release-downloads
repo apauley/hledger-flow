@@ -1,113 +1,78 @@
 #!/usr/bin/env python3
-"""Report GitHub release download counts for hledger-flow.
-
-Usage: bin/show-release-downloads [owner/repo] [--self-test]
-Set GITHUB_TOKEN to avoid the unauthenticated API rate limit. NO_COLOR is honoured.
-"""
-import json
-import os
+"""Report lifetime asset downloads for published GitHub releases."""
+import argparse
+import calendar
 import re
 import shutil
-import sys
-import urllib.request
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
-REPO = "apauley/hledger-flow"
-PLATFORMS = ["linux-x64", "linux-arm64", "macos-x64", "macos-arm64", "windows-x64"]
-USE_COLOR = sys.stdout.isatty() and not os.environ.get("NO_COLOR")
+from github_releases import (DEFAULT_REPO, bar, bold, cyan, dim, github_get, green, magenta, platform, repository,
+                             table, yellow)
 
-
-def c(code, s):
-    return f"\033[{code}m{s}\033[0m" if USE_COLOR else str(s)
-
-
-bold, dim, cyan, green, yellow, magenta = (lambda s, k=k: c(k, s) for k in ("1", "2", "36", "32", "33", "35"))
-ANSI = re.compile(r"\033\[[0-9;]*m")
-
-
-def platform(asset_name):
-    n = asset_name.lower()
-    # "windows", not "win": "darwin" contains "win".
-    found = [os_ for os_, keys in (("linux", ("linux",)), ("macos", ("darwin", "macos", "osx")), ("windows", ("windows",)))
-             if any(k in n for k in keys)]
-    if len(found) > 1:
-        return "+".join(found)  # a bundle with binaries for several OSes
-    if not found:
-        return "other"
-    arch = "arm64" if ("arm64" in n or "aarch64" in n) else "x64"
-    return f"{found[0]}-{arch}"
-
-
-def bar(value, maximum, width):
-    if maximum <= 0 or width <= 0:
-        return ""
-    eighths = max(round(value / maximum * width * 8), 1 if value > 0 else 0)
-    full, part = divmod(eighths, 8)
-    return "█" * full + ("", "▏", "▎", "▍", "▌", "▋", "▊", "▉")[part]
+PLATFORMS = ["linux-x64", "linux-arm64", "linux-arm32", "macos-x64", "macos-arm64", "windows-x64"]
+MIN_RATE_DAYS = 7
 
 
 def fetch(repo):
-    headers = {"Accept": "application/vnd.github+json", "User-Agent": "hledger-flow-release-report"}
-    if token := os.environ.get("GITHUB_TOKEN"):
-        headers["Authorization"] = f"Bearer {token}"
-    releases, page = [], 1
+    page = 1
     while True:
-        url = f"https://api.github.com/repos/{repo}/releases?per_page=100&page={page}"
-        with urllib.request.urlopen(urllib.request.Request(url, headers=headers)) as r:
-            batch = json.load(r)
-        if not batch:
-            return releases
-        releases += batch
+        batch = github_get(repo, f"?per_page=100&page={page}")
+        yield from batch
+        if len(batch) < 100:
+            return
         page += 1
+
+
+def since_date(value):
+    try:
+        if re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", value):
+            return date.fromisoformat(value)
+    except ValueError:
+        pass
+    raise argparse.ArgumentTypeError("expected a valid date in YYYY-MM-DD form")
 
 
 def parse_time(s):
     return datetime.fromisoformat(s.replace("Z", "+00:00"))
 
 
-def table(rows, aligns, bars=None, term_w=80):
-    """Print aligned rows; if bars is a list of callables (width -> str), they fill the remaining terminal width."""
-    widths = [max(len(ANSI.sub("", str(r[i]))) for r in rows) for i in range(len(aligns))]
-    if bars:
-        bar_w = max(10, min(50, term_w - sum(widths) - 2 * len(widths) - 3))
-        rows = [r + [b(bar_w) if b else ""] for r, b in zip(rows, bars)]
-        widths, aligns = widths + [0], aligns + ["<"]
-    for r in rows:
-        cells = []
-        for cell, w, a in zip(r, widths, aligns):
-            pad = " " * (w - len(ANSI.sub("", str(cell))))
-            cells.append(f"{cell}{pad}" if a == "<" else f"{pad}{cell}")
-        print("  " + "  ".join(cells).rstrip())
-
-
-def report(repo):
+def report(repo, since=None):
     now = datetime.now(timezone.utc)
     releases = []
     for r in fetch(repo):
         if r["draft"] or not r.get("published_at"):
             continue
-        # Skip pre-rename hledger-makeitso builds, and the releases that only had those.
-        kept = [a for a in r["assets"] if not a["name"].startswith("hledger-makeitso")]
-        if r["assets"] and not kept:
+        if since and parse_time(r["published_at"]).date() < since:
             continue
-        releases.append({**r, "assets": kept})
+        # Skip pre-rename hledger-makeitso builds, and the releases that only had those.
+        if repo.lower() == DEFAULT_REPO:
+            kept = [a for a in r["assets"] if not a["name"].startswith("hledger-makeitso")]
+            if r["assets"] and not kept:
+                continue
+            r = {**r, "assets": kept}
+        releases.append(r)
     releases.sort(key=lambda r: r["published_at"])
     if not releases:
-        print(f"No published releases for {repo}.")
+        period = f" on or after {since}" if since else ""
+        print(f"No published releases for {repo}{period}.")
         return
 
-    # Each release is "current" from its publish date until the next one is published.
+    # Each release is "current" from its publish date until a later release replaces it:
+    # any later release replaces a prerelease, but only a later full release replaces a full release.
     stats = []
     for i, r in enumerate(releases):
         start = parse_time(r["published_at"])
-        end = parse_time(releases[i + 1]["published_at"]) if i + 1 < len(releases) else now
+        later = [n for n in releases[i + 1:] if r["prerelease"] or not n["prerelease"]]
+        end = parse_time(later[0]["published_at"]) if later else now
         by_platform = {}
         for a in r["assets"]:
             p = platform(a["name"])
             by_platform[p] = by_platform.get(p, 0) + a["download_count"]
         total = sum(by_platform.values())
-        current_days = max((end - start).total_seconds() / 86400, 1)
-        stats.append(dict(r=r, start=start, total=total, by=by_platform, per_day=total / current_days))
+        current_days = (end - start).total_seconds() / 86400
+        # Lifetime downloads over a window of a few days (e.g. a same-week backport) give a meaningless rate.
+        per_day = total / current_days if current_days >= MIN_RATE_DAYS else None
+        stats.append(dict(r=r, start=start, total=total, by=by_platform, per_day=per_day))
 
     grand = sum(s["total"] for s in stats)
     plat_totals = {}
@@ -117,22 +82,28 @@ def report(repo):
     plat_totals = {p: n for p, n in plat_totals.items() if n}
     shown_platforms = [p for p in PLATFORMS if p in plat_totals] + sorted(set(plat_totals) - set(PLATFORMS))
     top = max(stats, key=lambda s: s["total"])
-    latest = stats[-1]
+    latest = next((s for s in reversed(stats) if not s["r"]["prerelease"]), stats[-1])
+    prereleases = sum(s["r"]["prerelease"] for s in stats)
     term_w = shutil.get_terminal_size((120, 24)).columns
 
     print()
     print(bold(f"  {repo}") + dim("  ·  GitHub release downloads  ·  ") + dim(now.strftime("%Y-%m-%d %H:%M UTC")))
+    if since:
+        print(f"  Releases published on or after {since} (UTC)")
     print()
     summary = [
         ("Total downloads", bold(green(f"{grand:,}"))),
-        ("Releases", f"{len(stats)}  " + dim(f"({stats[0]['r']['tag_name']} → {latest['r']['tag_name']})")),
+        ("Releases", f"{len(stats)}  " + dim(f"({stats[0]['r']['tag_name']} → {stats[-1]['r']['tag_name']}"
+                                             + (f", {prereleases} prereleases" if prereleases else "") + ")")),
         ("Latest release", f"{cyan(latest['r']['tag_name'])}  {latest['start']:%Y-%m-%d}  "
                            + dim(f"{(now - latest['start']).days} days ago, {latest['total']:,} downloads")),
         ("Most downloaded", f"{cyan(top['r']['tag_name'])}  {top['total']:,} "
                             + dim(f"({top['total'] / grand:.0%} of all)" if grand else "")),
         ("Average / release", f"{grand / len(stats):,.0f}"),
-        ("Release cadence", f"{(now - stats[0]['start']).days / len(stats):,.0f} days between releases on average"),
     ]
+    if len(stats) > 1:
+        average_gap = (stats[-1]["start"] - stats[0]["start"]).total_seconds() / 86400 / (len(stats) - 1)
+        summary.append(("Release cadence", f"{average_gap:,.0f} days between releases on average"))
     for label, value in summary:
         print(f"  {dim(label.ljust(18))} {value}")
 
@@ -148,7 +119,7 @@ def report(repo):
         colour = yellow if s is top else green
         rows.append(
             [cyan(tag) if s is latest else tag, s["start"].strftime("%Y-%m-%d"),
-             bold(f"{s['total']:,}") if s is top else f"{s['total']:,}", f"{s['per_day']:.1f}"]
+             bold(f"{s['total']:,}") if s is top else f"{s['total']:,}", f"{s['per_day']:.1f}" if s["per_day"] is not None else dim("–")]
             + [f"{s['by'][p]:,}" if s["by"].get(p) else dim("·") for p in shown_platforms]
         )
         bars.append(lambda w, t=s["total"], col=colour: col(bar(t, max_total, w)))
@@ -156,17 +127,21 @@ def report(repo):
     rows.append([bold("All"), "", bold(f"{grand:,}"), ""] + [bold(f"{plat_totals[p]:,}") for p in shown_platforms])
     bars += [None, None]
     table(rows, ["<", "<", ">", ">"] + [">"] * len(shown_platforms), bars, term_w)
-    print(dim("  * downloads per day while it was the newest release (all downloads attributed to that window)"))
+    print(dim("  * downloads per day while it was the newest release (all downloads attributed to that window;"))
+    print(dim(f"    a prerelease does not replace a full release; – means a window under {MIN_RATE_DAYS} days)"))
 
     # Platform breakdown.
     print()
     print(bold("  Downloads by platform"))
     print()
-    max_p = max(plat_totals.values())
-    ranked = sorted(plat_totals.items(), key=lambda kv: -kv[1])
-    rows = [[p, f"{n:,}", dim(f"{n / grand:5.1%}")] for p, n in ranked]
-    bars = [lambda w, n=n: magenta(bar(n, max_p, w)) for _, n in ranked]
-    table(rows, ["<", ">", ">"], bars, term_w)
+    if plat_totals:
+        max_p = max(plat_totals.values())
+        ranked = sorted(plat_totals.items(), key=lambda kv: -kv[1])
+        rows = [[p, f"{n:,}", dim(f"{n / grand:5.1%}")] for p, n in ranked]
+        bars = [lambda w, n=n: magenta(bar(n, max_p, w)) for _, n in ranked]
+        table(rows, ["<", ">", ">"], bars, term_w)
+    else:
+        print("  No asset downloads.")
 
     # Downloads by year of release.
     print()
@@ -182,6 +157,18 @@ def report(repo):
     rows = [[str(y), f"{t:,}", dim(f"{n} release{'s' * (n != 1)}")] for y, (t, n) in ordered]
     bars = [lambda w, t=t: green(bar(t, max_y, w)) for _, (t, _n) in ordered]
     table(rows, ["<", ">", "<"], bars, term_w)
+
+    print()
+    print(bold("  Downloads by release publication month"))
+    print(dim("  Lifetime asset downloads grouped by the month each release was published, across years."))
+    print()
+    months = [0] * 12
+    for s in stats:
+        months[s["start"].month - 1] += s["total"]
+    max_month = max(months)
+    rows = [[calendar.month_abbr[i], f"{n:,}"] for i, n in enumerate(months, 1)]
+    bars = [lambda w, n=n: green(bar(n, max_month, w)) for n in months]
+    table(rows, ["<", ">"], bars, term_w)
     print()
 
 
@@ -194,13 +181,23 @@ def self_test():
     assert platform("hledger-makeitso-v0.10-linux-osx.tar.gz") == "linux+macos"
     assert platform("hledger-flow-windows-x64.zip") == "windows-x64"
     assert platform("hledger-flow-source.tar.gz") == "other"
+    assert platform("hledger-mac-arm64.tar.gz") == "macos-arm64" and platform("hledger-mac-x64.zip") == "macos-x64"
+    assert platform("hledger-ubuntu.zip") == "linux-x64" and platform("hledger-aarch64-manjaro.gz") == "linux-arm64"
+    assert platform("hledger-linux-static-arm32v7.zip") == "linux-arm32" and platform("hledger-armhf32-debian.gz") == "linux-arm32"
     assert bar(0, 10, 10) == "" and bar(10, 10, 10) == "█" * 10 and bar(5, 10, 3) == "█▌"
     print("ok")
 
 
 if __name__ == "__main__":
-    args = sys.argv[1:]
-    if "--self-test" in args:
+    parser = argparse.ArgumentParser(description=__doc__, epilog="Set GITHUB_TOKEN for a higher GitHub API rate limit.")
+    repos = parser.add_mutually_exclusive_group()
+    repos.add_argument("repository", nargs="?", type=repository, metavar="OWNER/REPO", help="repository to report on")
+    repos.add_argument("--repo", type=repository, metavar="OWNER/REPO", help=f"repository (default: {DEFAULT_REPO})")
+    parser.add_argument("--since", type=since_date, metavar="YYYY-MM-DD",
+                        help="include releases published on or after this UTC date")
+    parser.add_argument("--self-test", action="store_true", help="run offline checks")
+    args = parser.parse_args()
+    if args.self_test:
         self_test()
     else:
-        report(args[0] if args else REPO)
+        report(args.repo or args.repository or DEFAULT_REPO, args.since)

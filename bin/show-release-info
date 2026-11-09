@@ -1,0 +1,81 @@
+#!/usr/bin/env python3
+"""Show the latest GitHub release or a release identified by its exact tag."""
+import argparse
+import shutil
+from datetime import datetime, timezone
+from urllib.parse import quote
+
+from github_releases import (DEFAULT_REPO, bar, bold, cyan, dim, github_get, green, magenta, platform, repository,
+                            table, yellow)
+
+
+def human_size(n):
+    for unit in ("B", "KB", "MB"):
+        if n < 1024:
+            return f"{n:.0f} {unit}" if unit == "B" else f"{n:.1f} {unit}"
+        n /= 1024
+    return f"{n:.1f} GB"
+
+
+def report(repo, release, with_changelog):
+    now = datetime.now(timezone.utc)
+    tag = release["tag_name"]
+    title = release.get("name") or tag
+    assets = sorted(release["assets"], key=lambda a: -a["download_count"])
+    total = sum(a["download_count"] for a in assets)
+
+    print()
+    print(bold(f"  {repo}") + dim("  ·  GitHub release  ·  ") + dim(now.strftime("%Y-%m-%d %H:%M UTC")))
+    print()
+    kind = yellow("draft") if release["draft"] else yellow("prerelease") if release["prerelease"] else green("release")
+    summary = [("Release", bold(cyan(tag)) + (f"  {title}" if title != tag else "") + dim("  ·  ") + kind)]
+    days = None
+    if release.get("published_at"):
+        published = datetime.fromisoformat(release["published_at"].replace("Z", "+00:00"))
+        days = (now - published).total_seconds() / 86400
+        age = "today" if days < 1 else f"{int(days):,} day{'s' * (int(days) != 1)} ago"
+        summary.append(("Published", f"{published:%Y-%m-%d %H:%M UTC}  " + dim(age)))
+    if release.get("author"):
+        summary.append(("Author", "@" + release["author"]["login"]))
+    downloads = bold(green(f"{total:,}"))
+    if days is not None:
+        downloads += dim(f"  {total / max(days, 1):.1f} per day")
+    summary.append(("Downloads", downloads))
+    summary.append(("Files", f"{len(assets)}  " + dim(human_size(sum(a["size"] for a in assets)))))
+    summary.append(("Page", release["html_url"]))
+    for label, value in summary:
+        print(f"  {dim(label.ljust(11))} {value}")
+
+    print()
+    print(bold("  Downloads per file"))
+    print()
+    if assets:
+        top = assets[0]["download_count"]
+        rows = [[dim(h) for h in ("Platform", "File", "Size", "Downloads", "Share")]]
+        rows += [[platform(a["name"]), a["name"], dim(human_size(a["size"])), f"{a['download_count']:,}",
+                  dim(f"{a['download_count'] / total:.0%}" if total else "–")] for a in assets]
+        bars = [None] + [lambda w, n=a["download_count"]: magenta(bar(n, top, w)) for a in assets]
+        table(rows, ["<", "<", ">", ">", ">"], bars, shutil.get_terminal_size((120, 24)).columns)
+    else:
+        print("  No files attached.")
+
+    print()
+    if with_changelog:
+        print(bold("  Release notes"))
+        print()
+        for line in ((release.get("body") or "").strip() or "No release notes.").splitlines():
+            print(f"  {line}".rstrip())
+    else:
+        print(dim("  Release notes hidden; pass --with-changelog to show them."))
+    print()
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__, epilog="Set GITHUB_TOKEN for a higher GitHub API rate limit.")
+    parser.add_argument("tag", nargs="?", help="release tag (defaults to GitHub's latest release)")
+    parser.add_argument("--repo", default=DEFAULT_REPO, type=repository, metavar="OWNER/REPO",
+                        help="repository (default: %(default)s)")
+    parser.add_argument("--with-changelog", action="store_true", help="also print the release notes")
+    args = parser.parse_args()
+    endpoint = "/tags/" + quote(args.tag, safe="") if args.tag else "/latest"
+    report(args.repo, github_get(args.repo, endpoint), args.with_changelog)

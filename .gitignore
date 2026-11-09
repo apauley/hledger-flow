@@ -1,4 +1,5 @@
 .stack-work/
+__pycache__/
 dist/
 dist-newstyle/
 *~
