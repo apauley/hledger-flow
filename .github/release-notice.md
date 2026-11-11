@@ -6,5 +6,4 @@
 > `tar -xzf hledger-flow-macos-arm64.tar.gz` (`hledger-flow-macos-x64.tar.gz` on an Intel Mac),
 > then `./hledger-flow --version`. If macOS asks whether to open a program
 > downloaded from the Internet, click **Open**. After that it runs normally.
-> [Homebrew](https://github.com/apauley/hledger-flow/blob/master/README.md#install-with-homebrew)
-> installs it without this step.
+> [Homebrew](https://github.com/apauley/hledger-flow/blob/master/README.md#install-with-homebrew) installs it without this step.
