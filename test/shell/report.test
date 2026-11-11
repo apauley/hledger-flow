@@ -161,9 +161,22 @@ tr -d '\r' < reports/gawie/2016/accounts.txt | grep -Fx expenses:bank-fees
 $ sh -eu
 expenses:bank-fees
 
-# Report names its output folder.
+# An empty unknown-transactions report is counted as skipped.
 <
 . ./test/shell/setup.sh
 flow import
-hledger-flow report 2> /dev/null | grep -q '^Generated [0-9]* reports in reports/'
+hledger-flow report > summary 2> /dev/null
+grep -q '^Generated [0-9]* reports in reports/\. Skipped [1-9][0-9]* empty report' summary
+test ! -f reports/gawie/2016/unknown-transactions.txt
+$ sh -eu
+
+# Report can open the same home-relative journal that status found.
+<
+. ./test/shell/setup.sh
+case "$(uname -s)" in MINGW*|MSYS*) exit 0 ;; esac
+flow import
+export HOME="$PWD" LEDGER_FILE='~/all-years.journal'
+hledger-flow status --json | jq -e '.ledgerFile.exists and .next.command == "hledger-flow report"' > /dev/null
+flow report
+test -s reports/gawie/2016/accounts.txt
 $ sh -eu

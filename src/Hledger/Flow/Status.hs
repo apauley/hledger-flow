@@ -20,7 +20,9 @@ where
 
 import Data.Char (isDigit, toLower)
 import Data.Maybe (mapMaybe)
+import qualified Data.Set as Set
 import qualified Data.Text as T
+import Hledger.Flow.Common (Shell (..), posixLiteral, powerShellLiteral, shellArgument)
 import Hledger.Flow.DocHelpers (docURL)
 import Hledger.Flow.Import.Inventory (stageFiles)
 import Hledger.Flow.PathHelpers (AbsDir, AbsFile)
@@ -56,7 +58,8 @@ data LedgerStatus = LedgerStatus
     lsAccounts :: [AccountStatus],
     lsMisplaced :: [Misplaced],
     lsManualJournals :: Int,
-    lsAllYearsExists :: Bool
+    lsAllYearsExists :: Bool,
+    lsNeedsReconciliation :: Bool
   }
   deriving (Show)
 
@@ -91,8 +94,9 @@ suggestPlacement parts = FilePath.joinPath (["import"] ++ identity ++ ["1-in", y
 misplacedFiles :: AbsDir -> [AbsFile] -> [Misplaced]
 misplacedFiles root files = mapMaybe misplaced (filter candidate files)
   where
-    staged = concatMap (\stage -> stageFiles root stage files) [[reldir|1-in|], [reldir|2-preprocessed|], [reldir|3-journal|]]
-    candidate f = f `notElem` staged && extension f `elem` statementExtensions
+    staged = Set.fromList (stageFiles root [reldir|1-in|] files ++ cachedCSVs)
+    cachedCSVs = filter ((== ".csv") . FilePath.takeExtension . toFilePath) (stageFiles root [reldir|2-preprocessed|] files)
+    candidate f = extension f `elem` statementExtensions && Set.notMember f staged
     extension = map toLower . drop 1 . FilePath.takeExtension . toFilePath
     misplaced f = do
       rel <- stripProperPrefix root f
@@ -104,16 +108,16 @@ plural 1 noun = "1 " <> noun
 plural n noun = T.pack (show n) <> " " <> noun <> "s"
 
 -- | The single most important next step. The first matching rule wins.
-nextStep :: Integer -> Bool -> LedgerStatus -> NextStep
-nextStep year windows s
+nextStep :: Integer -> Shell -> AbsDir -> LedgerStatus -> NextStep
+nextStep year shell cwd s
   | Nothing <- lsHledger s =
       NextStep "Install hledger, or pass its location with --hledger-path" Nothing [] (Just "https://hledger.org/install.html")
-  | statements == 0 && null (lsMisplaced s) && lsManualJournals s == 0 =
+  | statements == 0 && null (lsMisplaced s) && lsManualJournals s == 0 && not (lsNeedsReconciliation s) =
       NextStep
         "Put your first statement in import/<owner>/<bank>/<account>/1-in/<year>/"
         Nothing
         [ "For example: import/me/mybank/checking/1-in/" <> T.pack (show year) <> "/statement.csv",
-          "Then check with: hledger-flow status"
+          "Then check with: " <> command "status"
         ]
         (Just (docURL "input-files"))
   | not (null (lsMisplaced s)) =
@@ -125,13 +129,15 @@ nextStep year windows s
   | a : _ <- filter needsRules (lsAccounts s) =
       NextStep
         ("Create " <> T.pack (firstCandidate a) <> " (rules for " <> asAccount a <> ")")
-        (Just ("hledger-flow status --rules-template " <> asAccount a))
+        (Just (command "status" <> " --rules-template " <> shellArgument shell (asAccount a)))
         ["Save its output as that file, then edit it."]
         (Just (docURL "rules-files"))
   | toImport > 0 =
-      NextStep ("Import " <> plural toImport "new or changed statement") (Just "hledger-flow import") [] Nothing
+      NextStep ("Import " <> plural toImport "new or changed statement") (Just importCommand) [] Nothing
   | not (lsAllYearsExists s) =
-      NextStep "Run import to create all-years.journal" (Just "hledger-flow import") [] Nothing
+      NextStep "Run import to create all-years.journal" (Just importCommand) [] Nothing
+  | lsNeedsReconciliation s =
+      NextStep "Run import to reconcile generated files and journal includes" (Just importCommand) [] Nothing
   | maybe True (not . lfExists) (lsLedgerFile s) =
       NextStep
         "Point LEDGER_FILE at this ledger so hledger finds it"
@@ -141,18 +147,24 @@ nextStep year windows s
         ]
         (Just "https://github.com/apauley/hledger-flow/blob/master/QUICKSTART.md#import-your-first-statement")
   | otherwise =
-      NextStep "Generate reports, or explore with hledger" (Just "hledger-flow report") ["Or try: hledger balance"] Nothing
+      NextStep "Generate reports, or explore with hledger" (Just (command "report")) ["Or try: hledger balance"] Nothing
   where
+    command subcommand = "hledger-flow " <> subcommand <> baseArgument
+    baseArgument
+      | cwd == lsBaseDir s = ""
+      | otherwise = " " <> shellArgument shell (T.pack (FilePath.dropTrailingPathSeparator (toFilePath (lsBaseDir s))))
+    importCommand = command "import"
     statements = sum (map asStatements (lsAccounts s))
     toImport = sum [asJournalsMissing a + asJournalsOutdated a | a <- lsAccounts s]
     needsRules a = asWithoutRules a > 0 && not (asConstruct a)
     firstCandidate a = case asRulesCandidates a of
-      c : _ -> c
+      c : _ | cwd /= lsBaseDir s -> toFilePath (lsBaseDir s) FilePath.</> c
+            | otherwise -> c
       [] -> "a rules file"
     allYears = T.pack (toFilePath (lsBaseDir s </> [relfile|all-years.journal|]))
-    exportLine
-      | windows = "$env:LEDGER_FILE = \"" <> allYears <> "\""
-      | otherwise = "export LEDGER_FILE=\"" <> allYears <> "\""
+    exportLine = case shell of
+      Posix -> "export LEDGER_FILE=" <> posixLiteral allYears
+      PowerShell -> "$env:LEDGER_FILE = " <> powerShellLiteral allYears
 
 -- | @"hledger 1.50.2, mac-aarch64"@ → @"1.50.2"@.
 hledgerVersionNumber :: T.Text -> T.Text

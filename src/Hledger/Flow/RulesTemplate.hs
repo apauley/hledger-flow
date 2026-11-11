@@ -13,11 +13,12 @@ where
 
 import Data.Char (isAlphaNum, isDigit, toLower)
 import qualified Data.List as List
+import Data.Maybe (fromMaybe)
 import qualified Data.Text as T
 import Hledger.Flow.BaseDir (relativeToBase')
 import Hledger.Flow.DocHelpers (docURL)
 import Hledger.Flow.Import.Inventory (findImportFiles, stageFiles)
-import Hledger.Flow.Status.Gather (accountName, hookExists)
+import Hledger.Flow.Status.Gather (accountName, cachedStatement)
 import Hledger.Flow.Types (BaseDir)
 import Path
 import qualified System.FilePath as FilePath
@@ -127,20 +128,17 @@ rulesTemplateFor base requested = do
   let account = T.dropWhileEnd (== '/') (maybe requested id (T.stripPrefix "import/" requested))
       root = base </> [reldir|import|]
   files <- findImportFiles root
-  let inAccount stage = filter ((== account) . accountName root) (stageFiles root stage files)
-      statements = inAccount [reldir|1-in|]
-      known = List.nub (map (accountName root) (stageFiles root [reldir|1-in|] files))
+  let inputs = stageFiles root [reldir|1-in|] files
+      statements = filter ((== account) . accountName root) inputs
+      known = List.nub (map (accountName root) inputs)
   case reverse statements of
     [] ->
       return . Left $
         "No statements found for " <> account <> ". Accounts with statements: "
           <> (if null known then "none" else T.intercalate ", " known) <> "."
     newest : _ -> do
-      hasPreprocess <- hookExists (parent (parent (parent newest))) [relfile|preprocess|]
-      let source = case reverse (inAccount [reldir|2-preprocessed|]) of
-            p : _ | hasPreprocess -> p
-            _ -> newest
-          path = relativeToBase' (toFilePath base) (toFilePath source)
+      source <- fromMaybe newest <$> cachedStatement newest
+      let path = relativeToBase' (toFilePath base) (toFilePath source)
           isCsv = map toLower (FilePath.takeExtension path) `elem` [".csv", ".tsv", ".ssv"]
           (bank, acct) = case T.splitOn "/" account of
             [_, b, a] -> (b, a)

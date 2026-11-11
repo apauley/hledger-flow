@@ -31,6 +31,7 @@ import Path (reldir, relfile, toFilePath)
 import qualified Path
 import qualified Path.IO as Path
 import qualified System.Directory as Directory
+import System.Environment (lookupEnv)
 import qualified System.FilePath as FilePath
 import System.Exit (ExitCode (..), exitWith)
 import System.IO (hClose)
@@ -108,9 +109,33 @@ showCmdArgs args = T.intercalate " " (map escapeArg args)
 escapeArg :: T.Text -> T.Text
 escapeArg a
   | not (T.null a) && T.all safe a = a
-  | otherwise = "'" <> T.replace "'" "'\"'\"'" a <> "'"
+  | otherwise = posixLiteral a
   where
     safe c = isAscii c && (isAlphaNum c || c `elem` ("-_./:=+,@%" :: String))
+
+-- | The shell used for copyable commands on this platform.
+data Shell = Posix | PowerShell deriving (Eq, Show)
+
+nativeShell :: Shell
+nativeShell = if Sys.os == "mingw32" then PowerShell else Posix
+
+shellArgument :: Shell -> T.Text -> T.Text
+shellArgument Posix arg = escapeArg arg
+shellArgument PowerShell arg
+  | not (T.null arg) && T.all simple arg = arg
+  | otherwise = powerShellLiteral arg
+  where
+    simple c = isAscii c && (isAlphaNum c || c `elem` ("-_./" :: String))
+
+posixLiteral :: T.Text -> T.Text
+posixLiteral arg = "'" <> T.replace "'" "'\"'\"'" arg <> "'"
+
+powerShellLiteral :: T.Text -> T.Text
+powerShellLiteral arg = "'" <> T.concatMap escape arg <> "'"
+  where
+    -- PowerShell also recognises typographic single quotes as delimiters.
+    escape c | c == '\'' || (c >= '\x2018' && c <= '\x201b') = T.replicate 2 (T.singleton c)
+             | otherwise = T.singleton c
 
 errExit :: Int -> TChan LogMessage -> T.Text -> a -> IO a
 errExit exitStatus ch = errExit' exitStatus (channelErrLn ch)
@@ -283,6 +308,19 @@ groupValuesBy keyFun = groupPairs . pairBy keyFun
 allYearsFileName :: FilePath
 allYearsFileName = "all-years" <.> "journal"
 
+-- Keep the configured spelling for diagnostics and expand a leading ~ for IO.
+configuredLedgerFile :: IO (Maybe (FilePath, FilePath))
+configuredLedgerFile = do
+  value <- lookupEnv "LEDGER_FILE"
+  case value of
+    Just path | not (null path) -> do
+      resolved <- case path of
+        "~" -> Directory.getHomeDirectory
+        '~' : sep : rest | FilePath.isPathSeparator sep -> (FilePath.</> rest) <$> Directory.getHomeDirectory
+        _ -> return path
+      return (Just (path, resolved))
+    _ -> return Nothing
+
 directivesFile :: (HasBaseDir o) => o -> AbsFile
 directivesFile opts = baseDir opts Path.</> [relfile|directives.journal|]
 
@@ -312,8 +350,11 @@ writeFiles' fileMap = do
 
 writeTextMap :: Map.Map FilePath T.Text -> IO ()
 writeTextMap files = forM_ (Map.toList files) $ \(path, contents) -> do
-  current <- tryIOError (T.readFile path)
-  when (either (const True) (/= contents) current) $ T.writeFile path contents
+  changed <- textFileNeedsUpdate path contents
+  when changed $ T.writeFile path contents
+
+textFileNeedsUpdate :: FilePath -> T.Text -> IO Bool
+textFileNeedsUpdate path contents = either (const True) (/= contents) <$> tryIOError (T.readFile path)
 
 listOwners :: HasBaseDir o => o -> IO [RelDir]
 listOwners opts = do

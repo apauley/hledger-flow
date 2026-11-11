@@ -34,6 +34,12 @@ Paths under `import/` are relative to `baseDir`. Fields may be added within
 `schemaVersion` 1; renaming or removing a field increments it. Status exits 0
 whenever it could inspect the ledger, even when it found problems.
 
+You can run the suggested command from the directory where you requested
+status. Commands use PowerShell syntax on Windows and POSIX shell syntax on
+macOS and Linux. Status recommends a full import when conversion inputs have
+changed, generated files have lost their source statements, or journal
+includes need updating.
+
 # Feature Reference
 
 ## Input Files

@@ -9,7 +9,6 @@ where
 import Control.Concurrent.STM
 import Control.Monad
 import Data.Maybe (fromMaybe)
-import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import Hledger.Flow.DateTime (timeAction)
@@ -33,10 +32,9 @@ import qualified System.Info as Sys
 import qualified System.Process as Process
 import System.FilePath (dropTrailingPathSeparator, takeExtension, (</>))
 import qualified Data.List as List
-import Hledger.Flow.DateTime (currentYear)
-import Hledger.Flow.Status (nextStep, plural)
+import Hledger.Flow.Status (plural)
 import Hledger.Flow.Status.Gather (accountName, gatherStatus)
-import Hledger.Flow.Status.Render (renderNext, useColor)
+import Hledger.Flow.Status.Render (nextStepHere, renderNext, useColor)
 import System.IO (stdout)
 import Prelude hiding (putStrLn, take, writeFile)
 
@@ -54,9 +52,9 @@ importCSVs opts = withConsoleLogging $ \ch -> do
   channelOutLn ch (importSummary scope (length journals) (length (filter snd journals)) accounts)
   logVerbose opts ch ("Import took " <> T.pack (show diff))
   status <- gatherStatus (Just (hledgerInfo opts)) (baseDir opts)
-  year <- currentYear
+  next <- nextStepHere status
   color <- useColor stdout
-  channelOut ch (renderNext color (nextStep year (Sys.os == "mingw32") status))
+  channelOut ch (renderNext color next)
 
 -- | One line saying what import did.
 importSummary :: T.Text -> Int -> Int -> [T.Text] -> T.Text
@@ -94,16 +92,8 @@ importCSVs' opts ch = do
   -- Hooks may create files, so reconcile against a fresh inventory only after
   -- every selected conversion succeeds. A cached CSV is never a source.
   (refreshed, journalFindTime) <- timeAction $ findImportFiles importRoot
-  expected <- expectedOutputs (stageFiles importRoot [Path.reldir|1-in|] refreshed)
-  let stageWithExtension stage ext = filter ((== ext) . takeExtension . Path.toFilePath) (stageFiles importRoot stage refreshed)
-      journals = stageWithExtension [Path.reldir|3-journal|] ".journal"
-      generated = stageWithExtension [Path.reldir|2-preprocessed|] ".csv" ++ journals
-  classified <- forM generated $ \file -> do
-    key <- canonicalFile file
-    return (file, Map.member key expected)
-  let orphans = [file | (file, False) <- classified, selected file]
-      journalsOnDisk = [file | (file, True) <- classified, takeExtension (Path.toFilePath file) == ".journal"]
-  forM_ orphans $ \file -> do
+  (orphans, journalsOnDisk) <- classifyGeneratedOutputs importRoot refreshed (stageFiles importRoot [Path.reldir|1-in|] refreshed)
+  forM_ (filter selected orphans) $ \file -> do
     target <- moveToTrash file
     channelOutLn ch $ "Moved orphaned output " <> relative file <> " to " <> relative target
   (_, writeIncludeTime1) <- timeAction $ writeIncludesFromInventory opts ch importRoot refreshed journalsOnDisk
@@ -172,16 +162,12 @@ hookCommand script args
       -- Windows PowerShell -File treats construct's literal "-" as an option.
       -- Invoke the script with literal strings and propagate its exit status.
       let command = "[Console]::OutputEncoding = New-Object Text.UTF8Encoding($false); & "
-            <> T.unwords (map literal (T.pack path : args))
+            <> T.unwords (map powerShellLiteral (T.pack path : args))
             <> "; if (!$?) { if ($LASTEXITCODE) { exit $LASTEXITCODE }; exit 1 }"
       return (T.pack shell, ["-NoProfile", "-NonInteractive", "-OutputFormat", "Text", "-Command", command])
   | otherwise = return (T.pack path, args)
   where
     path = Path.toFilePath script
-    -- PowerShell also recognises typographic single quotes as delimiters.
-    literal s = "'" <> T.concatMap escape s <> "'"
-    escape c | c == '\'' || (c >= '\x2018' && c <= '\x201b') = T.replicate 2 (T.singleton c)
-             | otherwise = T.singleton c
 
 logNewFileSkip :: RuntimeOptions -> TChan FlowTypes.LogMessage -> T.Text -> AbsFile -> IO ()
 logNewFileSkip opts ch logIdentifier absTarget =

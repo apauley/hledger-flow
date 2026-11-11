@@ -7,6 +7,7 @@ module Hledger.Flow.Status.Render
     renderNext,
     statusJSON,
     tildePath,
+    nextStepHere,
     printStatus,
     printNext,
   )
@@ -17,12 +18,11 @@ import Data.Aeson (Value, object, (.=))
 import Data.Aeson.Text (encodeToLazyText)
 import qualified Data.Text.IO as T
 import qualified Data.Text.Lazy.IO as TL
-import Hledger.Flow.Common (findHledger)
+import Hledger.Flow.Common (findHledger, nativeShell)
 import Hledger.Flow.DateTime (currentYear)
 import Hledger.Flow.Status.Gather (gatherStatus)
 import Hledger.Flow.Types (BaseDir)
-import Path.IO (getHomeDir)
-import qualified System.Info as Sys
+import Path.IO (getCurrentDir, getHomeDir)
 import qualified Data.List as List
 import qualified Data.Text as T
 import Hledger.Flow.PathHelpers (AbsDir)
@@ -140,13 +140,18 @@ statusJSON s next =
           "journalsOutdated" .= asJournalsOutdated a
         ]
 
+nextStepHere :: LedgerStatus -> IO NextStep
+nextStepHere status = do
+  year <- currentYear
+  cwd <- getCurrentDir
+  return (nextStep year nativeShell cwd status)
+
 -- | Print the ledger's status as text, or as JSON for scripts and agents.
 printStatus :: Maybe FilePath -> Bool -> BaseDir -> IO ()
 printStatus hledgerPath json base = do
   hledger <- findHledger hledgerPath
   status <- gatherStatus hledger base
-  year <- currentYear
-  let next = nextStep year (Sys.os == "mingw32") status
+  next <- nextStepHere status
   if json
     then TL.putStrLn (encodeToLazyText (statusJSON status next))
     else do
@@ -159,6 +164,6 @@ printNext :: Maybe FilePath -> BaseDir -> IO ()
 printNext hledgerPath base = do
   hledger <- findHledger hledgerPath
   status <- gatherStatus hledger base
-  year <- currentYear
+  next <- nextStepHere status
   color <- useColor stdout
-  T.putStr (renderNext color (nextStep year (Sys.os == "mingw32") status))
+  T.putStr (renderNext color next)

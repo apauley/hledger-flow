@@ -11,7 +11,6 @@ import Control.Monad (unless, when)
 import Data.Char (toLower)
 import Data.Either
 import qualified Data.List as List
-import Data.Maybe
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import Hledger.Flow.DateTime (timeAction)
@@ -20,11 +19,11 @@ import Hledger.Flow.Common
 import Hledger.Flow.Logging
 import Hledger.Flow.PathHelpers (AbsDir, AbsFile, RelDir, RelFile)
 import Hledger.Flow.RuntimeOptions
+import Hledger.Flow.Status (plural)
 import qualified Hledger.Flow.Types as FlowTypes
 import Path ((</>), parent, reldir, relfile, parseRelDir, toFilePath)
 import qualified Path.IO as PathIO
 import qualified System.Directory as Directory
-import System.Environment (lookupEnv)
 import Prelude hiding (putStrLn, readFile, writeFile)
 
 data ReportParams = ReportParams
@@ -40,20 +39,20 @@ generateReports :: RuntimeOptions -> IO ()
 generateReports opts = withConsoleLogging $ \ch -> do
   when (showOptions opts) $ channelOutLn ch (T.pack (show opts))
   (reports, diff) <- timeAction $ generateReports' opts ch
-  let failedAttempts = lefts reports
-  let failedText = if List.null failedAttempts then "" else " " <> T.pack (show (length failedAttempts)) <> " more failed."
-  channelOutLn ch $ "Generated " <> T.pack (show (length (rights reports))) <> " reports in reports/." <> failedText
+  let skipped = length (lefts reports)
+      skippedText = if skipped == 0 then "" else " Skipped " <> plural skipped "empty report" <> "."
+  channelOutLn ch $ "Generated " <> plural (length (rights reports)) "report" <> " in reports/." <> skippedText
   channelOutLn ch "Each report starts with the hledger command that made it. Copy that line to tailor the report."
   logVerbose opts ch ("Reports took " <> T.pack (show diff))
 
 generateReports' :: RuntimeOptions -> TChan FlowTypes.LogMessage -> IO [Either AbsFile AbsFile]
 generateReports' opts ch = do
   owners <- listOwners opts
-  ledgerEnvValue <- lookupEnv "LEDGER_FILE"
-  let hledgerJournal = fromMaybe (toFilePath (baseDir opts </> [relfile|all-years.journal|])) ledgerEnvValue
+  configured <- configuredLedgerFile
+  let hledgerJournal = maybe (toFilePath (baseDir opts </> [relfile|all-years.journal|])) snd configured
   hledgerJournalExists <- Directory.doesFileExist hledgerJournal
-  unless hledgerJournalExists $ ioError $ userError $ case ledgerEnvValue of
-    Just v -> "LEDGER_FILE is set to " ++ v ++ ", which doesn't exist. Point it at "
+  unless hledgerJournalExists $ ioError $ userError $ case configured of
+    Just (v, _) -> "LEDGER_FILE is set to " ++ v ++ ", which doesn't exist. Point it at "
       ++ toFilePath (baseDir opts </> [relfile|all-years.journal|]) ++ ", or unset it."
     Nothing -> "No all-years.journal in " ++ toFilePath (baseDir opts) ++ " yet. Run `hledger-flow import` first."
   let journalWithYears = baseDir opts </> [relfile|import/all-years.journal|]
@@ -124,14 +123,14 @@ generateReport opts ch journals year reportsDir fileName args successCheck = do
   let reportDisplayArgs = confArgs ++ fileArgs relativeJournals ++ periodArgs ++ args
   let hledger = T.pack (toFilePath (FlowTypes.hlPath (hledgerInfo opts)))
   let cmdLabel = "hledger " <> showCmdArgs reportDisplayArgs
-  ((exitCode, stdOut, _), _) <- timeAndExitOnErr opts ch cmdLabel dummyLogger channelErr (hledger, reportArgs, Nothing)
+  ((_, stdOut, _), _) <- timeAndExitOnErr opts ch cmdLabel dummyLogger channelErr (hledger, reportArgs, Nothing)
   if (successCheck stdOut)
     then do
       T.writeFile (toFilePath outputFile) (cmdLabel <> "\n\n" <> stdOut)
       logVerbose opts ch $ "Wrote " <> T.pack relativeOutputFile
       return $ Right outputFile
     else do
-      channelErrLn ch $ "Did not write '" <> T.pack relativeOutputFile <> "' (" <> cmdLabel <> ") " <> T.pack (show exitCode)
+      logVerbose opts ch $ "Skipped empty report " <> T.pack relativeOutputFile
       exists <- PathIO.doesFileExist outputFile
       when exists (PathIO.removeFile outputFile)
       return $ Left outputFile

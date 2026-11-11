@@ -10,10 +10,11 @@ module Hledger.Flow.Init
 where
 
 import Control.Exception (IOException, catch)
-import Data.Char (isAlphaNum)
+import Control.Monad (when)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import Hledger.Flow.BaseDir (findBaseDir)
+import Hledger.Flow.Common (Shell (..), nativeShell, shellArgument)
 import Hledger.Flow.PathHelpers (AbsDir)
 import Hledger.Flow.Status.Render (printNext, tildePath)
 import Hledger.Flow.Types (BaseDir)
@@ -61,15 +62,9 @@ runInit hledgerPath cwd dir = do
     Created base parentLedger -> do
       T.putStrLn ("Started a ledger in " <> shown base)
       mapM_ (\p -> T.putStrLn ("Note: " <> shown p <> " also has an import/ folder. Commands run inside " <> shown base <> " use the new ledger.")) parentLedger
-      if base /= cwd then T.putStrLn ("Change to it first: cd " <> shellQuoted (shown base) (absolute base)) else return ()
+      when (base /= cwd) $ do
+        let changeDir = case nativeShell of
+              Posix -> "cd "
+              PowerShell -> "Set-Location -LiteralPath "
+        T.putStrLn ("Change to it first: " <> changeDir <> shellArgument nativeShell (absolute base))
       printNext hledgerPath base
-
--- | A path to paste into a shell: as shown when that's safe, otherwise the
--- absolute path in double quotes (a quoted @~@ wouldn't expand).
-shellQuoted :: T.Text -> T.Text -> T.Text
-shellQuoted shown absolute
-  | T.all safe shown = shown
-  | otherwise = "\"" <> T.concatMap escape absolute <> "\""
-  where
-    safe c = isAlphaNum c || c `elem` ("~/._-+:@%," :: String)
-    escape c = if c `elem` ("\"$`\\" :: String) then T.pack ['\\', c] else T.singleton c

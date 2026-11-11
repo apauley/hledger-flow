@@ -8,6 +8,7 @@ module Hledger.Flow.Import.Inventory
     inImportScope,
     generatedOutput,
     expectedOutputs,
+    classifyGeneratedOutputs,
     conflictingOutputs,
     canonicalFile,
     manualIncludeFiles,
@@ -73,6 +74,19 @@ expectedOutputs sources = do
     key <- canonicalFile output
     return (key, [source])
   return (Map.fromListWith (++) canonical)
+
+-- | Orphaned generated files and the source-backed journals to include.
+classifyGeneratedOutputs :: AbsDir -> [AbsFile] -> [AbsFile] -> IO ([AbsFile], [AbsFile])
+classifyGeneratedOutputs root inventory sources = do
+  expected <- expectedOutputs sources
+  let staged stage ext = filter ((== ext) . FilePath.takeExtension . toFilePath) (stageFiles root stage inventory)
+      cached = staged [reldir|2-preprocessed|] ".csv"
+      journals = staged [reldir|3-journal|] ".journal"
+  classified <- forM (cached ++ journals) $ \file -> do
+    key <- canonicalFile file
+    return (file, Map.member key expected)
+  return ([file | (file, False) <- classified],
+          [file | (file, True) <- classified, FilePath.takeExtension (toFilePath file) == ".journal"])
 
 canonicalFile :: AbsFile -> IO AbsFile
 canonicalFile file = Directory.canonicalizePath (toFilePath file) >>= parseAbsFile
