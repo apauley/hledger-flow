@@ -177,7 +177,7 @@ timeAndExitOnErr ::
   (TChan LogMessage -> T.Text -> IO ()) ->
   ProcInput ->
   IO FullTimedOutput
-timeAndExitOnErr opts ch cmdLabel = timeAndExitOnErr' opts ch cmdLabel []
+timeAndExitOnErr opts ch cmdLabel = timeAndExitOnErr' opts ch cmdLabel [] []
 
 timeAndExitOnErr' ::
   (HasVerbosity o) =>
@@ -185,25 +185,43 @@ timeAndExitOnErr' ::
   TChan LogMessage ->
   T.Text ->
   [T.Text] ->
+  [T.Text] ->
   (TChan LogMessage -> T.Text -> IO ()) ->
   (TChan LogMessage -> T.Text -> IO ()) ->
   ProcInput ->
   IO FullTimedOutput
-timeAndExitOnErr' opts ch cmdLabel extraCmdLabels stdoutLogger stderrLogger input@(cmd, args, _) = do
+timeAndExitOnErr' opts ch cmdLabel extraCmdLabels hints stdoutLogger stderrLogger input@(cmd, args, _) = do
   let action = runProcessCaptured input
-  timed@((ec, stdOut, stdErr), _) <- logTimedAction opts ch cmdLabel extraCmdLabels cmd args stdoutLogger stderrLogger action
+  -- On failure the error output goes into the (trimmed) message, not straight to the console.
+  timed@((ec, stdOut, stdErr), _) <- logTimedAction opts ch cmdLabel extraCmdLabels cmd args stdoutLogger (\_ _ -> return ()) action
   case ec of
     ExitFailure i -> do
       let cmdText = cmd <> " " <> showCmdArgs args
-      let msgOut = descriptiveOutput "Standard output" stdOut
-      let msgErr = descriptiveOutput "Error output" stdErr
-
+      let msgOut = descriptiveOutput "Standard output" (trimToolOutput stdOut)
+      let msgErr = descriptiveOutput "Error output" (trimToolOutput stdErr)
       let exitMsg =
-            "\n=== Begin Error: " <> cmdLabel <> " ===\nExternal command:\n"
-              <> cmdText <> "\nExit code " <> T.pack (show i) <> "\n" <> msgOut <> msgErr
-              <> "=== End Error: " <> cmdLabel <> " ===\n"
+            "Failed " <> cmdLabel <> " (exit code " <> T.pack (show i) <> ").\n"
+              <> "Command: " <> cmdText <> "\n" <> msgOut <> msgErr
+              <> T.unlines hints
       errExit i ch exitMsg timed
-    ExitSuccess -> return timed
+    ExitSuccess -> do
+      stderrLogger ch stdErr
+      return timed
+
+-- | Keep a tool's output readable: at most 20 lines of at most 300 characters.
+-- hledger can echo a whole statement on one line when parsing fails.
+trimToolOutput :: T.Text -> T.Text
+trimToolOutput txt
+  | length ls <= maxLines && all ((<= maxWidth) . T.length) ls = txt
+  | otherwise = T.intercalate "\n" (map cut (take maxLines ls) ++ dropped) <> (if "\n" `T.isSuffixOf` txt then "\n" else "")
+  where
+    ls = T.lines txt
+    maxLines = 20
+    maxWidth = 300
+    cut l = if T.length l > maxWidth then T.take maxWidth l <> "…" else l
+    dropped = case length ls - maxLines of
+      n | n > 0 -> ["… (" <> T.pack (show n) <> " more lines)"]
+      _ -> []
 
 parAwareActions :: (HasSequential o, HasBatchSize o) => o -> [IO a] -> IO [a]
 parAwareActions opts = if (sequential opts) then sequence else parBatchedActions (batchSize opts) []

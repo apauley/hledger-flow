@@ -121,4 +121,13 @@ testGroupValuesBy =
     )
 
 tests :: Test
-tests = TestList [testDocURL, testShowCmdArgs, testHledgerConfArgs, testRelativeToBase, testExtractDigits, testGroupValuesBy]
+tests = TestList [testDocURL, testShowCmdArgs, testHledgerConfArgs, testRelativeToBase, testExtractDigits, testGroupValuesBy, testTrimToolOutput]
+
+testTrimToolOutput :: Test
+testTrimToolOutput =
+  TestList
+    [ "long line" ~: trimToolOutput (T.replicate 400 "x") ~?= T.replicate 300 "x" <> "…",
+      "many lines" ~: T.lines (trimToolOutput (T.unlines (map (T.pack . show) [1 .. 25 :: Int])))
+        ~?= map (T.pack . show) [1 .. 20 :: Int] ++ ["… (5 more lines)"],
+      "short output unchanged" ~: trimToolOutput "a\nb\n" ~?= "a\nb\n"
+    ]

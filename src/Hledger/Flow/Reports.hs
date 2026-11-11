@@ -41,21 +41,21 @@ generateReports opts = withConsoleLogging $ \ch -> do
   when (showOptions opts) $ channelOutLn ch (T.pack (show opts))
   (reports, diff) <- timeAction $ generateReports' opts ch
   let failedAttempts = lefts reports
-  let failedText = if List.null failedAttempts then "" else "(and attempted to write " <> T.pack (show (length failedAttempts)) <> " more) "
-  channelOutLn ch $ "Generated " <> T.pack (show (length (rights reports))) <> " reports " <> failedText <> "in " <> T.pack (show diff)
+  let failedText = if List.null failedAttempts then "" else " " <> T.pack (show (length failedAttempts)) <> " more failed."
+  channelOutLn ch $ "Generated " <> T.pack (show (length (rights reports))) <> " reports in reports/." <> failedText
+  channelOutLn ch "Each report starts with the hledger command that made it. Copy that line to tailor the report."
+  logVerbose opts ch ("Reports took " <> T.pack (show diff))
 
 generateReports' :: RuntimeOptions -> TChan FlowTypes.LogMessage -> IO [Either AbsFile AbsFile]
 generateReports' opts ch = do
-  let wipMsg =
-        "These reports can be used as a starting point for more tailored reports.\n"
-          <> "The first line of each report contains the command used - change the parameters and use it in your own reports.\n"
-  channelOutLn ch wipMsg
   owners <- listOwners opts
   ledgerEnvValue <- lookupEnv "LEDGER_FILE"
   let hledgerJournal = fromMaybe (toFilePath (baseDir opts </> [relfile|all-years.journal|])) ledgerEnvValue
   hledgerJournalExists <- Directory.doesFileExist hledgerJournal
-  unless hledgerJournalExists $ ioError $ userError $
-    "Unable to find journal file: " ++ hledgerJournal ++ "\nIs your LEDGER_FILE environment variable set correctly?"
+  unless hledgerJournalExists $ ioError $ userError $ case ledgerEnvValue of
+    Just v -> "LEDGER_FILE is set to " ++ v ++ ", which doesn't exist. Point it at "
+      ++ toFilePath (baseDir opts </> [relfile|all-years.journal|]) ++ ", or unset it."
+    Nothing -> "No all-years.journal in " ++ toFilePath (baseDir opts) ++ " yet. Run `hledger-flow import` first."
   let journalWithYears = baseDir opts </> [relfile|import/all-years.journal|]
   let aggregateReportDir
         | any ((== toFilePath [reldir|all|]) . map toLower . toFilePath) owners = baseDir opts </> [reldir|reports/_all_|]

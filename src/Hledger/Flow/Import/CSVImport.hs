@@ -31,7 +31,13 @@ import System.Exit (ExitCode (..), exitWith)
 import System.IO (hClose)
 import qualified System.Info as Sys
 import qualified System.Process as Process
-import System.FilePath (takeExtension, (</>))
+import System.FilePath (dropTrailingPathSeparator, takeExtension, (</>))
+import qualified Data.List as List
+import Hledger.Flow.DateTime (currentYear)
+import Hledger.Flow.Status (nextStep, plural)
+import Hledger.Flow.Status.Gather (accountName, gatherStatus)
+import Hledger.Flow.Status.Render (renderNext, useColor)
+import System.IO (stdout)
 import Prelude hiding (putStrLn, take, writeFile)
 
 type FileWasGenerated = Bool
@@ -41,8 +47,29 @@ importCSVs opts = withConsoleLogging $ \ch -> do
   when (showOptions opts) (channelOutLn ch (T.pack (show opts)))
   logVerbose opts ch "Starting import"
   (journals, diff) <- timeAction $ importCSVs' opts ch
-  let generatedJournals = filter snd journals
-  channelOutLn ch $ "Imported " <> T.pack (show (length generatedJournals)) <> "/" <> T.pack (show (length journals)) <> " journals in " <> T.pack (show diff)
+  let importRoot = baseDir opts Path.</> [Path.reldir|import|]
+      effectiveDir = effectiveRunDir (baseDir opts) (importRunDir opts)
+      scope = T.pack (dropTrailingPathSeparator (relativeToBase opts (Path.toFilePath effectiveDir)))
+      accounts = List.nub (map (accountName importRoot . fst) journals)
+  channelOutLn ch (importSummary scope (length journals) (length (filter snd journals)) accounts)
+  logVerbose opts ch ("Import took " <> T.pack (show diff))
+  status <- gatherStatus (Just (hledgerInfo opts)) (baseDir opts)
+  year <- currentYear
+  color <- useColor stdout
+  channelOut ch (renderNext color (nextStep year (Sys.os == "mingw32") status))
+
+-- | One line saying what import did.
+importSummary :: T.Text -> Int -> Int -> [T.Text] -> T.Text
+importSummary scope total generated accounts
+  | total == 0 = "No statements to import in " <> scope <> "."
+  | generated == total = "Imported " <> plural total "statement" <> " for " <> accountsText <> "."
+  | otherwise =
+      "Imported " <> T.pack (show generated) <> " of " <> plural total "statement" <> " for " <> accountsText
+        <> " (" <> T.pack (show (total - generated)) <> " already up to date)."
+  where
+    accountsText
+      | length accounts <= 3 = T.intercalate ", " accounts
+      | otherwise = plural (length accounts) "account"
 
 importCSVs' :: RuntimeOptions -> TChan FlowTypes.LogMessage -> IO [(AbsFile, FileWasGenerated)]
 importCSVs' opts ch = do
@@ -51,7 +78,7 @@ importCSVs' opts ch = do
       selected = inImportScope effectiveDir (fromMaybe 0 (importStartYear opts))
   let startYearMsg = maybe " " (\y -> " (for the year " <> T.pack (show y) <> " and onwards) ") (importStartYear opts)
   let dirText = T.pack (Path.toFilePath effectiveDir)
-  channelOutLn ch $ "Collecting input files" <> startYearMsg <> "from " <> dirText
+  logVerbose opts ch $ "Collecting input files" <> startYearMsg <> "from " <> dirText
   (inventory, diff) <- timeAction $ findImportFiles importRoot
   let inputFiles = filter selected (stageFiles importRoot [Path.reldir|1-in|] inventory)
       fileCount = length inputFiles
@@ -61,7 +88,7 @@ importCSVs' opts ch = do
     errExit 1 ch ("Multiple input files map to the same output:\n" <>
       T.intercalate "\n" [relative output <> " <- " <> T.intercalate ", " (map relative sources)
                          | (output, sources) <- collisions]) ()
-  channelOutLn ch $ "Found " <> T.pack (show fileCount) <> " input files" <> startYearMsg <> "in " <> T.pack (show diff) <> ". Proceeding with import..."
+  logVerbose opts ch $ "Found " <> T.pack (show fileCount) <> " input files" <> startYearMsg <> "in " <> T.pack (show diff) <> ". Proceeding with import..."
   importedJournals <- parAwareActions opts (map (extractAndImport opts ch) inputFiles)
 
   -- Hooks may create files, so reconcile against a fresh inventory only after
@@ -82,7 +109,7 @@ importCSVs' opts ch = do
   (_, writeIncludeTime1) <- timeAction $ writeIncludesFromInventory opts ch importRoot refreshed journalsOnDisk
   (_, writeIncludeTime2) <- timeAction $ writeToplevelAllYearsInclude opts
   let includeGenTime = journalFindTime + writeIncludeTime1 + writeIncludeTime2
-  channelOutLn ch $ "Wrote include files for " <> T.pack (show (length journalsOnDisk)) <> " generated journals in " <> T.pack (show includeGenTime)
+  logVerbose opts ch $ "Wrote include files for " <> T.pack (show (length journalsOnDisk)) <> " generated journals in " <> T.pack (show includeGenTime)
   return importedJournals
 
 extractAndImport :: RuntimeOptions -> TChan FlowTypes.LogMessage -> AbsFile -> IO (AbsFile, FileWasGenerated)
@@ -190,7 +217,8 @@ hledgerImport opts ch importDirs csvFile journalOut = do
       let args = hledgerConfArgs opts ++ ["print", "--explicit"] ++ directivesArgs ++ csvArgs
 
       let cmdLabel = "importing '" <> T.pack relCSV <> "' using rules file '" <> T.pack relRules <> "'"
-      ((_, stdOut, _), _) <- timeAndExitOnErr opts ch cmdLabel dummyLogger channelErr (hledger, args, Nothing)
+      let hints = ["Check the skip, fields and separator lines in " <> T.pack relRules <> ".", "Docs: " <> docURL "rules-files"]
+      ((_, stdOut, _), _) <- timeAndExitOnErr' opts ch cmdLabel [] hints dummyLogger channelErr (hledger, args, Nothing)
       T.writeFile (Path.toFilePath journalOut) stdOut
     Nothing ->
       do
@@ -232,7 +260,7 @@ customConstruct opts ch constructScript dirs csvFile journalOut = do
     Just stdinPipe <- return input
     Just stdoutPipe <- return output
     hClose stdinPipe
-    _ <- timeAndExitOnErr' opts ch cmdLabel [constructCmdText] channelOut channelErr
+    _ <- timeAndExitOnErr' opts ch cmdLabel [constructCmdText] [] channelOut channelErr
       (hledger, args, Just stdoutPipe)
     hClose stdoutPipe
     status <- Process.waitForProcess handle

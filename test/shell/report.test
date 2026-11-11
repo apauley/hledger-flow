@@ -160,3 +160,10 @@ test ! -e reports/ignored_
 tr -d '\r' < reports/gawie/2016/accounts.txt | grep -Fx expenses:bank-fees
 $ sh -eu
 expenses:bank-fees
+
+# Report names its output folder.
+<
+. ./test/shell/setup.sh
+flow import
+hledger-flow report 2> /dev/null | grep -q '^Generated [0-9]* reports in reports/'
+$ sh -eu
