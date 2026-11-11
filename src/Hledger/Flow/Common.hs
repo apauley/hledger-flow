@@ -4,6 +4,7 @@
 module Hledger.Flow.Common where
 
 import Control.Concurrent (threadDelay)
+import Control.Exception (SomeException, try)
 import Control.Monad (filterM, forM_, when)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Concurrent.Async (concurrently, mapConcurrently)
@@ -30,6 +31,7 @@ import Path (reldir, relfile, toFilePath)
 import qualified Path
 import qualified Path.IO as Path
 import qualified System.Directory as Directory
+import System.Environment (lookupEnv)
 import qualified System.FilePath as FilePath
 import System.Exit (ExitCode (..), exitWith)
 import System.IO (hClose)
@@ -62,6 +64,20 @@ hledgerPathFromOption pathOption = do
                   <> "There are a number of installation options on the hledger website: https://hledger.org/download.html"
           ioError (userError msg)
 
+-- | The hledger to use, or Nothing when it can't be found or run. Never exits.
+findHledger :: Maybe FilePath -> IO (Maybe HledgerInfo)
+findHledger pathOption = do
+  found <- case pathOption of
+    Just h -> do
+      exists <- Directory.doesFileExist h
+      if exists then Just <$> Path.resolveFile' h else return Nothing
+    Nothing -> Directory.findExecutable "hledger" >>= traverse Path.resolveFile'
+  case found of
+    Nothing -> return Nothing
+    Just hlp -> do
+      version <- try (hledgerVersionFromPath hlp) :: IO (Either SomeException T.Text)
+      return (either (const Nothing) (Just . HledgerInfo hlp) version)
+
 hledgerVersionFromPath :: AbsFile -> IO T.Text
 hledgerVersionFromPath hlp = do
   let command = (Process.proc (toFilePath hlp) ["--version"])
@@ -93,9 +109,33 @@ showCmdArgs args = T.intercalate " " (map escapeArg args)
 escapeArg :: T.Text -> T.Text
 escapeArg a
   | not (T.null a) && T.all safe a = a
-  | otherwise = "'" <> T.replace "'" "'\"'\"'" a <> "'"
+  | otherwise = posixLiteral a
   where
     safe c = isAscii c && (isAlphaNum c || c `elem` ("-_./:=+,@%" :: String))
+
+-- | The shell used for copyable commands on this platform.
+data Shell = Posix | PowerShell deriving (Eq, Show)
+
+nativeShell :: Shell
+nativeShell = if Sys.os == "mingw32" then PowerShell else Posix
+
+shellArgument :: Shell -> T.Text -> T.Text
+shellArgument Posix arg = escapeArg arg
+shellArgument PowerShell arg
+  | not (T.null arg) && T.all simple arg = arg
+  | otherwise = powerShellLiteral arg
+  where
+    simple c = isAscii c && (isAlphaNum c || c `elem` ("-_./" :: String))
+
+posixLiteral :: T.Text -> T.Text
+posixLiteral arg = "'" <> T.replace "'" "'\"'\"'" arg <> "'"
+
+powerShellLiteral :: T.Text -> T.Text
+powerShellLiteral arg = "'" <> T.concatMap escape arg <> "'"
+  where
+    -- PowerShell also recognises typographic single quotes as delimiters.
+    escape c | c == '\'' || (c >= '\x2018' && c <= '\x201b') = T.replicate 2 (T.singleton c)
+             | otherwise = T.singleton c
 
 errExit :: Int -> TChan LogMessage -> T.Text -> a -> IO a
 errExit exitStatus ch = errExit' exitStatus (channelErrLn ch)
@@ -162,7 +202,7 @@ timeAndExitOnErr ::
   (TChan LogMessage -> T.Text -> IO ()) ->
   ProcInput ->
   IO FullTimedOutput
-timeAndExitOnErr opts ch cmdLabel = timeAndExitOnErr' opts ch cmdLabel []
+timeAndExitOnErr opts ch cmdLabel = timeAndExitOnErr' opts ch cmdLabel [] []
 
 timeAndExitOnErr' ::
   (HasVerbosity o) =>
@@ -170,25 +210,43 @@ timeAndExitOnErr' ::
   TChan LogMessage ->
   T.Text ->
   [T.Text] ->
+  [T.Text] ->
   (TChan LogMessage -> T.Text -> IO ()) ->
   (TChan LogMessage -> T.Text -> IO ()) ->
   ProcInput ->
   IO FullTimedOutput
-timeAndExitOnErr' opts ch cmdLabel extraCmdLabels stdoutLogger stderrLogger input@(cmd, args, _) = do
+timeAndExitOnErr' opts ch cmdLabel extraCmdLabels hints stdoutLogger stderrLogger input@(cmd, args, _) = do
   let action = runProcessCaptured input
-  timed@((ec, stdOut, stdErr), _) <- logTimedAction opts ch cmdLabel extraCmdLabels cmd args stdoutLogger stderrLogger action
+  -- On failure the error output goes into the (trimmed) message, not straight to the console.
+  timed@((ec, stdOut, stdErr), _) <- logTimedAction opts ch cmdLabel extraCmdLabels cmd args stdoutLogger (\_ _ -> return ()) action
   case ec of
     ExitFailure i -> do
       let cmdText = cmd <> " " <> showCmdArgs args
-      let msgOut = descriptiveOutput "Standard output" stdOut
-      let msgErr = descriptiveOutput "Error output" stdErr
-
+      let msgOut = descriptiveOutput "Standard output" (trimToolOutput stdOut)
+      let msgErr = descriptiveOutput "Error output" (trimToolOutput stdErr)
       let exitMsg =
-            "\n=== Begin Error: " <> cmdLabel <> " ===\nExternal command:\n"
-              <> cmdText <> "\nExit code " <> T.pack (show i) <> "\n" <> msgOut <> msgErr
-              <> "=== End Error: " <> cmdLabel <> " ===\n"
+            "Failed " <> cmdLabel <> " (exit code " <> T.pack (show i) <> ").\n"
+              <> "Command: " <> cmdText <> "\n" <> msgOut <> msgErr
+              <> T.unlines hints
       errExit i ch exitMsg timed
-    ExitSuccess -> return timed
+    ExitSuccess -> do
+      stderrLogger ch stdErr
+      return timed
+
+-- | Keep a tool's output readable: at most 20 lines of at most 300 characters.
+-- hledger can echo a whole statement on one line when parsing fails.
+trimToolOutput :: T.Text -> T.Text
+trimToolOutput txt
+  | length ls <= maxLines && all ((<= maxWidth) . T.length) ls = txt
+  | otherwise = T.intercalate "\n" (map cut (take maxLines ls) ++ dropped) <> (if "\n" `T.isSuffixOf` txt then "\n" else "")
+  where
+    ls = T.lines txt
+    maxLines = 20
+    maxWidth = 300
+    cut l = if T.length l > maxWidth then T.take maxWidth l <> "…" else l
+    dropped = case length ls - maxLines of
+      n | n > 0 -> ["… (" <> T.pack (show n) <> " more lines)"]
+      _ -> []
 
 parAwareActions :: (HasSequential o, HasBatchSize o) => o -> [IO a] -> IO [a]
 parAwareActions opts = if (sequential opts) then sequence else parBatchedActions (batchSize opts) []
@@ -250,6 +308,19 @@ groupValuesBy keyFun = groupPairs . pairBy keyFun
 allYearsFileName :: FilePath
 allYearsFileName = "all-years" <.> "journal"
 
+-- Keep the configured spelling for diagnostics and expand a leading ~ for IO.
+configuredLedgerFile :: IO (Maybe (FilePath, FilePath))
+configuredLedgerFile = do
+  value <- lookupEnv "LEDGER_FILE"
+  case value of
+    Just path | not (null path) -> do
+      resolved <- case path of
+        "~" -> Directory.getHomeDirectory
+        '~' : sep : rest | FilePath.isPathSeparator sep -> (FilePath.</> rest) <$> Directory.getHomeDirectory
+        _ -> return path
+      return (Just (path, resolved))
+    _ -> return Nothing
+
 directivesFile :: (HasBaseDir o) => o -> AbsFile
 directivesFile opts = baseDir opts Path.</> [relfile|directives.journal|]
 
@@ -279,8 +350,11 @@ writeFiles' fileMap = do
 
 writeTextMap :: Map.Map FilePath T.Text -> IO ()
 writeTextMap files = forM_ (Map.toList files) $ \(path, contents) -> do
-  current <- tryIOError (T.readFile path)
-  when (either (const True) (/= contents) current) $ T.writeFile path contents
+  changed <- textFileNeedsUpdate path contents
+  when changed $ T.writeFile path contents
+
+textFileNeedsUpdate :: FilePath -> T.Text -> IO Bool
+textFileNeedsUpdate path contents = either (const True) (/= contents) <$> tryIOError (T.readFile path)
 
 listOwners :: HasBaseDir o => o -> IO [RelDir]
 listOwners opts = do

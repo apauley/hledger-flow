@@ -3,6 +3,7 @@
 
 module Hledger.Flow.BaseDir
   ( determineBaseDir,
+    findBaseDir,
     relativeToBase,
     relativeToBase',
     turtleBaseDir,
@@ -38,13 +39,20 @@ determineBaseDirFromStartDir startDir = determineBaseDirFromStartDir' startDir s
 
 determineBaseDirFromStartDir' :: (MonadIO m, MonadThrow m) => AbsDir -> AbsDir -> m (BaseDir, RunDir)
 determineBaseDirFromStartDir' startDir possibleBaseDir = do
-  Control.Monad.when (parent possibleBaseDir == possibleBaseDir) $ throwM (MissingBaseDir startDir)
-  foundBaseDir <- doesDirExist $ possibleBaseDir </> [reldir|import|]
-  if foundBaseDir
-    then do
-      runDir <- limitRunDir possibleBaseDir startDir
-      return (possibleBaseDir, runDir)
-    else determineBaseDirFromStartDir' startDir $ parent possibleBaseDir
+  found <- liftIO $ findBaseDir possibleBaseDir
+  case found of
+    Nothing -> throwM (MissingBaseDir startDir)
+    Just bd -> do
+      runDir <- limitRunDir bd startDir
+      return (bd, runDir)
+
+-- | The nearest directory at or above the start directory that contains @import/@.
+findBaseDir :: AbsDir -> IO (Maybe BaseDir)
+findBaseDir dir = do
+  found <- doesDirExist $ dir </> [reldir|import|]
+  if found
+    then return (Just dir)
+    else if parent dir == dir then return Nothing else findBaseDir (parent dir)
 
 -- | We have unexpected behaviour when the runDir is deeper than the account directory,
 -- e.g. "1-in" or the year directory. Specifically, include files are generated incorrectly

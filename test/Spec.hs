@@ -9,7 +9,11 @@ import qualified CSVImport.Unit
 import qualified Common.Integration
 import qualified Common.Unit
 import qualified ImportHelpers.Integration
+import qualified Init.Integration
 import qualified PathHelpers.Unit
+import qualified RulesTemplate.Unit
+import qualified Status.Integration
+import qualified Status.Unit
 import Test.HUnit
 import System.Exit (exitFailure)
 
@@ -22,7 +26,11 @@ tests =
       BaseDir.Integration.tests,
       ImportHelpers.Integration.tests,
       CSVImport.Unit.tests,
-      CSVImport.Integration.tests
+      CSVImport.Integration.tests,
+      Status.Unit.tests,
+      Status.Integration.tests,
+      Init.Integration.tests,
+      RulesTemplate.Unit.tests
     ]
 
 main :: IO Counts

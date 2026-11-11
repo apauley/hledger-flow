@@ -1,0 +1,125 @@
+# Bare invocation in an empty folder suggests init.
+<
+cd "$(mktemp -d "${TMPDIR:-/tmp}/hledger-flow.XXXXXXXX")"
+hledger-flow
+$ sh -eu
+This folder is empty. Run `hledger-flow init` to start your ledger here.
+
+# Bare invocation in an unrelated folder shows commands and writes nothing.
+<
+cd "$(mktemp -d "${TMPDIR:-/tmp}/hledger-flow.XXXXXXXX")"
+touch notes.txt
+hledger-flow > ../out.$$
+grep -q '^Commands:' ../out.$$
+grep -q 'No hledger-flow ledger here or in any parent folder' ../out.$$
+rm ../out.$$
+test "$(ls)" = notes.txt
+$ sh -eu
+
+# First-time path: misplaced CSV, missing rules, import, LEDGER_FILE, report; never coloured when piped.
+<
+. ./test/shell/status-commands.sh
+cd "$(mktemp -d "${TMPDIR:-/tmp}/hledger-flow.XXXXXXXX")"
+unset LEDGER_FILE
+mkdir -p import/me/mybank
+printf 'Date,Desc,Amount\n2026-01-02,Coffee,-3.50\n' > import/me/mybank/jan.csv
+hledger-flow status | grep -q 'Next: Move 1 file to where hledger-flow looks'
+hledger-flow status --json | jq -e '.misplaced[0].suggestion | split("\\") | join("/") == "import/me/mybank/<account>/1-in/<year>/jan.csv"' > /dev/null
+mkdir -p import/me/mybank/checking/1-in/2026 && mv import/me/mybank/jan.csv import/me/mybank/checking/1-in/2026/
+hledger-flow status --json | jq -e '.next.command == "hledger-flow status --rules-template me/mybank/checking"' > /dev/null
+printf 'skip 1\nfields date, description, amount\naccount1 assets:checking\n' > import/me/mybank/checking/mybank-checking.rules
+hledger-flow status --json | jq -e '.next.command == "hledger-flow import"' > /dev/null
+hledger-flow import > /dev/null
+case "$(uname -s)" in
+    MINGW*|MSYS*) prefix='$env:LEDGER_FILE = ' ;;
+    *) prefix='export LEDGER_FILE=' ;;
+esac
+hledger-flow status --json | jq -e --arg prefix "$prefix" '.next.command | startswith($prefix)' > /dev/null
+export LEDGER_FILE="$(native_pwd)/all-years.journal"
+hledger-flow status > ../out.$$
+grep -q 'Run: hledger-flow report' ../out.$$
+if grep -q "$(printf '\033')" ../out.$$; then exit 1; fi
+rm ../out.$$
+$ sh -eu
+
+# Status works from deep inside an account and in a folder with spaces.
+<
+. ./test/shell/status-commands.sh
+dir="$(mktemp -d "${TMPDIR:-/tmp}/hledger-flow.XXXXXXXX")/my finances"
+mkdir -p "$dir/import/me/mybank/checking/1-in/2026" && cd "$dir"
+printf 'Date,Desc,Amount\n' > import/me/mybank/checking/1-in/2026/jan.csv
+hledger-flow status > ../top
+(cd import/me/mybank/checking/1-in/2026 && hledger-flow status) > ../deep
+sed '/^Next:/,$d' ../top > ../top-status
+sed '/^Next:/,$d' ../deep > ../deep-status
+cmp ../top-status ../deep-status
+if grep -q 'Changing runDir' ../deep; then exit 1; fi
+test "$(hledger-flow status --json | jq -r .baseDir | tr -d '\r')" = "$(native_pwd)"
+$ sh -eu
+
+# init starts a ledger and points at the first statement; a second init refuses.
+<
+cd "$(mktemp -d "${TMPDIR:-/tmp}/hledger-flow.XXXXXXXX")"
+hledger-flow init > ../out.$$
+grep -q '^Started a ledger in' ../out.$$
+grep -q 'Next: Put your first statement in import/<owner>/<bank>/<account>/1-in/<year>/' ../out.$$
+rm ../out.$$
+test -d import
+if hledger-flow init 2> ../err.$$; then exit 1; fi
+grep -q 'is already a hledger-flow ledger' ../err.$$
+rm ../err.$$
+$ sh -eu
+
+# The rules template, saved as suggested, imports the statement.
+<
+cd "$(mktemp -d "${TMPDIR:-/tmp}/hledger-flow.XXXXXXXX")"
+mkdir -p import/me/mybank/checking/1-in/2026
+printf 'Date,Desc,Amount\n2026-01-02,Coffee,-3.50\n' > import/me/mybank/checking/1-in/2026/jan.csv
+hledger-flow status --rules-template me/mybank/checking > import/me/mybank/checking/mybank-checking.rules
+hledger-flow import > /dev/null
+hledger -f all-years.journal balance --flat --no-total --format '%(account) %(total)'
+$ sh -eu
+assets:mybank:checking -3.50
+expenses:unknown 3.50
+
+# Output survives a C locale (Linux containers, cron, agent sandboxes).
+<
+cd "$(mktemp -d "${TMPDIR:-/tmp}/hledger-flow.XXXXXXXX")"
+mkdir -p import/me/mybank
+printf 'Date,Desc,Amount\n' > import/me/mybank/jan.csv
+LC_ALL=C LANG=C hledger-flow status | grep -q '→'
+LC_ALL=C LANG=C hledger-flow status --json | grep -q '"misplaced"'
+$ sh -eu
+
+# init's change-directory suggestion handles literal special characters.
+<
+. ./test/shell/status-commands.sh
+cd "$(mktemp -d "${TMPDIR:-/tmp}/hledger-flow.XXXXXXXX")"
+dir="Morgan's [accounts] \$(echo example)"
+hledger-flow init "$dir" > output
+change=$(sed -n 's/^Change to it first: //p' output | tr -d '\r')
+run_suggestion "$change; hledger-flow status --json" | jq -e --arg dir "$dir" '.baseDir | endswith($dir)' > /dev/null
+$ sh -eu
+
+# Follow the inspected ledger's rules, import, environment, and report commands from another ledger.
+<
+. ./test/shell/status-commands.sh
+cd "$(mktemp -d "${TMPDIR:-/tmp}/hledger-flow.XXXXXXXX")"
+unset LEDGER_FILE
+target="Morgan's \$(echo example)"
+owner="Jean's savings"
+account="$target/import/$owner/bank/checking"
+mkdir -p "$account/1-in/2026" "$target/reports" other/import
+printf 'Date,Desc,Amount\n2026-01-02,Coffee,-3.50\n' > "$account/1-in/2026/jan.csv"
+cd other
+run_suggestion "$(next_command "../$target")" > "../$account/bank-checking.rules"
+grep -q '^fields date, description, amount' "../$account/bank-checking.rules"
+(cd "../$target/reports" && run_suggestion "$(next_command)") > import-output
+test -s "../$account/3-journal/2026/jan.journal"
+set_ledger=$(next_command "../$target")
+run_suggestion "$set_ledger; hledger-flow status --json" | jq -e '.ledgerFile.exists' > /dev/null
+export LEDGER_FILE="$(cd "../$target" && native_pwd)/all-years.journal"
+run_suggestion "$(next_command "../$target")" > report-output
+test -s "../$target/reports/$owner/2026/accounts.txt"
+test ! -e reports
+$ sh -eu

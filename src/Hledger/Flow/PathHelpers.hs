@@ -24,12 +24,13 @@ data PathException = MissingBaseDir AbsDir | InvalidTurtleDir FilePath
 
 instance Show PathException where
   show (MissingBaseDir d) =
-    "Unable to find an import directory at "
-      ++ show d
-      ++ " (or in any of its parent directories).\n\n"
-      ++ "Have a look at the documentation for more information:\n"
+    "No hledger-flow ledger here or in any parent folder (looked from "
+      ++ Path.toFilePath d
+      ++ ").\n"
+      ++ "Run `hledger-flow init` to start one here, or pass the ledger's folder as an argument.\n"
+      ++ "Docs: "
       ++ T.unpack (docURL "getting-started")
-  show (InvalidTurtleDir d) = "Expected a directory but got this instead: " ++ d
+  show (InvalidTurtleDir d) = "Not a folder: " ++ d
 
 instance Exception PathException
 

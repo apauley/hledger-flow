@@ -9,6 +9,7 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import Data.Time.LocalTime (getZonedTime)
 import qualified GHC.IO.Handle.FD as H
+import System.IO (hFlush)
 import Hledger.Flow.Types
 
 dummyLogger :: TChan LogMessage -> T.Text -> IO ()
@@ -51,6 +52,8 @@ consoleChannelLoop ch = do
   case logMsg of
     StdOut msg -> do
       T.hPutStr H.stdout msg
+      -- Keep stdout and stderr lines in the order they were logged.
+      hFlush H.stdout
       consoleChannelLoop ch
     StdErr msg -> do
       T.hPutStr H.stderr msg

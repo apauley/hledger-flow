@@ -1,0 +1,58 @@
+# Status considers the inputs used to produce this journal, including subsecond rule edits.
+<
+. ./test/shell/setup.sh
+raw="$inbox/march_rfo-card.csv"
+mv "$inbox/march.csv" "$raw"
+override="$account/rfo-card.rules"
+cp import/bogart.rules "$override"
+cache="$account/2-preprocessed/2016/march_rfo-card.csv"
+mkdir -p "$(dirname "$cache")"
+cp "$raw" "$cache"
+journal="$account/3-journal/2016/march_rfo-card.journal"
+touch directives.journal
+flow import
+check_stale() { hledger-flow status --json | jq -e --argjson n "$1" '.accounts[0].journalsOutdated == $n' > /dev/null; }
+touch -t 202001010000 "$raw" "$override" directives.journal "$cache" "$account/preprocess"
+touch -t 202001020000 "$journal"
+touch -t 202001030000 import/bogart.rules
+check_stale 0
+for input in "$raw" "$cache" "$account/preprocess" directives.journal "$override"; do
+    touch -t 202001030000 "$input"
+    check_stale 1
+    touch -t 202001010000 "$input"
+done
+python3 -c 'import os, sys; os.utime(sys.argv[1], ns=(1600000000100000000,)*2); os.utime(sys.argv[2], ns=(1600000000900000000,)*2)' "$journal" "$override"
+check_stale 1
+$ sh -eu
+
+# A construct hook takes precedence over hledger rules and directives.
+<
+. ./test/shell/setup.sh
+flow import
+touch -t 202001010000 "$inbox/march.csv" "$account/construct"
+touch -t 202001020000 "$journal"
+touch -t 202001030000 import/bogart.rules directives.journal
+check_stale() { hledger-flow status --json | jq -e --argjson n "$1" '.accounts[0].journalsOutdated == $n' > /dev/null; }
+check_stale 0
+touch -t 202001030000 "$account/construct"
+check_stale 1
+$ sh -eu
+
+# Template selection first chooses the statement, then its corresponding cached CSV if it exists.
+<
+. ./test/shell/setup.sh
+mkdir -p "$account/1-in/2017" "$account/2-preprocessed/2016" "$account/2-preprocessed/2017"
+printf 'Date,Raw Column,Amount\n' > "$account/1-in/2017/march.csv"
+printf 'Date,Old Column,Amount\n' > "$account/2-preprocessed/2016/march.csv"
+printf 'Date,Orphan Column,Amount\n' > "$account/2-preprocessed/2017/z.csv"
+touch "$account/preprocess"
+template() { hledger-flow status --rules-template gawie/bogart/cheque; }
+template | tr -d '\r' | grep '^fields '
+printf 'Date,Matching Column,Amount\n' > "$account/2-preprocessed/2017/march.csv"
+template | tr -d '\r' | grep '^fields '
+rm "$account/preprocess"
+template | tr -d '\r' | grep '^fields '
+$ sh -eu
+fields date, raw_column, amount
+fields date, matching_column, amount
+fields date, matching_column, amount

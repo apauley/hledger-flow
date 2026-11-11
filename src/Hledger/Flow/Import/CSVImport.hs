@@ -9,7 +9,6 @@ where
 import Control.Concurrent.STM
 import Control.Monad
 import Data.Maybe (fromMaybe)
-import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import Hledger.Flow.DateTime (timeAction)
@@ -31,7 +30,12 @@ import System.Exit (ExitCode (..), exitWith)
 import System.IO (hClose)
 import qualified System.Info as Sys
 import qualified System.Process as Process
-import System.FilePath (dropExtensions, dropTrailingPathSeparator, takeExtension, (<.>), (</>))
+import System.FilePath (dropTrailingPathSeparator, takeExtension, (</>))
+import qualified Data.List as List
+import Hledger.Flow.Status (plural)
+import Hledger.Flow.Status.Gather (accountName, gatherStatus)
+import Hledger.Flow.Status.Render (nextStepHere, renderNext, useColor)
+import System.IO (stdout)
 import Prelude hiding (putStrLn, take, writeFile)
 
 type FileWasGenerated = Bool
@@ -41,8 +45,29 @@ importCSVs opts = withConsoleLogging $ \ch -> do
   when (showOptions opts) (channelOutLn ch (T.pack (show opts)))
   logVerbose opts ch "Starting import"
   (journals, diff) <- timeAction $ importCSVs' opts ch
-  let generatedJournals = filter snd journals
-  channelOutLn ch $ "Imported " <> T.pack (show (length generatedJournals)) <> "/" <> T.pack (show (length journals)) <> " journals in " <> T.pack (show diff)
+  let importRoot = baseDir opts Path.</> [Path.reldir|import|]
+      effectiveDir = effectiveRunDir (baseDir opts) (importRunDir opts)
+      scope = T.pack (dropTrailingPathSeparator (relativeToBase opts (Path.toFilePath effectiveDir)))
+      accounts = List.nub (map (accountName importRoot . fst) journals)
+  channelOutLn ch (importSummary scope (length journals) (length (filter snd journals)) accounts)
+  logVerbose opts ch ("Import took " <> T.pack (show diff))
+  status <- gatherStatus (Just (hledgerInfo opts)) (baseDir opts)
+  next <- nextStepHere status
+  color <- useColor stdout
+  channelOut ch (renderNext color next)
+
+-- | One line saying what import did.
+importSummary :: T.Text -> Int -> Int -> [T.Text] -> T.Text
+importSummary scope total generated accounts
+  | total == 0 = "No statements to import in " <> scope <> "."
+  | generated == total = "Imported " <> plural total "statement" <> " for " <> accountsText <> "."
+  | otherwise =
+      "Imported " <> T.pack (show generated) <> " of " <> plural total "statement" <> " for " <> accountsText
+        <> " (" <> T.pack (show (total - generated)) <> " already up to date)."
+  where
+    accountsText
+      | length accounts <= 3 = T.intercalate ", " accounts
+      | otherwise = plural (length accounts) "account"
 
 importCSVs' :: RuntimeOptions -> TChan FlowTypes.LogMessage -> IO [(AbsFile, FileWasGenerated)]
 importCSVs' opts ch = do
@@ -51,7 +76,7 @@ importCSVs' opts ch = do
       selected = inImportScope effectiveDir (fromMaybe 0 (importStartYear opts))
   let startYearMsg = maybe " " (\y -> " (for the year " <> T.pack (show y) <> " and onwards) ") (importStartYear opts)
   let dirText = T.pack (Path.toFilePath effectiveDir)
-  channelOutLn ch $ "Collecting input files" <> startYearMsg <> "from " <> dirText
+  logVerbose opts ch $ "Collecting input files" <> startYearMsg <> "from " <> dirText
   (inventory, diff) <- timeAction $ findImportFiles importRoot
   let inputFiles = filter selected (stageFiles importRoot [Path.reldir|1-in|] inventory)
       fileCount = length inputFiles
@@ -61,28 +86,20 @@ importCSVs' opts ch = do
     errExit 1 ch ("Multiple input files map to the same output:\n" <>
       T.intercalate "\n" [relative output <> " <- " <> T.intercalate ", " (map relative sources)
                          | (output, sources) <- collisions]) ()
-  channelOutLn ch $ "Found " <> T.pack (show fileCount) <> " input files" <> startYearMsg <> "in " <> T.pack (show diff) <> ". Proceeding with import..."
+  logVerbose opts ch $ "Found " <> T.pack (show fileCount) <> " input files" <> startYearMsg <> "in " <> T.pack (show diff) <> ". Proceeding with import..."
   importedJournals <- parAwareActions opts (map (extractAndImport opts ch) inputFiles)
 
   -- Hooks may create files, so reconcile against a fresh inventory only after
   -- every selected conversion succeeds. A cached CSV is never a source.
   (refreshed, journalFindTime) <- timeAction $ findImportFiles importRoot
-  expected <- expectedOutputs (stageFiles importRoot [Path.reldir|1-in|] refreshed)
-  let stageWithExtension stage ext = filter ((== ext) . takeExtension . Path.toFilePath) (stageFiles importRoot stage refreshed)
-      journals = stageWithExtension [Path.reldir|3-journal|] ".journal"
-      generated = stageWithExtension [Path.reldir|2-preprocessed|] ".csv" ++ journals
-  classified <- forM generated $ \file -> do
-    key <- canonicalFile file
-    return (file, Map.member key expected)
-  let orphans = [file | (file, False) <- classified, selected file]
-      journalsOnDisk = [file | (file, True) <- classified, takeExtension (Path.toFilePath file) == ".journal"]
-  forM_ orphans $ \file -> do
+  (orphans, journalsOnDisk) <- classifyGeneratedOutputs importRoot refreshed (stageFiles importRoot [Path.reldir|1-in|] refreshed)
+  forM_ (filter selected orphans) $ \file -> do
     target <- moveToTrash file
     channelOutLn ch $ "Moved orphaned output " <> relative file <> " to " <> relative target
   (_, writeIncludeTime1) <- timeAction $ writeIncludesFromInventory opts ch importRoot refreshed journalsOnDisk
   (_, writeIncludeTime2) <- timeAction $ writeToplevelAllYearsInclude opts
   let includeGenTime = journalFindTime + writeIncludeTime1 + writeIncludeTime2
-  channelOutLn ch $ "Wrote include files for " <> T.pack (show (length journalsOnDisk)) <> " generated journals in " <> T.pack (show includeGenTime)
+  logVerbose opts ch $ "Wrote include files for " <> T.pack (show (length journalsOnDisk)) <> " generated journals in " <> T.pack (show includeGenTime)
   return importedJournals
 
 extractAndImport :: RuntimeOptions -> TChan FlowTypes.LogMessage -> AbsFile -> IO (AbsFile, FileWasGenerated)
@@ -145,16 +162,12 @@ hookCommand script args
       -- Windows PowerShell -File treats construct's literal "-" as an option.
       -- Invoke the script with literal strings and propagate its exit status.
       let command = "[Console]::OutputEncoding = New-Object Text.UTF8Encoding($false); & "
-            <> T.unwords (map literal (T.pack path : args))
+            <> T.unwords (map powerShellLiteral (T.pack path : args))
             <> "; if (!$?) { if ($LASTEXITCODE) { exit $LASTEXITCODE }; exit 1 }"
       return (T.pack shell, ["-NoProfile", "-NonInteractive", "-OutputFormat", "Text", "-Command", command])
   | otherwise = return (T.pack path, args)
   where
     path = Path.toFilePath script
-    -- PowerShell also recognises typographic single quotes as delimiters.
-    literal s = "'" <> T.concatMap escape s <> "'"
-    escape c | c == '\'' || (c >= '\x2018' && c <= '\x201b') = T.replicate 2 (T.singleton c)
-             | otherwise = T.singleton c
 
 logNewFileSkip :: RuntimeOptions -> TChan FlowTypes.LogMessage -> T.Text -> AbsFile -> IO ()
 logNewFileSkip opts ch logIdentifier absTarget =
@@ -190,7 +203,8 @@ hledgerImport opts ch importDirs csvFile journalOut = do
       let args = hledgerConfArgs opts ++ ["print", "--explicit"] ++ directivesArgs ++ csvArgs
 
       let cmdLabel = "importing '" <> T.pack relCSV <> "' using rules file '" <> T.pack relRules <> "'"
-      ((_, stdOut, _), _) <- timeAndExitOnErr opts ch cmdLabel dummyLogger channelErr (hledger, args, Nothing)
+      let hints = ["Check the skip, fields and separator lines in " <> T.pack relRules <> ".", "Docs: " <> docURL "rules-files"]
+      ((_, stdOut, _), _) <- timeAndExitOnErr' opts ch cmdLabel [] hints dummyLogger channelErr (hledger, args, Nothing)
       T.writeFile (Path.toFilePath journalOut) stdOut
     Nothing ->
       do
@@ -202,26 +216,6 @@ hledgerImport opts ch importDirs csvFile journalOut = do
                 <> "\n\nHere is a bit of documentation about rules files that you may find helpful:\n"
                 <> docURL "rules-files"
         errExit 1 ch msg ()
-
-rulesFileCandidates :: AbsFile -> ImportDirs Path.Abs -> IO [AbsFile]
-rulesFileCandidates csv dirs = do
-  let bank = importDirLines (bankDir dirs)
-      account = importDirLines (accountDir dirs)
-  accountRule <- rulesName (bank ++ account)
-  bankRule <- rulesName bank
-  overrides <- if "rfo" `T.isPrefixOf` suffix
-    then do
-      name <- rulesName [suffix]
-      return [dir Path.</> name | dir <- [accountDir dirs, bankDir dirs, importDir dirs]]
-    else return []
-  return (overrides ++ [accountDir dirs Path.</> accountRule, importDir dirs Path.</> bankRule])
-  where
-    stem = dropExtensions (Path.toFilePath (Path.filename csv))
-    suffix = snd (T.breakOnEnd "_" (T.pack stem))
-    rulesName parts = Path.parseRelFile (T.unpack (T.intercalate "-" parts) <.> "rules")
-
-importDirLines :: Path.Path b Path.Dir -> [T.Text]
-importDirLines = T.splitOn "\n" . T.pack . dropTrailingPathSeparator . Path.toFilePath . Path.dirname
 
 hookDirArgs :: ImportDirs b -> [T.Text]
 hookDirArgs dirs = map (T.concat . importDirLines) [bankDir dirs, accountDir dirs, ownerDir dirs]
@@ -252,7 +246,7 @@ customConstruct opts ch constructScript dirs csvFile journalOut = do
     Just stdinPipe <- return input
     Just stdoutPipe <- return output
     hClose stdinPipe
-    _ <- timeAndExitOnErr' opts ch cmdLabel [constructCmdText] channelOut channelErr
+    _ <- timeAndExitOnErr' opts ch cmdLabel [constructCmdText] [] channelOut channelErr
       (hledger, args, Just stdoutPipe)
     hClose stdoutPipe
     status <- Process.waitForProcess handle

@@ -1,0 +1,12 @@
+# Help leads with commands and examples; advanced flags stay out of the usage line.
+<
+hledger-flow --help > "${TMPDIR:-/tmp}/help.$$"
+grep -q 'hledger-flow status --json   The same status, for scripts and agents' "${TMPDIR:-/tmp}/help.$$"
+grep -q -- '--batch-size' "${TMPDIR:-/tmp}/help.$$"
+rm "${TMPDIR:-/tmp}/help.$$"
+if hledger-flow --no-such-flag 2> "${TMPDIR:-/tmp}/err.$$"; then exit 1; fi
+if grep -q -- '--batch-size' "${TMPDIR:-/tmp}/err.$$"; then exit 1; fi
+rm "${TMPDIR:-/tmp}/err.$$"
+hledger-flow status --help | grep -q 'hledger-flow status --rules-template me/mybank/checking'
+hledger-flow import --help | grep -q 'hledger-flow import --start-year current'
+$ sh -eu

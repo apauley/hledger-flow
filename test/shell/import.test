@@ -170,3 +170,23 @@ hledger-flow --batch-size 0 import > /dev/null
 $ sh -eu
 >2 /--batch-size must be positive/
 >= 1
+
+# A successful import prints a one-line summary and the next step, without timings.
+<
+. ./test/shell/setup.sh
+hledger-flow import > out
+tr -d '\r' < out | grep -Fxq 'Imported 1 statement for gawie/bogart/cheque.'
+grep -q '^Next: Point LEDGER_FILE at this ledger' out
+if grep -q 'Collecting' out; then exit 1; fi
+$ sh -eu
+
+# A failing hledger conversion names the rules file to check and doesn't dump the whole input.
+<
+. ./test/shell/setup.sh
+printf 'fields date, description\nskip x\n' > import/bogart.rules
+if hledger-flow import 2> err; then exit 1; fi
+tr '\\' '/' < err | grep -Fq 'Check the skip, fields and separator lines in import/bogart.rules'
+if grep -q 'Begin Error' err; then exit 1; fi
+# hledger versions word the skip error differently. Forward its diagnostic once.
+test "$(grep -Ec '^hledger(\.exe)?: Error:' err)" -eq 1
+$ sh -eu

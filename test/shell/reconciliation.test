@@ -187,3 +187,41 @@ if test -f "$inbox/MARCH.CSV"; then
     test ! -e "$journal"
 fi
 $ sh -eu
+
+# Status asks for import when deleting the last statement leaves generated output behind.
+<
+. ./test/shell/setup.sh
+flow import
+rm "$inbox/march.csv"
+hledger-flow status --json | jq -e '.next.command == "hledger-flow import"' > /dev/null
+flow import
+hledger-flow status --json | jq -e '.next.summary | startswith("Put your first statement")' > /dev/null
+$ sh -eu
+
+# A new manual journal needs import even when its year already has an include file.
+<
+. ./test/shell/setup.sh
+flow import
+export LEDGER_FILE=all-years.journal
+mkdir -p "$account/_manual_/2016"
+printf '2016-01-01 Manual entry\n    expenses:cash  3\n    assets:cash\n' > "$account/_manual_/2016/pre-import.journal"
+hledger-flow status --json | jq -e '.next.command == "hledger-flow import"' > /dev/null
+flow import
+hledger-flow status --json | jq -e '.next.command == "hledger-flow report"' > /dev/null
+hledger -f all-years.journal descriptions | tr -d '\r' | grep -x 'Manual entry'
+$ sh -eu
+Manual entry
+
+# A new manual-only year must be linked into the existing all-years journal.
+<
+. ./test/shell/setup.sh
+flow import
+export LEDGER_FILE=all-years.journal
+mkdir -p import/gawie/_manual_/2018
+printf '2018-01-01 Cash only\n    expenses:cash  2\n    assets:cash\n' > import/gawie/_manual_/2018/post-import.journal
+hledger-flow status --json | jq -e '.next.command == "hledger-flow import"' > /dev/null
+flow import
+hledger-flow status --json | jq -e '.next.command == "hledger-flow report"' > /dev/null
+hledger -f all-years.journal descriptions | tr -d '\r' | grep -x 'Cash only'
+$ sh -eu
+Cash only

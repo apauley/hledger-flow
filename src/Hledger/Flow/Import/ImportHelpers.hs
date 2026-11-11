@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes #-}
 
-module Hledger.Flow.Import.ImportHelpers (withStagedOutput, extractImportDirs, groupIncludesUpTo, includeFileName) where
+module Hledger.Flow.Import.ImportHelpers (withStagedOutput, extractImportDirs, groupIncludesUpTo, includeFileName, rulesFileCandidates, defaultRulesCandidates, importDirLines) where
 
 import qualified Data.Map.Strict as Map
 import Data.Maybe (fromMaybe)
@@ -12,7 +12,9 @@ import Hledger.Flow.Import.Types (ImportDirs (..), InputFileBundle)
 import Hledger.Flow.PathHelpers (AbsFile, RelDir, RelFile, pathSize)
 import Path
 import qualified Path.IO as PathIO
-import System.FilePath (dropTrailingPathSeparator)
+import Control.Monad.Catch (MonadThrow)
+import System.FilePath (dropExtensions, dropTrailingPathSeparator)
+import qualified System.FilePath as FilePath
 
 -- Keep hook output on the destination filesystem and publish it only on success.
 withStagedOutput :: AbsFile -> (AbsFile -> IO ()) -> IO ()
@@ -67,3 +69,32 @@ includeFileName :: RelFile -> RelFile
 includeFileName f = do
   let includeFile = (dropTrailingPathSeparator . toFilePath . dirname . parent) f ++ "-include.journal"
   fromMaybe [relfile|unknown-include.journal|] $ parseRelFile includeFile
+
+-- | Rules files for a statement in lookup order: statement-specific overrides,
+-- then the account's default rules files.
+rulesFileCandidates :: AbsFile -> ImportDirs Abs -> IO [AbsFile]
+rulesFileCandidates csv dirs = do
+  overrides <- if "rfo" `T.isPrefixOf` suffix
+    then do
+      name <- rulesName [suffix]
+      return [dir </> name | dir <- [accountDir dirs, bankDir dirs, importDir dirs]]
+    else return []
+  (overrides ++) <$> defaultRulesCandidates dirs
+  where
+    stem = dropExtensions (toFilePath (filename csv))
+    suffix = snd (T.breakOnEnd "_" (T.pack stem))
+
+-- | The account-level and bank-level rules files, in lookup order.
+defaultRulesCandidates :: ImportDirs Abs -> IO [AbsFile]
+defaultRulesCandidates dirs = do
+  let bank = importDirLines (bankDir dirs)
+      account = importDirLines (accountDir dirs)
+  accountRule <- rulesName (bank ++ account)
+  bankRule <- rulesName bank
+  return [accountDir dirs </> accountRule, importDir dirs </> bankRule]
+
+rulesName :: MonadThrow m => [T.Text] -> m RelFile
+rulesName parts = parseRelFile (T.unpack (T.intercalate "-" parts) FilePath.<.> "rules")
+
+importDirLines :: Path b Dir -> [T.Text]
+importDirLines = T.splitOn "\n" . T.pack . dropTrailingPathSeparator . toFilePath . dirname

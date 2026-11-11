@@ -30,6 +30,21 @@ How to keep this ChangeLog
 
 ## Unreleased
 
+- New `init` and `status` commands. `status` lists your accounts, flags
+  misplaced statements, and tells you when to import after changing rules,
+  adding manual journals or deleting statements.
+  Running `hledger-flow` alone does the same inside a ledger, and says how to
+  start one elsewhere. See the [quick-start](https://github.com/apauley/hledger-flow/blob/master/QUICKSTART.md#import-your-first-statement).
+- `status --json` gives scripts and AI agents the same facts and next step
+  ([fields](https://github.com/apauley/hledger-flow/blob/master/docs/README.md#status-for-scripts-and-agents)).
+  `status --rules-template owner/bank/account` prints a starter rules file
+  from the latest statement or its matching preprocessed CSV.
+- `import` and `report` print a short summary and the next step. The report
+  summary counts how many empty reports were skipped. Both `status` and
+  `report` accept `~/` paths in `LEDGER_FILE`. Timings and progress lines
+  moved to `--verbose`. Errors no longer show Haskell
+  backtraces, and a failing hledger conversion names the rules file to check
+  without echoing the whole statement.
 - Linux x86-64 users can [build and install a strictly confined snap](https://github.com/apauley/hledger-flow/blob/master/snap/README.md)
   that includes the hledger 1.99.6 pre-release for imports, reports, and account scripts.
 

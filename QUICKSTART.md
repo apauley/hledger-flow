@@ -78,21 +78,34 @@ hledger --version
 hledger-flow --version
 ```
 
-Follow the [step-by-step tutorial](https://github.com/apauley/hledger-flow/blob/master/step-by-step/README.md)
-to set up a statement and rules file, or use an existing hledger-flow accounting
-directory. In your terminal, change to the directory containing `import/` and run:
+Start a ledger in an empty folder, then let `hledger-flow status` guide you.
+Each `status` ends with a `Next:` line saying exactly what to do:
 
 ```text
-hledger-flow import
-hledger-flow report
+hledger-flow init ~/finances
+cd ~/finances
+hledger-flow status
 ```
 
-Import creates `all-years.journal`. Report writes files under `reports/`.
-On Windows, run `chcp 65001` in your terminal before querying that journal
+1. Put a statement where `status` says, for example
+   `import/me/mybank/checking/1-in/2026/statement.csv`.
+2. Create the rules file `status` names. For a CSV with a header row,
+   `hledger-flow status --rules-template me/mybank/checking` prints a starter
+   to save as that file and edit.
+3. Run `hledger-flow import`. It creates `all-years.journal`.
+4. Point `LEDGER_FILE` at that journal with the line `status` prints, then run
+   `hledger-flow report`. Reports go under `reports/`.
+
+Running `hledger-flow` with no command does the same as `status` inside a
+ledger. Scripts and AI agents can use `hledger-flow status --json`; see
+[status for scripts and agents](https://github.com/apauley/hledger-flow/blob/master/docs/README.md#status-for-scripts-and-agents).
+The [step-by-step tutorial](https://github.com/apauley/hledger-flow/blob/master/step-by-step/README.md)
+explains each part in depth.
+
+On Windows, run `chcp 65001` in your terminal before querying the journal
 with standalone hledger. Then run `hledger -f all-years.journal bal`.
-If you use `LEDGER_FILE`, point it at this journal. On Linux or macOS, use
-`export LEDGER_FILE="$PWD/all-years.journal"` in a POSIX shell. On Windows,
-use `$env:LEDGER_FILE = (Resolve-Path .\all-years.journal).Path` in PowerShell.
+In PowerShell, set `LEDGER_FILE` with
+`$env:LEDGER_FILE = (Resolve-Path .\all-years.journal).Path`.
 
 Rules-based imports work on all three platforms. On native Windows you can
 put `preprocess.ps1` and `construct.ps1`, or their `.exe` equivalents, in
