@@ -28,7 +28,7 @@ How to keep this ChangeLog
   existing destination belongs in release-procedure.md.
 -->
 
-## Unreleased
+## 0.19.0
 
 - New `init` and `status` commands. `status` lists your accounts, flags
   misplaced statements, and tells you when to import after changing rules,
