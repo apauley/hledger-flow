@@ -116,6 +116,7 @@ statusJSON s next =
       "accounts" .= map accountJSON (lsAccounts s),
       "misplaced" .= [object ["path" .= mpPath m, "suggestion" .= mpSuggestion m] | m <- lsMisplaced s],
       "manualJournals" .= lsManualJournals s,
+      "allYearsJournalExists" .= lsAllYearsExists s,
       "next"
         .= object
           [ "summary" .= nsSummary next,

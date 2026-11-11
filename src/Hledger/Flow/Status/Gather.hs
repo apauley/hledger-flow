@@ -50,7 +50,8 @@ gatherStatus hledger base = do
   accounts <- forM groups (uncurry (accountStatus base))
   ledgerEnv <- lookupEnv "LEDGER_FILE"
   ledgerFile <- forM (filter (not . null) (maybe [] pure ledgerEnv)) $ \v ->
-    LedgerFile v <$> Directory.doesFileExist v
+    LedgerFile v <$> (expandTilde v >>= Directory.doesFileExist)
+  allYears <- PathIO.doesFileExist (base </> [relfile|all-years.journal|])
   return
     LedgerStatus
       { lsBaseDir = base,
@@ -60,8 +61,16 @@ gatherStatus hledger base = do
           [] -> Nothing,
         lsAccounts = accounts,
         lsMisplaced = List.sortOn mpPath (misplacedFiles root files),
-        lsManualJournals = length (filter (isManualJournal root) files)
+        lsManualJournals = length (filter (isManualJournal root) files),
+        lsAllYearsExists = allYears
       }
+
+-- | hledger expands a leading @~@ in LEDGER_FILE, so we do too.
+expandTilde :: FilePath -> IO FilePath
+expandTilde path = case path of
+  "~" -> Directory.getHomeDirectory
+  '~' : sep : rest | FilePath.isPathSeparator sep -> (FilePath.</> rest) <$> Directory.getHomeDirectory
+  _ -> return path
 
 accountName :: AbsDir -> AbsFile -> T.Text
 accountName root file = case stripProperPrefix root file of

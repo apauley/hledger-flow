@@ -54,7 +54,7 @@ import qualified Data.Text.IO as T
 import Control.Exception (SomeAsyncException (..), SomeException, catch, displayException, fromException, throwIO)
 import Hledger.Flow.PathHelpers (PathException (..), turtleToAbsDir)
 import System.Exit (ExitCode (..), exitWith)
-import System.IO (hPutStrLn, stderr)
+import System.IO (hPutStrLn, hSetEncoding, stderr, stdout, utf8)
 import System.IO.Error (ioeGetErrorString, isUserError)
 #ifdef mingw32_HOST_OS
 import System.IO.CodePage (withCP65001)
@@ -97,7 +97,10 @@ main = runCLI
 #endif
 
 runCLI :: IO ()
-runCLI = runCommand `catch` reportFatal
+runCLI = do
+  -- Status and errors use non-ASCII symbols; a C locale must not make them fail.
+  mapM_ (`hSetEncoding` utf8) [stdout, stderr]
+  runCommand `catch` reportFatal
 
 -- | Print uncaught errors as one plain message, without GHC's backtrace.
 reportFatal :: SomeException -> IO ()

@@ -26,6 +26,7 @@ statements in the wrong place, and ends with the one thing to do next.
   `hooks` (`preprocess`, `construct`), `journalsMissing`, `journalsOutdated`.
 - `misplaced`: `{"path", "suggestion"}` for statement files import will never read.
 - `manualJournals`: the number of `_manual_` journals.
+- `allYearsJournalExists`: whether import has created `all-years.journal`.
 - `next`: `{"summary", "command", "detail", "docs"}`. `command` is `null`
   when the step isn't a single command, such as moving files.
 

@@ -11,7 +11,7 @@ module Hledger.Flow.RulesTemplate
   )
 where
 
-import Data.Char (isAlphaNum, toLower)
+import Data.Char (isAlphaNum, isDigit, toLower)
 import qualified Data.List as List
 import qualified Data.Text as T
 import Hledger.Flow.BaseDir (relativeToBase')
@@ -47,18 +47,23 @@ looksLikeHeader = not . any dataish
 -- | hledger field names for the columns: obvious date, description and amount
 -- columns are named for hledger; the rest keep a normalised version of their name.
 templateFields :: [T.Text] -> [T.Text]
-templateFields names = dedupe (rename normalised)
+templateFields names = dedupe (zipWith pick [0 ..] normalised)
   where
     normalised = zipWith normalise [1 :: Int ..] names
     normalise i n =
       let t = T.intercalate "_" (filter (not . T.null) (T.splitOn "_" (T.map (\c -> if isAlphaNum c then toLower c else '_') n)))
        in if T.null t then "field" <> T.pack (show i) else t
-    dateIx = List.findIndex ("date" `T.isInfixOf`) normalised
-    descIx = fst <$> List.find (\(i, n) -> Just i /= dateIx && any (`T.isInfixOf` n) ["desc", "payee", "narrat", "detail"]) (zip [0 ..] normalised)
-    rename = zipWith pick [0 ..]
+    indexed = zip [0 :: Int ..] normalised
+    dateIx = fst <$> List.find (("date" `T.isInfixOf`) . snd) indexed
+    descIx = fst <$> List.find (\(i, n) -> Just i /= dateIx && any (`T.isInfixOf` n) ["desc", "payee", "narrat", "detail"]) indexed
+    amountIx = case [i | (i, n) <- indexed, "amount" `T.isInfixOf` n, Just i /= dateIx, Just i /= descIx] of
+      [i] -> Just i
+      _ -> fst <$> List.find ((== "amount") . snd) indexed
     pick i n
       | Just i == dateIx = "date"
       | Just i == descIx = "description"
+      | Just i == amountIx = "amount"
+      | isSpecialField n = "bank_" <> n
       | otherwise = n
     dedupe = go []
       where
@@ -66,6 +71,12 @@ templateFields names = dedupe (rename normalised)
         go seen (n : rest) =
           let k = length (filter (== n) seen)
            in (if k == 0 then n else n <> "_" <> T.pack (show (k + 1))) : go (n : seen) rest
+
+-- | Names hledger gives a meaning of its own, such as balance (assertions) or status.
+isSpecialField :: T.Text -> Bool
+isSpecialField n =
+  n `elem` ["status", "code", "comment", "balance", "currency", "date2", "account", "amount", "date", "description"]
+    || (T.dropWhileEnd isDigit n `elem` ["account", "amount", "balance", "comment", "currency"] && T.any isDigit n)
 
 notCsv :: FilePath -> T.Text
 notCsv path =
@@ -88,8 +99,14 @@ rulesTemplate bank account path contents
           "skip 1"
         ]
           ++ ["separator " <> (if sep == '\t' then "TAB" else T.singleton sep) | sep /= ',']
-          ++ [ "fields " <> T.intercalate ", " (templateFields names),
-               "",
+          ++ [ "fields " <> T.intercalate ", " fields,
+               ""
+             ]
+          ++ [ "# Columns prefixed with bank_ would otherwise mean something to hledger.\n"
+                 <> "# For example, rename bank_balance to balance to check balance assertions.\n"
+               | any (\f -> maybe False isSpecialField (T.stripPrefix "bank_" f)) fields
+             ]
+          ++ [
                "# Make the date format match your statement, e.g. %d/%m/%Y",
                "# date-format %Y-%m-%d",
                "",
@@ -102,6 +119,7 @@ rulesTemplate bank account path contents
   where
     line = T.takeWhile (/= '\n') contents
     (sep, names) = splitHeader line
+    fields = templateFields names
 
 -- | The starter rules file for an account (@owner/bank/account@), from its newest statement.
 rulesTemplateFor :: BaseDir -> T.Text -> IO (Either T.Text T.Text)

@@ -73,3 +73,20 @@ hledger -f all-years.journal balance --flat --no-total --format '%(account) %(to
 $ sh -eu
 assets:mybank:checking -3.50
 expenses:unknown 3.50
+
+# Output survives a C locale (Linux containers, cron, agent sandboxes).
+<
+cd "$(mktemp -d "${TMPDIR:-/tmp}/hledger-flow.XXXXXXXX")"
+mkdir -p import/me/mybank
+printf 'Date,Desc,Amount\n' > import/me/mybank/jan.csv
+LC_ALL=C LANG=C hledger-flow status | grep -q '→'
+LC_ALL=C LANG=C hledger-flow status --json | grep -q '"misplaced"'
+$ sh -eu
+
+# init's cd line can be pasted into a shell when the folder has spaces.
+<
+cd "$(mktemp -d "${TMPDIR:-/tmp}/hledger-flow.XXXXXXXX")"
+hledger-flow init "my finances" | grep 'Change to it first' | sed 's/^Change to it first: //' > ../cd.$$
+(. ../cd.$$ && test -d import)
+rm ../cd.$$
+$ sh -eu

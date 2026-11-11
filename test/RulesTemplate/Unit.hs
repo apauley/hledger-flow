@@ -13,7 +13,15 @@ tests =
       "semicolons" ~: fst (splitHeader "\"Datum\";\"Omschrijving\";\"Bedrag\"") ~?= ';',
       "tabs" ~: fst (splitHeader "Date\tDesc\tAmount") ~?= '\t',
       "mapping" ~: templateFields ["Transaction Date", "Payee Name", "Amount", "Balance (ZAR)", "", "Amount"]
-        ~?= ["date", "description", "amount", "balance_zar", "field5", "amount_2"],
+        ~?= ["date", "description", "amount", "balance_zar", "field5", "bank_amount"],
+      "hledger's special names renamed" ~: templateFields ["Date", "Description", "Amount", "Balance", "Status", "Code"]
+        ~?= ["date", "description", "amount", "bank_balance", "bank_status", "bank_code"],
+      "single amount column mapped" ~: templateFields ["Date", "Desc", "Transaction Amount"] ~?= ["date", "description", "amount"],
+      "debit and credit amounts left alone" ~: templateFields ["Date", "Desc", "Debit Amount", "Credit Amount"]
+        ~?= ["date", "description", "debit_amount", "credit_amount"],
+      "renamed columns explained" ~: fmap (T.isInfixOf "bank_balance")
+        (rulesTemplate "b" "a" "x.csv" "Date,Desc,Amount,Balance\n")
+        ~?= Right True,
       "data row" ~: looksLikeHeader ["2026-01-02", "Coffee", "-3.50"] ~?= False,
       "header row" ~: looksLikeHeader ["Date", "Desc", "Amount"] ~?= True,
       "template fields" ~: fmap (T.isInfixOf "fields date, description, amount\n")

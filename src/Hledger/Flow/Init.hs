@@ -10,6 +10,7 @@ module Hledger.Flow.Init
 where
 
 import Control.Exception (IOException, catch)
+import Data.Char (isAlphaNum)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import Hledger.Flow.BaseDir (findBaseDir)
@@ -47,7 +48,8 @@ initLedger dir = do
 runInit :: Maybe FilePath -> AbsDir -> AbsDir -> IO ()
 runInit hledgerPath cwd dir = do
   home <- (Just <$> getHomeDir) `catch` (\e -> const (return Nothing) (e :: IOException))
-  let shown = T.pack . tildePath home . FilePath.dropTrailingPathSeparator . toFilePath
+  let absolute = T.pack . FilePath.dropTrailingPathSeparator . toFilePath
+      shown = T.pack . tildePath home . T.unpack . absolute
   outcome <- initLedger dir
   case outcome of
     AlreadyLedger b ->
@@ -59,5 +61,15 @@ runInit hledgerPath cwd dir = do
     Created base parentLedger -> do
       T.putStrLn ("Started a ledger in " <> shown base)
       mapM_ (\p -> T.putStrLn ("Note: " <> shown p <> " also has an import/ folder. Commands run inside " <> shown base <> " use the new ledger.")) parentLedger
-      if base /= cwd then T.putStrLn ("Change to it first: cd " <> shown base) else return ()
+      if base /= cwd then T.putStrLn ("Change to it first: cd " <> shellQuoted (shown base) (absolute base)) else return ()
       printNext hledgerPath base
+
+-- | A path to paste into a shell: as shown when that's safe, otherwise the
+-- absolute path in double quotes (a quoted @~@ wouldn't expand).
+shellQuoted :: T.Text -> T.Text -> T.Text
+shellQuoted shown absolute
+  | T.all safe shown = shown
+  | otherwise = "\"" <> T.concatMap escape absolute <> "\""
+  where
+    safe c = isAlphaNum c || c `elem` ("~/._-+:@%," :: String)
+    escape c = if c `elem` ("\"$`\\" :: String) then T.pack ['\\', c] else T.singleton c

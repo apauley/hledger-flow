@@ -55,7 +55,8 @@ data LedgerStatus = LedgerStatus
     lsLedgerFile :: Maybe LedgerFile,
     lsAccounts :: [AccountStatus],
     lsMisplaced :: [Misplaced],
-    lsManualJournals :: Int
+    lsManualJournals :: Int,
+    lsAllYearsExists :: Bool
   }
   deriving (Show)
 
@@ -129,6 +130,8 @@ nextStep year windows s
         (Just (docURL "rules-files"))
   | toImport > 0 =
       NextStep ("Import " <> plural toImport "new or changed statement") (Just "hledger-flow import") [] Nothing
+  | not (lsAllYearsExists s) =
+      NextStep "Run import to create all-years.journal" (Just "hledger-flow import") [] Nothing
   | maybe True (not . lfExists) (lsLedgerFile s) =
       NextStep
         "Point LEDGER_FILE at this ledger so hledger finds it"

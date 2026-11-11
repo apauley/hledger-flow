@@ -11,7 +11,9 @@ import Hledger.Flow.Status
 import Hledger.Flow.Status.Gather (classifyDir, gatherStatus)
 import Path
 import Path.IO
-import System.Environment (setEnv, unsetEnv)
+import Control.Monad (unless)
+import System.Environment (lookupEnv, setEnv, unsetEnv)
+import qualified System.Info as Sys
 import System.FilePath (joinPath)
 import Test.HUnit hiding (Path)
 import TestHelpers (defaultHlInfo, withTestDir)
@@ -67,6 +69,19 @@ testGather = TestCase $ withTestDir $ \base -> do
   s2 <- gatherStatus Nothing base
   unsetEnv "LEDGER_FILE"
   fmap lfExists (lsLedgerFile s2) @?= Just False
+  lsAllYearsExists s2 @?= False
+
+testLedgerFileTilde :: Test
+testLedgerFileTilde = TestCase $ unless (Sys.os == "mingw32") $ withTestDir $ \base -> do
+  oldHome <- lookupEnv "HOME"
+  writeFile (toFilePath (base </> [relfile|x.journal|])) ""
+  createDirIfMissing True (base </> [reldir|import|])
+  setEnv "HOME" (toFilePath base)
+  setEnv "LEDGER_FILE" "~/x.journal"
+  s <- gatherStatus Nothing base
+  unsetEnv "LEDGER_FILE"
+  maybe (unsetEnv "HOME") (setEnv "HOME") oldHome
+  fmap lfExists (lsLedgerFile s) @?= Just True
 
 testFindHledgerMissing :: Test
 testFindHledgerMissing = TestCase $ do
@@ -74,4 +89,4 @@ testFindHledgerMissing = TestCase $ do
   assertBool "Nothing for a missing path" (isNothing r)
 
 tests :: Test
-tests = TestList [testClassify, testGather, testFindHledgerMissing]
+tests = TestList [testClassify, testGather, testFindHledgerMissing, testLedgerFileTilde]

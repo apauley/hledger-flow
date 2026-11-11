@@ -23,7 +23,8 @@ blank =
       lsLedgerFile = Just (LedgerFile "/x" True),
       lsAccounts = [],
       lsMisplaced = [],
-      lsManualJournals = 0
+      lsManualJournals = 0,
+      lsAllYearsExists = True
     }
 
 acct :: AccountStatus
@@ -79,6 +80,7 @@ testRules =
       "2 empty ledger" ~: summaryOf blank ~?= "Put your first statement in import/<owner>/<bank>/<account>/1-in/<year>/",
       "2 example uses current year" ~: nsDetail (nextStep 2026 False blank) ~?= ["For example: import/me/mybank/checking/1-in/2026/statement.csv", "Then check with: hledger-flow status"],
       "2 skipped for manual-only ledger" ~: summaryOf blank {lsManualJournals = 1} ~?= "Generate reports, or explore with hledger",
+      "5 import when all-years.journal is missing" ~: commandOf blank {lsManualJournals = 1, lsAllYearsExists = False} ~?= Just "hledger-flow import",
       "3 misplaced" ~: summaryOf blank {lsMisplaced = [Misplaced "import/a.csv" "x"]} ~?= "Move 1 file to where hledger-flow looks",
       "3 misplaced plural" ~: summaryOf blank {lsMisplaced = [Misplaced "import/a.csv" "x", Misplaced "import/b.csv" "y"]} ~?= "Move 2 files to where hledger-flow looks",
       "3 detail" ~: nsDetail (nextStep 2026 False blank {lsMisplaced = [Misplaced "import/a.csv" "x"]}) ~?= ["import/a.csv → x"],
@@ -120,7 +122,7 @@ testJSONShape :: Test
 testJSONShape = TestCase $ case statusJSON blank (nextStep 2026 False blank) of
   Object o ->
     sort (map Key.toText (KeyMap.keys o))
-      @?= ["accounts", "baseDir", "hledger", "ledgerFile", "manualJournals", "misplaced", "next", "schemaVersion"]
+      @?= ["accounts", "allYearsJournalExists", "baseDir", "hledger", "ledgerFile", "manualJournals", "misplaced", "next", "schemaVersion"]
   _ -> assertFailure "status JSON is an object"
 
 tests = TestList [testSuggest, testMisplacedUpperCase, testRules, testVersion, testRenderNoColour, testRenderPending, testJSONShape]
