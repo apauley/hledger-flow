@@ -12,6 +12,7 @@ import Data.Maybe (fromMaybe)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import Hledger.Flow.DateTime (timeAction)
+import Hledger.Flow.Environment (importSettings, renderSettings)
 import Hledger.Flow.BaseDir (effectiveRunDir, relativeToBase)
 import Hledger.Flow.Common
 import Hledger.Flow.DocHelpers (docURL)
@@ -42,7 +43,7 @@ type FileWasGenerated = Bool
 
 importCSVs :: RuntimeOptions -> IO ()
 importCSVs opts = withConsoleLogging $ \ch -> do
-  when (showOptions opts) (channelOutLn ch (T.pack (show opts)))
+  when (showOptions opts) (channelOutLn ch (T.unlines (renderSettings id (importSettings opts))))
   logVerbose opts ch "Starting import"
   (journals, diff) <- timeAction $ importCSVs' opts ch
   let importRoot = baseDir opts Path.</> [Path.reldir|import|]

@@ -39,6 +39,10 @@ How to keep this ChangeLog
   ([fields](https://github.com/apauley/hledger-flow/blob/master/docs/README.md#status-for-scripts-and-agents)).
   `status --rules-template owner/bank/account` prints a starter rules file
   from the latest statement or its matching preprocessed CSV.
+- `--show-options` now prints the hledger-flow version and commit, the full
+  path and version of hledger, and each setting with the flag that changes it.
+  `status` always ends with these versions and paths, and `status --json` has
+  them under `environment`.
 - Interactive `import` and `report` runs can show an [upgrade notice](https://github.com/apauley/hledger-flow/blob/master/docs/README.md#release-notices) without waiting for the network. Set `HLEDGER_FLOW_NO_UPDATE_CHECK=1` to turn it off.
 - `import` and `report` print a short summary and the next step. The report
   summary counts how many empty reports were skipped. Both `status` and

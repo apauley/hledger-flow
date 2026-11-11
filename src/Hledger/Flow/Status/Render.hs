@@ -5,6 +5,7 @@ module Hledger.Flow.Status.Render
   ( useColor,
     renderStatus,
     renderNext,
+    renderEnvironment,
     statusJSON,
     tildePath,
     nextStepHere,
@@ -20,6 +21,8 @@ import qualified Data.Text.IO as T
 import qualified Data.Text.Lazy.IO as TL
 import Hledger.Flow.Common (findHledger, nativeShell)
 import Hledger.Flow.DateTime (currentYear)
+import Hledger.Flow.Environment (coresSetting, environmentJSON, environmentSettings, renderSettings)
+import Hledger.Flow.Internals (SystemInfo, systemInfo)
 import Hledger.Flow.Status.Gather (gatherStatus)
 import Hledger.Flow.Types (BaseDir)
 import Path.IO (getCurrentDir, getHomeDir)
@@ -106,10 +109,11 @@ renderNext color next =
 tshow :: Show a => a -> T.Text
 tshow = T.pack . show
 
-statusJSON :: LedgerStatus -> NextStep -> Value
-statusJSON s next =
+statusJSON :: SystemInfo -> Maybe FilePath -> LedgerStatus -> NextStep -> Value
+statusJSON sys conf s next =
   object
     [ "schemaVersion" .= (1 :: Int),
+      "environment" .= environmentJSON sys conf,
       "baseDir" .= baseText s,
       "hledger" .= fmap hledgerJSON (lsHledger s),
       "ledgerFile" .= fmap (\lf -> object ["value" .= lfValue lf, "exists" .= lfExists lf]) (lsLedgerFile s),
@@ -146,18 +150,26 @@ nextStepHere status = do
   cwd <- getCurrentDir
   return (nextStep year nativeShell cwd status)
 
+-- | The versions and paths status ran with, with full paths for bug reports.
+renderEnvironment :: Bool -> SystemInfo -> Maybe FilePath -> LedgerStatus -> T.Text
+renderEnvironment color sys conf s =
+  T.unlines ("" : bold color "Environment:" : map ("  " <>) (renderSettings (red color) settings))
+  where
+    settings = environmentSettings sys (lsHledger s) conf (lsBaseDir s) ++ [coresSetting sys]
+
 -- | Print the ledger's status as text, or as JSON for scripts and agents.
-printStatus :: Maybe FilePath -> Bool -> BaseDir -> IO ()
-printStatus hledgerPath json base = do
+printStatus :: Maybe FilePath -> Maybe FilePath -> Bool -> BaseDir -> IO ()
+printStatus hledgerPath conf json base = do
   hledger <- findHledger hledgerPath
   status <- gatherStatus hledger base
   next <- nextStepHere status
+  sys <- systemInfo
   if json
-    then TL.putStrLn (encodeToLazyText (statusJSON status next))
+    then TL.putStrLn (encodeToLazyText (statusJSON sys conf status next))
     else do
       color <- useColor stdout
       home <- (Just <$> getHomeDir) `catch` (\e -> const (return Nothing) (e :: IOException))
-      T.putStr (renderStatus color home status next)
+      T.putStr (renderStatus color home status next <> renderEnvironment color sys conf status)
 
 -- | Print only the next step for a ledger.
 printNext :: Maybe FilePath -> BaseDir -> IO ()

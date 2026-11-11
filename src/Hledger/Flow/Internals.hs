@@ -36,6 +36,10 @@ versionInfo sysInfo =
         ++ $(gitHash)
     )
 
+-- | The git commit this binary was built from, abbreviated; @UNKNOWN@ outside git.
+gitCommit :: String
+gitCommit = take 7 $(gitHash)
+
 systemInfo :: IO SystemInfo
 systemInfo = do
   processors <- getNumProcessors

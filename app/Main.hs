@@ -165,14 +165,14 @@ runStatus mainParams' params = do
   base <- findBaseDir dir >>= maybe (throwIO (MissingBaseDir dir)) return
   case statusRulesTemplate params of
     Just account -> rulesTemplateFor base (Text.pack account) >>= either (ioError . userError . Text.unpack) T.putStr
-    Nothing -> printStatus (hledgerPathOpt mainParams') (statusJson params) base
+    Nothing -> printStatus (hledgerPathOpt mainParams') (hledgerConfOpt mainParams') (statusJson params) base
 
 -- | Running hledger-flow with no command: say where we are and what to do.
 runBare :: MainParams -> IO ()
 runBare mainParams' = do
   situation <- getCurrentDir >>= classifyDir
   case situation of
-    InLedger base -> printStatus (hledgerPathOpt mainParams') False base
+    InLedger base -> printStatus (hledgerPathOpt mainParams') (hledgerConfOpt mainParams') False base
     EmptyDir -> T.putStrLn "This folder is empty. Run `hledger-flow init` to start your ledger here."
     Elsewhere ->
       T.putStr $
@@ -282,7 +282,7 @@ verboseParser = MainParams
   <$> (length <$> many (flag' () (long "verbose" <> short 'v' <> help "Print more verbose output")))
   <*> optional (option str (long "hledger-path" <> short 'H' <> metavar "HLEDGER-PATH" <> help "The full path to an hledger executable"))
   <*> optional (option str (long "hledger-conf" <> metavar "PATH" <> hidden <> help "The hledger config file to pass to hledger --conf"))
-  <*> switch (long "show-options" <> hidden <> help "Print the options this program will run with")
+  <*> switch (long "show-options" <> hidden <> help "Print the hledger-flow version, hledger path and settings import or report runs with. status always shows them.")
   <*> optional (option auto (long "batch-size" <> metavar "SIZE" <> hidden <> help ("Number of files to process in parallel. Must be positive. Default: " <> show defaultBatchSize <> ". Ignored during sequential processing.")))
   <*> switch (long "sequential" <> hidden <> help "Disable parallel processing")
 

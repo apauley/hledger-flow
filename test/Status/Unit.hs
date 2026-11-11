@@ -14,7 +14,7 @@ import Hledger.Flow.Status
 import Path
 import qualified System.FilePath as FilePath
 import Test.HUnit
-import TestHelpers (defaultHlInfo, testRoot)
+import TestHelpers (defaultHlInfo, testRoot, testSystemInfo)
 
 blank :: LedgerStatus
 blank =
@@ -131,10 +131,10 @@ testRenderPending = TestCase $ do
   assertBool "clean" ("✓ 1 journal" `T.isInfixOf` render acct)
 
 testJSONShape :: Test
-testJSONShape = TestCase $ case statusJSON blank (atRoot blank) of
+testJSONShape = TestCase $ case statusJSON testSystemInfo Nothing blank (atRoot blank) of
   Object o ->
     sort (map Key.toText (KeyMap.keys o))
-      @?= ["accounts", "allYearsJournalExists", "baseDir", "hledger", "ledgerFile", "manualJournals", "misplaced", "next", "schemaVersion"]
+      @?= ["accounts", "allYearsJournalExists", "baseDir", "environment", "hledger", "ledgerFile", "manualJournals", "misplaced", "next", "schemaVersion"]
   _ -> assertFailure "status JSON is an object"
 
 tests = TestList [testSuggest, testMisplacedUpperCase, testRules, testVersion, testRenderNoColour, testRenderPending, testJSONShape]

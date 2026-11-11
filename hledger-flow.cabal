@@ -31,6 +31,7 @@ library
       Hledger.Flow.Common
       Hledger.Flow.DateTime
       Hledger.Flow.DocHelpers
+      Hledger.Flow.Environment
       Hledger.Flow.Import.CSVImport
       Hledger.Flow.Import.ImportHelpers
       Hledger.Flow.Import.ImportHelpersTurtle
@@ -106,6 +107,7 @@ test-suite hledger-flow-test
       CSVImport.ImportHelperTurtleTests
       CSVImport.Integration
       CSVImport.Unit
+      Environment.Unit
       ImportHelpers.Integration
       Init.Integration
       PathHelpers.Unit

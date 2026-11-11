@@ -18,6 +18,8 @@ statements in the wrong place, and ends with the one thing to do next.
 
 - `schemaVersion`: currently `1`.
 - `baseDir`: the ledger's absolute path.
+- `environment`: `{"hledgerFlowVersion", "commit", "compiler", "os", "arch",
+  "cores", "availableCores", "hledgerConf"}`, for bug reports.
 - `hledger`: `{"path", "version"}`, or `null` when hledger isn't found.
 - `ledgerFile`: `{"value", "exists"}` for `LEDGER_FILE`, or `null` when unset.
 - `accounts`: one object per `owner/bank/account` with statements:

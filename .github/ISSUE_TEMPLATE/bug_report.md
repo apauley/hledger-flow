@@ -20,7 +20,8 @@ $ hledger-flow --version
 Is this the [latest version](https://github.com/apauley/hledger-flow/releases)?
 Please confirm your issue using the latest version of `hledger-flow`, maybe it has already been fixed.
 
-Also include the runtime options of the command you ran, e.g:
+Also include what the command you ran prints with `--show-options`: the
+hledger-flow version, the hledger it uses and your settings, e.g:
 ```
 $ hledger-flow --show-options import
 ```

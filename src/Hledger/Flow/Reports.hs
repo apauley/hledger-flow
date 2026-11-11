@@ -14,6 +14,7 @@ import qualified Data.List as List
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import Hledger.Flow.DateTime (timeAction)
+import Hledger.Flow.Environment (renderSettings, reportSettings)
 import Hledger.Flow.BaseDir (relativeToBase)
 import Hledger.Flow.Common
 import Hledger.Flow.Logging
@@ -37,7 +38,7 @@ type ReportGenerator = RuntimeOptions -> TChan FlowTypes.LogMessage -> [FilePath
 
 generateReports :: RuntimeOptions -> IO ()
 generateReports opts = withConsoleLogging $ \ch -> do
-  when (showOptions opts) $ channelOutLn ch (T.pack (show opts))
+  when (showOptions opts) $ channelOutLn ch (T.unlines (renderSettings id (reportSettings opts)))
   (reports, diff) <- timeAction $ generateReports' opts ch
   let skipped = length (lefts reports)
       skippedText = if skipped == 0 then "" else " Skipped " <> plural skipped "empty report" <> "."
