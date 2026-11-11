@@ -42,6 +42,7 @@ library
       Hledger.Flow.Reports
       Hledger.Flow.RuntimeOptions
       Hledger.Flow.Status
+      Hledger.Flow.Status.Gather
       Hledger.Flow.Types
   other-modules:
       Paths_hledger_flow
@@ -97,6 +98,7 @@ test-suite hledger-flow-test
       CSVImport.Unit
       ImportHelpers.Integration
       PathHelpers.Unit
+      Status.Integration
       Status.Unit
       TestHelpers
       Paths_hledger_flow

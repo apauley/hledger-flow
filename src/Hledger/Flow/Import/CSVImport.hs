@@ -31,7 +31,7 @@ import System.Exit (ExitCode (..), exitWith)
 import System.IO (hClose)
 import qualified System.Info as Sys
 import qualified System.Process as Process
-import System.FilePath (dropExtensions, dropTrailingPathSeparator, takeExtension, (<.>), (</>))
+import System.FilePath (takeExtension, (</>))
 import Prelude hiding (putStrLn, take, writeFile)
 
 type FileWasGenerated = Bool
@@ -202,26 +202,6 @@ hledgerImport opts ch importDirs csvFile journalOut = do
                 <> "\n\nHere is a bit of documentation about rules files that you may find helpful:\n"
                 <> docURL "rules-files"
         errExit 1 ch msg ()
-
-rulesFileCandidates :: AbsFile -> ImportDirs Path.Abs -> IO [AbsFile]
-rulesFileCandidates csv dirs = do
-  let bank = importDirLines (bankDir dirs)
-      account = importDirLines (accountDir dirs)
-  accountRule <- rulesName (bank ++ account)
-  bankRule <- rulesName bank
-  overrides <- if "rfo" `T.isPrefixOf` suffix
-    then do
-      name <- rulesName [suffix]
-      return [dir Path.</> name | dir <- [accountDir dirs, bankDir dirs, importDir dirs]]
-    else return []
-  return (overrides ++ [accountDir dirs Path.</> accountRule, importDir dirs Path.</> bankRule])
-  where
-    stem = dropExtensions (Path.toFilePath (Path.filename csv))
-    suffix = snd (T.breakOnEnd "_" (T.pack stem))
-    rulesName parts = Path.parseRelFile (T.unpack (T.intercalate "-" parts) <.> "rules")
-
-importDirLines :: Path.Path b Path.Dir -> [T.Text]
-importDirLines = T.splitOn "\n" . T.pack . dropTrailingPathSeparator . Path.toFilePath . Path.dirname
 
 hookDirArgs :: ImportDirs b -> [T.Text]
 hookDirArgs dirs = map (T.concat . importDirLines) [bankDir dirs, accountDir dirs, ownerDir dirs]

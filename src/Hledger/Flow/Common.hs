@@ -4,6 +4,7 @@
 module Hledger.Flow.Common where
 
 import Control.Concurrent (threadDelay)
+import Control.Exception (SomeException, try)
 import Control.Monad (filterM, forM_, when)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Concurrent.Async (concurrently, mapConcurrently)
@@ -61,6 +62,20 @@ hledgerPathFromOption pathOption = do
                   <> "You need to either install hledger, or add it to your PATH, or provide the path to an hledger executable.\n\n"
                   <> "There are a number of installation options on the hledger website: https://hledger.org/download.html"
           ioError (userError msg)
+
+-- | The hledger to use, or Nothing when it can't be found or run. Never exits.
+findHledger :: Maybe FilePath -> IO (Maybe HledgerInfo)
+findHledger pathOption = do
+  found <- case pathOption of
+    Just h -> do
+      exists <- Directory.doesFileExist h
+      if exists then Just <$> Path.resolveFile' h else return Nothing
+    Nothing -> Directory.findExecutable "hledger" >>= traverse Path.resolveFile'
+  case found of
+    Nothing -> return Nothing
+    Just hlp -> do
+      version <- try (hledgerVersionFromPath hlp) :: IO (Either SomeException T.Text)
+      return (either (const Nothing) (Just . HledgerInfo hlp) version)
 
 hledgerVersionFromPath :: AbsFile -> IO T.Text
 hledgerVersionFromPath hlp = do

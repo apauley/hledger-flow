@@ -10,6 +10,7 @@ import qualified Common.Integration
 import qualified Common.Unit
 import qualified ImportHelpers.Integration
 import qualified PathHelpers.Unit
+import qualified Status.Integration
 import qualified Status.Unit
 import Test.HUnit
 import System.Exit (exitFailure)
@@ -24,7 +25,8 @@ tests =
       ImportHelpers.Integration.tests,
       CSVImport.Unit.tests,
       CSVImport.Integration.tests,
-      Status.Unit.tests
+      Status.Unit.tests,
+      Status.Integration.tests
     ]
 
 main :: IO Counts

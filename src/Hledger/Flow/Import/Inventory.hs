@@ -11,6 +11,7 @@ module Hledger.Flow.Import.Inventory
     conflictingOutputs,
     canonicalFile,
     manualIncludeFiles,
+    isManualJournal,
     managedIncludeFiles,
     moveToTrash,
   )
@@ -111,17 +112,20 @@ conflictingOutputs sources = do
 -- Seed the include at the manual file's own level; its contents are added by
 -- the existing pre/post renderer, keeping ordering and avoiding duplicates.
 manualIncludeFiles :: AbsDir -> [AbsFile] -> IO [AbsFile]
-manualIncludeFiles root files = Set.toAscList . Set.fromList <$> mapM includePath (filter supported files)
+manualIncludeFiles root files = Set.toAscList . Set.fromList <$> mapM includePath (filter (isManualJournal root) files)
   where
-    supported file = case reverse (relativeParts root file) of
-      name : year : "_manual_" : ancestors ->
-        length ancestors <= 3 && isYear year
-          && name `elem` ["pre-import.journal", "post-import.journal"]
-      _ -> False
     includePath file = do
       let year = FilePath.dropTrailingPathSeparator (toFilePath (dirname (parent file)))
       name <- parseRelFile (year ++ "-include.journal")
       return (parent (parent (parent file)) </> name)
+
+-- | A @_manual_@ pre- or post-import journal that import includes.
+isManualJournal :: AbsDir -> AbsFile -> Bool
+isManualJournal root file = case reverse (relativeParts root file) of
+  name : year : "_manual_" : ancestors ->
+    length ancestors <= 3 && isYear year
+      && name `elem` ["pre-import.journal", "post-import.journal"]
+  _ -> False
 
 managedIncludeFiles :: AbsDir -> [AbsFile] -> [AbsFile]
 managedIncludeFiles root = filter supported
