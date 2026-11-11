@@ -29,26 +29,19 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Get Stack version for the project
-        id: get-stack-version
-        run: |
-          echo "stack-version=$(cat stack.yaml | grep '^resolver:' | awk '{print $2}')" >> "$GITHUB_OUTPUT"
-
-      - name: Prepare global variables
+      - name: Set platform and Stack cache prefix
         id: global-variables
-        uses: actions/github-script@v8
         env:
-          # bump this cache date when new caches are needed, while keeping the same stack version.
-          cache-date: 20260105
-        with:
-          script: |
-            const platform = `${'${{ runner.os }}'.toLowerCase()}-${'${{ runner.arch }}'.toLowerCase()}`;
-            core.setOutput('platform', platform);
-
-            const stackVersion = '${{ steps.get-stack-version.outputs.stack-version }}';
-            core.setOutput('stack-version', stackVersion);
-
-            core.setOutput('cache-prefix', `${platform}-stack-${stackVersion}-${{ env.cache-date }}`);
+          # Bump this date to start fresh caches with the same resolver.
+          CACHE_DATE: '20260105'
+        run: |
+          platform=$(printf '%s-%s' "$RUNNER_OS" "$RUNNER_ARCH" | tr '[:upper:]' '[:lower:]')
+          resolver=$(awk '/^resolver:/ { print $2; exit }' stack.yaml)
+          : "${resolver:?Missing resolver in stack.yaml}"
+          {
+            echo "platform=$platform"
+            echo "cache-prefix=$platform-stack-$resolver-$CACHE_DATE"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Cache - ghcup global
         id:  ghcup-global
