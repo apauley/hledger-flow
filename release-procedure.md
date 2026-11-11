@@ -61,7 +61,7 @@ credentials are optional.
 bin/release deps              # optional: latest Stackage LTS + cabal bounds
 bin/release precheck          # show "## Unreleased" next to the commits, list next versions
 #   Review: the ChangeLog entries and the version number
-bin/release bump major        # major|minor|patch|<version>: ChangeLog + package.yaml
+bin/release bump major        # major|minor|patch|<version>: ChangeLog, package.yaml, snapcraft.yaml
 bin/release ci                # push master, wait for green CI
 bin/release tag               # all checks, then create the signed tag locally
 #   Review: the tagged commit and its release notes
@@ -142,8 +142,8 @@ bin/release bump major        # or minor, patch, or an explicit version like 0.1
 
 This checks the new version is greater than the current one and not yet tagged,
 renames `## Unreleased` in `ChangeLog.md` to `## <version>`, sets `version:` in
-`package.yaml`, regenerates `hledger-flow.cabal`, runs the ChangeLog check from
-step 5, and commits all three files as `Bump version to <version>`.
+`package.yaml` and `snap/snapcraft.yaml`, regenerates `hledger-flow.cabal`, runs the ChangeLog check from
+step 5, and commits all four files as `Bump version to <version>`.
 
 Add a fresh `## Unreleased` heading to `ChangeLog.md` after the release.
 

@@ -257,10 +257,11 @@ cmd_bump() {
   tag_exists "v$new" && die "tag v$new already exists"
   unreleased_ok
   perl -pi -e "s/^version: .*/version: $new/" package.yaml
+  perl -pi -e "s/^version: .*/version: '$new'/" snap/snapcraft.yaml
   perl -pi -e "s/^## Unreleased\$/## $new/" ChangeLog.md
   regen_cabal
   cmd_changelog
-  git commit -m "Bump version to $new" -- package.yaml hledger-flow.cabal ChangeLog.md
+  git commit -m "Bump version to $new" -- package.yaml hledger-flow.cabal ChangeLog.md snap/snapcraft.yaml
 }
 
 cmd_ci() {
