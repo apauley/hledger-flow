@@ -8,9 +8,11 @@ import qualified CSVImport.Integration
 import qualified CSVImport.Unit
 import qualified Common.Integration
 import qualified Common.Unit
+import qualified Environment.Unit
 import qualified ImportHelpers.Integration
 import qualified Init.Integration
 import qualified PathHelpers.Unit
+import qualified ReleaseNotice.Unit
 import qualified RulesTemplate.Unit
 import qualified Status.Integration
 import qualified Status.Unit
@@ -30,7 +32,9 @@ tests =
       Status.Unit.tests,
       Status.Integration.tests,
       Init.Integration.tests,
-      RulesTemplate.Unit.tests
+      ReleaseNotice.Unit.tests,
+      RulesTemplate.Unit.tests,
+      Environment.Unit.tests
     ]
 
 main :: IO Counts

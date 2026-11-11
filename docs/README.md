@@ -42,6 +42,19 @@ includes need updating.
 
 # Feature Reference
 
+## Release notices
+
+When both stdout and stderr are terminals, `import` and `report` check GitHub
+for a newer stable hledger-flow release while they run. If a notice is ready,
+it appears on stderr after the command output, including any error. The command
+exits as soon as its work is done. Short runs can finish before a notice is
+ready. Each eligible run checks independently and writes no cache.
+
+For a verified Homebrew install, the notice gives the upgrade command once
+the FernTrail formula offers the release. Other notices link to the
+[latest release](https://github.com/apauley/hledger-flow/releases/latest).
+Set `HLEDGER_FLOW_NO_UPDATE_CHECK=1` to disable all release checks.
+
 ## Input Files
 
 Your input files will probably be CSV files with a line for each

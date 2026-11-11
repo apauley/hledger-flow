@@ -47,6 +47,7 @@ import Hledger.Flow.RulesTemplate ( rulesTemplateFor )
 import Hledger.Flow.Internals (versionInfo, systemInfo)
 import Hledger.Flow.BaseDir ( determineBaseDir, findBaseDir )
 import qualified Hledger.Flow.RuntimeOptions as RT
+import Hledger.Flow.ReleaseNotice ( withReleaseNotice )
 import Hledger.Flow.Reports ( generateReports )
 import Hledger.Flow.Import.CSVImport ( importCSVs )
 
@@ -126,8 +127,10 @@ runCommand = do
     Version -> do
       sysInfo <- systemInfo
       T.putStrLn $ versionInfo sysInfo 
-    Command mainParams' (Just (Import subParams)) -> toRuntimeOptionsImport mainParams' subParams >>= importCSVs
-    Command mainParams' (Just (Report subParams)) -> toRuntimeOptionsReport mainParams' subParams >>= generateReports
+    Command mainParams' (Just (Import subParams)) ->
+      withReleaseNotice $ (toRuntimeOptionsImport mainParams' subParams >>= importCSVs) `catch` reportFatal
+    Command mainParams' (Just (Report subParams)) ->
+      withReleaseNotice $ (toRuntimeOptionsReport mainParams' subParams >>= generateReports) `catch` reportFatal
     Command mainParams' (Just (Status subParams)) -> runStatus mainParams' subParams
     Command mainParams' (Just (Init subParams)) -> do
       cwd <- getCurrentDir
