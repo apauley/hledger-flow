@@ -11,6 +11,7 @@ import Path ( reldir )
 import Prelude hiding (putStrLn)
 
 import qualified Options.Applicative as Opts (command)
+import Options.Applicative.Help.Pretty (Doc, pretty, vsep)
 import Options.Applicative
     ( auto,
       argument,
@@ -21,6 +22,8 @@ import Options.Applicative
       info,
       prefs,
       progDesc,
+      footerDoc,
+      hidden,
       optional,
       Alternative(many, (<|>)),
       Parser,
@@ -115,7 +118,7 @@ runCommand :: IO ()
 runCommand = do
   let description = "An hledger workflow focusing on automated statement import and classification:\nhttps://github.com/apauley/hledger-flow#readme"
   cmd <- customExecParser (prefs mempty)
-    (info (helper <*> baseCommandParser) (headerDoc (Just description)))
+    (info (helper <*> baseCommandParser) (headerDoc (Just description) <> footerDoc (Just topExamples)))
   case cmd of
     Version -> do
       sysInfo <- systemInfo
@@ -237,7 +240,30 @@ commandParser = optional $ hsubparser $
     <> subcommand "report" (Report <$> subcommandParserReport)
     <> metavar "COMMAND"
   where
-    subcommand name parser = Opts.command name (info parser (progDesc (summaryOf name)))
+    subcommand name parser = Opts.command name (info parser (progDesc (summaryOf name) <> footerDoc (lines' <$> lookup name subcommandExamples)))
+
+lines' :: [String] -> Doc
+lines' = vsep . map pretty
+
+topExamples :: Doc
+topExamples = lines'
+  [ "Examples:",
+    "  hledger-flow init            Start a ledger in the current folder",
+    "  hledger-flow status          See what's there and what to do next",
+    "  hledger-flow import          Turn statements into journals",
+    "  hledger-flow report          Generate reports",
+    "  hledger-flow status --json   The same status, for scripts and agents",
+    "",
+    "Docs: https://github.com/apauley/hledger-flow/tree/master/docs"
+  ]
+
+subcommandExamples :: [(String, [String])]
+subcommandExamples =
+  [ ("status", ["Examples:", "  hledger-flow status --json", "  hledger-flow status --rules-template me/mybank/checking"]),
+    ("init", ["Example:", "  hledger-flow init ~/finances"]),
+    ("import", ["Examples:", "  hledger-flow import import/me/mybank", "  hledger-flow import --start-year current"]),
+    ("report", ["Example:", "  hledger-flow report"])
+  ]
 
 subcommandParserStatus :: Parser StatusParams
 subcommandParserStatus = StatusParams
@@ -249,10 +275,10 @@ verboseParser :: Parser MainParams
 verboseParser = MainParams
   <$> (length <$> many (flag' () (long "verbose" <> short 'v' <> help "Print more verbose output")))
   <*> optional (option str (long "hledger-path" <> short 'H' <> metavar "HLEDGER-PATH" <> help "The full path to an hledger executable"))
-  <*> optional (option str (long "hledger-conf" <> metavar "PATH" <> help "The hledger config file to pass to hledger --conf"))
-  <*> switch (long "show-options" <> help "Print the options this program will run with")
-  <*> optional (option auto (long "batch-size" <> metavar "SIZE" <> help ("Number of files to process in parallel. Must be positive. Default: " <> show defaultBatchSize <> ". Ignored during sequential processing.")))
-  <*> switch (long "sequential" <> help "Disable parallel processing")
+  <*> optional (option str (long "hledger-conf" <> metavar "PATH" <> hidden <> help "The hledger config file to pass to hledger --conf"))
+  <*> switch (long "show-options" <> hidden <> help "Print the options this program will run with")
+  <*> optional (option auto (long "batch-size" <> metavar "SIZE" <> hidden <> help ("Number of files to process in parallel. Must be positive. Default: " <> show defaultBatchSize <> ". Ignored during sequential processing.")))
+  <*> switch (long "sequential" <> hidden <> help "Disable parallel processing")
 
 subcommandParserImport :: Parser ImportParams
 subcommandParserImport = ImportParams
