@@ -187,5 +187,6 @@ printf 'fields date, description\nskip x\n' > import/bogart.rules
 if hledger-flow import 2> err; then exit 1; fi
 tr '\\' '/' < err | grep -Fq 'Check the skip, fields and separator lines in import/bogart.rules'
 if grep -q 'Begin Error' err; then exit 1; fi
-test "$(grep -c "skip's argument should be" err)" -eq 1
+# hledger versions word the skip error differently. Forward its diagnostic once.
+test "$(grep -Ec '^hledger(\.exe)?: Error:' err)" -eq 1
 $ sh -eu
