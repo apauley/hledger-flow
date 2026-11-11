@@ -5,6 +5,8 @@
 module Hledger.Flow.Status.Gather
   ( classifyDir,
     gatherStatus,
+    accountName,
+    hookExists,
   )
 where
 

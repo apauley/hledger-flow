@@ -41,6 +41,7 @@ library
       Hledger.Flow.Logging
       Hledger.Flow.PathHelpers
       Hledger.Flow.Reports
+      Hledger.Flow.RulesTemplate
       Hledger.Flow.RuntimeOptions
       Hledger.Flow.Status
       Hledger.Flow.Status.Gather
@@ -104,6 +105,7 @@ test-suite hledger-flow-test
       ImportHelpers.Integration
       Init.Integration
       PathHelpers.Unit
+      RulesTemplate.Unit
       Status.Integration
       Status.Unit
       TestHelpers

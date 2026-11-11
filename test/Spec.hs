@@ -11,6 +11,7 @@ import qualified Common.Unit
 import qualified ImportHelpers.Integration
 import qualified Init.Integration
 import qualified PathHelpers.Unit
+import qualified RulesTemplate.Unit
 import qualified Status.Integration
 import qualified Status.Unit
 import Test.HUnit
@@ -28,7 +29,8 @@ tests =
       CSVImport.Integration.tests,
       Status.Unit.tests,
       Status.Integration.tests,
-      Init.Integration.tests
+      Init.Integration.tests,
+      RulesTemplate.Unit.tests
     ]
 
 main :: IO Counts

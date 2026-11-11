@@ -61,3 +61,15 @@ if hledger-flow init 2> ../err.$$; then exit 1; fi
 grep -q 'is already a hledger-flow ledger' ../err.$$
 rm ../err.$$
 $ sh -eu
+
+# The rules template, saved as suggested, imports the statement.
+<
+cd "$(mktemp -d "${TMPDIR:-/tmp}/hledger-flow.XXXXXXXX")"
+mkdir -p import/me/mybank/checking/1-in/2026
+printf 'Date,Desc,Amount\n2026-01-02,Coffee,-3.50\n' > import/me/mybank/checking/1-in/2026/jan.csv
+hledger-flow status --rules-template me/mybank/checking > import/me/mybank/checking/mybank-checking.rules
+hledger-flow import > /dev/null
+hledger -f all-years.journal balance --flat --no-total --format '%(account) %(total)'
+$ sh -eu
+assets:mybank:checking -3.50
+expenses:unknown 3.50

@@ -40,6 +40,7 @@ import Hledger.Flow.Status.Render ( printStatus )
 import qualified Data.Text as Text
 import Path.IO ( getCurrentDir, resolveDir' )
 import Hledger.Flow.Init ( runInit )
+import Hledger.Flow.RulesTemplate ( rulesTemplateFor )
 import Hledger.Flow.Internals (versionInfo, systemInfo)
 import Hledger.Flow.BaseDir ( determineBaseDir, findBaseDir )
 import qualified Hledger.Flow.RuntimeOptions as RT
@@ -67,6 +68,7 @@ data ReportParams = ReportParams { maybeReportBaseDir :: Maybe FilePath
 
 data StatusParams = StatusParams { statusDir :: Maybe FilePath
                                  , statusJson :: Bool
+                                 , statusRulesTemplate :: Maybe String
                                  } deriving (Show)
 
 newtype InitParams = InitParams { initDir :: Maybe FilePath } deriving (Show)
@@ -152,7 +154,9 @@ runStatus mainParams' params = do
   cwd <- getCurrentDir
   dir <- maybe (return cwd) (turtleToAbsDir cwd) (statusDir params)
   base <- findBaseDir dir >>= maybe (throwIO (MissingBaseDir dir)) return
-  printStatus (hledgerPathOpt mainParams') (statusJson params) base
+  case statusRulesTemplate params of
+    Just account -> rulesTemplateFor base (Text.pack account) >>= either (ioError . userError . Text.unpack) T.putStr
+    Nothing -> printStatus (hledgerPathOpt mainParams') (statusJson params) base
 
 -- | Running hledger-flow with no command: say where we are and what to do.
 runBare :: MainParams -> IO ()
@@ -239,6 +243,7 @@ subcommandParserStatus :: Parser StatusParams
 subcommandParserStatus = StatusParams
   <$> optional (argument str (metavar "DIR" <> help "A folder inside the ledger. Defaults to the current folder."))
   <*> switch (long "json" <> help "Print the status as JSON, for scripts and agents")
+  <*> optional (option str (long "rules-template" <> metavar "ACCOUNT" <> help "Print a starter rules file for owner/bank/account, built from its newest statement's header row"))
 
 verboseParser :: Parser MainParams
 verboseParser = MainParams
