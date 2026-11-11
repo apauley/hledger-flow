@@ -27,7 +27,7 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Get Stack version for the project
         id: get-stack-version
@@ -52,7 +52,7 @@ jobs:
 
       - name: Cache - ghcup global
         id:  ghcup-global
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.ghcup
           key: ${{ steps.global-variables.outputs.cache-prefix }}-ghcup-global-${{ hashFiles('**.yaml') }}
@@ -61,7 +61,7 @@ jobs:
 
       - name: Cache - stack global package db
         id:   stack-global
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.stack
           # XXX if stack.yaml is a symlink, this fails with
@@ -73,7 +73,7 @@ jobs:
 
       - name: Cache - stack-installed programs in ~/.local/bin
         id:   stack-programs
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.local/bin
           key: ${{ steps.global-variables.outputs.cache-prefix }}-stack-programs-${{ hashFiles('**.yaml') }}
@@ -81,7 +81,7 @@ jobs:
               ${{ steps.global-variables.outputs.cache-prefix }}-stack-programs
 
       - name: Cache - .stack-work
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .stack-work
           key: ${{ steps.global-variables.outputs.cache-prefix }}-stack-work-${{ hashFiles('**.yaml') }}
@@ -156,7 +156,7 @@ jobs:
           tar cvf hledger-flow-${{ steps.global-variables.outputs.platform }}.tar hledger-flow
 
       - name: Upload binaries
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: hledger-flow-${{ steps.global-variables.outputs.platform }}
           path: |
@@ -172,7 +172,7 @@ jobs:
       run:
         shell: pwsh
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install Stack
         uses: haskell-actions/setup@v2
@@ -181,7 +181,7 @@ jobs:
           stack-no-global: true
 
       - name: Cache Windows Stack toolchain and packages
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             C:\sr
@@ -245,7 +245,7 @@ jobs:
           ./tmp/windows-release/hledger-flow.exe --version
 
       - name: Upload Windows binary
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: hledger-flow-windows-x64
           path: dist/hledger-flow-windows-x64.zip
@@ -267,7 +267,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Download unsigned macOS binary
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: hledger-flow-${{ matrix.platform }}
           path: unsigned
@@ -314,7 +314,7 @@ jobs:
           tar -C signed -cf "dist/hledger-flow-${PLATFORM}.tar" hledger-flow
 
       - name: Upload signed macOS binary
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: signed-hledger-flow-${{ matrix.platform }}
           path: dist/hledger-flow-${{ matrix.platform }}.tar
@@ -334,7 +334,7 @@ jobs:
     timeout-minutes: 45
     steps:
       - name: Download signed macOS binary
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: signed-hledger-flow-${{ matrix.platform }}
           path: signed
@@ -416,7 +416,7 @@ jobs:
       attestations: write  # store them for `gh attestation verify`
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -427,21 +427,21 @@ jobs:
           bin/release notes > release-notes.md
 
       - name: Download Linux binaries
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: hledger-flow-linux-*
           merge-multiple: true
           path: artifacts
 
       - name: Download signed macOS binaries
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: signed-hledger-flow-macos-*
           merge-multiple: true
           path: artifacts
 
       - name: Download Windows binary
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: hledger-flow-windows-x64
           path: artifacts
@@ -468,7 +468,7 @@ jobs:
             artifacts/hledger-flow-windows-x64.zip
 
       - name: Create GitHub Release with artifacts
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:

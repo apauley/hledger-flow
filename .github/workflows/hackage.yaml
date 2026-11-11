@@ -27,7 +27,7 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           [[ "$REF_TYPE" == tag && "$TAG" =~ ^v[0-9]+(\.[0-9]+)+$ ]]
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           persist-credentials: false
