@@ -3,7 +3,12 @@
 
 module Status.Unit (tests, blank, acct) where
 
+import Data.Aeson (Value (..))
+import qualified Data.Aeson.Key as Key
+import qualified Data.Aeson.KeyMap as KeyMap
+import Data.List (sort)
 import qualified Data.Text as T
+import Hledger.Flow.Status.Render (renderStatus, statusJSON)
 import Hledger.Flow.Status
 import Path
 import qualified System.FilePath as FilePath
@@ -96,4 +101,26 @@ testVersion =
     ]
 
 tests :: Test
-tests = TestList [testSuggest, testMisplacedUpperCase, testRules, testVersion]
+testRenderNoColour :: Test
+testRenderNoColour = TestCase $ do
+  let s = blank {lsAccounts = [acct {asWithoutRules = 1, asRulesFile = Nothing}]}
+      out = renderStatus False Nothing s (nextStep 2026 False s)
+  assertBool "account line" ("me/mybank/checking" `T.isInfixOf` out && "✗ no rules file" `T.isInfixOf` out)
+  assertBool "next step" ("Next: Create import/me/mybank/checking/mybank-checking.rules" `T.isInfixOf` out)
+  assertBool "no escapes" (not ("\ESC" `T.isInfixOf` out))
+
+testRenderPending :: Test
+testRenderPending = TestCase $ do
+  let render a = renderStatus False Nothing blank {lsAccounts = [a]} (nextStep 2026 False blank)
+  assertBool "nothing imported yet" ("• 1 not imported" `T.isInfixOf` render acct {asJournalsMissing = 1})
+  assertBool "mixed" ("• 11 journals, 1 not imported, 2 outdated" `T.isInfixOf` render acct {asStatements = 12, asJournalsMissing = 1, asJournalsOutdated = 2})
+  assertBool "clean" ("✓ 1 journal" `T.isInfixOf` render acct)
+
+testJSONShape :: Test
+testJSONShape = TestCase $ case statusJSON blank (nextStep 2026 False blank) of
+  Object o ->
+    sort (map Key.toText (KeyMap.keys o))
+      @?= ["accounts", "baseDir", "hledger", "ledgerFile", "manualJournals", "misplaced", "next", "schemaVersion"]
+  _ -> assertFailure "status JSON is an object"
+
+tests = TestList [testSuggest, testMisplacedUpperCase, testRules, testVersion, testRenderNoColour, testRenderPending, testJSONShape]

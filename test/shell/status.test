@@ -1,0 +1,50 @@
+# Bare invocation in an empty folder suggests init.
+<
+cd "$(mktemp -d "${TMPDIR:-/tmp}/hledger-flow.XXXXXXXX")"
+hledger-flow
+$ sh -eu
+This folder is empty. Run `hledger-flow init` to start your ledger here.
+
+# Bare invocation in an unrelated folder shows commands and writes nothing.
+<
+cd "$(mktemp -d "${TMPDIR:-/tmp}/hledger-flow.XXXXXXXX")"
+touch notes.txt
+hledger-flow > ../out.$$
+grep -q '^Commands:' ../out.$$
+grep -q 'No hledger-flow ledger here or in any parent folder' ../out.$$
+rm ../out.$$
+test "$(ls)" = notes.txt
+$ sh -eu
+
+# First-time path: misplaced CSV, missing rules, import, LEDGER_FILE, report; never coloured when piped.
+<
+cd "$(mktemp -d "${TMPDIR:-/tmp}/hledger-flow.XXXXXXXX")"
+unset LEDGER_FILE
+mkdir -p import/me/mybank
+printf 'Date,Desc,Amount\n2026-01-02,Coffee,-3.50\n' > import/me/mybank/jan.csv
+hledger-flow status | grep -q 'Next: Move 1 file to where hledger-flow looks'
+hledger-flow status --json | jq -e '.misplaced[0].suggestion == "import/me/mybank/<account>/1-in/<year>/jan.csv"' > /dev/null
+mkdir -p import/me/mybank/checking/1-in/2026 && mv import/me/mybank/jan.csv import/me/mybank/checking/1-in/2026/
+hledger-flow status --json | jq -e '.next.command == "hledger-flow status --rules-template me/mybank/checking"' > /dev/null
+printf 'skip 1\nfields date, description, amount\naccount1 assets:checking\n' > import/me/mybank/checking/mybank-checking.rules
+hledger-flow status --json | jq -e '.next.command == "hledger-flow import"' > /dev/null
+hledger-flow import > /dev/null
+hledger-flow status --json | jq -e '.next.command | startswith("export LEDGER_FILE=")' > /dev/null
+export LEDGER_FILE="$PWD/all-years.journal"
+hledger-flow status > ../out.$$
+grep -q 'Run: hledger-flow report' ../out.$$
+if grep -q "$(printf '\033')" ../out.$$; then exit 1; fi
+rm ../out.$$
+$ sh -eu
+
+# Status works from deep inside an account and in a folder with spaces.
+<
+dir="$(mktemp -d "${TMPDIR:-/tmp}/hledger-flow.XXXXXXXX")/my finances"
+mkdir -p "$dir/import/me/mybank/checking/1-in/2026" && cd "$dir"
+printf 'Date,Desc,Amount\n' > import/me/mybank/checking/1-in/2026/jan.csv
+hledger-flow status > ../top
+(cd import/me/mybank/checking/1-in/2026 && hledger-flow status) > ../deep
+cmp ../top ../deep
+if grep -q 'Changing runDir' ../deep; then exit 1; fi
+test "$(hledger-flow status --json | jq -r .baseDir)" = "$(pwd -P)"
+$ sh -eu

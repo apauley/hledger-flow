@@ -20,9 +20,7 @@ import Options.Applicative
       hsubparser,
       info,
       prefs,
-      progDescDoc,
-      showHelpOnEmpty,
-      showHelpOnError,
+      progDesc,
       optional,
       Alternative(many, (<|>)),
       Parser,
@@ -36,15 +34,20 @@ import Options.Applicative
       switch )
 
 import Hledger.Flow.Common ( hledgerInfoFromPath )
+import Hledger.Flow.Status ( Situation (..) )
+import Hledger.Flow.Status.Gather ( classifyDir )
+import Hledger.Flow.Status.Render ( printStatus )
+import qualified Data.Text as Text
+import Path.IO ( getCurrentDir )
 import Hledger.Flow.Internals (versionInfo, systemInfo)
-import Hledger.Flow.BaseDir ( determineBaseDir )
+import Hledger.Flow.BaseDir ( determineBaseDir, findBaseDir )
 import qualified Hledger.Flow.RuntimeOptions as RT
 import Hledger.Flow.Reports ( generateReports )
 import Hledger.Flow.Import.CSVImport ( importCSVs )
 
 import qualified Data.Text.IO as T
 import Control.Exception (SomeAsyncException (..), SomeException, catch, displayException, fromException, throwIO)
-import Hledger.Flow.PathHelpers (PathException)
+import Hledger.Flow.PathHelpers (PathException (..), turtleToAbsDir)
 import System.Exit (ExitCode (..), exitWith)
 import System.IO (hPutStrLn, stderr)
 import System.IO.Error (ioeGetErrorString, isUserError)
@@ -61,7 +64,11 @@ data ReportParams = ReportParams { maybeReportBaseDir :: Maybe FilePath
                                  , asciiReports :: Bool
                                  } deriving (Show)
 
-data Command = Import ImportParams | Report ReportParams deriving (Show)
+data StatusParams = StatusParams { statusDir :: Maybe FilePath
+                                 , statusJson :: Bool
+                                 } deriving (Show)
+
+data Command = Import ImportParams | Report ReportParams | Status StatusParams deriving (Show)
 
 data MainParams = MainParams { verbosity :: Int
                              , hledgerPathOpt :: Maybe FilePath
@@ -70,7 +77,7 @@ data MainParams = MainParams { verbosity :: Int
                              , batchSize :: Maybe Int
                              , sequential :: Bool
                              } deriving (Show)
-data BaseCommand = Version | Command { mainParams :: MainParams, command :: Command } deriving (Show)
+data BaseCommand = Version | Command { mainParams :: MainParams, command :: Maybe Command } deriving (Show)
 
 main :: IO ()
 #ifdef mingw32_HOST_OS
@@ -102,14 +109,55 @@ fatalMessage e
 runCommand :: IO ()
 runCommand = do
   let description = "An hledger workflow focusing on automated statement import and classification:\nhttps://github.com/apauley/hledger-flow#readme"
-  cmd <- customExecParser (prefs (showHelpOnError <> showHelpOnEmpty))
+  cmd <- customExecParser (prefs mempty)
     (info (helper <*> baseCommandParser) (headerDoc (Just description)))
   case cmd of
     Version -> do
       sysInfo <- systemInfo
       T.putStrLn $ versionInfo sysInfo 
-    Command mainParams' (Import subParams) -> toRuntimeOptionsImport mainParams' subParams >>= importCSVs
-    Command mainParams' (Report subParams) -> toRuntimeOptionsReport mainParams' subParams >>= generateReports
+    Command mainParams' (Just (Import subParams)) -> toRuntimeOptionsImport mainParams' subParams >>= importCSVs
+    Command mainParams' (Just (Report subParams)) -> toRuntimeOptionsReport mainParams' subParams >>= generateReports
+    Command mainParams' (Just (Status subParams)) -> runStatus mainParams' subParams
+    Command mainParams' Nothing -> runBare mainParams'
+
+-- | (name, one-line description) of each command, in display order.
+commandSummaries :: [(String, String)]
+commandSummaries =
+  [ ("status", "Show what's in your ledger and what to do next"),
+    ("import", "Turn statements into journals"),
+    ("report", "Generate reports from your journals")
+  ]
+
+summaryOf :: String -> String
+summaryOf name = maybe "" id (lookup name commandSummaries)
+
+briefUsage :: Text.Text
+briefUsage =
+  "hledger-flow turns bank statements into hledger journals and reports.\n\nCommands:\n"
+    <> Text.concat ["  " <> Text.justifyLeft width ' ' (Text.pack name) <> "   " <> Text.pack desc <> "\n" | (name, desc) <- commandSummaries]
+    <> "\nRun `hledger-flow --help` for options and examples.\n"
+  where
+    width = maximum (map (length . fst) commandSummaries)
+
+runStatus :: MainParams -> StatusParams -> IO ()
+runStatus mainParams' params = do
+  cwd <- getCurrentDir
+  dir <- maybe (return cwd) (turtleToAbsDir cwd) (statusDir params)
+  base <- findBaseDir dir >>= maybe (throwIO (MissingBaseDir dir)) return
+  printStatus (hledgerPathOpt mainParams') (statusJson params) base
+
+-- | Running hledger-flow with no command: say where we are and what to do.
+runBare :: MainParams -> IO ()
+runBare mainParams' = do
+  situation <- getCurrentDir >>= classifyDir
+  case situation of
+    InLedger base -> printStatus (hledgerPathOpt mainParams') False base
+    EmptyDir -> T.putStrLn "This folder is empty. Run `hledger-flow init` to start your ledger here."
+    Elsewhere ->
+      T.putStr $
+        briefUsage
+          <> "\nNo hledger-flow ledger here or in any parent folder.\n"
+          <> "Run `hledger-flow init` in an empty folder to start one.\n"
 
 defaultBatchSize :: Int
 defaultBatchSize = 20
@@ -169,13 +217,19 @@ baseCommandParser :: Parser BaseCommand
 baseCommandParser = (Command <$> verboseParser <*> commandParser)
   <|> flag' Version (long "version" <> short 'V' <> help "Display version information")
 
-commandParser :: Parser Command
-commandParser = fmap Import (subcommand "import" "Uses hledger with your own rules and/or scripts to convert electronic statements into categorised journal files" subcommandParserImport)
-  <|> fmap Report (subcommand "report" "Generate Reports" subcommandParserReport)
-
+commandParser :: Parser (Maybe Command)
+commandParser = optional $ hsubparser $
+  subcommand "status" (Status <$> subcommandParserStatus)
+    <> subcommand "import" (Import <$> subcommandParserImport)
+    <> subcommand "report" (Report <$> subcommandParserReport)
+    <> metavar "COMMAND"
   where
-    subcommand name desc parser =
-      hsubparser (Opts.command name (info parser (progDescDoc (Just desc))) <> metavar name)
+    subcommand name parser = Opts.command name (info parser (progDesc (summaryOf name)))
+
+subcommandParserStatus :: Parser StatusParams
+subcommandParserStatus = StatusParams
+  <$> optional (argument str (metavar "DIR" <> help "A folder inside the ledger. Defaults to the current folder."))
+  <*> switch (long "json" <> help "Print the status as JSON, for scripts and agents")
 
 verboseParser :: Parser MainParams
 verboseParser = MainParams
