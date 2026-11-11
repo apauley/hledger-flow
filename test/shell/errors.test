@@ -1,0 +1,8 @@
+# Outside a ledger, import explains what to do and shows no Haskell internals.
+<
+cd "$(mktemp -d "${TMPDIR:-/tmp}/hledger-flow.XXXXXXXX")"
+if hledger-flow import 2> err; then exit 1; fi
+grep -q '^hledger-flow: No hledger-flow ledger here or in any parent folder' err
+grep -q 'hledger-flow init' err
+if grep -qi 'backtrace' err; then exit 1; fi
+$ sh -eu

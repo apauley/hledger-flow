@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Main where
 
@@ -42,6 +43,11 @@ import Hledger.Flow.Reports ( generateReports )
 import Hledger.Flow.Import.CSVImport ( importCSVs )
 
 import qualified Data.Text.IO as T
+import Control.Exception (SomeAsyncException (..), SomeException, catch, displayException, fromException, throwIO)
+import Hledger.Flow.PathHelpers (PathException)
+import System.Exit (ExitCode (..), exitWith)
+import System.IO (hPutStrLn, stderr)
+import System.IO.Error (ioeGetErrorString, isUserError)
 #ifdef mingw32_HOST_OS
 import System.IO.CodePage (withCP65001)
 #endif
@@ -76,7 +82,25 @@ main = runCLI
 #endif
 
 runCLI :: IO ()
-runCLI = do
+runCLI = runCommand `catch` reportFatal
+
+-- | Print uncaught errors as one plain message, without GHC's backtrace.
+reportFatal :: SomeException -> IO ()
+reportFatal e
+  | Just (code :: ExitCode) <- fromException e = throwIO code
+  | Just (SomeAsyncException _) <- fromException e = throwIO e
+  | otherwise = do
+      hPutStrLn stderr ("hledger-flow: " ++ fatalMessage e)
+      exitWith (ExitFailure 1)
+
+fatalMessage :: SomeException -> String
+fatalMessage e
+  | Just (pe :: PathException) <- fromException e = show pe
+  | Just ioe <- fromException e, isUserError ioe = ioeGetErrorString ioe
+  | otherwise = displayException e
+
+runCommand :: IO ()
+runCommand = do
   let description = "An hledger workflow focusing on automated statement import and classification:\nhttps://github.com/apauley/hledger-flow#readme"
   cmd <- customExecParser (prefs (showHelpOnError <> showHelpOnEmpty))
     (info (helper <*> baseCommandParser) (headerDoc (Just description)))

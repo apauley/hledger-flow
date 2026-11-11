@@ -7,13 +7,13 @@ module BaseDir.Integration (tests) where
 import Control.Exception (try)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
-import Hledger.Flow.BaseDir (determineBaseDir, effectiveRunDir)
+import Hledger.Flow.BaseDir (determineBaseDir, effectiveRunDir, findBaseDir)
 import Hledger.Flow.PathHelpers
 import Hledger.Flow.Types (BaseDir, RunDir)
 import Path
 import Path.IO
 import Test.HUnit
-import TestHelpers (testRoot)
+import TestHelpers (testRoot, withTestDir)
 import Prelude hiding (readFile, writeFile)
 
 assertSubDirsForDetermineBaseDir :: AbsDir -> BaseDir -> [Path.Path b Dir] -> IO ()
@@ -167,4 +167,14 @@ testEffectiveRunDir =
     )
 
 tests :: Test
-tests = TestList [testDetermineBaseDir, testRunDirs, testEffectiveRunDir]
+tests = TestList [testDetermineBaseDir, testRunDirs, testEffectiveRunDir, testFindBaseDir]
+
+testFindBaseDir :: Test
+testFindBaseDir = TestCase $ withTestDir $ \tmp -> do
+  let base = tmp </> [reldir|ledger|]
+      deep = base </> [reldir|import/me/bank/acct/1-in/2026|]
+  createDirIfMissing True deep
+  found <- findBaseDir deep
+  assertEqual "finds the ledger from deep inside it" (Just base) found
+  none <- findBaseDir tmp
+  assertEqual "no ledger above the temp dir" Nothing none
