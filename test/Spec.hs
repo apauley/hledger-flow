@@ -9,6 +9,7 @@ import qualified CSVImport.Unit
 import qualified Common.Integration
 import qualified Common.Unit
 import qualified ImportHelpers.Integration
+import qualified Init.Integration
 import qualified PathHelpers.Unit
 import qualified Status.Integration
 import qualified Status.Unit
@@ -26,7 +27,8 @@ tests =
       CSVImport.Unit.tests,
       CSVImport.Integration.tests,
       Status.Unit.tests,
-      Status.Integration.tests
+      Status.Integration.tests,
+      Init.Integration.tests
     ]
 
 main :: IO Counts

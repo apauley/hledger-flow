@@ -48,3 +48,16 @@ cmp ../top ../deep
 if grep -q 'Changing runDir' ../deep; then exit 1; fi
 test "$(hledger-flow status --json | jq -r .baseDir)" = "$(pwd -P)"
 $ sh -eu
+
+# init starts a ledger and points at the first statement; a second init refuses.
+<
+cd "$(mktemp -d "${TMPDIR:-/tmp}/hledger-flow.XXXXXXXX")"
+hledger-flow init > ../out.$$
+grep -q '^Started a ledger in' ../out.$$
+grep -q 'Next: Put your first statement in import/<owner>/<bank>/<account>/1-in/<year>/' ../out.$$
+rm ../out.$$
+test -d import
+if hledger-flow init 2> ../err.$$; then exit 1; fi
+grep -q 'is already a hledger-flow ledger' ../err.$$
+rm ../err.$$
+$ sh -eu

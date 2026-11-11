@@ -38,7 +38,8 @@ import Hledger.Flow.Status ( Situation (..) )
 import Hledger.Flow.Status.Gather ( classifyDir )
 import Hledger.Flow.Status.Render ( printStatus )
 import qualified Data.Text as Text
-import Path.IO ( getCurrentDir )
+import Path.IO ( getCurrentDir, resolveDir' )
+import Hledger.Flow.Init ( runInit )
 import Hledger.Flow.Internals (versionInfo, systemInfo)
 import Hledger.Flow.BaseDir ( determineBaseDir, findBaseDir )
 import qualified Hledger.Flow.RuntimeOptions as RT
@@ -68,7 +69,9 @@ data StatusParams = StatusParams { statusDir :: Maybe FilePath
                                  , statusJson :: Bool
                                  } deriving (Show)
 
-data Command = Import ImportParams | Report ReportParams | Status StatusParams deriving (Show)
+newtype InitParams = InitParams { initDir :: Maybe FilePath } deriving (Show)
+
+data Command = Import ImportParams | Report ReportParams | Status StatusParams | Init InitParams deriving (Show)
 
 data MainParams = MainParams { verbosity :: Int
                              , hledgerPathOpt :: Maybe FilePath
@@ -118,12 +121,17 @@ runCommand = do
     Command mainParams' (Just (Import subParams)) -> toRuntimeOptionsImport mainParams' subParams >>= importCSVs
     Command mainParams' (Just (Report subParams)) -> toRuntimeOptionsReport mainParams' subParams >>= generateReports
     Command mainParams' (Just (Status subParams)) -> runStatus mainParams' subParams
+    Command mainParams' (Just (Init subParams)) -> do
+      cwd <- getCurrentDir
+      dir <- maybe (return cwd) resolveDir' (initDir subParams)
+      runInit (hledgerPathOpt mainParams') cwd dir
     Command mainParams' Nothing -> runBare mainParams'
 
 -- | (name, one-line description) of each command, in display order.
 commandSummaries :: [(String, String)]
 commandSummaries =
   [ ("status", "Show what's in your ledger and what to do next"),
+    ("init", "Start a new ledger in a folder"),
     ("import", "Turn statements into journals"),
     ("report", "Generate reports from your journals")
   ]
@@ -220,6 +228,7 @@ baseCommandParser = (Command <$> verboseParser <*> commandParser)
 commandParser :: Parser (Maybe Command)
 commandParser = optional $ hsubparser $
   subcommand "status" (Status <$> subcommandParserStatus)
+    <> subcommand "init" (Init . InitParams <$> optional (argument str (metavar "DIR" <> help "The folder for the new ledger, created if missing. Defaults to the current folder.")))
     <> subcommand "import" (Import <$> subcommandParserImport)
     <> subcommand "report" (Report <$> subcommandParserReport)
     <> metavar "COMMAND"

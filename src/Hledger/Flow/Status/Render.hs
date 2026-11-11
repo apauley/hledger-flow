@@ -8,6 +8,7 @@ module Hledger.Flow.Status.Render
     statusJSON,
     tildePath,
     printStatus,
+    printNext,
   )
 where
 
@@ -151,3 +152,12 @@ printStatus hledgerPath json base = do
       color <- useColor stdout
       home <- (Just <$> getHomeDir) `catch` (\e -> const (return Nothing) (e :: IOException))
       T.putStr (renderStatus color home status next)
+
+-- | Print only the next step for a ledger.
+printNext :: Maybe FilePath -> BaseDir -> IO ()
+printNext hledgerPath base = do
+  hledger <- findHledger hledgerPath
+  status <- gatherStatus hledger base
+  year <- currentYear
+  color <- useColor stdout
+  T.putStr (renderNext color (nextStep year (Sys.os == "mingw32") status))
