@@ -19,6 +19,15 @@ type AbsDir = Path.Path Path.Abs Path.Dir
 
 type RelDir = Path.Path Path.Rel Path.Dir
 
+-- | Match one literal path in an hledger glob. A range of one character
+-- keeps hledger's include reader from treating the encoded spelling as a filename.
+literalGlobPath :: FilePath -> FilePath
+literalGlobPath = concatMap escape
+  where
+    escape c
+      | c `elem` ("*?[{<" :: String) = ['[', c, '-', c, ']']
+      | otherwise = [c]
+
 data PathException = MissingBaseDir AbsDir | InvalidTurtleDir FilePath
   deriving (Eq)
 

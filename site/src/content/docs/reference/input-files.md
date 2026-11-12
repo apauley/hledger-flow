@@ -48,6 +48,12 @@ Under `1-in` you'll create a directory for the year, e.g. `2018`, and
 within that you can copy the statements for that year:
 `import/john/mybank/savings/1-in/2018/123456789_2018-06-30.csv`
 
+Keep the filenames your bank provides. For example, `April [1].csv`
+and `April 1.csv` can sit in the same year directory. Import treats the
+brackets literally and includes each statement's transactions once. If an
+earlier import duplicated one statement and omitted the other, run
+`hledger-flow import` to rebuild the journals from both files.
+
 ## Generated Files and Recovery
 
 `1-in` is the source of truth. Both `2-preprocessed` and `3-journal`

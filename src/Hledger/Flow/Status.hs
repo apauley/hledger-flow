@@ -22,7 +22,7 @@ import Data.Char (isDigit, toLower)
 import Data.Maybe (mapMaybe)
 import qualified Data.Set as Set
 import qualified Data.Text as T
-import Hledger.Flow.Common (Shell (..), posixLiteral, powerShellLiteral, shellArgument)
+import Hledger.Flow.Common (Shell (..), hledgerVersionNumber, posixLiteral, powerShellLiteral, shellArgument)
 import Hledger.Flow.DocHelpers (DocLink (..), docURL)
 import Hledger.Flow.Import.Inventory (stageFiles)
 import Hledger.Flow.PathHelpers (AbsDir, AbsFile)
@@ -165,9 +165,3 @@ nextStep year shell cwd s
     exportLine = case shell of
       Posix -> "export LEDGER_FILE=" <> posixLiteral allYears
       PowerShell -> "$env:LEDGER_FILE = " <> powerShellLiteral allYears
-
--- | @"hledger 1.50.2, mac-aarch64"@ → @"1.50.2"@.
-hledgerVersionNumber :: T.Text -> T.Text
-hledgerVersionNumber txt = case dropWhile (== "hledger") (T.words txt) of
-  v : _ -> T.dropWhileEnd (== ',') v
-  [] -> ""

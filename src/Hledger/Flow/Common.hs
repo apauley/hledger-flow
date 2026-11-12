@@ -24,7 +24,7 @@ import qualified GHC.IO.Handle.FD as H
 import Hledger.Flow.DateTime (timeAction)
 import Hledger.Flow.BaseDir (relativeToBase)
 import Hledger.Flow.Logging
-import Hledger.Flow.PathHelpers (AbsFile, RelDir, fromTurtleAbsFile)
+import Hledger.Flow.PathHelpers (AbsFile, RelDir, fromTurtleAbsFile, literalGlobPath)
 import qualified Hledger.Flow.RuntimeOptions as RT
 import Hledger.Flow.Types
 import Path (reldir, relfile, toFilePath)
@@ -96,6 +96,21 @@ hledgerInfoFromPath pathOption = do
   hlp <- hledgerPathFromOption pathOption
   hlv <- hledgerVersionFromPath hlp
   return $ HledgerInfo hlp hlv
+
+-- | @"hledger 1.50.2, mac-aarch64"@ → @"1.50.2"@.
+hledgerVersionNumber :: T.Text -> T.Text
+hledgerVersionNumber txt = case dropWhile (== "hledger") (T.words txt) of
+  v : _ -> T.dropWhileEnd (== ',') v
+  [] -> ""
+
+-- | hledger started expanding globs in --file arguments in 1.52.
+hledgerFileArgument :: HledgerInfo -> FilePath -> T.Text
+hledgerFileArgument info path
+  | Right (major, rest) <- T.decimal (hledgerVersionNumber (hlVersion info)),
+    Just suffix <- T.stripPrefix "." rest,
+    Right (minor, _) <- T.decimal suffix,
+    (major, minor) >= ((1, 52) :: (Int, Int)) = T.pack (literalGlobPath path)
+  | otherwise = T.pack path
 
 hledgerConfArgs :: RT.RuntimeOptions -> [T.Text]
 hledgerConfArgs opts =

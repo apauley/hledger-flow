@@ -199,8 +199,9 @@ hledgerImport opts ch importDirs csvFile journalOut = do
       let hledger = T.pack (Path.toFilePath (FlowTypes.hlPath (hledgerInfo opts)))
       let directives = directivesFile opts
       directivesExist <- PathIO.doesFileExist directives
-      let directivesArgs = if directivesExist then ["--file", T.pack (Path.toFilePath directives)] else []
-      let csvArgs = ["--file", T.pack csvSrc, "--rules-file", T.pack (Path.toFilePath rf)]
+      let fileArgument = hledgerFileArgument (hledgerInfo opts)
+      let directivesArgs = if directivesExist then ["--file", fileArgument (Path.toFilePath directives)] else []
+      let csvArgs = ["--file", fileArgument csvSrc, "--rules-file", T.pack (Path.toFilePath rf)]
       let args = hledgerConfArgs opts ++ ["print", "--explicit"] ++ directivesArgs ++ csvArgs
 
       let cmdLabel = "importing '" <> T.pack relCSV <> "' using rules file '" <> T.pack relRules <> "'"
