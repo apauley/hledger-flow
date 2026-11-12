@@ -10,7 +10,6 @@ import Data.Aeson (eitherDecodeFileStrict)
 import Hledger.Flow.DocHelpers (DocLink (..), docSlug, docURL)
 import Hledger.Flow.RuntimeOptions (RuntimeOptions (hledgerConf))
 import Hledger.Flow.Types (HledgerConf (..), HledgerInfo (hlVersion))
-import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import Path ((</>), reldir)
@@ -151,16 +150,19 @@ testExtractDigits =
         assertEqual "Extract digits from text 2" expected2 actual2
     )
 
+-- Grouping requires an ordering on the key alone.
+data Entry = Entry Char Int deriving (Eq, Show)
+
 testGroupValuesBy :: Test
-testGroupValuesBy =
-  TestCase
-    ( do
-        let values = ["b2", "a1", "b1", "a2"]
-        let grouped = groupValuesBy (take 1) values
-        let normalize = Map.map List.sort
-        let expected = Map.fromList [("a", ["a1", "a2"]), ("b", ["b1", "b2"])]
-        assertEqual "Group values by key" (normalize expected) (normalize grouped)
-    )
+testGroupValuesBy = TestCase $ do
+  let key (Entry k _) = k
+      a1 = Entry 'a' 1
+      a2 = Entry 'a' 2
+      b1 = Entry 'b' 1
+      b2 = Entry 'b' 2
+  assertEqual "interleaved keys retain input order and duplicates"
+    (Map.fromList [('a', [a1, a2]), ('b', [b2, b1, b2])])
+    (groupValuesBy key [b2, a1, b1, a2, b2])
 
 tests :: Test
 tests = TestList [testDocURL, testDocLinksHaveRedirects, testShowCmdArgs, testHledgerConfArgs, testHledgerFileArgument, testHomePaths, testRelativeToBase, testExtractDigits, testGroupValuesBy, testTrimToolOutput]
