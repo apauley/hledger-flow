@@ -14,6 +14,7 @@ import qualified Init.Integration
 import qualified PathHelpers.Unit
 import qualified ReleaseNotice.Unit
 import qualified RulesTemplate.Unit
+import qualified RuntimeOptions.Unit
 import qualified Status.Integration
 import qualified Status.Unit
 import Test.HUnit
@@ -34,6 +35,7 @@ tests =
       Init.Integration.tests,
       ReleaseNotice.Unit.tests,
       RulesTemplate.Unit.tests,
+      RuntimeOptions.Unit.tests,
       Environment.Unit.tests
     ]
 
