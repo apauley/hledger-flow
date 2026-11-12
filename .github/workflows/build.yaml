@@ -268,7 +268,7 @@ jobs:
           path: unsigned
 
       - name: Import macOS signing certificate
-        uses: Apple-Actions/import-codesign-certs@5142e029c445c10ffc7149d172e540235a065466 # v7.0.0
+        uses: Apple-Actions/import-codesign-certs@288b8ec97b82c66b6f2a6baaf7acc8dfbcbe331c # v7.2.0
         with:
           keychain: hledger-flow-signing
           p12-file-base64: ${{ secrets.MACOS_CERTIFICATE_BASE64 }}
