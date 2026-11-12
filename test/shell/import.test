@@ -221,3 +221,15 @@ flow import --new-files-only
 hledger -f all-years.journal descriptions
 $ sh -eu
 Corrected fee
+
+# A dotted date before the override still selects the statement-specific rules.
+<
+. ./test/shell/setup.sh
+mv "$inbox/march.csv" "$inbox/2024.04_rfo-card.csv"
+printf '%s\n' '2016-04-02,Ordinary fee,-3' > "$inbox/2024.04_rfo-card_summary.csv"
+sed 's/bank-fees/card-fees/' import/bogart.rules > "$account/rfo-card.rules"
+flow import
+hledger -f all-years.journal balance expenses --flat --no-total --format '%(account) %(total)'
+$ sh -eu
+expenses:bank-fees 3
+expenses:card-fees 5

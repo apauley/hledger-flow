@@ -32,21 +32,20 @@ This can happen if you normally get your statements directly from your
 bank, but some statements you had to download from somewhere else, like
 Mint, because your bank is being daft with older statements.
 
-In order to tell `hledger-flow` that you want to override the rules file
-for a specific statement, you need to add a suffix, separated by an
-underscore (`_`) and starting with the letters `rfo` (rules file
-override) to the filename of that statement.
+Add a final underscore-separated suffix beginning with `rfo` (rules file
+override) before the filename extensions. For example, both
+`2024.04_rfo-card.csv` and `march_rfo-card.bank.csv` select
+`rfo-card.rules`. Dots in the date and additional file extensions leave
+the override name intact.
 
-For example: assuming you've named your statement
-`99966633_20171223_1844_rfo-mint.csv`.
+For `john/mybank/savings`, import checks these paths in order and uses
+the first match.
 
-`hledger-flow` will look for a rules file named `rfo-mint.rules` in the
-following places:
+1. `import/john/mybank/savings/rfo-card.rules`
+2. `import/john/mybank/rfo-card.rules`
+3. `import/rfo-card.rules`
 
-- in the import directory, e.g. `import/rfo-mint.rules`
-- in the bank directory, e.g. `import/john/mybank/rfo-mint.rules`
-- in the account directory, e.g.
-  `import/john/mybank/savings/rfo-mint.rules`
+If none exists, import looks for the usual account or bank rules.
 
 ## Example rules file usage
 

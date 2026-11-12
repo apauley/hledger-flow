@@ -47,6 +47,8 @@ How to keep this ChangeLog
   manual entries. Owner reports still show only that owner's entries.
 - `import --new-files-only` now picks up statement corrections made later in
   the same second as the previous output.
+- Dots before a statement's rules override are now supported. For example,
+  `2024.04_rfo-card.csv` uses `rfo-card.rules` when present.
 - Local Linux x86-64 Snap builds now package the hledger-flow version named
   on the snap and verify the executable before installation.
 
