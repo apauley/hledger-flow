@@ -73,6 +73,8 @@ How to keep this ChangeLog
   statements and checking their status from the ledger root.
 - Ctrl-C during hledger version detection now cancels `status`, including
   `status --json`.
+- Failed imports and reports finish writing their diagnostics before exiting,
+  including when output is piped to a slow reader.
 - Local Linux x86-64 Snap builds now package the hledger-flow version named
   on the snap and verify the executable before installation.
 

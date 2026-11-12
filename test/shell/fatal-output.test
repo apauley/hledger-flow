@@ -1,0 +1,16 @@
+# A blocked stdout consumer must still receive the fatal diagnostic on stderr.
+<
+. ./test/shell/setup.sh
+case "$(uname -s)" in MINGW*|MSYS*) exit 0 ;; esac
+printf '%s\n' '#!/bin/sh' 'python3 -c "print(chr(120) * 2000000)"' 'echo "preprocess failed deliberately" >&2' 'exit 23' > "$account/preprocess"
+chmod +x "$account/preprocess"
+python3 - <<'PY'
+import subprocess, time
+with subprocess.Popen(["hledger-flow", "import"], stdout=subprocess.PIPE, stderr=subprocess.PIPE) as process:
+    assert process.stdout.read(1) == b"x"
+    time.sleep(0.5)
+    _, error = process.communicate(timeout=10)
+    assert process.returncode == 23, process.returncode
+    assert b"preprocess failed deliberately" in error, "lost the fatal diagnostic"
+PY
+$ sh -eu

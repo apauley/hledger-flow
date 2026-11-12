@@ -74,6 +74,11 @@ a rebuild.
 
 ## Generated Files and Recovery
 
+When an import or report fails, the command finishes writing its queued
+diagnostics before it exits, even if a pipe consumer reads slowly. To save
+the failure message for inspection, capture standard error, for example
+with `hledger-flow import 2>import-errors.log`.
+
 `1-in` is the source of truth. Both `2-preprocessed` and `3-journal`
 contain generated output; user-supplied files in those stages are not
 supported. Use [manually managed journals](/reference/manual-journals/)
