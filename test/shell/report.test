@@ -226,3 +226,14 @@ expenses:travel || 0 0 30 0 0 0 0 0 0 0 0 0
 assets:cash || -30
 expenses:bank-fees || 5
 expenses:bank-fees || 5
+
+# An owner prepared for future statements does not prevent existing reports.
+<
+. ./test/shell/setup.sh
+mkdir import/nextyear
+flow import
+flow report --ascii-reports
+test ! -d reports/nextyear
+report_row reports/gawie/2016/income-expenses.txt expenses:bank-fees
+$ sh -eu
+expenses:bank-fees || 5

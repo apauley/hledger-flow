@@ -65,6 +65,8 @@ How to keep this ChangeLog
   paths in your home folder as `~`. The commands they suggest write the home
   folder as `"$HOME/…"`, so you can still paste them. `status --json` keeps
   [full paths](https://hledger-flow.github.io/reference/status/#paths-in-your-home-folder).
+- Preparing a directory for a future owner no longer blocks reports for owners
+  who already have journals.
 - Local Linux x86-64 Snap builds now package the hledger-flow version named
   on the snap and verify the executable before installation.
 

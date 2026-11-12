@@ -29,6 +29,10 @@ custodian of the accounts below it. It mostly has an impact on
 reporting. You may want to have separate reports for `import/mycompany`
 and `import/personal`.
 
+You can create an owner directory before its first statement arrives.
+`hledger-flow report` skips that owner until import creates its
+`all-years.journal` and continues generating reports for the other owners.
+
 Below the directory for the owner we can indicate where an account is
 held. For a bank account you may choose to name it `import/john/mybank`.
 
