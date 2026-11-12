@@ -9,7 +9,7 @@ import Hledger.Flow.Common
 import Data.Aeson (eitherDecodeFileStrict)
 import Hledger.Flow.DocHelpers (DocLink (..), docSlug, docURL)
 import Hledger.Flow.RuntimeOptions (RuntimeOptions (hledgerConf))
-import Hledger.Flow.Types (HledgerInfo (hlVersion))
+import Hledger.Flow.Types (HledgerConf (..), HledgerInfo (hlVersion))
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
@@ -57,8 +57,11 @@ testHledgerConfArgs =
         let optsWithoutConf = defaultOpts (testRoot </> [reldir|base|])
         assertEqual "No hledger config should produce no hledger config args" [] (hledgerConfArgs optsWithoutConf)
 
-        let optsWithConf = optsWithoutConf {hledgerConf = Just "/tmp/hledger.conf"}
+        let optsWithConf = optsWithoutConf {hledgerConf = Just (GivenConf "/tmp/hledger.conf")}
         assertEqual "Configured hledger config should produce --conf args" ["--conf", "/tmp/hledger.conf"] (hledgerConfArgs optsWithConf)
+
+        let optsWithFoundConf = optsWithoutConf {hledgerConf = Just (FoundConf "/home/me/.hledger.conf")}
+        assertEqual "hledger finds its default config itself" [] (hledgerConfArgs optsWithFoundConf)
     )
 
 testHledgerFileArgument :: Test

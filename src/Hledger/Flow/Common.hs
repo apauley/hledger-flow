@@ -12,7 +12,7 @@ import Control.Concurrent.STM
 import Data.Char (isAlphaNum, isAscii, isDigit)
 import Data.Either
 import Data.Function (on)
-import qualified Data.List as List (groupBy, isPrefixOf, isSuffixOf, null, sortBy)
+import qualified Data.List as List (groupBy, isPrefixOf, isSuffixOf, nub, null, sortBy)
 import Data.Maybe (mapMaybe)
 import qualified Data.Map.Strict as Map
 import Data.Ord (comparing)
@@ -111,11 +111,30 @@ hledgerFileArgument info path
     (major, minor) >= ((1, 52) :: (Int, Int)) = T.pack (literalGlobPath path)
   | otherwise = T.pack path
 
+-- | Pass only a given config; hledger finds the default one itself.
 hledgerConfArgs :: RT.RuntimeOptions -> [T.Text]
 hledgerConfArgs opts =
   case RT.hledgerConf opts of
-    Nothing -> []
-    Just conf -> ["--conf", T.pack conf]
+    Just (GivenConf conf) -> ["--conf", T.pack conf]
+    _ -> []
+
+-- | The config file hledger will use: the given one, or the first that hledger 1.40+ finds
+-- by itself, like possibleConfFiles in hledger's Hledger.Cli.Conf: hledger.conf in the current
+-- directory or a parent, ~/.hledger.conf, or hledger.conf in the XDG config directory.
+findHledgerConf :: Maybe FilePath -> IO (Maybe HledgerConf)
+findHledgerConf (Just given) = return (Just (GivenConf given))
+findHledgerConf Nothing = do
+  found <- tryIOError $ do
+    here <- Directory.getCurrentDirectory
+    home <- Directory.getHomeDirectory
+    xdg <- Directory.getXdgDirectory Directory.XdgConfig "hledger"
+    let file d = d FilePath.</> if d == home then ".hledger.conf" else "hledger.conf"
+    filterM Directory.doesFileExist (map file (List.nub (upToRoot here ++ [home, xdg])))
+  return $ case found of
+    Right (f : _) -> Just (FoundConf f)
+    _ -> Nothing
+  where
+    upToRoot d = let up = FilePath.takeDirectory d in d : if up == d then [] else upToRoot up
 
 showCmdArgs :: [T.Text] -> T.Text
 showCmdArgs args = T.intercalate " " (map escapeArg args)

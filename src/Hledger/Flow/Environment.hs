@@ -18,7 +18,7 @@ import Data.Version (showVersion)
 import Hledger.Flow.Internals (SystemInfo (..), gitCommit)
 import Hledger.Flow.RuntimeOptions
 import Hledger.Flow.Status (hledgerVersionNumber)
-import Hledger.Flow.Types (BaseDir, HledgerInfo (..))
+import Hledger.Flow.Types (BaseDir, HledgerConf (..), HledgerInfo (..), hledgerConfPath)
 import Path (toFilePath)
 import Paths_hledger_flow (version)
 import System.FilePath (dropTrailingPathSeparator)
@@ -30,15 +30,20 @@ setting :: T.Text -> T.Text -> T.Text -> Setting
 setting l v f = Setting l v f False
 
 -- | What every command shares: hledger-flow, hledger, its config and the ledger.
-environmentSettings :: SystemInfo -> Maybe HledgerInfo -> Maybe FilePath -> BaseDir -> [Setting]
+environmentSettings :: SystemInfo -> Maybe HledgerInfo -> Maybe HledgerConf -> BaseDir -> [Setting]
 environmentSettings sys hledger conf base =
   [ setting "hledger-flow" (T.pack (showVersion version <> " (" <> gitCommit <> "), " <> compilerName sys <> " " <> showVersion (compilerVersion sys) <> ", " <> os sys <> " " <> arch sys)) "",
     case hledger of
       Just hl -> setting "hledger" (T.pack (toFilePath (hlPath hl)) <> "  (" <> hledgerVersionNumber (hlVersion hl) <> ")") "--hledger-path"
       Nothing -> Setting "hledger" "not found" "--hledger-path" True,
-    setting "hledger.conf" (maybe "none" T.pack conf) "--hledger-conf",
+    setting "hledger.conf" (confText conf) "--hledger-conf",
     setting "Ledger" (T.pack (dropTrailingPathSeparator (toFilePath base))) ""
   ]
+
+confText :: Maybe HledgerConf -> T.Text
+confText Nothing = "none"
+confText (Just (GivenConf f)) = T.pack f
+confText (Just (FoundConf f)) = T.pack f <> "  (found by hledger)"
 
 coresSetting :: SystemInfo -> Setting
 coresSetting sys = setting "Cores" (tshow (cores sys) <> ", using " <> tshow (availableCores sys)) ""
@@ -86,7 +91,7 @@ renderSettings problem settings = map line settings
           styled = if sProblem s then problem value else value
        in T.stripEnd (T.justifyLeft (width sLabel) ' ' (sLabel s) <> "  " <> styled <> "   " <> sFlags s)
 
-environmentJSON :: SystemInfo -> Maybe FilePath -> Value
+environmentJSON :: SystemInfo -> Maybe HledgerConf -> Value
 environmentJSON sys conf =
   object
     [ "hledgerFlowVersion" .= showVersion version,
@@ -96,7 +101,7 @@ environmentJSON sys conf =
       "arch" .= arch sys,
       "cores" .= cores sys,
       "availableCores" .= availableCores sys,
-      "hledgerConf" .= conf
+      "hledgerConf" .= fmap hledgerConfPath conf
     ]
 
 tshow :: Show a => a -> T.Text

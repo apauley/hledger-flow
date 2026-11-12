@@ -20,7 +20,7 @@ import Data.Aeson (Value, object, (.=))
 import Data.Aeson.Text (encodeToLazyText)
 import qualified Data.Text.IO as T
 import qualified Data.Text.Lazy.IO as TL
-import Hledger.Flow.Common (findHledger, nativeShell)
+import Hledger.Flow.Common (findHledger, findHledgerConf, nativeShell)
 import Hledger.Flow.DateTime (currentYear)
 import Hledger.Flow.Environment (coresSetting, environmentJSON, environmentSettings, renderSettings)
 import Hledger.Flow.Internals (SystemInfo, systemInfo)
@@ -31,7 +31,7 @@ import qualified Data.List as List
 import qualified Data.Text as T
 import Hledger.Flow.PathHelpers (AbsDir)
 import Hledger.Flow.Status
-import Hledger.Flow.Types (HledgerInfo (..))
+import Hledger.Flow.Types (HledgerConf, HledgerInfo (..))
 import Path (toFilePath)
 import System.Console.ANSI (Color (..), ColorIntensity (..), ConsoleIntensity (..), ConsoleLayer (..), SGR (..), hSupportsANSIColor, setSGRCode)
 import System.Environment (lookupEnv)
@@ -110,7 +110,7 @@ renderNext color next =
 tshow :: Show a => a -> T.Text
 tshow = T.pack . show
 
-statusJSON :: SystemInfo -> Maybe FilePath -> LedgerStatus -> NextStep -> Value
+statusJSON :: SystemInfo -> Maybe HledgerConf -> LedgerStatus -> NextStep -> Value
 statusJSON sys conf s next =
   object
     [ "schemaVersion" .= (1 :: Int),
@@ -152,7 +152,7 @@ nextStepHere status = do
   return (nextStep year nativeShell cwd status)
 
 -- | The versions and paths status ran with, with full paths for bug reports.
-renderEnvironment :: Bool -> SystemInfo -> Maybe FilePath -> LedgerStatus -> T.Text
+renderEnvironment :: Bool -> SystemInfo -> Maybe HledgerConf -> LedgerStatus -> T.Text
 renderEnvironment color sys conf s =
   T.unlines ("" : bold color "Environment:" : map ("  " <>) (renderSettings (red color) settings))
   where
@@ -160,8 +160,9 @@ renderEnvironment color sys conf s =
 
 -- | Print the ledger's status as text, or as JSON for scripts and agents.
 printStatus :: Maybe FilePath -> Maybe FilePath -> Bool -> BaseDir -> IO ()
-printStatus hledgerPath conf json base = do
+printStatus hledgerPath confOpt json base = do
   hledger <- findHledger hledgerPath
+  conf <- findHledgerConf confOpt
   status <- gatherStatus hledger base
   next <- nextStepHere status
   sys <- systemInfo

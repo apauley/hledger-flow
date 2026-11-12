@@ -53,6 +53,11 @@ How to keep this ChangeLog
   complete copy stays in place for the next import.
 - Running `import` from a folder below a statement year now limits conversion
   and orphan cleanup to that account. Sibling accounts keep their outputs.
+- `status` and `--show-options` now name the
+  [hledger config file](https://hledger-flow.github.io/reference/status/#hledger-config-file)
+  that hledger finds by itself, such as `~/.hledger.conf`, instead of showing
+  none. Options in that file apply to import and reports, and can change the
+  generated journals.
 - Local Linux x86-64 Snap builds now package the hledger-flow version named
   on the snap and verify the executable before installation.
 
