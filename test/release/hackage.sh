@@ -5,14 +5,16 @@ cd "$(dirname "$0")/../.."
 work=$(mktemp -d)
 trap 'status=$?; if [ "$status" -ne 0 ] && [ -f "$work/result" ]; then cat "$work/result" >&2; fi; rm -rf "$work"' EXIT
 mkdir -p "$work/bin" "$work/mock"
-cp bin/release bin/update-homebrew-formula.py "$work/bin/"
+cp bin/release bin/hackage-artifacts.py bin/update-homebrew-formula.py "$work/bin/"
 printf 'version: 1.2.3\n' > "$work/package.yaml"
 cd "$work"
 export REAL_GIT
 REAL_GIT=$(command -v git)
 export PATH="$work/mock:$PATH" HACKAGE_MODE=local
 unset HACKAGE_TOKEN
-printf 'reviewed bytes' > source
+mkdir hledger-flow-1.2.3 assets
+printf 'reviewed bytes' > hledger-flow-1.2.3/marker
+tar -czf source hledger-flow-1.2.3
 printf true > draft
 
 # Push to a real, isolated Git remote. No production tap or credentials are used.
@@ -53,13 +55,23 @@ case "$1 $2" in
              [ "$platform" != "${OMIT_PLATFORM:-}" ] || continue
              printf 'hledger-flow-%s.tar.gz %s\n' "$platform" "$(printf %s "$platform" | shasum -a 256 | cut -d' ' -f1)"
            done
+           for file in assets/*; do
+             [ -f "$file" ] || continue
+             printf '%s %s\n' "${file##*/}" "$(shasum -a 256 "$file" | cut -d' ' -f1)"
+           done
            if [ -e asset ]; then
              printf 'hledger-flow-1.2.3.tar.gz %s\n' "$(shasum -a 256 asset | cut -d' ' -f1)"
            fi
          } | jq -Rn '{assets: [inputs | split(" ") | {name: .[0], digest: ("sha256:" + .[1])}]}' ;;
     esac ;;
-  'release upload') test ! -e asset; cp "$4" asset ;;
-  'release download') cp asset "${!#}/hledger-flow-1.2.3.tar.gz" ;;
+  'release upload')
+    name=$(basename "$4")
+    dest="assets/$name"; [ "$name" != hledger-flow-1.2.3.tar.gz ] || dest=asset
+    test ! -e "$dest"; cp "$4" "$dest" ;;
+  'release download')
+    name=$7
+    src="assets/$name"; [ "$name" != hledger-flow-1.2.3.tar.gz ] || src=asset
+    cp "$src" "${!#}/$name" ;;
   'release edit') test -e public && test ! -e block-edit && test "$(cat draft)" = true && echo false > draft ;;
   'release verify') test "$(cat draft)" = false ;;
   'secret list') printf '%s\n' "${CONFIGURED_SECRET:-}" ;;
@@ -83,6 +95,45 @@ MOCK
 cat > mock/curl <<'MOCK'
 #!/usr/bin/env bash
 set -eu
+# The Python helper returns response bodies followed by a newline and HTTP code.
+if [[ "$*" == *--write-out* ]]; then
+  url=${!#}; url=${url%%\?*}; code=200
+  docs=public-docs
+  [[ "$url" != */candidate/* ]] || docs=candidate-docs
+  if [[ "$*" == *--config* ]]; then
+    auth=$(cat)
+    test "$auth" = 'header = "Authorization: X-ApiKey dummy"'
+  fi
+  case "$url" in
+    */docs.tar)
+      if [ -e "$docs" ]; then cat "$docs"; else code=404; fi ;;
+    */docs)
+      while [ "$1" != --upload-file ]; do shift; done
+      gzip -dc "$2" > "$docs"
+      echo "$docs" >> writes
+      [ ! -e "interrupt-$docs" ] || exit 52
+      code=204 ;;
+    */docs/doc-index.html) test -s "$docs"; echo '<title>hledger-flow (Index)</title>' ;;
+    */reports/.txt)
+      if [ -e report ]; then echo '[(BuildReportId 1,BuildReport {...})]'; else echo '[]'; fi ;;
+    */reports/1.txt) cat report ;;
+    */reports/)
+      while [ "$1" != --data-binary ]; do shift; done
+      test ! -e report
+      cp "${2#@}" report
+      echo report >> writes
+      [ ! -e interrupt-report ] || exit 52
+      code=303 ;;
+    */hledger-flow-1.2.3)
+      test -f public-docs
+      echo '<div id="badges">'
+      echo 'label=Documentation&message=Available&color=success'
+      if [ -e report ] && [ ! -e red-badge ]; then echo 'label=Build&message=InstallOk&color=success'; fi
+      echo '</div>' ;;
+    *) exit 1 ;;
+  esac
+  printf '\n%s' "$code"; exit
+fi
 while [[ $# -gt 0 ]]; do
   case "$1" in
     -o) out=$2; shift ;;
@@ -98,7 +149,31 @@ if [[ ${status:-} ]]; then echo "$code"; else test "$code" = 200; fi
 MOCK
 cat > mock/cabal <<'MOCK'
 #!/usr/bin/env bash
+set -eu
 case "$1" in
+  haddock)
+    test "$(cat marker)" = 'reviewed bytes'
+    mkdir -p dist-newstyle
+    printf docs | gzip > dist-newstyle/hledger-flow-1.2.3-docs.tar.gz ;;
+  build)
+    test "$(cat marker)" = 'reviewed bytes'
+    test ! -e "$work/block-build"
+    pkg=hledger-flow-1.2.3
+    dir=${3#--build-summary=}
+    cat > "${dir%/*}/$pkg.summary" <<REPORT
+package: $pkg
+install-outcome: InstallOk
+
+package: $pkg
+compiler: ghc-9.10.3
+dependencies:
+    $pkg
+install-outcome: InstallOk
+docs-outcome: NotTried
+tests-outcome: NotTried
+REPORT
+    ;;
+  list-bin) echo /usr/bin/true ;;
   user-config) printf '%s\n' "${CABAL_FIELDS:-}" ;;
   check) ;;
   sdist) mkdir -p dist-newstyle/sdist; cp source dist-newstyle/sdist/hledger-flow-1.2.3.tar.gz ;;
@@ -114,6 +189,15 @@ fails() { if "$@" > result 2>&1; then echo "unexpected success: $*" >&2; exit 1;
 fails bin/release hackage
 grep -q 'configure a token' result
 export CABAL_FIELDS='+ token: dummy'
+touch block-build
+fails bin/release hackage
+test -e assets/hledger-flow-1.2.3-docs.tar.gz
+test ! -e assets/hledger-flow-1.2.3.report
+test ! -e public
+rm block-build
+touch interrupt-candidate-docs
+fails bin/release hackage
+rm interrupt-candidate-docs
 bin/release hackage > result
 cmp source asset
 cmp asset candidate
@@ -121,10 +205,25 @@ bin/release hackage > result
 test "$(cat uploads)" = candidate
 printf changed > candidate
 fails bin/release publish
-grep -q 'differs from the source archive' result
+grep -q 'differs from the asset' result
 test ! -e public
 test "$(cat draft)" = true
 cp asset candidate
+touch interrupt-public-docs
+fails bin/release publish
+cmp asset public
+test ! -e report
+rm interrupt-public-docs
+touch interrupt-report
+fails bin/release publish
+cmp assets/hledger-flow-1.2.3.report report
+grep -Eq '^time: ' report
+test "$(cat draft)" = true
+rm interrupt-report
+touch red-badge
+fails bin/release hackage-publish
+grep -q 'green Build badge' result
+rm red-badge
 touch block-edit
 fails bin/release publish
 cmp asset public
@@ -172,10 +271,12 @@ grep -q 'newer release' result
 test "$(cat draft)" = false
 test "$(cat uploads)" = "$(printf 'candidate\npublish')"
 
+test "$(cat writes)" = "$(printf 'candidate-docs\npublic-docs\nreport')"
+
 # Even a completed release must fail verification if the public bytes differ.
 printf changed > public
 fails bin/release publish
-grep -q 'differs from the source archive' result
+grep -q 'differs from the asset' result
 rm public
 export HACKAGE_MODE=ci
 fails bin/release hackage
@@ -187,6 +288,10 @@ grep -Fxq 'inputs[stage]=candidate' dispatch
 bin/release hackage-publish > result
 grep -Fxq 'inputs[stage]=publish' dispatch
 grep -Fxq 'ref=v1.2.3' dispatch
+# A previous run can have published the source before completing the uploads.
+rm dispatch
+bin/release hackage-publish > result
+grep -Fxq 'inputs[stage]=publish' dispatch
 rm asset
 fails bin/release hackage-publish
 grep -q 'missing source archive' result

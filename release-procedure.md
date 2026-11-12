@@ -242,10 +242,17 @@ After verifying the five binaries, `push-tag` dispatches the Hackage candidate
 build at the same tag and waits for it. CI attaches the Cabal source archive to
 the GitHub draft as `hledger-flow-<version>.tar.gz`. GitHub records its SHA-256.
 CI uploads those bytes as the Hackage candidate and checks the download against
-the recorded digest. Retries reuse the existing source asset.
+the recorded digest. From that verified archive, the runner builds the CLI with
+the GHC pinned in the Hackage workflow, runs `--version`, and generates Haddock
+documentation. It attaches `hledger-flow-<version>-docs.tar.gz` and the
+timestamped executable build report, `hledger-flow-<version>.report`, to the
+same GitHub draft. It uploads the candidate docs, compares the served tar with
+the draft asset, and opens the documentation index. Retries reuse each existing asset and
+check its GitHub SHA-256.
 
 **Review** both links printed by `push-tag`: the GitHub draft's notes and
-archives, and the candidate page's metadata, README, ChangeLog and file list.
+archives and build report, and the candidate page's metadata, README, ChangeLog,
+file list and rendered module documentation.
 If the candidate build fails, retry just `bin/release hackage`. At this review,
 check that the new binaries still meet the platform and library requirements in
 the tap formula. If they change, prepare the corresponding tap changes before
@@ -260,8 +267,11 @@ bin/release publish
 **Permanent**: after the maintainer approves both releases, this command reads
 the source checksum from the tagged GitHub release. CI downloads the Hackage
 candidate, verifies it against that checksum, and publishes it. The command
-checks the public Hackage archive before publishing the GitHub draft as latest,
-then verifies GitHub's release attestation. A digest mismatch stops publication.
+checks the public Hackage source archive, uploads the reviewed documentation,
+and submits the saved build report. It verifies the public docs archive, a
+documentation index, the report contents and the green **Build InstallOk** and
+**Documentation Available** badges before publishing the GitHub draft as latest.
+It then verifies GitHub's release attestation. A digest mismatch stops publication.
 
 After GitHub verification, the command reads the four macOS and Linux archive
 checksums from the published release and hashes the license from the same tag.
@@ -282,12 +292,18 @@ remain public while a tap update is being retried.
 ### Hackage recovery and local fallback
 
 `bin/release hackage` prepares only the candidate. After explicit approval,
-`bin/release hackage-publish` can recover just the Hackage publication. Both
-use the source asset and checksum from the same GitHub release.
+`bin/release hackage-publish` can recover just the Hackage publication, including
+when the source is already public. Both commands use the source, docs and
+report assets from the same GitHub release. If an upload is interrupted, rerun
+the same command. It compares the docs with Hackage's copy and looks for the
+exact saved report, including its timestamp, before submitting anything again.
+Publication retries verify both public badges before continuing.
 
-If the Hackage workflow is unavailable, use a clean checkout of the pushed
-release tag and prefix the command with `HACKAGE_MODE=local`. The same review
-and checksum checks apply. To select this route for the whole release, export
+The Actions workflow serializes Hackage jobs for each tag. For a local fallback,
+wait for any running job for that tag to finish and run one publisher at a time.
+Use a clean checkout of the pushed tag with the workflow's GHC on `PATH` and
+prefix the command with `HACKAGE_MODE=local`. The same review and checksum
+checks apply. To select this route for the whole release, export
 `HACKAGE_MODE=local` before `precheck`. The local check accepts a Hackage
 token or a username together with a password or password command in the active
 Cabal configuration. The default precheck looks for the repository secret by

@@ -358,10 +358,9 @@ hackage_upload() {
 candidate_url() { echo "https://hackage.haskell.org/package/hledger-flow-$(version)/candidate"; }
 package_url() { echo "https://hackage.haskell.org/package/hledger-flow-$(version)"; }
 
-# GitHub records the digest of the source archive attached to this release.
-source_digest() {
-  local name
-  name=$(basename "$(sdist_tarball)")
+# GitHub records the digest of each asset attached to the release.
+asset_digest() {
+  local name=$1
   gh release view "v$(version)" -R "$REPO" --json assets |
     jq -r --arg name "$name" '.assets[] | select(.name == $name) | .digest'
 }
@@ -380,7 +379,7 @@ fetch_archive() {
 check_digest() {
   local actual
   actual=$(shasum -a 256 "$1" | cut -d' ' -f1)
-  [ "sha256:$actual" = "$2" ] || die "$1 differs from the source archive recorded on the GitHub release"
+  [ "sha256:$actual" = "$2" ] || die "$1 differs from the asset recorded on the GitHub release"
 }
 
 check_hackage_tag() {
@@ -389,6 +388,39 @@ check_hackage_tag() {
   [ "$(git rev-parse HEAD)" = "$(git rev-parse "$tag^{commit}")" ] && [ -z "$(git status --porcelain)" ] \
     || die "start from a clean checkout of $tag"
   cmd_verify
+}
+
+# Build missing draft assets from the same source archive the maintainer reviews.
+# A retry downloads each existing asset and verifies GitHub's recorded checksum.
+hackage_artifacts() {
+  local stage=$1 dir=$2 source=$3 package tag asset digest helper
+  package="hledger-flow-$(version)"
+  tag="v$(version)"
+  helper="$PWD/bin/hackage-artifacts.py"
+  for asset in "$package-docs.tar.gz" "$package.report"; do
+    digest=$(asset_digest "$asset")
+    if [ -z "$digest" ]; then
+      [ "$stage" = candidate ] || die "missing reviewed $asset on $tag (run: bin/release hackage and review the candidate)"
+      if [ ! -d "$dir/$package" ]; then tar -xzf "$source" -C "$dir"; fi
+      (
+        cd "$dir/$package"
+        if [ "$asset" = "$package.report" ]; then
+          cabal build exe:hledger-flow --build-summary="$dir/\$pkgid.summary"
+          "$(cabal list-bin exe:hledger-flow)" --version
+          python3 "$helper" report "$package" "$dir/$package.summary" "$dir/$asset"
+        else
+          cabal haddock --haddock-for-hackage lib:hledger-flow
+          cp "dist-newstyle/$asset" "$dir/$asset"
+        fi
+      )
+      gh release upload "$tag" "$dir/$asset" -R "$REPO"
+      digest=$(asset_digest "$asset")
+    else
+      gh release download "$tag" -R "$REPO" --pattern "$asset" --dir "$dir"
+    fi
+    [[ $digest =~ ^sha256:[0-9a-f]{64}$ ]] || die "missing GitHub SHA-256 for $asset; retry the release step"
+    check_digest "$dir/$asset" "$digest"
+  done
 }
 
 cmd_hackage() (
@@ -403,13 +435,13 @@ cmd_hackage() (
   trap 'rm -rf "$dir"' EXIT
   tarball=$(sdist_tarball)
   name=$(basename "$tarball")
-  digest=$(source_digest)
+  digest=$(asset_digest "$name")
   if [ -z "$digest" ]; then
     cabal check
     cabal sdist
     # Never overwrite the release's source archive, including on a retry.
     gh release upload "v$(version)" "$tarball" -R "$REPO"
-    digest=$(source_digest)
+    digest=$(asset_digest "$name")
     check_digest "$tarball" "$digest"
   fi
   [[ $digest =~ ^sha256:[0-9a-f]{64}$ ]] || die "missing SHA-256 for $name on the GitHub draft"
@@ -422,6 +454,8 @@ cmd_hackage() (
     curl -fsSL "$url" -o "$dir/candidate"
   fi
   check_digest "$dir/candidate" "$digest"
+  hackage_artifacts candidate "$dir" "$dir/candidate"
+  python3 bin/hackage-artifacts.py candidate "hledger-flow-$(version)" "$dir"
   say "Review the candidate: $(candidate_url)"
 )
 
@@ -429,23 +463,29 @@ cmd_hackage_publish() (
   dir=$(mktemp -d)
   trap 'rm -rf "$dir"' EXIT
   name=$(basename "$(sdist_tarball)")
-  digest=$(source_digest)
+  digest=$(asset_digest "$name")
   [[ $digest =~ ^sha256:[0-9a-f]{64}$ ]] || die "missing source archive for v$(version) (run: bin/release hackage and review the candidate)"
   public_url="$(package_url)/$name"
   state=$(fetch_archive "$public_url" "$dir/$name")
-  if [ "$state" = absent ]; then
-    hackage_credentials_ok
-    if [ "${HACKAGE_MODE:-ci}" = ci ]; then
-      dispatch_hackage publish
-    else
-      check_hackage_tag
+  if [ "$state" = present ]; then check_digest "$dir/$name" "$digest"; fi
+  hackage_credentials_ok
+  if [ "${HACKAGE_MODE:-ci}" = ci ]; then
+    dispatch_hackage publish
+    curl -fsSL "$public_url" -o "$dir/$name"
+    check_digest "$dir/$name" "$digest"
+    python3 bin/hackage-artifacts.py badges "hledger-flow-$(version)"
+  else
+    check_hackage_tag
+    hackage_artifacts publish "$dir" "$dir/$name"
+    if [ "$state" = absent ]; then
       curl -fsSL "$(candidate_url)/$name" -o "$dir/$name"
       check_digest "$dir/$name" "$digest"
       hackage_upload --publish "$dir/$name"
+      curl -fsSL "$public_url" -o "$dir/$name"
+      check_digest "$dir/$name" "$digest"
     fi
-    curl -fsSL "$public_url" -o "$dir/$name"
+    python3 bin/hackage-artifacts.py publish "hledger-flow-$(version)" "$dir"
   fi
-  check_digest "$dir/$name" "$digest"
   say "Verified published package: $(package_url)"
 )
 
