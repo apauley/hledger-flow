@@ -14,6 +14,7 @@ where
 import Data.Char (isAlphaNum, isDigit, toLower)
 import qualified Data.List as List
 import Data.Maybe (fromMaybe)
+import qualified Data.Set as Set
 import qualified Data.Text as T
 import Hledger.Flow.BaseDir (relativeToBase')
 import Hledger.Flow.DocHelpers (DocLink (..), docURL)
@@ -66,12 +67,14 @@ templateFields names = dedupe (zipWith pick [0 ..] normalised)
       | Just i == amountIx = "amount"
       | isSpecialField n = "bank_" <> n
       | otherwise = n
-    dedupe = go []
+    dedupe = snd . List.mapAccumL unique Set.empty
       where
-        go _ [] = []
-        go seen (n : rest) =
-          let k = length (filter (== n) seen)
-           in (if k == 0 then n else n <> "_" <> T.pack (show (k + 1))) : go (n : seen) rest
+        unique seen name = (Set.insert chosen seen, chosen)
+          where
+            chosen = available name (2 :: Int)
+            available candidate suffix
+              | Set.notMember candidate seen = candidate
+              | otherwise = available (name <> "_" <> T.pack (show suffix)) (suffix + 1)
 
 -- | Names hledger gives a meaning of its own, such as balance (assertions) or status.
 isSpecialField :: T.Text -> Bool

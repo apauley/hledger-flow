@@ -20,7 +20,7 @@ import Hledger.Flow.Import.ImportHelpersTurtle (writeIncludesFromInventory, writ
 import Hledger.Flow.Import.Inventory
 import Hledger.Flow.Import.Types
 import Hledger.Flow.Logging
-import Hledger.Flow.PathHelpers (AbsFile)
+import Hledger.Flow.PathHelpers (AbsDir, AbsFile)
 import Hledger.Flow.RuntimeOptions
 import qualified Hledger.Flow.Types as FlowTypes
 import qualified Path
@@ -86,9 +86,9 @@ importCSVs' opts ch = do
   unless (null collisions) $
     errExit 1 ch ("Multiple input files map to the same output:\n" <>
       T.intercalate "\n" [relative output <> " <- " <> T.intercalate ", " (map relative sources)
-                         | (output, sources) <- collisions]) ()
+                         | (output, sources) <- collisions])
   logVerbose opts ch $ "Found " <> T.pack (show fileCount) <> " input files" <> startYearMsg <> "in " <> T.pack (show diff) <> ". Proceeding with import..."
-  importedJournals <- parAwareActions opts (map (extractAndImport opts ch) inputFiles)
+  importedJournals <- parAwareActions opts (map (extractAndImport opts ch importRoot) inputFiles)
 
   -- Hooks may create files, so reconcile against a fresh inventory only after
   -- every selected conversion succeeds. A cached CSV is never a source.
@@ -103,12 +103,12 @@ importCSVs' opts ch = do
   logVerbose opts ch $ "Wrote include files for " <> T.pack (show (length journalsOnDisk)) <> " generated journals in " <> T.pack (show includeGenTime)
   return importedJournals
 
-extractAndImport :: RuntimeOptions -> TChan FlowTypes.LogMessage -> AbsFile -> IO (AbsFile, FileWasGenerated)
-extractAndImport opts ch inputFile = do
-  case extractImportDirs inputFile of
+extractAndImport :: RuntimeOptions -> TChan FlowTypes.LogMessage -> AbsDir -> AbsFile -> IO (AbsFile, FileWasGenerated)
+extractAndImport opts ch root inputFile = do
+  case extractImportDirs root inputFile of
     Right importDirs -> importCSV opts ch importDirs inputFile
     Left errorMessage -> do
-      errExit 1 ch errorMessage (inputFile, False)
+      errExit 1 ch errorMessage
 
 importCSV :: RuntimeOptions -> TChan FlowTypes.LogMessage -> ImportDirs Path.Abs -> AbsFile -> IO (AbsFile, FileWasGenerated)
 importCSV opts ch importDirs srcFile = do
@@ -225,7 +225,7 @@ hledgerImport opts ch importDirs csvFile journalOut = do
                 <> T.pack (show (length candidates)) <> " files:\n" <> candidatesTxt
                 <> "\n\nHere is a bit of documentation about rules files that you may find helpful:\n"
                 <> docURL RulesFiles
-        errExit 1 ch msg ()
+        errExit 1 ch msg
 
 hookDirArgs :: ImportDirs b -> [T.Text]
 hookDirArgs dirs = map (T.concat . importDirLines) [bankDir dirs, accountDir dirs, ownerDir dirs]

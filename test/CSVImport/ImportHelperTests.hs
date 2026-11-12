@@ -28,13 +28,13 @@ testExtractImportDirs = TestList
           year = state </> [reldir|2019|]
           statement = year </> [relfile|2019-01-01.csv|]
       assertEqual "statement directories"
-        (Right (ImportDirs root owner bank account state year)) (extractImportDirs statement)
-      checkMalformed (account </> [relfile|2019-01-01.csv|])
-      checkMalformed (year </> [relfile|extra/2019-01-01.csv|])
-      checkMalformed (base </> [relfile|outside/john/mybank/checking/1-in/2019/statement.csv|])
+        (Right (ImportDirs root owner bank account state year)) (extractImportDirs root statement)
+      checkMalformed root (account </> [relfile|2019-01-01.csv|])
+      checkMalformed root (year </> [relfile|extra/2019-01-01.csv|])
+      checkMalformed root (base </> [relfile|outside/john/mybank/checking/1-in/2019/statement.csv|])
 
-    checkMalformed file =
-      case extractImportDirs file of
+    checkMalformed root file =
+      case extractImportDirs root file of
         Right _ -> assertFailure "expected malformed import layout to be rejected"
         Left err -> assertEqual "malformed layout diagnostic"
           ("I couldn't find the right number of directories between \"import\" and the input file:\n"

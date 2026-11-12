@@ -56,3 +56,25 @@ $ sh -eu
 fields date, raw_column, amount
 fields date, matching_column, amount
 fields date, matching_column, amount
+
+# Status follows nested rules includes relative to each file, even through spaces.
+<
+. ./test/shell/setup.sh
+mkdir -p 'import/shared rules/nested'
+mv import/bogart.rules 'import/shared rules/nested/fields.rules'
+printf 'include shared rules/labels.rules\n' > import/bogart.rules
+printf 'include nested/fields.rules\n' > 'import/shared rules/labels.rules'
+flow import
+check_stale() { hledger-flow status --json | jq -e --argjson n "$1" '.accounts[0].journalsOutdated == $n' > /dev/null; }
+check_stale 0
+touch -t 201601010000 "$journal"
+touch -t 201501010000 "$inbox/march.csv" import/bogart.rules 'import/shared rules/labels.rules' 'import/shared rules/nested/fields.rules'
+check_stale 0
+touch -t 201701010000 'import/shared rules/nested/fields.rules'
+check_stale 1
+rm 'import/shared rules/nested/fields.rules'
+check_stale 1
+printf 'include ../labels.rules\n' > 'import/shared rules/nested/fields.rules'
+touch -t 201501010000 'import/shared rules/nested/fields.rules'
+check_stale 1
+$ sh -eu

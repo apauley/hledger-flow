@@ -15,6 +15,11 @@ For example, assuming you have a `savings` account at `mybank`, you'll
 put your first CSV statement here:
 `import/john/mybank/savings/1-in/2018/123456789_2018-06-30.csv`.
 
+An owner, bank, or account can itself be named `import`. For example,
+`import/john/mybank/import/1-in/2018/april.csv` belongs to John's account
+named `import` at `mybank`. Run `hledger-flow import` and `hledger-flow status`
+from the ledger root to use that layout.
+
 Some people may want to include accounts belonging to their spouse as
 part of the household finances:
 `import/spouse/otherbank/checking/1-in/2018/987654321_2018-06-30.csv`.
@@ -28,6 +33,10 @@ The directory directly under `import` is meant to indicate the owner or
 custodian of the accounts below it. It mostly has an impact on
 reporting. You may want to have separate reports for `import/mycompany`
 and `import/personal`.
+
+You can create an owner directory before its first statement arrives.
+`hledger-flow report` skips that owner until import creates its
+`all-years.journal` and continues generating reports for the other owners.
 
 Below the directory for the owner we can indicate where an account is
 held. For a bank account you may choose to name it `import/john/mybank`.
@@ -64,6 +73,11 @@ a statement and preserve its timestamp, run `hledger-flow import` to force
 a rebuild.
 
 ## Generated Files and Recovery
+
+When an import or report fails, the command finishes writing its queued
+diagnostics before it exits, even if a pipe consumer reads slowly. To save
+the failure message for inspection, capture standard error, for example
+with `hledger-flow import 2>import-errors.log`.
 
 `1-in` is the source of truth. Both `2-preprocessed` and `3-journal`
 contain generated output; user-supplied files in those stages are not
@@ -114,8 +128,10 @@ whole account for statement conversion and orphan cleanup. For example,
 running it from `import/john/mybank/savings/1-in/2018/archive/` selects
 `savings` across its statement years and leaves sibling accounts' statements
 and generated journals alone. The same scope applies when you pass that
-directory to `import`. Use `--start-year` to limit conversion and cleanup
-to that year and later years, including years whose last input was removed.
+directory to `import`. Use `--start-year 2024` to limit conversion and cleanup
+to 2024 and later years, including years whose last input was removed. Supply
+exactly four ASCII digits or use `--start-year current` for the current year.
+An invalid value such as `24` stops the command before import begins.
 
 Include files are rebuilt globally
 from source-backed journals and supported manual files, so orphaned

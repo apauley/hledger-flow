@@ -29,12 +29,20 @@ the file, marked `(found by hledger)` when you didn't give it.
 - `environment`: `{"hledgerFlowVersion", "commit", "compiler", "os", "arch",
   "cores", "availableCores", "hledgerConf"}`, for bug reports. `hledgerConf`
   is the [hledger config file](#hledger-config-file) path, or `null`.
-- `hledger`: `{"path", "version"}`, or `null` when hledger isn't found.
+- `hledger`: `{"path", "version"}`, or `null` when status cannot locate hledger
+  or read its version. Pressing Ctrl-C during the version check cancels
+  `status`. In JSON mode the command exits unsuccessfully without emitting
+  a JSON object.
 - `ledgerFile`: `{"value", "exists"}` for `LEDGER_FILE`, or `null` when unset.
 - `accounts`: one object per `owner/bank/account` with statements:
   `account`, `statements`, `years`, `rulesFile` (the account's default rules
   file, or `null`), `rulesCandidates`, `statementsWithoutRules`,
   `hooks` (`preprocess`, `construct`), `journalsMissing`, `journalsOutdated`.
+  For journals generated with CSV rules, status follows each `include`
+  relative to the rules file that contains it, including nested includes.
+  A shared rules file newer than the journal counts toward `journalsOutdated`.
+  A missing or unreadable include, or an include cycle, also marks the journal
+  outdated. Fix the rules if needed, then run `hledger-flow import`.
 - `misplaced`: `{"path", "suggestion"}` for statement files import will never read.
 - `manualJournals`: the number of `_manual_` journals.
 - `allYearsJournalExists`: whether import has created `all-years.journal`.

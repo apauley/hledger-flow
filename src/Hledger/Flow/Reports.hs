@@ -7,7 +7,7 @@ module Hledger.Flow.Reports
 where
 
 import Control.Concurrent.STM
-import Control.Monad (unless, when)
+import Control.Monad (filterM, unless, when)
 import Data.Char (toLower)
 import Data.Either
 import qualified Data.List as List
@@ -140,12 +140,15 @@ generateReport opts ch journals year reportsDir fileName args successCheck = do
 
 ownerParameters :: RuntimeOptions -> TChan FlowTypes.LogMessage -> [RelDir] -> IO [ReportParams]
 ownerParameters opts ch owners = do
-  let actions = map (ownerParameters' opts ch) owners
-  parAwareActions opts actions
+  indexed <- filterM (PathIO.doesFileExist . ownerIndex opts) owners
+  parAwareActions opts (map (ownerParameters' opts ch) indexed)
+
+ownerIndex :: RuntimeOptions -> RelDir -> AbsFile
+ownerIndex opts owner = baseDir opts </> [reldir|import|] </> owner </> [relfile|all-years.journal|]
 
 ownerParameters' :: RuntimeOptions -> TChan FlowTypes.LogMessage -> RelDir -> IO ReportParams
 ownerParameters' opts ch owner = do
-  let ownerJournal = baseDir opts </> [reldir|import|] </> owner </> [relfile|all-years.journal|]
+  let ownerJournal = ownerIndex opts owner
       reportsDir = baseDir opts </> [reldir|reports|] </> owner
   years <- includeYears ch ownerJournal
   let directives = directivesFile opts

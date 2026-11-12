@@ -65,6 +65,20 @@ How to keep this ChangeLog
   paths in your home folder as `~`. The commands they suggest write the home
   folder as `"$HOME/…"`, so you can still paste them. `status --json` keeps
   [full paths](https://hledger-flow.github.io/reference/status/#paths-in-your-home-folder).
+- Preparing a directory for a future owner no longer blocks reports for owners
+  who already have journals.
+- `status` marks journals outdated when a shared CSV rules file changes,
+  including rules included by another rules file.
+- Owners, banks and accounts named `import` are supported when importing
+  statements and checking their status from the ledger root.
+- Ctrl-C during hledger version detection now cancels `status`, including
+  `status --json`.
+- Failed imports and reports finish writing their diagnostics before exiting,
+  including when output is piped to a slow reader.
+- `import --start-year` now rejects mistyped years such as `24` before
+  importing. Use four digits or `current`.
+- `status --rules-template` gives every CSV column a distinct field name,
+  even when the header already contains a name such as `Reference_2`.
 - Local Linux x86-64 Snap builds now package the hledger-flow version named
   on the snap and verify the executable before installation.
 

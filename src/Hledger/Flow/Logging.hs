@@ -4,6 +4,7 @@ module Hledger.Flow.Logging where
 
 import Control.Concurrent.Async (wait, withAsync)
 import Control.Concurrent.STM
+import Control.Exception (SomeAsyncException, SomeException, fromException, throwIO, tryJust)
 import Control.Monad (when)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
@@ -41,10 +42,16 @@ withConsoleLogging :: (TChan LogMessage -> IO a) -> IO a
 withConsoleLogging action = do
   ch <- newTChanIO
   withAsync (consoleChannelLoop ch) $ \logger -> do
-    result <- action ch
+    result <- tryJust synchronous (action ch)
     terminateChannelLoop ch
     wait logger
-    return result
+    either throwIO return result
+  where
+    -- Drain queued diagnostics on failure, but allow Ctrl-C to cancel a blocked writer.
+    synchronous :: SomeException -> Maybe SomeException
+    synchronous err = case fromException err :: Maybe SomeAsyncException of
+      Just _ -> Nothing
+      Nothing -> Just err
 
 consoleChannelLoop :: TChan LogMessage -> IO ()
 consoleChannelLoop ch = do

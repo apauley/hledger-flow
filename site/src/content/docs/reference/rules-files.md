@@ -23,6 +23,12 @@ specific account, or even for all accounts of the same specific bank.
 - A rules file for all statements of a specific account:
   `import/spouse/bigbankinc/savings/bigbankinc-savings.rules`
 
+To generate a starter `fields` line from a statement's header, run
+`hledger-flow status --rules-template john/mybank/savings` with your account
+path. Each column gets a unique field name in header order. For example,
+`Reference_2,Reference,Reference` becomes `reference_2, reference, reference_3`
+because the first column already uses `reference_2`.
+
 ## Statement-specific Rules Files
 
 What happens if some of the statements for an account has a different

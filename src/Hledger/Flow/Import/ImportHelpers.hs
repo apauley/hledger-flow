@@ -15,11 +15,11 @@ import Control.Monad.Catch (MonadThrow)
 import System.FilePath (dropTrailingPathSeparator)
 import qualified System.FilePath as FilePath
 
-extractImportDirs :: Path b File -> Either T.Text (ImportDirs b)
-extractImportDirs inputFile = walk (parent inputFile) []
+extractImportDirs :: Path b Dir -> Path b File -> Either T.Text (ImportDirs b)
+extractImportDirs root inputFile = walk (parent inputFile) []
   where
     walk dir children
-      | dirname dir == [reldir|import|] = case children of
+      | dir == root = case children of
           [owner, bank, account, state, year] -> Right (ImportDirs dir owner bank account state year)
           _ -> malformed
       | parent dir == dir = malformed

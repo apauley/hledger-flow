@@ -10,3 +10,18 @@ rm "${TMPDIR:-/tmp}/err.$$"
 hledger-flow status --help | grep -q 'hledger-flow status --rules-template me/mybank/checking'
 hledger-flow import --help | grep -q 'hledger-flow import --start-year current'
 $ sh -eu
+
+# Reject mistyped start years before import can write any journals.
+<
+. ./test/shell/setup.sh
+for year in 24 +024 12345 0x10 ' 2024' ２０２４; do
+    if hledger-flow import --start-year "$year" > out 2> err; then exit 1; fi
+    grep -q -- '--start-year' err
+    test ! -e "$journal"
+done
+flow import --start-year 2017
+test ! -e "$journal"
+flow import --start-year 2016
+test -s "$journal"
+flow import --start-year current
+$ sh -eu

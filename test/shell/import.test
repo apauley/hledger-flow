@@ -233,3 +233,15 @@ hledger -f all-years.journal balance expenses --flat --no-total --format '%(acco
 $ sh -eu
 expenses:bank-fees 3
 expenses:card-fees 5
+
+# Owner, bank and account may each use the literal directory name import.
+<
+. ./test/shell/setup.sh
+mkdir -p import/import/import
+mv "$account" import/import/import/import
+mv import/bogart.rules import/import.rules
+flow import
+hledger -f all-years.journal descriptions
+hledger-flow status --json | jq -e '.accounts[0].account == "import/import/import" and .accounts[0].journalsOutdated == 0' > /dev/null
+$ sh -eu
+Monthly bank fee
