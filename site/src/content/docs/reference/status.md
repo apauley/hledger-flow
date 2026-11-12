@@ -35,6 +35,11 @@ the file, marked `(found by hledger)` when you didn't give it.
   `account`, `statements`, `years`, `rulesFile` (the account's default rules
   file, or `null`), `rulesCandidates`, `statementsWithoutRules`,
   `hooks` (`preprocess`, `construct`), `journalsMissing`, `journalsOutdated`.
+  For journals generated with CSV rules, status follows each `include`
+  relative to the rules file that contains it, including nested includes.
+  A shared rules file newer than the journal counts toward `journalsOutdated`.
+  A missing or unreadable include, or an include cycle, also marks the journal
+  outdated. Fix the rules if needed, then run `hledger-flow import`.
 - `misplaced`: `{"path", "suggestion"}` for statement files import will never read.
 - `manualJournals`: the number of `_manual_` journals.
 - `allYearsJournalExists`: whether import has created `all-years.journal`.

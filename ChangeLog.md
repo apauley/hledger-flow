@@ -67,6 +67,8 @@ How to keep this ChangeLog
   [full paths](https://hledger-flow.github.io/reference/status/#paths-in-your-home-folder).
 - Preparing a directory for a future owner no longer blocks reports for owners
   who already have journals.
+- `status` marks journals outdated when a shared CSV rules file changes,
+  including rules included by another rules file.
 - Local Linux x86-64 Snap builds now package the hledger-flow version named
   on the snap and verify the executable before installation.
 
