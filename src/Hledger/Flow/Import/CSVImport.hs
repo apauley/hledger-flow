@@ -135,7 +135,15 @@ preprocessIfNeeded opts ch dirs src csvOut = do
   case hook of
     Nothing -> do
       cached <- verboseTestFile opts ch csvOut
-      return (if cached then csvOut else src, False)
+      if cached
+        then do
+          stale <- needsRegeneration src csvOut
+          when stale $ ioError $ userError $
+            relativeToBase opts (Path.toFilePath src) ++ " is newer than its cached CSV "
+              ++ relativeToBase opts (Path.toFilePath csvOut) ++ ". Restore the preprocess hook to regenerate it,"
+              ++ " or move the cached CSV aside to use the source directly. Then run hledger-flow import."
+          return (csvOut, False)
+        else return (src, False)
     Just script -> do
       regenerate <- if onlyNewFiles opts then needsRegeneration src csvOut else return True
       if regenerate

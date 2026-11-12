@@ -33,6 +33,9 @@ How to keep this ChangeLog
 - Statements with brackets in their filenames, such as `April [1].csv`, now
   import exactly once alongside `April 1.csv`. If your ledger was affected,
   run `hledger-flow import` to regenerate the journals.
+- If a statement is newer than its cached CSV and its preprocess hook is
+  missing, import stops and names both files. Restore the hook or move the
+  cached CSV aside, then run `hledger-flow import`.
 - The documentation has moved to the [project site](https://hledger-flow.github.io/).
   Links in hledger-flow's messages and `--help` now open the relevant section
   there. Links printed by earlier versions still lead to the right page.

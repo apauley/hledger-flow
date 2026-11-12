@@ -37,6 +37,16 @@ After the script succeeds, hledger-flow moves its output into
 `2-preprocessed/<year>/`. If the script fails, any previous CSV stays in
 place. A failed first run leaves no cached CSV.
 
+If you remove the hook, import can still use its cached CSV while that CSV
+is at least as new as the original statement. If you then correct the
+statement and it is newer than the cache, both a full import and
+`import --new-files-only` stop and name the two files.
+
+Restore the hook if the statement still needs conversion. If the original
+statement is ready to import directly, move the named CSV out of
+`2-preprocessed/<year>/`. In either case, run `hledger-flow import` to
+rebuild the journal.
+
 ## Stability
 
 Stable and tested.
