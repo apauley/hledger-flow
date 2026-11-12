@@ -71,7 +71,7 @@ limitRunDir bd absRunDir = do
       | otherwise = dir
 
 relativeToBase :: (HasBaseDir o) => o -> FilePath -> FilePath
-relativeToBase opts = relativeToBase' $ pathToTurtle (baseDir opts)
+relativeToBase opts = relativeToBase' $ toFilePath (baseDir opts)
 
 relativeToBase' :: FilePath -> FilePath -> FilePath
 relativeToBase' bd p
@@ -84,7 +84,7 @@ relativeToBase' bd p
            in if FilePath.takeFileName suffix == ".." then suffix ++ "/" else suffix
 
 turtleBaseDir :: (HasBaseDir o) => o -> FilePath
-turtleBaseDir opts = pathToTurtle $ baseDir opts
+turtleBaseDir opts = toFilePath $ baseDir opts
 
 effectiveRunDir :: BaseDir -> RunDir -> AbsDir
 effectiveRunDir bd rd = do

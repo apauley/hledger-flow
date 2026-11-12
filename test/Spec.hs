@@ -11,6 +11,7 @@ import qualified Common.Unit
 import qualified Environment.Unit
 import qualified ImportHelpers.Integration
 import qualified Init.Integration
+import qualified PathHelpers.Compatibility
 import qualified PathHelpers.Unit
 import qualified ReleaseNotice.Unit
 import qualified RulesTemplate.Unit
@@ -26,6 +27,7 @@ tests =
     [ Common.Unit.tests,
       Common.Integration.tests,
       PathHelpers.Unit.tests,
+      PathHelpers.Compatibility.tests,
       BaseDir.Integration.tests,
       ImportHelpers.Integration.tests,
       CSVImport.Unit.tests,

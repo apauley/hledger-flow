@@ -18,7 +18,7 @@ import qualified GHC.IO.Handle.FD as H
 import Hledger.Flow.DateTime (timeAction)
 import Hledger.Flow.BaseDir (relativeToBase)
 import Hledger.Flow.Logging
-import Hledger.Flow.PathHelpers (AbsFile, RelDir, fromTurtleAbsFile, literalGlobPath, withStagedOutput)
+import Hledger.Flow.PathHelpers (AbsFile, RelDir, literalGlobPath, withStagedOutput)
 import qualified Hledger.Flow.RuntimeOptions as RT
 import Hledger.Flow.Types
 import Path (reldir, relfile, toFilePath)
@@ -39,7 +39,7 @@ hledgerPathFromOption :: Maybe FilePath -> IO AbsFile
 hledgerPathFromOption pathOption = do
   case pathOption of
     Just h -> do
-      hlAbs <- fromTurtleAbsFile h
+      hlAbs <- Path.parseAbsFile h
       isOnDisk <- Path.doesFileExist hlAbs
       if isOnDisk
         then return hlAbs

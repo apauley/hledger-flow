@@ -53,17 +53,21 @@ instance Show PathException where
 
 instance Exception PathException
 
+{-# DEPRECATED fromTurtleAbsFile "Use Path.parseAbsFile instead." #-}
 fromTurtleAbsFile :: (MonadThrow m) => FilePath -> m AbsFile
-fromTurtleAbsFile turtlePath = Path.parseAbsFile turtlePath
+fromTurtleAbsFile = Path.parseAbsFile
 
+{-# DEPRECATED fromTurtleRelFile "Use Path.parseRelFile instead." #-}
 fromTurtleRelFile :: (MonadThrow m) => FilePath -> m RelFile
-fromTurtleRelFile turtlePath = Path.parseRelFile turtlePath
+fromTurtleRelFile = Path.parseRelFile
 
+{-# DEPRECATED fromTurtleAbsDir "Use Path.parseAbsDir instead." #-}
 fromTurtleAbsDir :: (MonadThrow m) => FilePath -> m AbsDir
-fromTurtleAbsDir turtlePath = Path.parseAbsDir turtlePath
+fromTurtleAbsDir = Path.parseAbsDir
 
+{-# DEPRECATED fromTurtleRelDir "Use Path.parseRelDir instead." #-}
 fromTurtleRelDir :: (MonadThrow m) => FilePath -> m RelDir
-fromTurtleRelDir turtlePath = Path.parseRelDir turtlePath
+fromTurtleRelDir = Path.parseRelDir
 
 turtleToAbsDir :: (MonadIO m, MonadThrow m) => AbsDir -> FilePath -> m AbsDir
 turtleToAbsDir baseDir p = do
@@ -72,6 +76,7 @@ turtleToAbsDir baseDir p = do
     then Path.resolveDir baseDir p
     else throwM $ InvalidTurtleDir p
 
+{-# DEPRECATED pathToTurtle "Use Path.toFilePath instead." #-}
 pathToTurtle :: Path.Path b t -> FilePath
 pathToTurtle = Path.toFilePath
 
