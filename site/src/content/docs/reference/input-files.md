@@ -54,6 +54,15 @@ brackets literally and includes each statement's transactions once. If an
 earlier import duplicated one statement and omitted the other, run
 `hledger-flow import` to rebuild the journals from both files.
 
+## Incremental imports
+
+`hledger-flow import --new-files-only` compares each generated file's
+modification time with its source. It rebuilds a preprocessed CSV or journal
+when its source is newer, even if the two timestamps differ by only a
+fraction of a second. Equal timestamps count as up to date. If you replace
+a statement and preserve its timestamp, run `hledger-flow import` to force
+a rebuild.
+
 ## Generated Files and Recovery
 
 `1-in` is the source of truth. Both `2-preprocessed` and `3-journal`

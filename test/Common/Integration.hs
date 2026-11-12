@@ -143,7 +143,7 @@ testNeedsRegeneration = TestCase $ withTestDir $ \base -> do
   PathIO.setModificationTime target older
   check "equal timestamps" False
   PathIO.setModificationTime source (addUTCTime 0.75 older)
-  check "subsecond differences alone do not trigger regeneration" False
+  check "source newer within the same second" True
 
   PathIO.removeFile source
   check "source timestamp no longer available" True

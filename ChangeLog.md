@@ -39,6 +39,8 @@ How to keep this ChangeLog
 - `status` now tells you whether you're running the latest hledger-flow, and
   [how to upgrade](https://hledger-flow.github.io/reference/release-notices/)
   if not. Set `HLEDGER_FLOW_NO_UPDATE_CHECK=1` to turn the check off.
+- `import --new-files-only` now picks up statement corrections made later in
+  the same second as the previous output.
 - Local Linux x86-64 Snap builds now package the hledger-flow version named
   on the snap and verify the executable before installation.
 

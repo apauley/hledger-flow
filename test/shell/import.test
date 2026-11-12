@@ -205,3 +205,19 @@ if grep -q 'Begin Error' err; then exit 1; fi
 # hledger versions word the skip error differently. Forward its diagnostic once.
 test "$(grep -Ec '^hledger(\.exe)?: Error:' err)" -eq 1
 $ sh -eu
+
+# A correction later in the same second is imported by --new-files-only.
+<
+. ./test/shell/setup.sh
+flow import
+printf '%s\n' '2016-03-01,Corrected fee,-9' > "$inbox/march.csv"
+python3 - "$journal" "$inbox/march.csv" <<'PY'
+import os, sys
+for path, millis in zip(sys.argv[1:], (100, 900)):
+    timestamp = 1456790400 * 10**9 + millis * 10**6
+    os.utime(path, ns=(timestamp, timestamp))
+PY
+flow import --new-files-only
+hledger -f all-years.journal descriptions
+$ sh -eu
+Corrected fee

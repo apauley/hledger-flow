@@ -19,7 +19,6 @@ import Data.Ord (comparing)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import qualified Data.Text.Read as T
-import Data.Time.Clock.POSIX (utcTimeToPOSIXSeconds)
 import qualified GHC.IO.Handle.FD as H
 import Hledger.Flow.DateTime (timeAction)
 import Hledger.Flow.BaseDir (relativeToBase)
@@ -289,17 +288,9 @@ verboseTestFile opts ch p = do
 
 needsRegeneration :: AbsFile -> AbsFile -> IO Bool
 needsRegeneration src target = do
-  targetExists <- Path.doesFileExist target
-  if targetExists
-    then do
-      -- Either file can disappear after the existence check.
-      newer <- tryIOError $ (>) <$> modificationSecond src <*> modificationSecond target
-      return (either (const True) id newer)
-    else return True
-  where
-    -- Preserve the whole-second comparison used by --new-files-only.
-    modificationSecond :: AbsFile -> IO Integer
-    modificationSecond file = floor . utcTimeToPOSIXSeconds <$> Path.getModificationTime file
+  -- A missing or unreadable timestamp also requires regeneration.
+  newer <- tryIOError $ (>) <$> Path.getModificationTime src <*> Path.getModificationTime target
+  return (either (const True) id newer)
 
 groupPairs' :: (Eq a, Ord a) => [(a, b)] -> [(a, [b])]
 groupPairs' =
