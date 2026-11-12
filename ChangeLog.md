@@ -75,6 +75,8 @@ How to keep this ChangeLog
   `status --json`.
 - Failed imports and reports finish writing their diagnostics before exiting,
   including when output is piped to a slow reader.
+- `import --start-year` now rejects mistyped years such as `24` before
+  importing. Use four digits or `current`.
 - Local Linux x86-64 Snap builds now package the hledger-flow version named
   on the snap and verify the executable before installation.
 

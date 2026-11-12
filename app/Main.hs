@@ -5,7 +5,7 @@
 
 module Main where
 
-import Parsing ( parseStartYear )
+import Parsing ( StartYear, resolveStartYear, startYearReader )
 import Path ( reldir )
 
 import Prelude hiding (putStrLn)
@@ -63,7 +63,7 @@ import System.IO.CodePage (withCP65001)
 #endif
 
 data ImportParams = ImportParams { maybeImportBaseDir :: Maybe FilePath
-                                 , importStartYear :: Maybe String
+                                 , importStartYear :: Maybe StartYear
                                  , onlyNewFiles :: Bool
                                  } deriving (Show)
 
@@ -197,7 +197,7 @@ determineBatchSize mainParams' =
 
 toRuntimeOptionsImport :: MainParams -> ImportParams -> IO RT.RuntimeOptions
 toRuntimeOptionsImport mainParams' subParams' = do
-  startYear <- parseStartYear $ importStartYear subParams'
+  startYear <- traverse resolveStartYear (importStartYear subParams')
   let maybeBD = maybeImportBaseDir subParams' :: Maybe FilePath
   (bd, runDir) <- determineBaseDir maybeBD
   hli <- hledgerInfoFromPath $ hledgerPathOpt mainParams'
@@ -297,7 +297,7 @@ verboseParser = MainParams
 subcommandParserImport :: Parser ImportParams
 subcommandParserImport = ImportParams
   <$> optional (argument str (metavar "DIR" <> help "The directory to import. Use the base directory for a full import or a sub-directory for a partial import. Defaults to the current directory."))
-  <*> optional (option str (long "start-year" <> metavar "YEAR" <> help "Import only from the specified year and onwards, ignoring previous years. By default all available years are imported. Valid values include a 4-digit year or 'current' for the current year"))
+  <*> optional (option startYearReader (long "start-year" <> metavar "YEAR" <> help "Import only from the specified year and onwards, ignoring previous years. By default all available years are imported. Use a 4-digit year or 'current' for the current year"))
   <*> switch (long "new-files-only" <> help "Skip regenerating output files that are at least as new as their source. This applies to preprocessed files and hledger journal files.")
 
 subcommandParserReport :: Parser ReportParams

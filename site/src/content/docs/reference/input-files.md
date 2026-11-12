@@ -128,8 +128,10 @@ whole account for statement conversion and orphan cleanup. For example,
 running it from `import/john/mybank/savings/1-in/2018/archive/` selects
 `savings` across its statement years and leaves sibling accounts' statements
 and generated journals alone. The same scope applies when you pass that
-directory to `import`. Use `--start-year` to limit conversion and cleanup
-to that year and later years, including years whose last input was removed.
+directory to `import`. Use `--start-year 2024` to limit conversion and cleanup
+to 2024 and later years, including years whose last input was removed. Supply
+exactly four ASCII digits or use `--start-year current` for the current year.
+An invalid value such as `24` stops the command before import begins.
 
 Include files are rebuilt globally
 from source-backed journals and supported manual files, so orphaned

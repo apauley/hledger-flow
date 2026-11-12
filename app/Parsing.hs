@@ -1,25 +1,20 @@
-{-# LANGUAGE PartialTypeSignatures #-}
+module Parsing (StartYear, startYearReader, resolveStartYear) where
 
-module Parsing (
-    parseStartYear
-  ) where
-
-import Hledger.Flow.DateTime
-import System.Exit (die)
+import Data.Char (isDigit)
+import Hledger.Flow.DateTime (currentYear)
+import Options.Applicative (ReadM, eitherReader)
 import Text.Read (readMaybe)
 
-parseStartYear :: Maybe String -> IO (Maybe Integer)
-parseStartYear y = case y of
-  Nothing -> return Nothing
-  Just "current"  -> Just <$> currentYear
-  Just s -> Just <$> parseInt s "Unable to parse year"
+data StartYear = CurrentYear | FromYear Integer deriving (Show)
 
-parseInt :: String -> String -> IO Integer
-parseInt s errPrefix = case safeParseInt s errPrefix of
-  Right i -> return i
-  Left err -> die err
+startYearReader :: ReadM StartYear
+startYearReader = eitherReader parse
+  where
+    parse "current" = Right CurrentYear
+    parse s
+      | length s == 4, all isDigit s, Just year <- readMaybe s = Right (FromYear year)
+      | otherwise = Left "expected a four-digit year or 'current'"
 
-safeParseInt :: String -> String -> Either String Integer
-safeParseInt s errPrefix = case (readMaybe s :: Maybe Integer) of
-  Nothing -> Left $ errPrefix ++ " " ++ s
-  Just i  -> Right i
+resolveStartYear :: StartYear -> IO Integer
+resolveStartYear CurrentYear = currentYear
+resolveStartYear (FromYear year) = return year
