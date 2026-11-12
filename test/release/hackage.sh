@@ -11,6 +11,8 @@ cd "$work"
 export REAL_GIT
 REAL_GIT=$(command -v git)
 export PATH="$work/mock:$PATH" HACKAGE_MODE=local
+export REAL_PYTHON
+REAL_PYTHON=$(command -v python3)
 unset HACKAGE_TOKEN
 mkdir hledger-flow-1.2.3 assets
 printf 'reviewed bytes' > hledger-flow-1.2.3/marker
@@ -92,9 +94,15 @@ case "$1 $2" in
   *) exit 1 ;;
 esac
 MOCK
+cat > mock/python3 <<'MOCK'
+#!/usr/bin/env bash
+if [[ -n ${HACKAGE_TOKEN:-} && "$*" == *"$HACKAGE_TOKEN"* ]]; then echo "token in python arguments" >&2; exit 1; fi
+exec "$REAL_PYTHON" "$@"
+MOCK
 cat > mock/curl <<'MOCK'
 #!/usr/bin/env bash
 set -eu
+if [[ -n ${HACKAGE_TOKEN:-} && "$*" == *"$HACKAGE_TOKEN"* ]]; then echo "token in curl arguments" >&2; exit 1; fi
 # The Python helper returns response bodies followed by a newline and HTTP code.
 if [[ "$*" == *--write-out* ]]; then
   url=${!#}; url=${url%%\?*}; code=200
@@ -102,9 +110,18 @@ if [[ "$*" == *--write-out* ]]; then
   [[ "$url" != */candidate/* ]] || docs=candidate-docs
   if [[ "$*" == *--config* ]]; then
     auth=$(cat)
-    test "$auth" = 'header = "Authorization: X-ApiKey dummy"'
+    test "$auth" = "header = \"Authorization: X-ApiKey ${HACKAGE_TOKEN:-dummy}\""
   fi
   case "$url" in
+    https://hackage.haskell.org/packages/candidates/|https://hackage.haskell.org/packages/)
+      test -n "$HACKAGE_TOKEN"
+      test -n "$auth"
+      [[ "$*" == *"Accept: text/plain"* ]]
+      while [ "$1" != --form ]; do shift; done
+      [[ "$2" == package=@* ]]
+      if [[ "$url" == */packages/ ]]; then cp "${2#package=@}" public; echo publish >> uploads
+      else cp "${2#package=@}" candidate; echo candidate >> uploads; fi
+      code=200 ;;
     */docs.tar)
       if [ -e "$docs" ]; then cat "$docs"; else code=404; fi ;;
     */docs)
@@ -150,6 +167,7 @@ MOCK
 cat > mock/cabal <<'MOCK'
 #!/usr/bin/env bash
 set -eu
+if [[ -n ${HACKAGE_TOKEN:-} && "$*" == *"$HACKAGE_TOKEN"* ]]; then echo "token in cabal arguments" >&2; exit 1; fi
 case "$1" in
   haddock)
     test "$(cat marker)" = 'reviewed bytes'
@@ -177,9 +195,6 @@ REPORT
   user-config) printf '%s\n' "${CABAL_FIELDS:-}" ;;
   check) ;;
   sdist) mkdir -p dist-newstyle/sdist; cp source dist-newstyle/sdist/hledger-flow-1.2.3.tar.gz ;;
-  upload)
-    if [[ "$*" == *--publish* ]]; then cp "${!#}" public; echo publish >> uploads
-    else cp "${!#}" candidate; echo candidate >> uploads; fi ;;
   *) exit 1 ;;
 esac
 MOCK
@@ -189,6 +204,7 @@ fails() { if "$@" > result 2>&1; then echo "unexpected success: $*" >&2; exit 1;
 fails bin/release hackage
 grep -q 'configure a token' result
 export CABAL_FIELDS='+ token: dummy'
+export HACKAGE_TOKEN=test-only-source-upload-token
 touch block-build
 fails bin/release hackage
 test -e assets/hledger-flow-1.2.3-docs.tar.gz
@@ -212,6 +228,7 @@ cp asset candidate
 touch interrupt-public-docs
 fails bin/release publish
 cmp asset public
+unset HACKAGE_TOKEN
 test ! -e report
 rm interrupt-public-docs
 touch interrupt-report
