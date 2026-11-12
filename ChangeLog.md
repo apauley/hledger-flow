@@ -30,6 +30,9 @@ How to keep this ChangeLog
 
 ## Unreleased
 
+- Local Linux x86-64 Snap builds now package the hledger-flow version named
+  on the snap and verify the executable before installation.
+
 ## 0.19.0
 
 - New `init` and `status` commands. `status` lists your accounts, flags

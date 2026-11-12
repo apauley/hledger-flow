@@ -16,4 +16,5 @@ case "$(uname -s)" in
     *) stack exec -- shelltest --timeout=120 test/shell ;;
 esac
 bash test/release/hackage.sh
+bash test/release/snap.sh
 stack install hledger-flow

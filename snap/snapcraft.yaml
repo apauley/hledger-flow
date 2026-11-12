@@ -38,15 +38,16 @@ parts:
       "$CRAFT_PROJECT_DIR/bin/release" changelog-section "$(craftctl get version)" > "$docs/release-notes.md"
 
   hledger-flow:
-    plugin: dump
-    source: https://github.com/apauley/hledger-flow/releases/download/v0.18.0/hledger-flow-linux-x64.tar.gz
-    source-checksum: sha256/bc7317bc8afe74cab4601724411bf74ba6d8688bfcb0fc86e0d754baa5a3fb2d
+    plugin: nil
+    source: https://github.com/apauley/hledger-flow/releases/download/v$SNAPCRAFT_PROJECT_VERSION/hledger-flow-linux-x64.tar.gz
+    source-type: file
+    build-packages: [curl, jq, perl]
+    override-build: |
+      version="$(craftctl get version)"
+      curl -fsSL "https://api.github.com/repos/apauley/hledger-flow/releases/tags/v$version" -o release.json
+      bash "$CRAFT_PROJECT_DIR/snap/local/install-hledger-flow" "$version" release.json "$CRAFT_PART_INSTALL"
     stage-packages:
       - libgmp10
-    organize:
-      hledger-flow: bin/hledger-flow
-    stage:
-      - -QUICKSTART.md
 
   hledger:
     plugin: dump

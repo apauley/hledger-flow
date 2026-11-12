@@ -2,8 +2,11 @@
 
 On x86-64 Linux, this recipe packages the published hledger-flow executable
 with the CLI from the [hledger 1.99.6 pre-release](https://github.com/hledgerorg/hledger/releases/tag/1.99.6).
-Snapcraft verifies both release archives by SHA-256. The bundled hledger
-is available to hledger-flow and its account scripts.
+The build downloads the Linux x64 archive for the version in `snapcraft.yaml`
+from the matching public GitHub release. It verifies the archive against the
+immutable release’s SHA-256 and checks the executable’s `--version`.
+Snapcraft verifies the bundled hledger against the checksum in the recipe.
+The bundled hledger is available to hledger-flow and its account scripts.
 
 You need snap installed, Snapcraft, and a configured Snapcraft build
 provider. If you do not already have Snapcraft, install it with:

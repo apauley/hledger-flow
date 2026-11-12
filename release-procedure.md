@@ -145,6 +145,10 @@ renames `## Unreleased` in `ChangeLog.md` to `## <version>`, sets `version:` in
 `package.yaml` and `snap/snapcraft.yaml`, regenerates `hledger-flow.cabal`, runs the ChangeLog check from
 step 5, and commits all four files as `Bump version to <version>`.
 
+The Snap recipe uses its version to select the Linux x64 archive from the
+matching GitHub tag. CI checks that the Snap and package versions agree and
+tests rejection of an older executable and a corrupt archive.
+
 Add a fresh `## Unreleased` heading to `ChangeLog.md` after the release.
 
 ## Step 4: Push and wait for CI
@@ -288,6 +292,11 @@ the command checks CI for the current tap revision. If tap CI fails, inspect the
 linked run, fix the tap or rerun the failed jobs, then retry publication.
 The command refuses to downgrade a newer formula. Hackage and GitHub releases
 remain public while a tap update is being retried.
+
+Once the GitHub release is public, the [local Snap build](snap/README.md)
+can use its immutable Linux x64 asset. During packaging it checks the archive
+against GitHub’s SHA-256 and runs the binary to verify its version. Each
+release uses the same recipe without a separate checksum update.
 
 ### Hackage recovery and local fallback
 

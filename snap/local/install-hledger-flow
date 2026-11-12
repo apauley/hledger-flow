@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+version=$1
+metadata=$2
+destination=$3
+archive=hledger-flow-linux-x64.tar.gz
+
+digest=$(jq -er --arg tag "v$version" --arg name "$archive" '
+  select(.tag_name == $tag and .immutable == true)
+  | .assets[] | select(.name == $name) | .digest
+  | capture("^sha256:(?<hash>[0-9a-f]{64})$").hash
+' "$metadata") || { echo "Missing verified SHA-256 for $archive on immutable release v$version" >&2; exit 1; }
+printf '%s  %s\n' "$digest" "$archive" | shasum -a 256 -c -
+tar -xzf "$archive" hledger-flow
+actual=$(./hledger-flow --version)
+case "$actual" in
+  "hledger-flow $version "*) ;;
+  *) echo "Expected hledger-flow $version in $archive, got: $actual" >&2; exit 1 ;;
+esac
+mkdir -p "$destination/bin"
+install -m755 hledger-flow "$destination/bin/hledger-flow"

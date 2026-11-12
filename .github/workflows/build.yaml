@@ -110,9 +110,11 @@ jobs:
       - name: Stack Setup
         run: stack setup --interleaved-output
 
-      - name: Test Hackage and Homebrew release steps offline
+      - name: Test Hackage, Homebrew and Snap release steps offline
         if: matrix.os == 'ubuntu-latest'
-        run: bash test/release/hackage.sh
+        run: |
+          bash test/release/hackage.sh
+          bash test/release/snap.sh
 
       - name: Build and Test
         run: stack test --interleaved-output && stack install
