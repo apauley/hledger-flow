@@ -215,7 +215,7 @@ hledgerImport opts ch importDirs csvFile journalOut = do
       let cmdLabel = "importing '" <> T.pack relCSV <> "' using rules file '" <> T.pack relRules <> "'"
       let hints = ["Check the skip, fields and separator lines in " <> T.pack relRules <> ".", "Docs: " <> docURL RulesFiles]
       ((_, stdOut, _), _) <- timeAndExitOnErr' opts ch cmdLabel [] hints dummyLogger channelErr (hledger, args, Nothing)
-      T.writeFile (Path.toFilePath journalOut) stdOut
+      writeGeneratedText (Path.toFilePath journalOut) stdOut
     Nothing ->
       do
         let candidatesTxt = T.intercalate "\n" $ map (T.pack . relativeToBase opts . Path.toFilePath) candidates

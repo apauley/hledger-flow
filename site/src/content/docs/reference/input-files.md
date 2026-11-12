@@ -70,6 +70,12 @@ contain generated output; user-supplied files in those stages are not
 supported. Use [manually managed journals](/reference/manual-journals/)
 for transactions without an input statement.
 
+Import writes each rules-generated journal and each changed include file to
+a temporary file before replacing the destination. If a write fails, the
+previous complete copy of that file stays in place. Correct the cause of
+the failure and rerun the same import. Files written successfully earlier
+in the run may already contain the new data.
+
 After all selected inputs have been converted successfully, import moves
 orphaned `2-preprocessed/YYYY/*.csv` and `3-journal/YYYY/*.journal` files
 into the account's `.trash` directory. A corresponding input must be in

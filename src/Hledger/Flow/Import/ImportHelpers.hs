@@ -9,22 +9,11 @@ import qualified Data.Text as T
 import Hledger.Flow.Common (groupValuesBy)
 import Hledger.Flow.DocHelpers (DocLink (..), docURL)
 import Hledger.Flow.Import.Types (ImportDirs (..), InputFileBundle)
-import Hledger.Flow.PathHelpers (AbsFile, RelDir, RelFile, pathSize)
+import Hledger.Flow.PathHelpers (AbsFile, RelDir, RelFile, pathSize, withStagedOutput)
 import Path
-import qualified Path.IO as PathIO
 import Control.Monad.Catch (MonadThrow)
 import System.FilePath (dropTrailingPathSeparator)
 import qualified System.FilePath as FilePath
-
--- Keep hook output on the destination filesystem and publish it only on success.
-withStagedOutput :: AbsFile -> (AbsFile -> IO ()) -> IO ()
-withStagedOutput target writeOutput = do
-  let dir = parent target
-  PathIO.createDirIfMissing True dir
-  PathIO.withTempDir dir ".hledger-flow-" $ \tmp -> do
-    let staged = tmp </> filename target
-    writeOutput staged
-    PathIO.renameFile staged target
 
 extractImportDirs :: Path b File -> Either T.Text (ImportDirs b)
 extractImportDirs inputFile = walk (parent inputFile) []

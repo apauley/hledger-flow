@@ -23,7 +23,7 @@ import qualified GHC.IO.Handle.FD as H
 import Hledger.Flow.DateTime (timeAction)
 import Hledger.Flow.BaseDir (relativeToBase)
 import Hledger.Flow.Logging
-import Hledger.Flow.PathHelpers (AbsFile, RelDir, fromTurtleAbsFile, literalGlobPath)
+import Hledger.Flow.PathHelpers (AbsFile, RelDir, fromTurtleAbsFile, literalGlobPath, withStagedOutput)
 import qualified Hledger.Flow.RuntimeOptions as RT
 import Hledger.Flow.Types
 import Path (reldir, relfile, toFilePath)
@@ -357,7 +357,19 @@ writeFiles' fileMap = do
 writeTextMap :: Map.Map FilePath T.Text -> IO ()
 writeTextMap files = forM_ (Map.toList files) $ \(path, contents) -> do
   changed <- textFileNeedsUpdate path contents
-  when changed $ T.writeFile path contents
+  when changed $ writeGeneratedText path contents
+
+writeGeneratedText :: FilePath -> T.Text -> IO ()
+writeGeneratedText path contents = do
+  -- Replace the file behind an existing symlink and keep its permissions.
+  target <- Directory.canonicalizePath path >>= Path.parseAbsFile
+  withStagedOutput target $ \staged -> do
+    let tmp = toFilePath staged
+    exists <- Path.doesFileExist target
+    when exists $ do
+      T.writeFile tmp ""
+      Directory.copyPermissions (toFilePath target) tmp
+    T.writeFile tmp contents
 
 textFileNeedsUpdate :: FilePath -> T.Text -> IO Bool
 textFileNeedsUpdate path contents = either (const True) (/= contents) <$> tryIOError (T.readFile path)
