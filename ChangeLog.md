@@ -39,6 +39,9 @@ How to keep this ChangeLog
 - The documentation has moved to the [project site](https://hledger-flow.github.io/).
   Links in hledger-flow's messages and `--help` now open the relevant section
   there. Links printed by earlier versions still lead to the right page.
+  The [tutorial](https://hledger-flow.github.io/tutorial/) is rewritten for
+  this release. It shows how far hledger's rules files go before you need a
+  preprocess or construct script.
 - `status` now tells you whether you're running the latest hledger-flow, and
   [how to upgrade](https://hledger-flow.github.io/reference/release-notices/)
   if not. Set `HLEDGER_FLOW_NO_UPDATE_CHECK=1` to turn the check off.

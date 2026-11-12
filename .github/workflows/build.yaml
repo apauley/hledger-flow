@@ -134,13 +134,20 @@ jobs:
           # List hledger-flow shared object dependencies - should be dynamic
           ldd ~/.local/bin/hledger-flow || true
 
-      - name: Verify hledger-flow import & report scripts
-        # hledger's releases are not available for linux-arm64
-        if: ${{ steps.global-variables.outputs.platform != 'linux-arm64' }}
+      - name: Check the tutorial's output against a real run
+        # Runs every tutorial command with the hledger version the tutorial uses.
+        if: matrix.os == 'ubuntu-latest'
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          git clone --recurse-submodules https://github.com/apauley/hledger-flow-example.git "$HOME/hledger-flow-example" && \
-          ~/.local/bin/hledger-flow --verbose --show-options import "$HOME/hledger-flow-example" && \
-          ~/.local/bin/hledger-flow --verbose --show-options report "$HOME/hledger-flow-example"
+          version=$(tr -d '[:space:]' < site/scripts/tutorial/hledger-version)
+          dir="$RUNNER_TEMP/hledger-$version"
+          mkdir -p "$dir"
+          gh release download "$version" -R hledgerorg/hledger -p hledger-linux-x64.tar.gz -D "$dir"
+          tar -xzf "$dir/hledger-linux-x64.tar.gz" -C "$dir"
+          command -v tree >/dev/null || { sudo apt-get update && sudo apt-get install -y tree; }
+          HLEDGER=$(find "$dir" -type f -name hledger | head -n 1) HLEDGER_FLOW="$HOME/.local/bin/hledger-flow" \
+            bash site/scripts/tutorial/update.sh --check
 
       - name: Gather binaries
         run: |

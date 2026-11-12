@@ -1,0 +1,28 @@
+# Bogart Bank's old system adds a preamble, so keep only the rows
+# that start with 5 and a transaction number.
+if ! ^5,[0-9]
+  skip
+
+fields record, number, datum, desc1, desc2, desc3, amount, balance, fees
+
+# Dates look like '01 Mrt': Afrikaans month names, no year.
+# Start with the raw date, then let the table below rewrite it.
+date %datum
+
+if,date
+%datum '(..) Jan',2016-01-\1
+%datum '(..) Feb',2016-02-\1
+%datum '(..) Mrt',2016-03-\1
+%datum '(..) Apr',2016-04-\1
+%datum '(..) Mei',2016-05-\1
+%datum '(..) Jun',2016-06-\1
+%datum '(..) Jul',2016-07-\1
+%datum '(..) Aug',2016-08-\1
+%datum '(..) Sep',2016-09-\1
+%datum '(..) Okt',2016-10-\1
+%datum '(..) Nov',2016-11-\1
+%datum '(..) Des',2016-12-\1
+
+description %{replace(join(" ", %desc1, %desc2, %desc3), "^#", "")}
+currency R
+status *

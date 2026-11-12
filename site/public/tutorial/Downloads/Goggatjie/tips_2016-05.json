@@ -1,0 +1,18 @@
+{
+  "restaurant": "Grillerige Groen Goggatjie",
+  "chef": "Gawie de Groot",
+  "month": "2016-05",
+  "shifts": [
+    {"date": "2016-05-06", "service": "dinner",
+     "tips": [{"currency": "ZAR", "amount": "420.00"}, {"currency": "USD", "amount": "20.00"}]},
+    {"date": "2016-05-07", "service": "lunch",
+     "tips": [{"currency": "ZAR", "amount": "180.00"}, {"currency": "MZN", "amount": "500.00"}]},
+    {"date": "2016-05-07", "service": "dinner",
+     "tips": [{"currency": "ZAR", "amount": "610.00"}, {"currency": "USD", "amount": "10.00"},
+              {"currency": "MZN", "amount": "250.00"}]},
+    {"date": "2016-05-13", "service": "dinner",
+     "tips": [{"currency": "ZAR", "amount": "385.00"}]},
+    {"date": "2016-05-14", "service": "dinner",
+     "tips": [{"currency": "ZAR", "amount": "540.00"}, {"currency": "USD", "amount": "15.00"}]}
+  ]
+}

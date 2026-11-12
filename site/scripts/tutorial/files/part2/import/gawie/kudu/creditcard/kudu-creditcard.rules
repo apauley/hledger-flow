@@ -1,0 +1,8 @@
+skip 1
+fields date, description, amount
+
+currency R
+account1 liabilities:kudu:creditcard
+account2 expenses:unknown
+
+include ../../categories.rules

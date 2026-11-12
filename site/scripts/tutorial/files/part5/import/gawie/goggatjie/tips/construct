@@ -1,0 +1,19 @@
+#!/usr/bin/env python3
+# Turn the restaurant's monthly tip export (JSON) into hledger
+# transactions: one per shift, one posting per currency.
+import json
+import sys
+
+symbols = {"ZAR": "R"}
+
+with open(sys.argv[1]) as statement:
+    export = json.load(statement)
+
+for shift in export["shifts"]:
+    print(f"{shift['date']} * Tips, {shift['service']} shift")
+    for tip in shift["tips"]:
+        currency, amount = tip["currency"], tip["amount"]
+        money = symbols[currency] + amount if currency in symbols else f"{amount} {currency}"
+        print(f"    assets:goggatjie:tips    {money}")
+    print("    income:tips")
+    print()

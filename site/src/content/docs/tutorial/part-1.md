@@ -1,17 +1,9 @@
 ---
-title: "Part 1: The first CSV statement"
-description: Set up the directories, a preprocess script and a rules file for a first statement.
+title: "Part 1: The first statement"
+description: Start a ledger and import a tidy credit card CSV with the rules file hledger-flow drafts for it.
 ---
 
-This is the first part in a a series of step-by-step instructions.
-
-They are intended to be read in sequence. See [all parts of the tutorial](/tutorial/).
-
-## About This Document
-
-This document started out as an Emacs org-mode literate program: the output shown
-below each command was produced by running it. It is also available
-[as a slide show](https://pauley.org.za/hledger-flow/).
+This is the first part of a [five-part tutorial](/tutorial/).
 
 ## The Story of an African Chef
 
@@ -31,311 +23,228 @@ Business has been good the last few years, but Gawie wants to make sure that he'
 
 It is time for Gawie to take charge of his finances.
 
-## The First CSV Statement
+## Start a ledger
 
-Gawie followed the [build instructions](/quickstart/#build-from-source) and ended up with his very own `hledger-flow` executable.
+Gawie [installed hledger-flow](/quickstart/) and runs it to see what it
+says:
 
-Let's just run this `hledger-flow` command and see what happens…
-
-``` bash
+```bash
 hledger-flow
 ```
 
-    An hledger workflow focusing on automated statement import and classification:
-    https://github.com/apauley/hledger-flow#readme
+```text
+hledger-flow turns bank statements into hledger journals and reports.
 
-    Usage: hledger-flow ([-v|--verbose] [-H|--hledger-path HLEDGER-PATH] 
-                          [--show-options] [--batch-size SIZE] [--sequential] 
-                          (import | report) |
-                          (-V|--version))
+Commands:
+  status   Show what's in your ledger and what to do next
+  init     Start a new ledger in a folder
+  import   Turn statements into journals
+  report   Generate reports from your journals
 
-    Available options:
-      -h,--help                Show this help text
-      -v,--verbose             Print more verbose output
-      -H,--hledger-path HLEDGER-PATH
-                               The full path to an hledger executable
-      --show-options           Print the options this program will run with
-      --batch-size SIZE        Parallel processing of files are done in batches of
-                               the specified size. Default: 200. Ignored during
-                               sequential processing.
-      --sequential             Disable parallel processing
-      -V,--version             Display version information
+Run `hledger-flow --help` for options and examples.
 
-    Available commands:
-      import                   Uses hledger with your own rules and/or scripts to convert electronic statements into categorised journal files
-      report                   Generate Reports
-
-Well OK, at least it prints some helpful output.
-
-Gawie wants to import his CSV statements.
-
-Luckily the `import` subcommand has a bit of help text as well:
-
-``` bash
-hledger-flow import --help
+No hledger-flow ledger here or in any parent folder.
+Run `hledger-flow init` in an empty folder to start one.
 ```
 
-```
-Usage: hledger-flow import [DIR] [--start-year YEAR] [--new-files-only]
-  Uses hledger with your own rules and/or scripts to convert electronic statements into categorised journal files
+He makes a folder for his finances and starts a ledger in it:
 
-Available options:
-  DIR                      The directory to import. Use the base directory for a
-                           full import or a sub-directory for a partial import.
-                           Defaults to the current directory. This behaviour is
-                           changing: see --enable-future-rundir
-  --start-year YEAR        Import only from the specified year and onwards,
-                           ignoring previous years. By default all available
-                           years are imported. Valid values include a 4-digit
-                           year or 'current' for the current year
-  --new-files-only         Skip regenerating output files that are at least as
-                           new as their source. This applies to preprocessed files
-                           and hledger journal files.
-  -h,--help                Show this help text
-```
-
-Gawie starts by creating a new directory specifically for his hledger journals:
-
-``` bash
+```bash
 mkdir my-finances
+cd my-finances
+hledger-flow init
 ```
 
-Now he can point the import to his new finances directory:
+```text
+Started a ledger in ~/my-finances
 
-``` bash
-hledger-flow import ./my-finances
+Next: Put your first statement in import/<owner>/<bank>/<account>/1-in/<year>/
+      For example: import/me/mybank/checking/1-in/2026/statement.csv
+      Then check with: hledger-flow status
+      Docs: https://hledger-flow.github.io/go/input-files/
 ```
 
-Hmmm, an error:
+Every `hledger-flow` command that can tell what to do next ends with a
+`Next:` line like this one. Gawie will follow them through the whole
+tutorial.
 
-```
-hledger-flow: Unable to find an import directory at "./my-finances/" (or in any of its parent directories).
+## The first statement
 
-Have a look at the documentation for more information:
-https://github.com/apauley/hledger-flow#getting-started
-```
+Gawie starts with the easiest of his accounts: his Kudu Bank credit card.
+Kudu’s online banking exports a tidy CSV, with a header row, one row per
+transaction and dates hledger already understands:
 
-Gawie carefully interprets the error message using the skills he obtained during his years as an IT professional.
-
-He concludes that `hledger-flow` expects to find its input files in specifically named directories.
-
-Looking at the [documentation](/reference/input-files/) he sees there should be several account and bank-specific directories
-under the `import` directory.
-
-Gawie's salary is deposited into his cheque account at `Bogart Bank`, so this seems like a good account to start with:
-
-``` bash
-mkdir -p my-finances/import/gawie/bogart/cheque/1-in/2016/
-cp Downloads/Bogart/123456789_2016-03-30.csv \
-  my-finances/import/gawie/bogart/cheque/1-in/2016/
+```text
+Date,Description,Amount
+2016-03-02,PUNDA MARIA TRADING STORE,-842.50
+2016-03-04,LETABA FUEL STOP,-910.00
 ```
 
-Let's see what our tree structure looks like now:
+The `Next:` line said where statements go:
+`import/<owner>/<bank>/<account>/1-in/<year>/`. Gawie is the owner, Kudu the
+bank, and the account is his credit card:
 
-``` bash
-tree my-finances/
+```bash
+mkdir -p import/gawie/kudu/creditcard/1-in/2016
+cp ../Downloads/Kudu/creditcard_2016-03-31.csv import/gawie/kudu/creditcard/1-in/2016/
+hledger-flow status
 ```
 
-```
-my-finances/
-`-- import
-    `-- gawie
-        `-- bogart
-            `-- cheque
-                `-- 1-in
-                    `-- 2016
-                        `-- 123456789_2016-03-30.csv
+```text
+Ledger: ~/my-finances   (hledger 1.99.6-gc3a608c2b-20261101 found)
 
-6 directories, 1 file
-```
+  gawie/kudu/creditcard   1 statement (2016)   ✗ no rules file
 
-It is time to add what we have to source control.
+Next: Create import/gawie/kudu/creditcard/kudu-creditcard.rules (rules for gawie/kudu/creditcard)
+      Run: hledger-flow status --rules-template gawie/kudu/creditcard
+      Save its output as that file, then edit it.
+      Docs: https://hledger-flow.github.io/go/rules-files/
 
-``` bash
-cd my-finances/
-git init .
-git add .
-git commit -m 'Initial commit'
-cd ..
+Environment:
+  hledger-flow  0.19.0 (57a13c8), ghc 9.10, darwin aarch64
+  hledger       ~/bin/hledger  (1.99.6-gc3a608c2b-20261101)   --hledger-path
+  hledger.conf  none                                          --hledger-conf
+  Ledger        ~/my-finances
+  Cores         18, using 18
 ```
 
-Let's try the import again:
+`status` lists each account with its statements, says what to do next, and
+ends with the versions and settings it found.
 
-``` bash
-hledger-flow import ./my-finances
+## A rules file
+
+hledger converts a CSV statement with a
+[rules file](/reference/rules-files/): a few lines saying which column is
+which and which accounts to use. `hledger-flow` can draft one from the
+statement’s header row:
+
+```bash
+hledger-flow status --rules-template gawie/kudu/creditcard
 ```
 
-```
-I couldn't find an hledger rules file while trying to import
-import/gawie/bogart/cheque/1-in/2016/123456789_2016-03-30.csv
+```text
+# Starter rules for kudu/creditcard, made by hledger-flow from the header row of
+# import/gawie/kudu/creditcard/1-in/2016/creditcard_2016-03-31.csv. Check every line, then run: hledger-flow import
+# hledger's CSV rules reference: https://hledger.org/hledger.html#csv
 
-I will happily use the first rules file I can find from any one of these 2 files:
-import/gawie/bogart/cheque/bogart-cheque.rules
-import/bogart.rules
-
-Here is a bit of documentation about rules files that you may find helpful:
-https://github.com/apauley/hledger-flow#rules-files
-```
-
-Another cryptic error.
-
-This one is caused by a missing [rules file](/reference/rules-files/).
-
-After looking through the [hledger documentation on CSV rules files](http://hledger.org/csv.html),
-Gawie concludes that the dates in Bogart Bank's CSV statement is incompatible with basic logic, reason and decency.
-
-Luckily he isn't the only one suffering at the hands of bureaucratic incompetence: someone else has already written [a script](https://github.com/apauley/fnb-csv-demoronizer) to
-fix stupid dates like those used by Bogart Bank.
-
-This looks like a job for a [preprocess script](/reference/preprocess/).
-
-Gawie adds the CSV transformation script as a submodule to his repository:
-
-``` bash
-cd my-finances/
-git submodule add https://github.com/apauley/fnb-csv-demoronizer.git
-git commit -m 'Added submodule: fnb-csv-demoronizer'
-cd ..
-```
-
-`hledger-flow` looks for a file named [preprocess](/reference/preprocess/) in the account directory.
-
-Gawie just creates a symbolic link named `preprocess`.
-This works because the downloaded script takes an input file and an output file as the first two positional arguments,
-very much as the `preprocess` script would expect.
-And luckily it ignores the other parameters that `hledger-flow` sends through.
-
-``` bash
-cd my-finances/import/gawie/bogart/cheque
-ln -s ../../../../fnb-csv-demoronizer/fnb-csv-demoronizer preprocess
-```
-
-Now when we try the import again, it still displays an error due to our missing rules file:
-
-``` bash
-hledger-flow import ./my-finances
-```
-
-```
-I couldn't find an hledger rules file while trying to import
-import/gawie/bogart/cheque/2-preprocessed/2016/123456789_2016-03-30.csv
-
-I will happily use the first rules file I can find from any one of these 2 files:
-import/gawie/bogart/cheque/bogart-cheque.rules
-import/bogart.rules
-
-Here is a bit of documentation about rules files that you may find helpful:
-https://github.com/apauley/hledger-flow#rules-files
-```
-
-This time we can see that our statement was preprocessed despite the rules file error:
-
-``` bash
-head -n 2 my-finances/import/gawie/bogart/cheque/2-preprocessed/2016/123456789_2016-03-30.csv
-```
-
-```
-"5","'Nommer'","'Datum'","'Beskrywing1'","'Beskrywing2'","'Beskrywing3'","'Bedrag'","'Saldo'","'Opgeloopte Koste'"
-"5","1","2016-03-01","#Monthly Bank Fee","","","-500.00","40000.00",""
-```
-
-Time for another git checkpoint.
-
-``` bash
-cd my-finances/
-git add .
-git commit -m 'The preprocessed CSV now has dates we can work with!'
-cd ..
-```
-
-Now that we have sane dates in a CSV file, let's try to create a [rules file](http://hledger.org/manual.html#csv-rules):
-
-``` hledger
 skip 1
+fields date, description, amount
 
-fields _, _, date, desc1, desc2, desc3, amount, balance, _
+# Make the date format match your statement, e.g. %d/%m/%Y
+# date-format %Y-%m-%d
+
+# Separate debit and credit columns? Name them amount-out and amount-in
+# in the fields line instead of amount.
+
+account1 assets:kudu:creditcard
+account2 expenses:unknown
+```
+
+The draft is nearly right. `skip 1` skips the header row, and the `fields`
+line already names the date, description and amount columns. The dates are
+in hledger’s own format, so there’s no `date-format` to set.
+
+Gawie makes two changes. A credit card is money he owes, so `account1` is a
+liability. And the amounts are in rand, so he adds `currency R`. He saves
+the result as `import/gawie/kudu/creditcard/kudu-creditcard.rules`:
+
+```hledger title="import/gawie/kudu/creditcard/kudu-creditcard.rules"
+skip 1
+fields date, description, amount
 
 currency R
-status *
-
-account1 Assets:Current:Gawie:Bogart:Cheque
-description %desc1/%desc2/%desc3
+account1 liabilities:kudu:creditcard
+account2 expenses:unknown
 ```
 
-Gawie saves this file as `my-finances/import/gawie/bogart/cheque/bogart-cheque.rules`.
+## Import
 
-Time for another git checkpoint.
-
-``` bash
-cd my-finances/
-git add .
-git commit -m 'A CSV rules file'
-cd ..
+```bash
+hledger-flow import
 ```
 
-This time the import is successful, and we see a number of newly generated files:
+```text
+Imported 1 statement for gawie/kudu/creditcard.
 
-``` bash
-hledger-flow import ./my-finances
-tree my-finances
+Next: Point LEDGER_FILE at this ledger so hledger finds it
+      Run: export LEDGER_FILE="$HOME/my-finances/all-years.journal"
+      Docs: https://hledger-flow.github.io/go/set-ledger-file/
 ```
 
+That was it. Here’s what the import made:
+
+```bash
+tree
 ```
-Wrote include files for 1 journals in 0.003716s
-Imported 1/1 journals in 0.101596s
-my-finances
+
+```text
+.
 |-- all-years.journal
-|-- fnb-csv-demoronizer
-|   |-- README.org
-|   `-- fnb-csv-demoronizer
 `-- import
     |-- 2016-include.journal
     |-- all-years.journal
     `-- gawie
         |-- 2016-include.journal
         |-- all-years.journal
-        `-- bogart
+        `-- kudu
             |-- 2016-include.journal
             |-- all-years.journal
-            `-- cheque
+            `-- creditcard
                 |-- 1-in
                 |   `-- 2016
-                |       `-- 123456789_2016-03-30.csv
-                |-- 2-preprocessed
-                |   `-- 2016
-                |       `-- 123456789_2016-03-30.csv
+                |       `-- creditcard_2016-03-31.csv
                 |-- 2016-include.journal
                 |-- 3-journal
                 |   `-- 2016
-                |       `-- 123456789_2016-03-30.journal
+                |       `-- creditcard_2016-03-31.journal
                 |-- all-years.journal
-                |-- bogart-cheque.rules
-                `-- preprocess -> ../../../../fnb-csv-demoronizer/fnb-csv-demoronizer
+                `-- kudu-creditcard.rules
 
-11 directories, 16 files
+9 directories, 12 files
 ```
 
-Bogart Bank's CSV file has been transformed into an `hledger` journal file.
+The statement became an hledger journal in `3-journal/2016/`:
 
-This is the first transaction in the file:
-
-``` bash
-head -n 3 my-finances/import/gawie/bogart/cheque/3-journal/2016/123456789_2016-03-30.journal
+```bash
+head -n 7 import/gawie/kudu/creditcard/3-journal/2016/creditcard_2016-03-31.journal
 ```
 
-```
-2016-03-01 * #Monthly Bank Fee//
-    Assets:Current:Gawie:Bogart:Cheque        R-500.00 = R40000.00
-    expenses:unknown                           R500.00
-```
+```hledger
+2016-03-02 PUNDA MARIA TRADING STORE
+    liabilities:kudu:creditcard                R-842.50
+    expenses:unknown                            R842.50
 
-A final checkpoint and we're done with part 1.
-
-``` bash
-cd my-finances/
-git add .
-git commit -m 'My first imported journal'
-cd ..
+2016-03-04 LETABA FUEL STOP
+    liabilities:kudu:creditcard                R-910.00
+    expenses:unknown                            R910.00
 ```
 
-The story continues with [part 2](/tutorial/part-2/).
+The `*-include.journal` and `all-years.journal` files tie every journal
+together, so the top-level `all-years.journal` holds the whole ledger.
+`hledger-flow` regenerates them on every import; don’t edit them.
+
+## Ask hledger
+
+Gawie runs the line the `Next:` line suggested. To keep `LEDGER_FILE` for
+future sessions, he also adds it to his shell profile.
+
+```bash
+export LEDGER_FILE="$HOME/my-finances/all-years.journal"
+hledger balance
+```
+
+```text
+            R1745.60  expenses:unknown
+           R-1745.60  liabilities:kudu:creditcard
+--------------------
+                   0  
+```
+
+Gawie owes Kudu Bank R1745.60, and every rand of it went to
+`expenses:unknown`. That’s the job for [part 2](/tutorial/part-2/).
+
+:::tip
+Put the ledger under version control: `git init` once, then commit after
+each import. When a rules change goes wrong, `git diff` shows exactly which
+transactions moved.
+:::

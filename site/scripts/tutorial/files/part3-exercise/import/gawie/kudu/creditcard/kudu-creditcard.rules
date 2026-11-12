@@ -1,0 +1,9 @@
+skip 1
+fields date, description, amount
+
+description %{capitalize(%description)}
+currency R
+account1 liabilities:kudu:creditcard
+account2 expenses:unknown
+
+include ../../categories.rules
