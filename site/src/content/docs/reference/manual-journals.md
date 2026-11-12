@@ -14,7 +14,16 @@ and `_manual_/YYYY/post-import.journal` during import. You can place
 Either file establishes that year's include files, even when there are no
 statements for that year or no statements anywhere in the ledger.
 
-You can enter your own transactions manually into these files.
+Put a transaction shared by the whole household in a root journal such as
+`import/_manual_/2019/post-import.journal`. After `hledger-flow import`,
+run `hledger-flow report`. The annual and monthly income statements and
+the balance sheet under `reports/all/2019/` include that transaction,
+even with a single owner or a ledger made up entirely of root manual entries.
+If an owner is named `all` (in any letter case), the aggregate reports go
+under `reports/_all_/2019/`.
+
+For a transaction that belongs to John alone, use `import/john/_manual_/2019/`
+so it appears in both John's reports and the aggregate reports.
 
 You can run `hledger-flow import --verbose` to see exactly which files
 are being looked for.

@@ -52,8 +52,10 @@ For Hackage, create a dedicated token on the maintainer's
 [Hackage account management page](https://hackage.haskell.org/users/account-management).
 Store it as the repository Actions secret `HACKAGE_TOKEN`, for example with
 `gh secret set HACKAGE_TOKEN -R apauley/hledger-flow` (paste at the prompt).
-Candidate upload and Hackage publication use that secret on a GitHub-hosted runner. Local Cabal
-credentials are optional.
+For both candidate upload and publication, the workflow supplies the secret
+to the release helper through the runner's environment. The helper passes
+the authorization header to curl on standard input, keeping the token out
+of process arguments. Local Cabal credentials are optional.
 
 ### Project site deploy key
 
@@ -332,9 +334,10 @@ wait for any running job for that tag to finish and run one publisher at a time.
 Use a clean checkout of the pushed tag with the workflow's GHC on `PATH` and
 prefix the command with `HACKAGE_MODE=local`. The same review and checksum
 checks apply. To select this route for the whole release, export
-`HACKAGE_MODE=local` before `precheck`. The local check accepts a Hackage
-token or a username together with a password or password command in the active
-Cabal configuration. The default precheck looks for the repository secret by
+`HACKAGE_MODE=local` before `precheck`. The local helper uses `HACKAGE_TOKEN`
+from the environment if set. Otherwise it reads the token or the username
+and password (or password command) from the active Cabal configuration.
+The default precheck looks for the repository secret by
 name. The candidate upload confirms that Hackage still accepts the credential.
 
 Download counts: `bin/show-release-downloads`.

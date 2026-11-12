@@ -350,11 +350,6 @@ dispatch_hackage() {
   gh run watch "$run_id" -R "$REPO" --exit-status
 }
 
-hackage_upload() {
-  if [ -n "${HACKAGE_TOKEN:-}" ]; then set -- --token="$HACKAGE_TOKEN" "$@"; fi
-  cabal upload "$@" </dev/null
-}
-
 candidate_url() { echo "https://hackage.haskell.org/package/hledger-flow-$(version)/candidate"; }
 package_url() { echo "https://hackage.haskell.org/package/hledger-flow-$(version)"; }
 
@@ -450,7 +445,7 @@ cmd_hackage() (
   if [ "$state" = absent ]; then
     gh release download "v$(version)" -R "$REPO" --pattern "$name" --dir "$dir"
     check_digest "$dir/$name" "$digest"
-    hackage_upload "$dir/$name"
+    python3 bin/hackage-artifacts.py upload-candidate "hledger-flow-$(version)" "$dir/$name"
     curl -fsSL "$url" -o "$dir/candidate"
   fi
   check_digest "$dir/candidate" "$digest"
@@ -480,7 +475,7 @@ cmd_hackage_publish() (
     if [ "$state" = absent ]; then
       curl -fsSL "$(candidate_url)/$name" -o "$dir/$name"
       check_digest "$dir/$name" "$digest"
-      hackage_upload --publish "$dir/$name"
+      python3 bin/hackage-artifacts.py upload-publish "hledger-flow-$(version)" "$dir/$name"
       curl -fsSL "$public_url" -o "$dir/$name"
       check_digest "$dir/$name" "$digest"
     fi

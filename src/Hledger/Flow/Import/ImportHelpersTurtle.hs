@@ -27,7 +27,7 @@ import Hledger.Flow.Import.ImportHelpers (groupIncludesUpTo)
 import Hledger.Flow.Import.Inventory (manualIncludeFiles, managedIncludeFiles)
 import Hledger.Flow.Import.Types
 import Hledger.Flow.Logging (logVerbose)
-import Hledger.Flow.PathHelpers (AbsDir, AbsFile)
+import Hledger.Flow.PathHelpers (AbsDir, AbsFile, literalGlobPath)
 import Hledger.Flow.Types
 import qualified Path
 import qualified Path.IO as PathIO
@@ -62,7 +62,7 @@ addPreamble :: Map.Map FilePath T.Text -> Map.Map FilePath T.Text
 addPreamble = Map.map (\txt -> includePreamble <> "\n" <> txt)
 
 toIncludeLine :: FilePath -> FilePath -> T.Text
-toIncludeLine base file = "include " <> T.pack (map forwardSlash (relativeToBase' base file))
+toIncludeLine base file = "include " <> T.pack (literalGlobPath (map forwardSlash (relativeToBase' base file)))
   where
     forwardSlash c = if FilePath.isPathSeparator c then '/' else c
 

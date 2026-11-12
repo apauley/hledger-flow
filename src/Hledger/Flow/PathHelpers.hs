@@ -19,6 +19,25 @@ type AbsDir = Path.Path Path.Abs Path.Dir
 
 type RelDir = Path.Path Path.Rel Path.Dir
 
+-- | Publish a complete file by renaming it on the destination filesystem.
+withStagedOutput :: AbsFile -> (AbsFile -> IO ()) -> IO ()
+withStagedOutput target writeOutput = do
+  let dir = Path.parent target
+  Path.createDirIfMissing True dir
+  Path.withTempDir dir ".hledger-flow-" $ \tmp -> do
+    let staged = tmp Path.</> Path.filename target
+    writeOutput staged
+    Path.renameFile staged target
+
+-- | Match one literal path in an hledger glob. A range of one character
+-- keeps hledger's include reader from treating the encoded spelling as a filename.
+literalGlobPath :: FilePath -> FilePath
+literalGlobPath = concatMap escape
+  where
+    escape c
+      | c `elem` ("*?[{<" :: String) = ['[', c, '-', c, ']']
+      | otherwise = [c]
+
 data PathException = MissingBaseDir AbsDir | InvalidTurtleDir FilePath
   deriving (Eq)
 

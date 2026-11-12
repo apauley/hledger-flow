@@ -69,7 +69,7 @@ generateReports' opts ch = do
           }
   let aggregateOnlyReports = reportActions opts ch [transferBalance] aggregateParams
   ownerParams <- ownerParameters opts ch owners
-  let ownerWithAggregateParams = (if length owners > 1 then [aggregateParams] else []) ++ ownerParams
+  let ownerWithAggregateParams = aggregateParams : ownerParams
   let sharedOptions = (if prettyReports opts then ["--pretty-tables"] else []) ++ ["--depth", "2"]
   let ownerWithAggregateReports = List.concat $ fmap (reportActions opts ch [incomeStatement sharedOptions, incomeMonthlyStatement sharedOptions, balanceSheet sharedOptions]) ownerWithAggregateParams
   let ownerOnlyReports = List.concat $ fmap (reportActions opts ch [accountList, unknownTransactions]) ownerParams
@@ -118,7 +118,7 @@ generateReport opts ch journals year reportsDir fileName args successCheck = do
   let relativeJournals = map (relativeToBase opts) journals
   let relativeOutputFile = relativeToBase opts (toFilePath outputFile)
   let confArgs = hledgerConfArgs opts
-  let fileArgs = concatMap (\file -> ["--file", T.pack file])
+  let fileArgs = concatMap (\file -> ["--file", hledgerFileArgument (hledgerInfo opts) file])
   let periodArgs = ["--period", T.pack (show year)]
   let reportArgs = confArgs ++ fileArgs journals ++ periodArgs ++ args
   let reportDisplayArgs = confArgs ++ fileArgs relativeJournals ++ periodArgs ++ args

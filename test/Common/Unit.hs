@@ -9,12 +9,13 @@ import Hledger.Flow.Common
 import Data.Aeson (eitherDecodeFileStrict)
 import Hledger.Flow.DocHelpers (DocLink (..), docSlug, docURL)
 import Hledger.Flow.RuntimeOptions (RuntimeOptions (hledgerConf))
+import Hledger.Flow.Types (HledgerInfo (hlVersion))
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import Path ((</>), reldir)
 import Test.HUnit
-import TestHelpers (defaultOpts, testRoot)
+import TestHelpers (defaultHlInfo, defaultOpts, testRoot)
 import qualified System.FilePath as FilePath
 
 testDocURL :: Test
@@ -59,6 +60,15 @@ testHledgerConfArgs =
         let optsWithConf = optsWithoutConf {hledgerConf = Just "/tmp/hledger.conf"}
         assertEqual "Configured hledger config should produce --conf args" ["--conf", "/tmp/hledger.conf"] (hledgerConfArgs optsWithConf)
     )
+
+testHledgerFileArgument :: Test
+testHledgerFileArgument = TestList
+  [ "1.51 reads a literal filename" ~: argument "hledger 1.51.2, mac-aarch64" ~?= "April [1].csv",
+    "1.52 expands file globs" ~: argument "hledger 1.52, mac-aarch64" ~?= "April [[-[]1].csv",
+    "development versions expand file globs" ~: argument "hledger 1.99-g123abc" ~?= "April [[-[]1].csv"
+  ]
+  where
+    argument version = hledgerFileArgument (defaultHlInfo {hlVersion = version}) "April [1].csv"
 
 testRelativeToBase :: Test
 testRelativeToBase =
@@ -128,7 +138,7 @@ testGroupValuesBy =
     )
 
 tests :: Test
-tests = TestList [testDocURL, testDocLinksHaveRedirects, testShowCmdArgs, testHledgerConfArgs, testRelativeToBase, testExtractDigits, testGroupValuesBy, testTrimToolOutput]
+tests = TestList [testDocURL, testDocLinksHaveRedirects, testShowCmdArgs, testHledgerConfArgs, testHledgerFileArgument, testRelativeToBase, testExtractDigits, testGroupValuesBy, testTrimToolOutput]
 
 testTrimToolOutput :: Test
 testTrimToolOutput =

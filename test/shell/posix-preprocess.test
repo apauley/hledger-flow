@@ -137,3 +137,28 @@ grep -q '^stderr complete$' "$finance/flow.log"
 hledger -f "$journal" descriptions
 $ sh -eu
 Monthly bank fee
+
+# After removing a hook, a stale cache cannot hide a corrected source.
+<
+. ./test/shell/setup.sh
+cached="$account/2-preprocessed/2016/march.csv"
+printf '%s\n' '#!/bin/sh' 'cp "$1" "$2"' > "$account/preprocess"
+chmod +x "$account/preprocess"
+flow import
+rm "$account/preprocess"
+printf '%s\n' '2016-03-01,Corrected fee,-9' > "$inbox/march.csv"
+touch -t 201603010000 "$cached"
+touch -t 201603020000 "$inbox/march.csv"
+cp "$journal" original.journal
+for flag in '' '--new-files-only'; do
+    if hledger-flow import $flag > failure.log 2>&1; then exit 1; fi
+    grep -F "$inbox/march.csv" failure.log > /dev/null
+    grep -F "$cached" failure.log > /dev/null
+    grep -F 'Restore the preprocess hook' failure.log > /dev/null
+    cmp original.journal "$journal"
+done
+rm "$cached"
+flow import
+hledger -f all-years.journal descriptions
+$ sh -eu
+Corrected fee

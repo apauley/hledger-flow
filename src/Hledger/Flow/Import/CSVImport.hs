@@ -135,7 +135,15 @@ preprocessIfNeeded opts ch dirs src csvOut = do
   case hook of
     Nothing -> do
       cached <- verboseTestFile opts ch csvOut
-      return (if cached then csvOut else src, False)
+      if cached
+        then do
+          stale <- needsRegeneration src csvOut
+          when stale $ ioError $ userError $
+            relativeToBase opts (Path.toFilePath src) ++ " is newer than its cached CSV "
+              ++ relativeToBase opts (Path.toFilePath csvOut) ++ ". Restore the preprocess hook to regenerate it,"
+              ++ " or move the cached CSV aside to use the source directly. Then run hledger-flow import."
+          return (csvOut, False)
+        else return (src, False)
     Just script -> do
       regenerate <- if onlyNewFiles opts then needsRegeneration src csvOut else return True
       if regenerate
@@ -199,14 +207,15 @@ hledgerImport opts ch importDirs csvFile journalOut = do
       let hledger = T.pack (Path.toFilePath (FlowTypes.hlPath (hledgerInfo opts)))
       let directives = directivesFile opts
       directivesExist <- PathIO.doesFileExist directives
-      let directivesArgs = if directivesExist then ["--file", T.pack (Path.toFilePath directives)] else []
-      let csvArgs = ["--file", T.pack csvSrc, "--rules-file", T.pack (Path.toFilePath rf)]
+      let fileArgument = hledgerFileArgument (hledgerInfo opts)
+      let directivesArgs = if directivesExist then ["--file", fileArgument (Path.toFilePath directives)] else []
+      let csvArgs = ["--file", fileArgument csvSrc, "--rules-file", T.pack (Path.toFilePath rf)]
       let args = hledgerConfArgs opts ++ ["print", "--explicit"] ++ directivesArgs ++ csvArgs
 
       let cmdLabel = "importing '" <> T.pack relCSV <> "' using rules file '" <> T.pack relRules <> "'"
       let hints = ["Check the skip, fields and separator lines in " <> T.pack relRules <> ".", "Docs: " <> docURL RulesFiles]
       ((_, stdOut, _), _) <- timeAndExitOnErr' opts ch cmdLabel [] hints dummyLogger channelErr (hledger, args, Nothing)
-      T.writeFile (Path.toFilePath journalOut) stdOut
+      writeGeneratedText (Path.toFilePath journalOut) stdOut
     Nothing ->
       do
         let candidatesTxt = T.intercalate "\n" $ map (T.pack . relativeToBase opts . Path.toFilePath) candidates

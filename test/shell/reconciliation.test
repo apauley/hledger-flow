@@ -225,3 +225,18 @@ hledger-flow status --json | jq -e '.next.command == "hledger-flow report"' > /d
 hledger -f all-years.journal descriptions | tr -d '\r' | grep -x 'Cash only'
 $ sh -eu
 Cash only
+
+# Importing below a year rebuilds only that account and leaves sibling orphans in place.
+<
+. ./test/shell/setup.sh
+sibling=import/gawie/bogart/savings
+mkdir -p "$inbox/archive" "$sibling/1-in/2016" "$sibling/3-journal/2016"
+cp "$inbox/march.csv" "$sibling/1-in/2016/savings.csv"
+printf '; previous savings journal\n' > "$sibling/3-journal/2016/retired.journal"
+(cd "$inbox/archive" && flow import)
+hledger -f "$journal" descriptions
+test ! -e "$sibling/3-journal/2016/savings.journal"
+test -f "$sibling/3-journal/2016/retired.journal"
+test ! -e "$sibling/.trash"
+$ sh -eu
+Monthly bank fee

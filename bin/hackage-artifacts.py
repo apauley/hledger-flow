@@ -109,6 +109,14 @@ def main(stage, package, *paths):
     if stage == "report":
         executable_report(package, *map(Path, paths))
         return
+    if stage in ("upload-candidate", "upload-publish"):
+        endpoint = "packages/candidates/" if stage == "upload-candidate" else "packages/"
+        warnings = request("https://hackage.haskell.org/" + endpoint,
+                           "--header", "Accept: text/plain", "--form", "package=@" + paths[0],
+                           allowed=(200, 204))
+        if warnings:
+            print(warnings.decode(errors="replace"))
+        return
     url = "https://hackage.haskell.org/package/" + package
     if stage == "badges":
         verify_badges(url)

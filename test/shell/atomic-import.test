@@ -1,0 +1,31 @@
+# A partial write must leave the previous rules-generated journal and include intact.
+<
+. ./test/shell/setup.sh
+case "$(uname -s)" in MINGW*|MSYS*) exit 0 ;; esac
+limited_import() {
+    python3 - "$@" > /dev/null 2>&1 <<'PY'
+import os, resource, signal, sys
+signal.signal(signal.SIGXFSZ, signal.SIG_IGN)
+resource.setrlimit(resource.RLIMIT_FSIZE, (64, 64))
+os.execvp("hledger-flow", ["hledger-flow", "import", *sys.argv[1:]])
+PY
+}
+flow import
+cp "$journal" original.journal
+chmod 600 "$journal"
+printf '%s\n' '2016-03-01,Corrected fee,-9' > "$inbox/march.csv"
+if limited_import; then exit 1; fi
+cmp original.journal "$journal"
+flow import
+hledger -f "$journal" descriptions | grep -Fxq 'Corrected fee'
+python3 -c 'import os, stat, sys; assert stat.S_IMODE(os.stat(sys.argv[1]).st_mode) == 0o600' "$journal"
+mv all-years.journal linked.journal
+ln -s linked.journal all-years.journal
+cp all-years.journal original.include
+touch directives.journal
+if limited_import --new-files-only; then exit 1; fi
+cmp original.include all-years.journal
+flow import --new-files-only
+test -L all-years.journal
+grep -Fxq 'include directives.journal' all-years.journal
+$ sh -eu

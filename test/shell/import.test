@@ -9,6 +9,21 @@ Monthly bank fee
 assets:bank:cheque -5
 expenses:bank-fees 5
 
+# A bracketed filename and its glob match each contribute exactly one transaction.
+<
+. ./test/shell/setup.sh
+rm "$inbox/march.csv"
+printf '%s\n' '2016-04-01,Bracketed fee,-5' > "$inbox/April [1].csv"
+printf '%s\n' '2016-04-02,Plain fee,-20' > "$inbox/April 1.csv"
+printf '%s\n' '2016-04-03,Bracket range fee,-7' > "$inbox/April [12].csv"
+flow import
+hledger -f all-years.journal print > transactions
+awk '/^[0-9]/ {sub(/\r$/, ""); print}' transactions
+$ sh -eu
+2016-04-01 Bracketed fee
+2016-04-02 Plain fee
+2016-04-03 Bracket range fee
+
 # Sequential import writes the same journal and keeps command diagnostics on stderr.
 <
 . ./test/shell/setup.sh
@@ -190,3 +205,31 @@ if grep -q 'Begin Error' err; then exit 1; fi
 # hledger versions word the skip error differently. Forward its diagnostic once.
 test "$(grep -Ec '^hledger(\.exe)?: Error:' err)" -eq 1
 $ sh -eu
+
+# A correction later in the same second is imported by --new-files-only.
+<
+. ./test/shell/setup.sh
+flow import
+printf '%s\n' '2016-03-01,Corrected fee,-9' > "$inbox/march.csv"
+python3 - "$journal" "$inbox/march.csv" <<'PY'
+import os, sys
+for path, millis in zip(sys.argv[1:], (100, 900)):
+    timestamp = 1456790400 * 10**9 + millis * 10**6
+    os.utime(path, ns=(timestamp, timestamp))
+PY
+flow import --new-files-only
+hledger -f all-years.journal descriptions
+$ sh -eu
+Corrected fee
+
+# A dotted date before the override still selects the statement-specific rules.
+<
+. ./test/shell/setup.sh
+mv "$inbox/march.csv" "$inbox/2024.04_rfo-card.csv"
+printf '%s\n' '2016-04-02,Ordinary fee,-3' > "$inbox/2024.04_rfo-card_summary.csv"
+sed 's/bank-fees/card-fees/' import/bogart.rules > "$account/rfo-card.rules"
+flow import
+hledger -f all-years.journal balance expenses --flat --no-total --format '%(account) %(total)'
+$ sh -eu
+expenses:bank-fees 3
+expenses:card-fees 5

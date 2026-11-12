@@ -48,12 +48,33 @@ Under `1-in` you'll create a directory for the year, e.g. `2018`, and
 within that you can copy the statements for that year:
 `import/john/mybank/savings/1-in/2018/123456789_2018-06-30.csv`
 
+Keep the filenames your bank provides. For example, `April [1].csv`
+and `April 1.csv` can sit in the same year directory. Import treats the
+brackets literally and includes each statement's transactions once. If an
+earlier import duplicated one statement and omitted the other, run
+`hledger-flow import` to rebuild the journals from both files.
+
+## Incremental imports
+
+`hledger-flow import --new-files-only` compares each generated file's
+modification time with its source. It rebuilds a preprocessed CSV or journal
+when its source is newer, even if the two timestamps differ by only a
+fraction of a second. Equal timestamps count as up to date. If you replace
+a statement and preserve its timestamp, run `hledger-flow import` to force
+a rebuild.
+
 ## Generated Files and Recovery
 
 `1-in` is the source of truth. Both `2-preprocessed` and `3-journal`
 contain generated output; user-supplied files in those stages are not
 supported. Use [manually managed journals](/reference/manual-journals/)
 for transactions without an input statement.
+
+Import writes each rules-generated journal and each changed include file to
+a temporary file before replacing the destination. If a write fails, the
+previous complete copy of that file stays in place. Correct the cause of
+the failure and rerun the same import. Files written successfully earlier
+in the run may already contain the new data.
 
 After all selected inputs have been converted successfully, import moves
 orphaned `2-preprocessed/YYYY/*.csv` and `3-journal/YYYY/*.journal` files
@@ -88,8 +109,15 @@ process leaves this lock behind, the error explains how to remove the
 empty lock directory once no import is running and retry. A failed run may
 have moved some outputs already; they remain recoverable in `.trash`.
 
-Moves respect the selected import directory and `--start-year`, including
-when the last input has been removed. Include files are rebuilt globally
+Running `hledger-flow import` from anywhere below an account selects the
+whole account for statement conversion and orphan cleanup. For example,
+running it from `import/john/mybank/savings/1-in/2018/archive/` selects
+`savings` across its statement years and leaves sibling accounts' statements
+and generated journals alone. The same scope applies when you pass that
+directory to `import`. Use `--start-year` to limit conversion and cleanup
+to that year and later years, including years whose last input was removed.
+
+Include files are rebuilt globally
 from source-backed journals and supported manual files, so orphaned
 journals outside the cleanup scope are also excluded from the ledger.
 Obsolete generated year and account indexes are rewritten as empty ledgers.

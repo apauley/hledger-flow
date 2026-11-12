@@ -54,26 +54,21 @@ findBaseDir dir = do
     then return (Just dir)
     else if parent dir == dir then return Nothing else findBaseDir (parent dir)
 
--- | We have unexpected behaviour when the runDir is deeper than the account directory,
--- e.g. "1-in" or the year directory. Specifically, include files are generated incorrectly
--- and some journals are written entirely outside of the baseDir.
--- limitRunDir can possibly removed if the above is fixed.
+-- | A directory below import/owner/bank/account selects that account.
 limitRunDir :: (MonadIO m, MonadThrow m) => BaseDir -> AbsDir -> m RunDir
 limitRunDir bd absRunDir = do
   rel <- makeRelative bd absRunDir
   let runDirDepth = pathSize rel
-  let fun = composeN (runDirDepth - 4) parent
-  let newRunDir = fun rel
+  let newRunDir = limitDepth runDirDepth rel
   when (runDirDepth > 4) $ do
     let msg = T.pack $ "Changing runDir from " ++ show rel ++ " to " ++ show newRunDir :: T.Text
     liftIO $ T.putStrLn msg
   return newRunDir
 
-composeN :: Int -> (a -> a) -> (a -> a)
-composeN n f
-  | n < 1 = id
-  | n == 1 = f
-  | otherwise = composeN (n - 1) (f . f)
+  where
+    limitDepth depth dir
+      | depth > 4 = limitDepth (depth - 1) (parent dir)
+      | otherwise = dir
 
 relativeToBase :: (HasBaseDir o) => o -> FilePath -> FilePath
 relativeToBase opts = relativeToBase' $ pathToTurtle (baseDir opts)

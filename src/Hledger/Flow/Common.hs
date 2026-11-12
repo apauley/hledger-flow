@@ -19,12 +19,11 @@ import Data.Ord (comparing)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import qualified Data.Text.Read as T
-import Data.Time.Clock.POSIX (utcTimeToPOSIXSeconds)
 import qualified GHC.IO.Handle.FD as H
 import Hledger.Flow.DateTime (timeAction)
 import Hledger.Flow.BaseDir (relativeToBase)
 import Hledger.Flow.Logging
-import Hledger.Flow.PathHelpers (AbsFile, RelDir, fromTurtleAbsFile)
+import Hledger.Flow.PathHelpers (AbsFile, RelDir, fromTurtleAbsFile, literalGlobPath, withStagedOutput)
 import qualified Hledger.Flow.RuntimeOptions as RT
 import Hledger.Flow.Types
 import Path (reldir, relfile, toFilePath)
@@ -96,6 +95,21 @@ hledgerInfoFromPath pathOption = do
   hlp <- hledgerPathFromOption pathOption
   hlv <- hledgerVersionFromPath hlp
   return $ HledgerInfo hlp hlv
+
+-- | @"hledger 1.50.2, mac-aarch64"@ → @"1.50.2"@.
+hledgerVersionNumber :: T.Text -> T.Text
+hledgerVersionNumber txt = case dropWhile (== "hledger") (T.words txt) of
+  v : _ -> T.dropWhileEnd (== ',') v
+  [] -> ""
+
+-- | hledger started expanding globs in --file arguments in 1.52.
+hledgerFileArgument :: HledgerInfo -> FilePath -> T.Text
+hledgerFileArgument info path
+  | Right (major, rest) <- T.decimal (hledgerVersionNumber (hlVersion info)),
+    Just suffix <- T.stripPrefix "." rest,
+    Right (minor, _) <- T.decimal suffix,
+    (major, minor) >= ((1, 52) :: (Int, Int)) = T.pack (literalGlobPath path)
+  | otherwise = T.pack path
 
 hledgerConfArgs :: RT.RuntimeOptions -> [T.Text]
 hledgerConfArgs opts =
@@ -274,17 +288,9 @@ verboseTestFile opts ch p = do
 
 needsRegeneration :: AbsFile -> AbsFile -> IO Bool
 needsRegeneration src target = do
-  targetExists <- Path.doesFileExist target
-  if targetExists
-    then do
-      -- Either file can disappear after the existence check.
-      newer <- tryIOError $ (>) <$> modificationSecond src <*> modificationSecond target
-      return (either (const True) id newer)
-    else return True
-  where
-    -- Preserve the whole-second comparison used by --new-files-only.
-    modificationSecond :: AbsFile -> IO Integer
-    modificationSecond file = floor . utcTimeToPOSIXSeconds <$> Path.getModificationTime file
+  -- A missing or unreadable timestamp also requires regeneration.
+  newer <- tryIOError $ (>) <$> Path.getModificationTime src <*> Path.getModificationTime target
+  return (either (const True) id newer)
 
 groupPairs' :: (Eq a, Ord a) => [(a, b)] -> [(a, [b])]
 groupPairs' =
@@ -351,7 +357,19 @@ writeFiles' fileMap = do
 writeTextMap :: Map.Map FilePath T.Text -> IO ()
 writeTextMap files = forM_ (Map.toList files) $ \(path, contents) -> do
   changed <- textFileNeedsUpdate path contents
-  when changed $ T.writeFile path contents
+  when changed $ writeGeneratedText path contents
+
+writeGeneratedText :: FilePath -> T.Text -> IO ()
+writeGeneratedText path contents = do
+  -- Replace the file behind an existing symlink and keep its permissions.
+  target <- Directory.canonicalizePath path >>= Path.parseAbsFile
+  withStagedOutput target $ \staged -> do
+    let tmp = toFilePath staged
+    exists <- Path.doesFileExist target
+    when exists $ do
+      T.writeFile tmp ""
+      Directory.copyPermissions (toFilePath target) tmp
+    T.writeFile tmp contents
 
 textFileNeedsUpdate :: FilePath -> T.Text -> IO Bool
 textFileNeedsUpdate path contents = either (const True) (/= contents) <$> tryIOError (T.readFile path)

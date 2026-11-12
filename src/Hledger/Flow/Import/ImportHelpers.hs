@@ -9,22 +9,11 @@ import qualified Data.Text as T
 import Hledger.Flow.Common (groupValuesBy)
 import Hledger.Flow.DocHelpers (DocLink (..), docURL)
 import Hledger.Flow.Import.Types (ImportDirs (..), InputFileBundle)
-import Hledger.Flow.PathHelpers (AbsFile, RelDir, RelFile, pathSize)
+import Hledger.Flow.PathHelpers (AbsFile, RelDir, RelFile, pathSize, withStagedOutput)
 import Path
-import qualified Path.IO as PathIO
 import Control.Monad.Catch (MonadThrow)
-import System.FilePath (dropExtensions, dropTrailingPathSeparator)
+import System.FilePath (dropTrailingPathSeparator)
 import qualified System.FilePath as FilePath
-
--- Keep hook output on the destination filesystem and publish it only on success.
-withStagedOutput :: AbsFile -> (AbsFile -> IO ()) -> IO ()
-withStagedOutput target writeOutput = do
-  let dir = parent target
-  PathIO.createDirIfMissing True dir
-  PathIO.withTempDir dir ".hledger-flow-" $ \tmp -> do
-    let staged = tmp </> filename target
-    writeOutput staged
-    PathIO.renameFile staged target
 
 extractImportDirs :: Path b File -> Either T.Text (ImportDirs b)
 extractImportDirs inputFile = walk (parent inputFile) []
@@ -74,15 +63,18 @@ includeFileName f = do
 -- then the account's default rules files.
 rulesFileCandidates :: AbsFile -> ImportDirs Abs -> IO [AbsFile]
 rulesFileCandidates csv dirs = do
-  overrides <- if "rfo" `T.isPrefixOf` suffix
+  overrides <- if "rfo" `T.isPrefixOf` suffix && not (T.any (== '_') suffix)
     then do
       name <- rulesName [suffix]
       return [dir </> name | dir <- [accountDir dirs, bankDir dirs, importDir dirs]]
     else return []
   (overrides ++) <$> defaultRulesCandidates dirs
   where
-    stem = dropExtensions (toFilePath (filename csv))
-    suffix = snd (T.breakOnEnd "_" (T.pack stem))
+    statementName = T.pack (toFilePath (filename csv))
+    -- The statement prefix may contain dots, and the override may have several extensions.
+    suffix = T.takeWhile (/= '.') $ case T.breakOnEnd "_rfo" statementName of
+      ("", _) -> statementName
+      (_, rest) -> "rfo" <> rest
 
 -- | The account-level and bank-level rules files, in lookup order.
 defaultRulesCandidates :: ImportDirs Abs -> IO [AbsFile]

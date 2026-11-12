@@ -30,12 +30,29 @@ How to keep this ChangeLog
 
 ## Unreleased
 
+- Statements with brackets in their filenames, such as `April [1].csv`, now
+  import exactly once alongside `April 1.csv`. If your ledger was affected,
+  run `hledger-flow import` to regenerate the journals.
+- If a statement is newer than its cached CSV and its preprocess hook is
+  missing, import stops and names both files. Restore the hook or move the
+  cached CSV aside, then run `hledger-flow import`.
 - The documentation has moved to the [project site](https://hledger-flow.github.io/).
   Links in hledger-flow's messages and `--help` now open the relevant section
   there. Links printed by earlier versions still lead to the right page.
 - `status` now tells you whether you're running the latest hledger-flow, and
   [how to upgrade](https://hledger-flow.github.io/reference/release-notices/)
   if not. Set `HLEDGER_FLOW_NO_UPDATE_CHECK=1` to turn the check off.
+- `report` now writes aggregate annual and monthly income statements and
+  balance sheets even with zero or one owner, so they include root-level
+  manual entries. Owner reports still show only that owner's entries.
+- `import --new-files-only` now picks up statement corrections made later in
+  the same second as the previous output.
+- Dots before a statement's rules override are now supported. For example,
+  `2024.04_rfo-card.csv` uses `rfo-card.rules` when present.
+- If writing a rules-generated journal or an include file fails, the previous
+  complete copy stays in place for the next import.
+- Running `import` from a folder below a statement year now limits conversion
+  and orphan cleanup to that account. Sibling accounts keep their outputs.
 - Local Linux x86-64 Snap builds now package the hledger-flow version named
   on the snap and verify the executable before installation.
 
