@@ -47,7 +47,7 @@ import Hledger.Flow.RulesTemplate ( rulesTemplateFor )
 import Hledger.Flow.Internals (versionInfo, systemInfo)
 import Hledger.Flow.BaseDir ( determineBaseDir, findBaseDir )
 import qualified Hledger.Flow.RuntimeOptions as RT
-import Hledger.Flow.ReleaseNotice ( withReleaseNotice )
+import Hledger.Flow.ReleaseNotice ( NoticeTiming (..), withReleaseNotice )
 import Hledger.Flow.Reports ( generateReports )
 import Hledger.Flow.Import.CSVImport ( importCSVs )
 
@@ -128,9 +128,9 @@ runCommand = do
       sysInfo <- systemInfo
       T.putStrLn $ versionInfo sysInfo 
     Command mainParams' (Just (Import subParams)) ->
-      withReleaseNotice $ (toRuntimeOptionsImport mainParams' subParams >>= importCSVs) `catch` reportFatal
+      withReleaseNotice PollAtExit $ (toRuntimeOptionsImport mainParams' subParams >>= importCSVs) `catch` reportFatal
     Command mainParams' (Just (Report subParams)) ->
-      withReleaseNotice $ (toRuntimeOptionsReport mainParams' subParams >>= generateReports) `catch` reportFatal
+      withReleaseNotice PollAtExit $ (toRuntimeOptionsReport mainParams' subParams >>= generateReports) `catch` reportFatal
     Command mainParams' (Just (Status subParams)) -> runStatus mainParams' subParams
     Command mainParams' (Just (Init subParams)) -> do
       cwd <- getCurrentDir
@@ -159,20 +159,25 @@ briefUsage =
     width = maximum (map (length . fst) commandSummaries)
 
 runStatus :: MainParams -> StatusParams -> IO ()
-runStatus mainParams' params = do
+runStatus mainParams' params = withCheck $ do
   cwd <- getCurrentDir
   dir <- maybe (return cwd) (turtleToAbsDir cwd) (statusDir params)
   base <- findBaseDir dir >>= maybe (throwIO (MissingBaseDir dir)) return
   case statusRulesTemplate params of
     Just account -> rulesTemplateFor base (Text.pack account) >>= either (ioError . userError . Text.unpack) T.putStr
     Nothing -> printStatus (hledgerPathOpt mainParams') (hledgerConfOpt mainParams') (statusJson params) base
+  where
+    withCheck
+      | not (statusJson params), Nothing <- statusRulesTemplate params = withReleaseNotice WaitAfterStatus
+      | otherwise = id
 
 -- | Running hledger-flow with no command: say where we are and what to do.
 runBare :: MainParams -> IO ()
 runBare mainParams' = do
   situation <- getCurrentDir >>= classifyDir
   case situation of
-    InLedger base -> printStatus (hledgerPathOpt mainParams') (hledgerConfOpt mainParams') False base
+    InLedger base -> withReleaseNotice WaitAfterStatus $
+      printStatus (hledgerPathOpt mainParams') (hledgerConfOpt mainParams') False base
     EmptyDir -> T.putStrLn "This folder is empty. Run `hledger-flow init` to start your ledger here."
     Elsewhere ->
       T.putStr $

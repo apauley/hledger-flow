@@ -3,6 +3,7 @@
 -- | Status as text for people and JSON for scripts and agents.
 module Hledger.Flow.Status.Render
   ( useColor,
+    bold, green, yellow,
     renderStatus,
     renderNext,
     renderEnvironment,

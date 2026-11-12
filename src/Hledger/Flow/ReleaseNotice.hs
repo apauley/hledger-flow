@@ -1,10 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Hledger.Flow.ReleaseNotice
-  ( withReleaseNotice, startCheck, finishCommand, checkRelease
+  ( NoticeTiming (..), ReleaseResult (..), withReleaseNotice, startCheck,
+    finishCommand, checkRelease, renderStatusRelease
   ) where
 
-import Control.Concurrent.Async (async, poll)
+import Control.Concurrent.Async (async, poll, waitCatch)
 import Control.Exception (catch, evaluate, throwIO, try)
 import Control.Monad (guard, join)
 import Data.Aeson (decode, decodeFileStrict, withObject, (.:), (.:?), (.!=))
@@ -16,6 +17,7 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as T
 import Data.Version (Version, parseVersion, showVersion)
+import Hledger.Flow.Status.Render (bold, green, useColor, yellow)
 import Network.HTTP.Client (HttpException, checkResponse, httpLbs, parseRequest, requestHeaders, responseBody, throwErrorStatusCodes)
 import Network.HTTP.Client.TLS (getGlobalManager)
 import Paths_hledger_flow (version)
@@ -23,13 +25,18 @@ import System.Directory (canonicalizePath)
 import System.Environment (getExecutablePath, lookupEnv)
 import System.Exit (ExitCode)
 import System.FilePath ((</>), takeDirectory, takeFileName)
-import System.IO (hIsTerminalDevice, stderr, stdout)
+import System.IO (hFlush, hIsTerminalDevice, stderr, stdout)
 import System.IO.Error (catchIOError)
 import System.Timeout (timeout)
 import Text.ParserCombinators.ReadP (eof, readP_to_S)
 
-withReleaseNotice :: IO () -> IO ()
-withReleaseNotice command = do
+data NoticeTiming = PollAtExit | WaitAfterStatus
+
+data ReleaseResult = UpToDate | UpdateAvailable !Version !T.Text | CheckUnavailable
+  deriving (Eq, Show)
+
+withReleaseNotice :: NoticeTiming -> IO () -> IO ()
+withReleaseNotice timing command = do
   finish <- setup `catchIOError` const (pure (pure ()))
   finishCommand finish command
   where
@@ -38,21 +45,46 @@ withReleaseNotice command = do
       outTTY <- hIsTerminalDevice stdout
       errTTY <- hIsTerminalDevice stderr
       if disabled /= Just "1" && outTTY && errTTY
-        then startCheck (checkRelease fetch getExecutablePath)
+        then startCheck timing (checkRelease fetch getExecutablePath)
         else pure (pure ())
 
--- The worker belongs to this CLI invocation. Do not join it or synchronously
--- cancel it on exit: either would put network cleanup on the command's path.
-startCheck :: IO (Maybe T.Text) -> IO (IO ())
-startCheck check = do
-  worker <- async $ do
-    notice <- check
-    traverse evaluate notice
-  pure $ do
-    result <- poll worker
-    case result of
-      Just (Right (Just notice)) -> T.hPutStrLn stderr notice
-      _ -> pure ()
+-- The CLI owns the worker. Let process exit handle any pending network cleanup.
+startCheck :: NoticeTiming -> IO ReleaseResult -> IO (IO ())
+startCheck timing check = do
+  worker <- async (check >>= evaluate)
+  pure $ case timing of
+    PollAtExit -> do
+      result <- poll worker
+      case result of
+        Just (Right update@(UpdateAvailable _ _)) -> do
+          color <- useColor stderr
+          T.hPutStrLn stderr ("\n" <> renderStatusRelease color update)
+        _ -> pure ()
+    WaitAfterStatus -> do
+      color <- useColor stderr
+      hFlush stdout
+      T.hPutStrLn stderr ("\n" <> bold color "Updates:")
+      hFlush stderr
+      result <- timeout 1000000 (waitCatch worker)
+      let outcome = case result of
+            Just (Right release) -> release
+            _ -> CheckUnavailable
+      T.hPutStrLn stderr (renderStatusRelease color outcome)
+
+renderStatusRelease :: Bool -> ReleaseResult -> T.Text
+renderStatusRelease color outcome = case outcome of
+  UpToDate -> "  " <> green color ("✓ hledger-flow " <> renderVersion version <> " is up to date.")
+  UpdateAvailable latest advice ->
+    "  " <> yellow color ("↑ " <> availableMessage latest) <> "\n    " <> advice
+  CheckUnavailable -> "  " <> yellow color "⚠ Could not confirm the latest hledger-flow release."
+                   <> "\n    Set HLEDGER_FLOW_NO_UPDATE_CHECK=1 to skip this check."
+
+availableMessage :: Version -> T.Text
+availableMessage latest = "hledger-flow " <> renderVersion latest <> " is available (installed "
+                       <> renderVersion version <> ")."
+
+renderVersion :: Version -> T.Text
+renderVersion = T.pack . showVersion
 
 -- The caller has already rendered ordinary errors as diagnostics + ExitCode.
 -- Catch just ExitCode here so that interrupts skip the notice altogether.
@@ -75,7 +107,7 @@ fetch url = request `catch` ignoreHttpError
     ignoreHttpError :: HttpException -> IO (Maybe BL.ByteString)
     ignoreHttpError _ = pure Nothing
 
-checkRelease :: (String -> IO (Maybe BL.ByteString)) -> IO FilePath -> IO (Maybe T.Text)
+checkRelease :: (String -> IO (Maybe BL.ByteString)) -> IO FilePath -> IO ReleaseResult
 checkRelease get executable = do
   result <- timeout 3000000 (get "https://api.github.com/repos/apauley/hledger-flow/releases/latest")
   case join result >>= releaseVersion of
@@ -84,17 +116,16 @@ checkRelease get executable = do
       let advice = if confirmed == Just True
             then "Upgrade with: brew update && brew upgrade ferntrail/tap/hledger-flow"
             else "https://github.com/apauley/hledger-flow/releases/latest"
-      pure $ Just $ "hledger-flow " <> render latest <> " is available (installed "
-                 <> render version <> ").\n" <> advice
-    _ -> pure Nothing
+      pure (UpdateAvailable latest advice)
+    Just _ -> pure UpToDate
+    Nothing -> pure CheckUnavailable
   where
-    render = T.pack . showVersion
     homebrewOffers latest = do
       path <- executable >>= canonicalizePath
       owned <- ownsHomebrewBinary path
       if owned then do
         formula <- get "https://raw.githubusercontent.com/FernTrail/homebrew-tap/main/Formula/hledger-flow.rb"
-        let tagLine = "tag = \"v" <> render latest <> "\""
+        let tagLine = "tag = \"v" <> renderVersion latest <> "\""
         pure $ fromMaybe False $ do
           body <- formula
           contents <- either (const Nothing) Just (T.decodeUtf8' (BL.toStrict body))
