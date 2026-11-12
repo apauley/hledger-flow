@@ -173,6 +173,27 @@ internal links and on `/go/` links that no longer reach their section.
 These permanent links are what the CLI prints. [AGENTS.md](AGENTS.md)
 explains how to add one.
 
+### Update the tutorial
+
+Every code block in the [tutorial](https://hledger-flow.github.io/tutorial/)
+comes from a real run. `site/scripts/tutorial/` holds the commands of each
+part (`part1.sh` to `part5.sh`) and the files the reader saves in each part
+(`files/`). After changing hledger-flow's output, the tutorial's commands or
+its files, regenerate the pages and commit the result:
+
+``` bash
+stack build
+HLEDGER=/path/to/hledger site/scripts/tutorial/update.sh
+```
+
+`HLEDGER` must be the hledger version in `site/scripts/tutorial/hledger-version`,
+from [hledger's releases](https://github.com/hledgerorg/hledger/releases).
+The script also needs Python 3 and `tree`. It fails when a command shown on a
+page is missing from the part's script, or when an excerpt isn't in the
+files the run used. CI runs `update.sh --check` and fails when the pages are
+out of date. To move the tutorial to a newer hledger, change
+`hledger-version` and run the script again.
+
 ### Find an Issue
 
 You may have your own idea about what contributions to make to Hledger

@@ -15,10 +15,11 @@ where
 import Data.Aeson (Value, object, (.=))
 import qualified Data.Text as T
 import Data.Version (showVersion)
+import Hledger.Flow.Common (tildePath)
 import Hledger.Flow.Internals (SystemInfo (..), gitCommit)
 import Hledger.Flow.RuntimeOptions
 import Hledger.Flow.Status (hledgerVersionNumber)
-import Hledger.Flow.Types (BaseDir, HledgerInfo (..))
+import Hledger.Flow.Types (BaseDir, HledgerConf (..), HledgerInfo (..), hledgerConfPath)
 import Path (toFilePath)
 import Paths_hledger_flow (version)
 import System.FilePath (dropTrailingPathSeparator)
@@ -30,21 +31,28 @@ setting :: T.Text -> T.Text -> T.Text -> Setting
 setting l v f = Setting l v f False
 
 -- | What every command shares: hledger-flow, hledger, its config and the ledger.
-environmentSettings :: SystemInfo -> Maybe HledgerInfo -> Maybe FilePath -> BaseDir -> [Setting]
-environmentSettings sys hledger conf base =
+-- Paths under one of @homes@ show as @~@.
+environmentSettings :: [FilePath] -> SystemInfo -> Maybe HledgerInfo -> Maybe HledgerConf -> BaseDir -> [Setting]
+environmentSettings homes sys hledger conf base =
   [ setting "hledger-flow" (T.pack (showVersion version <> " (" <> gitCommit <> "), " <> compilerName sys <> " " <> showVersion (compilerVersion sys) <> ", " <> os sys <> " " <> arch sys)) "",
     case hledger of
-      Just hl -> setting "hledger" (T.pack (toFilePath (hlPath hl)) <> "  (" <> hledgerVersionNumber (hlVersion hl) <> ")") "--hledger-path"
+      Just hl -> setting "hledger" (shown (toFilePath (hlPath hl)) <> "  (" <> hledgerVersionNumber (hlVersion hl) <> ")") "--hledger-path"
       Nothing -> Setting "hledger" "not found" "--hledger-path" True,
-    setting "hledger.conf" (maybe "none" T.pack conf) "--hledger-conf",
-    setting "Ledger" (T.pack (dropTrailingPathSeparator (toFilePath base))) ""
+    setting "hledger.conf" confText "--hledger-conf",
+    setting "Ledger" (shown (dropTrailingPathSeparator (toFilePath base))) ""
   ]
+  where
+    shown = T.pack . tildePath homes
+    confText = case conf of
+      Nothing -> "none"
+      Just (GivenConf f) -> shown f
+      Just (FoundConf f) -> shown f <> "  (found by hledger)"
 
 coresSetting :: SystemInfo -> Setting
 coresSetting sys = setting "Cores" (tshow (cores sys) <> ", using " <> tshow (availableCores sys)) ""
 
-optsEnvironment :: RuntimeOptions -> [Setting]
-optsEnvironment o = environmentSettings (sysInfo o) (Just (hledgerInfo o)) (hledgerConf o) (baseDir o)
+optsEnvironment :: [FilePath] -> RuntimeOptions -> [Setting]
+optsEnvironment homes o = environmentSettings homes (sysInfo o) (Just (hledgerInfo o)) (hledgerConf o) (baseDir o)
 
 parallelism :: RuntimeOptions -> Setting
 parallelism o = setting "Parallelism" value "--batch-size, --sequential"
@@ -54,9 +62,9 @@ parallelism o = setting "Parallelism" value "--batch-size, --sequential"
       | sequential o = "one file at a time"
       | otherwise = tshow (batchSize o) <> " files at a time, " <> tshow (availableCores sys) <> " of " <> tshow (cores sys) <> " cores"
 
-importSettings :: RuntimeOptions -> [Setting]
-importSettings o =
-  optsEnvironment o
+importSettings :: [FilePath] -> RuntimeOptions -> [Setting]
+importSettings homes o =
+  optsEnvironment homes o
     ++ [ setting "Run from" runFrom "",
          setting "Start year" (maybe "all years" (\y -> tshow y <> " onwards") (importStartYear o)) "--start-year",
          setting "Files" (if onlyNewFiles o then "only new or changed" else "regenerate all") "--new-files-only",
@@ -67,9 +75,9 @@ importSettings o =
       "." -> ". (whole ledger)"
       dir -> T.pack dir
 
-reportSettings :: RuntimeOptions -> [Setting]
-reportSettings o =
-  optsEnvironment o
+reportSettings :: [FilePath] -> RuntimeOptions -> [Setting]
+reportSettings homes o =
+  optsEnvironment homes o
     ++ [ setting "Tables" (if prettyReports o then "pretty" else "ASCII") "--ascii-reports",
          parallelism o
        ]
@@ -86,7 +94,7 @@ renderSettings problem settings = map line settings
           styled = if sProblem s then problem value else value
        in T.stripEnd (T.justifyLeft (width sLabel) ' ' (sLabel s) <> "  " <> styled <> "   " <> sFlags s)
 
-environmentJSON :: SystemInfo -> Maybe FilePath -> Value
+environmentJSON :: SystemInfo -> Maybe HledgerConf -> Value
 environmentJSON sys conf =
   object
     [ "hledgerFlowVersion" .= showVersion version,
@@ -96,7 +104,7 @@ environmentJSON sys conf =
       "arch" .= arch sys,
       "cores" .= cores sys,
       "availableCores" .= availableCores sys,
-      "hledgerConf" .= conf
+      "hledgerConf" .= fmap hledgerConfPath conf
     ]
 
 tshow :: Show a => a -> T.Text

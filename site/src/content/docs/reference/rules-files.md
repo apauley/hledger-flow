@@ -65,13 +65,13 @@ A checking account at mybank:
 
     # Saved as: import/john/mybank/checking/mybank-checking.rules
     include ../../../mybank-shared.rules
-    account1 Assets:Current:John:MyBank:Checking
+    account1 assets:john:mybank:checking
 
 Another account at mybank:
 
     # Saved as: import/alice/mybank/savings/mybank-savings.rules
     include ../../../mybank-shared.rules
-    account1 Assets:Current:Alice:MyBank:Savings
+    account1 assets:alice:mybank:savings
 
 Where `import/mybank-shared.rules` may define some shared attributes:
 

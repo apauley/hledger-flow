@@ -19,6 +19,8 @@
   - Never remove or rename a slug. Released binaries keep printing it.
 - Within the site, link pages with root-relative paths such as `/reference/rules-files/#stability`. Use full `https://hledger-flow.github.io/...` URLs in `QUICKSTART.md`, `README.md` and the ChangeLog.
 - The landing page's examples came from a real run of hledger-flow and hledger. If the output format changes, rerun the example and update them.
+- The tutorial's code blocks come from a real run. Never edit its output by hand: change `site/scripts/tutorial/` (each part's commands and the files the reader saves) and run `site/scripts/tutorial/update.sh`, with `HLEDGER` set to the version in `site/scripts/tutorial/hledger-version`. CI runs it with `--check`. See `CONTRIBUTING.md`, section "Update the tutorial".
+- Example account names follow hledger's lowercase style everywhere: `assets:mybank:checking`, `expenses:bank-fees`, `equity:opening/closing balances`.
 - `cd site && npm run check` builds the site and fails on broken internal links, missing anchors and `/go/` links that don't resolve. HUnit fails if a `DocLink` has no `go-links.json` entry.
 - `cd site && npm run dev` serves the site locally on port 4321.
 

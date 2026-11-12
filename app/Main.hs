@@ -36,7 +36,7 @@ import Options.Applicative
       str,
       switch )
 
-import Hledger.Flow.Common ( hledgerInfoFromPath )
+import Hledger.Flow.Common ( findHledgerConf, hledgerInfoFromPath )
 import Hledger.Flow.Status ( Situation (..) )
 import Hledger.Flow.Status.Gather ( classifyDir )
 import Hledger.Flow.Status.Render ( printStatus )
@@ -201,6 +201,7 @@ toRuntimeOptionsImport mainParams' subParams' = do
   let maybeBD = maybeImportBaseDir subParams' :: Maybe FilePath
   (bd, runDir) <- determineBaseDir maybeBD
   hli <- hledgerInfoFromPath $ hledgerPathOpt mainParams'
+  conf <- findHledgerConf $ hledgerConfOpt mainParams'
   size <- determineBatchSize mainParams'
   sysInfo <- systemInfo
   return RT.RuntimeOptions { RT.baseDir = bd
@@ -209,7 +210,7 @@ toRuntimeOptionsImport mainParams' subParams' = do
                            , RT.onlyNewFiles = onlyNewFiles subParams'
                            , RT.hfVersion = versionInfo sysInfo
                            , RT.hledgerInfo = hli
-                           , RT.hledgerConf = hledgerConfOpt mainParams'
+                           , RT.hledgerConf = conf
                            , RT.sysInfo = sysInfo
                            , RT.verbose = verbosity mainParams' > 0
                            , RT.showOptions = showOpts mainParams'
@@ -223,6 +224,7 @@ toRuntimeOptionsReport mainParams' subParams' = do
   let maybeBD = maybeReportBaseDir subParams' :: Maybe FilePath
   (bd, _) <- determineBaseDir maybeBD
   hli <- hledgerInfoFromPath $ hledgerPathOpt mainParams'
+  conf <- findHledgerConf $ hledgerConfOpt mainParams'
   size <- determineBatchSize mainParams'
   sysInfo <- systemInfo
   return RT.RuntimeOptions { RT.baseDir = bd
@@ -231,7 +233,7 @@ toRuntimeOptionsReport mainParams' subParams' = do
                            , RT.onlyNewFiles = False
                            , RT.hfVersion = versionInfo sysInfo
                            , RT.hledgerInfo = hli
-                           , RT.hledgerConf = hledgerConfOpt mainParams'
+                           , RT.hledgerConf = conf
                            , RT.sysInfo = sysInfo
                            , RT.verbose = verbosity mainParams' > 0
                            , RT.showOptions = showOpts mainParams'

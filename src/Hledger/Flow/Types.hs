@@ -20,6 +20,13 @@ type FullTimedOutput = (FullOutput, NominalDiffTime)
 
 type ProcInput = (T.Text, [T.Text], Maybe Handle)
 
+-- | The hledger config file hledger runs with: given with --hledger-conf, or found by hledger's own search.
+data HledgerConf = GivenConf FilePath | FoundConf FilePath deriving (Eq, Show)
+
+hledgerConfPath :: HledgerConf -> FilePath
+hledgerConfPath (GivenConf f) = f
+hledgerConfPath (FoundConf f) = f
+
 data HledgerInfo = HledgerInfo
   { hlPath :: AbsFile,
     hlVersion :: T.Text

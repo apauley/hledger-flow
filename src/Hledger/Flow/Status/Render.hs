@@ -8,30 +8,26 @@ module Hledger.Flow.Status.Render
     renderNext,
     renderEnvironment,
     statusJSON,
-    tildePath,
     nextStepHere,
     printStatus,
     printNext,
   )
 where
 
-import Control.Exception (IOException, catch)
 import Data.Aeson (Value, object, (.=))
 import Data.Aeson.Text (encodeToLazyText)
 import qualified Data.Text.IO as T
 import qualified Data.Text.Lazy.IO as TL
-import Hledger.Flow.Common (findHledger, nativeShell)
+import Hledger.Flow.Common (findHledger, findHledgerConf, homeDirs, nativeShell, tildePath)
 import Hledger.Flow.DateTime (currentYear)
 import Hledger.Flow.Environment (coresSetting, environmentJSON, environmentSettings, renderSettings)
 import Hledger.Flow.Internals (SystemInfo, systemInfo)
 import Hledger.Flow.Status.Gather (gatherStatus)
 import Hledger.Flow.Types (BaseDir)
-import Path.IO (getCurrentDir, getHomeDir)
-import qualified Data.List as List
+import Path.IO (getCurrentDir)
 import qualified Data.Text as T
-import Hledger.Flow.PathHelpers (AbsDir)
 import Hledger.Flow.Status
-import Hledger.Flow.Types (HledgerInfo (..))
+import Hledger.Flow.Types (HledgerConf, HledgerInfo (..))
 import Path (toFilePath)
 import System.Console.ANSI (Color (..), ColorIntensity (..), ConsoleIntensity (..), ConsoleLayer (..), SGR (..), hSupportsANSIColor, setSGRCode)
 import System.Environment (lookupEnv)
@@ -44,12 +40,6 @@ useColor h = do
   noColor <- lookupEnv "NO_COLOR"
   supported <- hSupportsANSIColor h
   return (supported && maybe True null noColor)
-
--- | An absolute path, with the home directory shown as @~@.
-tildePath :: Maybe AbsDir -> FilePath -> FilePath
-tildePath home path = case home of
-  Just h | Just rest <- List.stripPrefix (toFilePath h) path -> "~" FilePath.</> rest
-  _ -> path
 
 paint :: Bool -> [SGR] -> T.Text -> T.Text
 paint False _ txt = txt
@@ -64,11 +54,11 @@ bold c = paint c [SetConsoleIntensity BoldIntensity]
 baseText :: LedgerStatus -> FilePath
 baseText = FilePath.dropTrailingPathSeparator . toFilePath . lsBaseDir
 
-renderStatus :: Bool -> Maybe AbsDir -> LedgerStatus -> NextStep -> T.Text
-renderStatus color home s next =
+renderStatus :: Bool -> [FilePath] -> LedgerStatus -> NextStep -> T.Text
+renderStatus color homes s next =
   T.unlines (header : accountBlock ++ misplacedBlock) <> renderNext color next
   where
-    header = bold color "Ledger: " <> T.pack (tildePath home (baseText s)) <> "   (" <> hledgerText <> ")"
+    header = bold color "Ledger: " <> T.pack (tildePath homes (baseText s)) <> "   (" <> hledgerText <> ")"
     hledgerText = case lsHledger s of
       Just hl -> "hledger " <> hledgerVersionNumber (hlVersion hl) <> " found"
       Nothing -> red color "hledger not found"
@@ -110,7 +100,7 @@ renderNext color next =
 tshow :: Show a => a -> T.Text
 tshow = T.pack . show
 
-statusJSON :: SystemInfo -> Maybe FilePath -> LedgerStatus -> NextStep -> Value
+statusJSON :: SystemInfo -> Maybe HledgerConf -> LedgerStatus -> NextStep -> Value
 statusJSON sys conf s next =
   object
     [ "schemaVersion" .= (1 :: Int),
@@ -145,38 +135,43 @@ statusJSON sys conf s next =
           "journalsOutdated" .= asJournalsOutdated a
         ]
 
-nextStepHere :: LedgerStatus -> IO NextStep
-nextStepHere status = do
+-- | The next step for people to read with @homes@, or for scripts with @[]@ (absolute paths).
+nextStepHere :: [FilePath] -> LedgerStatus -> IO NextStep
+nextStepHere homes status = do
   year <- currentYear
   cwd <- getCurrentDir
-  return (nextStep year nativeShell cwd status)
+  return (nextStep year nativeShell homes cwd status)
 
--- | The versions and paths status ran with, with full paths for bug reports.
-renderEnvironment :: Bool -> SystemInfo -> Maybe FilePath -> LedgerStatus -> T.Text
-renderEnvironment color sys conf s =
+-- | The versions and paths status ran with, for bug reports. Paths under the home folder show as @~@.
+renderEnvironment :: Bool -> [FilePath] -> SystemInfo -> Maybe HledgerConf -> LedgerStatus -> T.Text
+renderEnvironment color homes sys conf s =
   T.unlines ("" : bold color "Environment:" : map ("  " <>) (renderSettings (red color) settings))
   where
-    settings = environmentSettings sys (lsHledger s) conf (lsBaseDir s) ++ [coresSetting sys]
+    settings = environmentSettings homes sys (lsHledger s) conf (lsBaseDir s) ++ [coresSetting sys]
 
 -- | Print the ledger's status as text, or as JSON for scripts and agents.
 printStatus :: Maybe FilePath -> Maybe FilePath -> Bool -> BaseDir -> IO ()
-printStatus hledgerPath conf json base = do
+printStatus hledgerPath confOpt json base = do
   hledger <- findHledger hledgerPath
+  conf <- findHledgerConf confOpt
   status <- gatherStatus hledger base
-  next <- nextStepHere status
   sys <- systemInfo
   if json
-    then TL.putStrLn (encodeToLazyText (statusJSON sys conf status next))
+    then do
+      next <- nextStepHere [] status
+      TL.putStrLn (encodeToLazyText (statusJSON sys conf status next))
     else do
       color <- useColor stdout
-      home <- (Just <$> getHomeDir) `catch` (\e -> const (return Nothing) (e :: IOException))
-      T.putStr (renderStatus color home status next <> renderEnvironment color sys conf status)
+      homes <- homeDirs
+      next <- nextStepHere homes status
+      T.putStr (renderStatus color homes status next <> renderEnvironment color homes sys conf status)
 
 -- | Print only the next step for a ledger.
 printNext :: Maybe FilePath -> BaseDir -> IO ()
 printNext hledgerPath base = do
   hledger <- findHledger hledgerPath
   status <- gatherStatus hledger base
-  next <- nextStepHere status
+  homes <- homeDirs
+  next <- nextStepHere homes status
   color <- useColor stdout
   T.putStr (renderNext color next)

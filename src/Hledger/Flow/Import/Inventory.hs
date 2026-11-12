@@ -24,6 +24,7 @@ import Data.Char (isDigit)
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
+import Hledger.Flow.Common (homeDirs, tildePath)
 import Hledger.Flow.PathHelpers (AbsDir, AbsFile, RelDir)
 import Path
 import qualified Path.IO as PathIO
@@ -159,7 +160,7 @@ moveToTrash file = do
       destination = trash </> year </> stage
       acquire = Directory.createDirectory (toFilePath lock) `catchIOError` \err ->
         if isAlreadyExistsError err
-          then ioError (userError ("Trash is in use: " ++ toFilePath lock
+          then homeDirs >>= \homes -> ioError (userError ("Trash is in use: " ++ tildePath homes (toFilePath lock)
             ++ ". If no import is running, remove this empty lock directory and retry."))
           else ioError err
   PathIO.createDirIfMissing True trash

@@ -28,10 +28,10 @@ $ hledger-flow --show-options import
 
 **To Reproduce**
 
-FYI, we have a repo with some example transactions which you can use to run `hledger-flow` on:
-https://github.com/apauley/hledger-flow-example
+The tutorial's example statements are a good place to try:
+https://hledger-flow.github.io/tutorial/#follow-along
 
-Can you reproduce your issue on these example files?
+Can you reproduce your issue with those files?
 
 Steps to reproduce the behavior:
 1. Given this input (files or other input)

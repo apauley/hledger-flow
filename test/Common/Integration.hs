@@ -15,7 +15,7 @@ import Data.Time.Clock (UTCTime(..), addUTCTime, secondsToDiffTime)
 import Data.Time.Calendar (fromGregorian)
 import Hledger.Flow.Common
 import qualified Hledger.Flow.RuntimeOptions as RT
-import Hledger.Flow.Types (LogMessage (StdErr))
+import Hledger.Flow.Types (HledgerConf (..), LogMessage (StdErr))
 import qualified Path
 import qualified Path.IO as PathIO
 import System.Directory (doesFileExist)
@@ -181,5 +181,47 @@ checkBatchFailure order = do
   tryTakeMVar stopped >>= assertEqual "cancel and join the running sibling" (Just ())
   tryTakeMVar later >>= assertEqual "never start the next batch" Nothing
 
+-- Status must name the config file hledger loads by itself, in hledger's search order.
+testFindHledgerConf :: Test
+testFindHledgerConf = TestLabel "hledger config lookup" $ TestCase $ withTestDir $ \base -> do
+  let root = Path.toFilePath base
+      found expected = do
+        actual <- findHledgerConf Nothing
+        expectedPath <- Directory.canonicalizePath expected
+        assertEqual ("found " ++ expected) (Just (FoundConf expectedPath)) actual
+  forM_ (["near/work", "home/work", "xdg/hledger"] :: [FilePath]) $ \dir ->
+    Directory.createDirectoryIfMissing True (root </> dir)
+  withEnv "HOME" (root </> "home") $ withEnv "XDG_CONFIG_HOME" (root </> "xdg") $ do
+    writeFile (root </> "near" </> "hledger.conf") ""
+    writeFile (root </> "home" </> "hledger.conf") ""
+    writeFile (root </> "home" </> ".hledger.conf") ""
+    writeFile (root </> "xdg" </> "hledger" </> "hledger.conf") ""
+    Directory.withCurrentDirectory (root </> "near" </> "work") $ do
+      found (root </> "near" </> "hledger.conf")
+      given <- findHledgerConf (Just "other.conf")
+      assertEqual "--hledger-conf wins" (Just (GivenConf "other.conf")) given
+    unless (Sys.os == "mingw32") $ do
+      Directory.withCurrentDirectory (root </> "home" </> "work") $ do
+        found (root </> "home" </> ".hledger.conf")
+        Directory.removeFile (root </> "home" </> ".hledger.conf")
+        found (root </> "xdg" </> "hledger" </> "hledger.conf")
+
+-- HUnit runs these cases sequentially; restore the variable even on failure.
+withEnv :: String -> String -> IO a -> IO a
+withEnv name value action = bracket (lookupEnv name) (maybe (unsetEnv name) (setEnv name)) $ \_ ->
+  setEnv name value >> action
+
+-- Paths come out resolved (macOS /private/var, symlinked homes), so match both spellings of HOME.
+testHomeDirs :: Test
+testHomeDirs = TestLabel "home folder spellings" $ TestCase $ unless (Sys.os == "mingw32") $ withTestDir $ \base -> do
+  let root = Path.toFilePath base
+  Directory.createDirectory (root </> "real")
+  Directory.createDirectoryLink (root </> "real") (root </> "link")
+  real <- Directory.canonicalizePath (root </> "real")
+  forM_ ([root </> "link", root </> "link/", real ++ "/"] :: [FilePath]) $ \home -> withEnv "HOME" home $ do
+    homes <- homeDirs
+    assertEqual ("resolved path with HOME=" ++ home) ("~" </> "fin") (tildePath homes (real </> "fin"))
+    assertEqual ("HOME's spelling with HOME=" ++ home) ("~" </> "fin") (tildePath homes (home </> "fin"))
+
 tests :: Test
-tests = TestList [testHledgerLookup, testFilterPaths, testFirstExistingFile, testVerboseTestFile, testNeedsRegeneration, testBatchOrder, testBatchFailure]
+tests = TestList [testHledgerLookup, testFindHledgerConf, testHomeDirs, testFilterPaths, testFirstExistingFile, testVerboseTestFile, testNeedsRegeneration, testBatchOrder, testBatchFailure]

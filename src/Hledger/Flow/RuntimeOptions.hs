@@ -12,7 +12,7 @@ data RuntimeOptions = RuntimeOptions
     onlyNewFiles :: Bool,
     hfVersion :: T.Text,
     hledgerInfo :: HledgerInfo,
-    hledgerConf :: Maybe FilePath,
+    hledgerConf :: Maybe HledgerConf,
     sysInfo :: SystemInfo,
     verbose :: Bool,
     showOptions :: Bool,

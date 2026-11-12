@@ -26,12 +26,12 @@ the runtime options with `--show-options` e.g:
 $ hledger-flow --show-options import
 ```
 
-**Our Example Statements Repository**
+**Example Statements**
 
-FYI, we have a repo with some example transactions which you can use to run `hledger-flow` on:
-https://github.com/apauley/hledger-flow-example
+The tutorial's example statements are a good place to try:
+https://hledger-flow.github.io/tutorial/#follow-along
 
-Can you give examples of what you would like by running `hledger-flow` on these files?
+Can you give examples of what you would like by running `hledger-flow` on those files?
 
 **Describe the solution you'd like**
 A clear and concise description of what you want to happen.

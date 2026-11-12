@@ -1,0 +1,20 @@
+# Gawie's categories, shared by all his accounts.
+# Each if block matches text anywhere in a CSV row, ignoring case.
+
+if PUNDA MARIA TRADING
+  account2 expenses:groceries
+
+if FUEL STOP|TYRES
+  account2 expenses:car
+
+if MOPANE MASTERS
+  account2 expenses:mopane-worms
+
+if APPLIANCES|HARDWARE
+  account2 expenses:household
+
+if BUSHTEL
+  account2 expenses:phone
+
+if PAYMENT RECEIVED
+  account2 assets:transfers:creditcard

@@ -8,6 +8,18 @@ To see where you stand at any time, run `hledger-flow status` (or just
 statements in the wrong place, and suggests what to do next.
 `hledger-flow init` starts a new ledger.
 
+## hledger config file
+
+hledger 1.40 and later read default options from a config file: the one you
+give with `--hledger-conf`, or else the first it finds of `hledger.conf` in
+the current directory or a parent, `~/.hledger.conf`, and `hledger.conf` in
+your XDG config directory. hledger-flow runs hledger from the directory you
+run it in, so that file applies to import and reports too. Options in it can
+change the journals import generates, such as `--layout` under `[print]`.
+
+The `hledger.conf` line in the Environment section at the end of status names
+the file, marked `(found by hledger)` when you didn't give it.
+
 ## Status for scripts and agents
 
 `hledger-flow status --json` prints the same status as one JSON object:
@@ -15,7 +27,8 @@ statements in the wrong place, and suggests what to do next.
 - `schemaVersion`: currently `1`.
 - `baseDir`: the ledger's absolute path.
 - `environment`: `{"hledgerFlowVersion", "commit", "compiler", "os", "arch",
-  "cores", "availableCores", "hledgerConf"}`, for bug reports.
+  "cores", "availableCores", "hledgerConf"}`, for bug reports. `hledgerConf`
+  is the [hledger config file](#hledger-config-file) path, or `null`.
 - `hledger`: `{"path", "version"}`, or `null` when hledger isn't found.
 - `ledgerFile`: `{"value", "exists"}` for `LEDGER_FILE`, or `null` when unset.
 - `accounts`: one object per `owner/bank/account` with statements:
@@ -34,6 +47,16 @@ whenever it could inspect the ledger, even when it found problems.
 
 You can run the suggested command from the directory where you requested
 status. Commands use PowerShell syntax on Windows and POSIX shell syntax on
-macOS and Linux. Status recommends a full import when conversion inputs have
+macOS and Linux.
+
+## Paths in your home folder
+
+Status, init, import and report show paths in your home folder as `~`, such
+as `~/finances`. In commands to paste they write the home folder as `$HOME`,
+which the shell expands where a quoted `~` wouldn't, such as
+`export LEDGER_FILE="$HOME/finances/all-years.journal"`. A path whose rest
+contains a character that is special inside double quotes, such as `$`,
+appears in full instead. `status --json` always gives full paths, and
+hledger's own messages are shown as hledger printed them. Status recommends a full import when conversion inputs have
 changed, generated files have lost their source statements, or journal
 includes need updating.

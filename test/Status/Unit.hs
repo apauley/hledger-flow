@@ -71,7 +71,7 @@ testMisplacedUpperCase = TestCase $ do
     map native ["import/me/mybank/JAN.CSV", "import/me/mybank/checking/3-journal/2026/mar.csv"]
 
 atRoot :: LedgerStatus -> NextStep
-atRoot = nextStep 2026 Posix (lsBaseDir blank)
+atRoot = nextStep 2026 Posix [] (lsBaseDir blank)
 
 summaryOf :: LedgerStatus -> T.Text
 summaryOf = nsSummary . atRoot
@@ -96,16 +96,35 @@ testRules =
       "4 rules" ~: commandOf blank {lsAccounts = [acct {asWithoutRules = 1, asRulesFile = Nothing}]} ~?= Just "hledger-flow status --rules-template me/mybank/checking",
       "4 summary" ~: summaryOf blank {lsAccounts = [acct {asWithoutRules = 1, asRulesFile = Nothing}]} ~?= "Create import/me/mybank/checking/mybank-checking.rules (rules for me/mybank/checking)",
       "4 powershell literal account" ~:
-        nsCommand (nextStep 2026 PowerShell (lsBaseDir blank) blank {lsAccounts = [acct {asWithoutRules = 1, asAccount = "me/Bob's Bank/Lee’s $(example)"}]})
+        nsCommand (nextStep 2026 PowerShell [] (lsBaseDir blank) blank {lsAccounts = [acct {asWithoutRules = 1, asAccount = "me/Bob's Bank/Lee’s $(example)"}]})
           ~?= Just "hledger-flow status --rules-template 'me/Bob''s Bank/Lee’’s $(example)'",
       "4 skipped with construct" ~: commandOf blank {lsAccounts = [acct {asWithoutRules = 1, asConstruct = True}]} ~?= Just "hledger-flow report",
       "5 import" ~: summaryOf blank {lsAccounts = [acct {asJournalsMissing = 1, asJournalsOutdated = 1}]} ~?= "Import 2 new or changed statements",
       "5 import singular" ~: summaryOf blank {lsAccounts = [acct {asJournalsMissing = 1}]} ~?= "Import 1 new or changed statement",
       "6 posix" ~: commandOf blank {lsAccounts = [acct], lsLedgerFile = Nothing} ~?= Just ("export LEDGER_FILE='" <> allYears <> "'"),
-      "6 windows" ~: nsCommand (nextStep 2026 PowerShell (lsBaseDir blank) blank {lsAccounts = [acct], lsLedgerFile = Nothing}) ~?= Just ("$env:LEDGER_FILE = '" <> allYears <> "'"),
+      "6 windows" ~: nsCommand (nextStep 2026 PowerShell [] (lsBaseDir blank) blank {lsAccounts = [acct], lsLedgerFile = Nothing}) ~?= Just ("$env:LEDGER_FILE = '" <> allYears <> "'"),
       "6 set but missing" ~: nsDetail (atRoot blank {lsAccounts = [acct], lsLedgerFile = Just (LedgerFile "/nope.journal" False)}) ~?= ["LEDGER_FILE is set to /nope.journal, which doesn't exist."],
       "7 done" ~: commandOf blank {lsAccounts = [acct]} ~?= Just "hledger-flow report"
     ]
+
+-- Readable text shows the home folder as ~; pasteable commands use "$HOME", which shells expand.
+testHome :: Test
+testHome =
+  let homes = [toFilePath testRoot]
+      elsewhere = testRoot </> [reldir|elsewhere|]
+      next shell cwd s = nextStep 2026 shell homes cwd s
+      unset = blank {lsAccounts = [acct], lsLedgerFile = Nothing}
+      quoted parts = "\"" <> T.pack (FilePath.joinPath ("$HOME" : parts)) <> "\""
+      odd = blank {lsBaseDir = testRoot </> [reldir|fin$|], lsAccounts = [acct], lsLedgerFile = Nothing}
+   in TestList
+        [ "posix export" ~: nsCommand (next Posix (lsBaseDir blank) unset) ~?= Just ("export LEDGER_FILE=" <> quoted ["fin", "all-years.journal"]),
+          "powershell export" ~: nsCommand (next PowerShell (lsBaseDir blank) unset) ~?= Just ("$env:LEDGER_FILE = " <> quoted ["fin", "all-years.journal"]),
+          "ledger argument" ~: nsCommand (next Posix elsewhere blank {lsAccounts = [acct]}) ~?= Just ("hledger-flow report " <> quoted ["fin"]),
+          "summary" ~: nsSummary (next Posix elsewhere blank {lsAccounts = [acct {asWithoutRules = 1, asRulesFile = Nothing}]})
+            ~?= T.pack ("Create " <> FilePath.joinPath ["~", "fin", "import", "me", "mybank", "checking", "mybank-checking.rules"]) <> " (rules for me/mybank/checking)",
+          "special character falls back to the absolute path" ~: nsCommand (next Posix (lsBaseDir odd) odd)
+            ~?= Just ("export LEDGER_FILE='" <> T.pack (toFilePath (lsBaseDir odd </> [relfile|all-years.journal|])) <> "'")
+        ]
 
 testVersion :: Test
 testVersion =
@@ -118,14 +137,14 @@ tests :: Test
 testRenderNoColour :: Test
 testRenderNoColour = TestCase $ do
   let s = blank {lsAccounts = [acct {asWithoutRules = 1, asRulesFile = Nothing}]}
-      out = renderStatus False Nothing s (atRoot s)
+      out = renderStatus False [] s (atRoot s)
   assertBool "account line" ("me/mybank/checking" `T.isInfixOf` out && "✗ no rules file" `T.isInfixOf` out)
   assertBool "next step" ("Next: Create import/me/mybank/checking/mybank-checking.rules" `T.isInfixOf` out)
   assertBool "no escapes" (not ("\ESC" `T.isInfixOf` out))
 
 testRenderPending :: Test
 testRenderPending = TestCase $ do
-  let render a = renderStatus False Nothing blank {lsAccounts = [a]} (atRoot blank)
+  let render a = renderStatus False [] blank {lsAccounts = [a]} (atRoot blank)
   assertBool "nothing imported yet" ("• 1 not imported" `T.isInfixOf` render acct {asJournalsMissing = 1})
   assertBool "mixed" ("• 11 journals, 1 not imported, 2 outdated" `T.isInfixOf` render acct {asStatements = 12, asJournalsMissing = 1, asJournalsOutdated = 2})
   assertBool "clean" ("✓ 1 journal" `T.isInfixOf` render acct)
@@ -137,4 +156,4 @@ testJSONShape = TestCase $ case statusJSON testSystemInfo Nothing blank (atRoot 
       @?= ["accounts", "allYearsJournalExists", "baseDir", "environment", "hledger", "ledgerFile", "manualJournals", "misplaced", "next", "schemaVersion"]
   _ -> assertFailure "status JSON is an object"
 
-tests = TestList [testSuggest, testMisplacedUpperCase, testRules, testVersion, testRenderNoColour, testRenderPending, testJSONShape]
+tests = TestList [testSuggest, testMisplacedUpperCase, testRules, testHome, testVersion, testRenderNoColour, testRenderPending, testJSONShape]

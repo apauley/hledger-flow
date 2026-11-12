@@ -1,0 +1,17 @@
+#!/bin/sh
+# Bogart Bank leaves the year out of its dates: '01 Mrt'.
+# Add the year the statement period starts in, and count
+# one more each time the rows go from December to January.
+awk -F, -v OFS=, '
+  $1 == 3 && $3 ~ /[0-9][0-9][0-9][0-9].$/ {
+    year = substr($3, length($3) - 4, 4)
+    previous = substr($3, 5, 3)
+  }
+  $1 == 5 && $2 ~ /^[0-9]+$/ {
+    month = substr($3, 5, 3)
+    if (month == "Jan" && previous == "Des") year++
+    previous = month
+    sub(/.$/, " " year "&", $3)
+  }
+  { print }
+' "$1" > "$2"

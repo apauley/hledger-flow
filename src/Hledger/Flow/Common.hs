@@ -12,7 +12,7 @@ import Control.Concurrent.STM
 import Data.Char (isAlphaNum, isAscii, isDigit)
 import Data.Either
 import Data.Function (on)
-import qualified Data.List as List (groupBy, isPrefixOf, isSuffixOf, null, sortBy)
+import qualified Data.List as List (groupBy, isPrefixOf, isSuffixOf, nub, null, sortBy)
 import Data.Maybe (mapMaybe)
 import qualified Data.Map.Strict as Map
 import Data.Ord (comparing)
@@ -111,14 +111,75 @@ hledgerFileArgument info path
     (major, minor) >= ((1, 52) :: (Int, Int)) = T.pack (literalGlobPath path)
   | otherwise = T.pack path
 
+-- | Pass only a given config; hledger finds the default one itself.
 hledgerConfArgs :: RT.RuntimeOptions -> [T.Text]
 hledgerConfArgs opts =
   case RT.hledgerConf opts of
-    Nothing -> []
-    Just conf -> ["--conf", T.pack conf]
+    Just (GivenConf conf) -> ["--conf", T.pack conf]
+    _ -> []
+
+-- | The config file hledger will use: the given one, or the first that hledger 1.40+ finds
+-- by itself, like possibleConfFiles in hledger's Hledger.Cli.Conf: hledger.conf in the current
+-- directory or a parent, ~/.hledger.conf, or hledger.conf in the XDG config directory.
+findHledgerConf :: Maybe FilePath -> IO (Maybe HledgerConf)
+findHledgerConf (Just given) = return (Just (GivenConf given))
+findHledgerConf Nothing = do
+  found <- tryIOError $ do
+    here <- Directory.getCurrentDirectory
+    home <- Directory.getHomeDirectory
+    xdg <- Directory.getXdgDirectory Directory.XdgConfig "hledger"
+    let file d = d FilePath.</> if d == home then ".hledger.conf" else "hledger.conf"
+    filterM Directory.doesFileExist (map file (List.nub (upToRoot here ++ [home, xdg])))
+  return $ case found of
+    Right (f : _) -> Just (FoundConf f)
+    _ -> Nothing
+  where
+    upToRoot d = let up = FilePath.takeDirectory d in d : if up == d then [] else upToRoot up
 
 showCmdArgs :: [T.Text] -> T.Text
 showCmdArgs args = T.intercalate " " (map escapeArg args)
+
+-- | The home folder as HOME spells it and as resolved, so paths from either spelling match,
+-- such as macOS's /private/var for /var.
+homeDirs :: IO [FilePath]
+homeDirs = either (const []) id <$> tryIOError (do
+  home <- Directory.getHomeDirectory
+  real <- Directory.canonicalizePath home
+  return (List.nub [home, real]))
+
+-- | The path's components below the home folder; @Just []@ for the home folder itself.
+belowHome :: [FilePath] -> FilePath -> Maybe [FilePath]
+belowHome homes path = case [drop (length h) p | h <- map FilePath.splitDirectories homes, under h] of
+  rest : _ -> Just rest
+  [] -> Nothing
+  where
+    p = FilePath.splitDirectories path
+    under h = not (null h) && length h <= length p && and (zipWith FilePath.equalFilePath h p)
+
+-- | A path for people to read, with the home folder as @~@.
+tildePath :: [FilePath] -> FilePath -> FilePath
+tildePath homes path = maybe path (FilePath.joinPath . ("~" :)) (belowHome homes path)
+
+-- | A command line for people to read, with paths under the home folder as @~@.
+showCmdArgsAt :: [FilePath] -> [T.Text] -> T.Text
+showCmdArgsAt homes = T.unwords . map arg
+  where
+    arg a = case belowHome homes (T.unpack a) of
+      Just [] -> "~"
+      Just rest -> "~" <> T.singleton FilePath.pathSeparator <> escapeArg (T.pack (FilePath.joinPath rest))
+      Nothing -> escapeArg a
+
+-- | A path under the home folder to paste into a command, as @"$HOME/…"@: the shell expands
+-- that, unlike a quoted @~@. 'Nothing' outside the home folder, or when the rest of the path
+-- has a character that is special inside double quotes; callers then paste the absolute path.
+homeShellPath :: Shell -> [FilePath] -> FilePath -> Maybe T.Text
+homeShellPath shell homes path = case belowHome homes path of
+  Just rest | not (any (any special) rest) -> Just ("\"" <> T.pack (FilePath.joinPath ("$HOME" : rest)) <> "\"")
+  _ -> Nothing
+  where
+    special c = case shell of
+      Posix -> c `elem` ("$`\"\\!" :: String)
+      PowerShell -> c `elem` ("$`\"" :: String) || (c >= '\x201c' && c <= '\x201e')
 
 escapeArg :: T.Text -> T.Text
 escapeArg a
@@ -180,7 +241,8 @@ logTimedAction ::
   IO FullTimedOutput
 logTimedAction opts ch cmdLabel extraCmdLabels cmd args stdoutLogger stderrLogger action = do
   logVerbose opts ch $ "Begin: " <> cmdLabel
-  logVerbose opts ch $ cmd <> " " <> T.intercalate " " args
+  homes <- homeDirs
+  logVerbose opts ch $ showCmdArgsAt homes (cmd : args)
   if (List.null extraCmdLabels) then return () else logVerbose opts ch $ T.intercalate "\n" extraCmdLabels
   timed@((ec, stdOut, stdErr), diff) <- timeAction action
   stdoutLogger ch stdOut
@@ -235,7 +297,8 @@ timeAndExitOnErr' opts ch cmdLabel extraCmdLabels hints stdoutLogger stderrLogge
   timed@((ec, stdOut, stdErr), _) <- logTimedAction opts ch cmdLabel extraCmdLabels cmd args stdoutLogger (\_ _ -> return ()) action
   case ec of
     ExitFailure i -> do
-      let cmdText = cmd <> " " <> showCmdArgs args
+      homes <- homeDirs
+      let cmdText = showCmdArgsAt homes (cmd : args)
       let msgOut = descriptiveOutput "Standard output" (trimToolOutput stdOut)
       let msgErr = descriptiveOutput "Error output" (trimToolOutput stdErr)
       let exitMsg =

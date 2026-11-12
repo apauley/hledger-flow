@@ -1,0 +1,15 @@
+2,123456790,'MNR GAWIE DE GROOT','BOGART SPAARREKENING'
+3,,'Staat'
+3,'Staatnommer','Vanaf Datum','Tot Datum'
+3,1,'28 Oktober 2016','27 Januarie 2017'
+4,,'Opsomming'
+5,,'Transaksies'
+5,'Nommer','Datum','Beskrywing1','Beskrywing2','Beskrywing3','Bedrag','Saldo','Opgeloopte Koste'
+5,1,'01 Nov',"Oordrag Van","Tjekrekening","",5000.00,5000.00,
+5,2,'30 Nov',"Rente","","",27.40,5027.40,
+5,3,'01 Des',"Oordrag Van","Tjekrekening","",5000.00,10027.40,
+5,4,'23 Des',"Kontant Onttrekking","Kersfees","",-1500.00,8527.40,
+5,5,'31 Des',"Rente","","",52.10,8579.50,
+5,6,'02 Jan',"Oordrag Van","Tjekrekening","",5000.00,13579.50,
+5,7,'27 Jan',"Rente","","",71.85,13651.35,
+6,'END'

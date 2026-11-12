@@ -38,7 +38,8 @@ type ReportGenerator = RuntimeOptions -> TChan FlowTypes.LogMessage -> [FilePath
 
 generateReports :: RuntimeOptions -> IO ()
 generateReports opts = withConsoleLogging $ \ch -> do
-  when (showOptions opts) $ channelOutLn ch (T.unlines (renderSettings id (reportSettings opts)))
+  homes <- homeDirs
+  when (showOptions opts) $ channelOutLn ch (T.unlines (renderSettings id (reportSettings homes opts)))
   (reports, diff) <- timeAction $ generateReports' opts ch
   let skipped = length (lefts reports)
       skippedText = if skipped == 0 then "" else " Skipped " <> plural skipped "empty report" <> "."
@@ -52,10 +53,11 @@ generateReports' opts ch = do
   configured <- configuredLedgerFile
   let hledgerJournal = maybe (toFilePath (baseDir opts </> [relfile|all-years.journal|])) snd configured
   hledgerJournalExists <- Directory.doesFileExist hledgerJournal
+  homes <- homeDirs
   unless hledgerJournalExists $ ioError $ userError $ case configured of
     Just (v, _) -> "LEDGER_FILE is set to " ++ v ++ ", which doesn't exist. Point it at "
-      ++ toFilePath (baseDir opts </> [relfile|all-years.journal|]) ++ ", or unset it."
-    Nothing -> "No all-years.journal in " ++ toFilePath (baseDir opts) ++ " yet. Run `hledger-flow import` first."
+      ++ tildePath homes (toFilePath (baseDir opts </> [relfile|all-years.journal|])) ++ ", or unset it."
+    Nothing -> "No all-years.journal in " ++ tildePath homes (toFilePath (baseDir opts)) ++ " yet. Run `hledger-flow import` first."
   let journalWithYears = baseDir opts </> [relfile|import/all-years.journal|]
   let aggregateReportDir
         | any ((== toFilePath [reldir|all|]) . map toLower . toFilePath) owners = baseDir opts </> [reldir|reports/_all_|]

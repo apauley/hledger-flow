@@ -39,6 +39,9 @@ How to keep this ChangeLog
 - The documentation has moved to the [project site](https://hledger-flow.github.io/).
   Links in hledger-flow's messages and `--help` now open the relevant section
   there. Links printed by earlier versions still lead to the right page.
+  The [tutorial](https://hledger-flow.github.io/tutorial/) is rewritten for
+  this release. It shows how far hledger's rules files go before you need a
+  preprocess or construct script.
 - `status` now tells you whether you're running the latest hledger-flow, and
   [how to upgrade](https://hledger-flow.github.io/reference/release-notices/)
   if not. Set `HLEDGER_FLOW_NO_UPDATE_CHECK=1` to turn the check off.
@@ -53,6 +56,15 @@ How to keep this ChangeLog
   complete copy stays in place for the next import.
 - Running `import` from a folder below a statement year now limits conversion
   and orphan cleanup to that account. Sibling accounts keep their outputs.
+- `status` and `--show-options` now name the
+  [hledger config file](https://hledger-flow.github.io/reference/status/#hledger-config-file)
+  that hledger finds by itself, such as `~/.hledger.conf`, instead of showing
+  none. Options in that file apply to import and reports, and can change the
+  generated journals.
+- `status`, `init`, `--show-options` and import and report messages show
+  paths in your home folder as `~`. The commands they suggest write the home
+  folder as `"$HOME/…"`, so you can still paste them. `status --json` keeps
+  [full paths](https://hledger-flow.github.io/reference/status/#paths-in-your-home-folder).
 - Local Linux x86-64 Snap builds now package the hledger-flow version named
   on the snap and verify the executable before installation.
 
