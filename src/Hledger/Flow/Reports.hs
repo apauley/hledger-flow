@@ -69,7 +69,7 @@ generateReports' opts ch = do
           }
   let aggregateOnlyReports = reportActions opts ch [transferBalance] aggregateParams
   ownerParams <- ownerParameters opts ch owners
-  let ownerWithAggregateParams = (if length owners > 1 then [aggregateParams] else []) ++ ownerParams
+  let ownerWithAggregateParams = aggregateParams : ownerParams
   let sharedOptions = (if prettyReports opts then ["--pretty-tables"] else []) ++ ["--depth", "2"]
   let ownerWithAggregateReports = List.concat $ fmap (reportActions opts ch [incomeStatement sharedOptions, incomeMonthlyStatement sharedOptions, balanceSheet sharedOptions]) ownerWithAggregateParams
   let ownerOnlyReports = List.concat $ fmap (reportActions opts ch [accountList, unknownTransactions]) ownerParams

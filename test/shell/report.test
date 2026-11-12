@@ -198,3 +198,31 @@ hledger-flow status --json | jq -e '.ledgerFile.exists and .next.command == "hle
 flow report
 test -s reports/gawie/2016/accounts.txt
 $ sh -eu
+
+# Root manual transactions reach aggregate financial statements with zero or one owner.
+<
+. ./test/shell/setup.sh
+mv import/gawie owner
+manual=import/_manual_/2016
+mkdir -p "$manual"
+printf '%s\n' '2016-03-02 Train fare' '    expenses:travel  30' '    assets:cash' > "$manual/post-import.journal"
+for owners in 0 1; do
+    if test "$owners" = 1; then mv owner import/gawie; fi
+    flow import
+    flow report --ascii-reports
+    report_row reports/all/2016/income-expenses.txt expenses:travel
+    report_row reports/all/2016/monthly/income-expenses.txt expenses:travel
+    report_row reports/all/2016/balance-sheet.txt assets:cash
+done
+report_row reports/all/2016/income-expenses.txt expenses:bank-fees
+report_row reports/gawie/2016/income-expenses.txt expenses:bank-fees
+if grep -Fq expenses:travel reports/gawie/2016/income-expenses.txt; then exit 1; fi
+$ sh -eu
+expenses:travel || 30
+expenses:travel || 0 0 30 0 0 0 0 0 0 0 0 0
+assets:cash || -30
+expenses:travel || 30
+expenses:travel || 0 0 30 0 0 0 0 0 0 0 0 0
+assets:cash || -30
+expenses:bank-fees || 5
+expenses:bank-fees || 5
