@@ -51,6 +51,8 @@ How to keep this ChangeLog
   `2024.04_rfo-card.csv` uses `rfo-card.rules` when present.
 - If writing a rules-generated journal or an include file fails, the previous
   complete copy stays in place for the next import.
+- Running `import` from a folder below a statement year now limits conversion
+  and orphan cleanup to that account. Sibling accounts keep their outputs.
 - Local Linux x86-64 Snap builds now package the hledger-flow version named
   on the snap and verify the executable before installation.
 

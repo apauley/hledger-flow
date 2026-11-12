@@ -128,9 +128,11 @@ testRunDirsWithTempDir absoluteTempDir = do
   let inDir = accDir </> [reldir|1-in|]
   let yearDir = inDir </> [reldir|2019|]
 
-  createDirIfMissing True $ baseDir </> yearDir
+  let archive = yearDir </> [reldir|archive|]
+  let nested = archive </> [reldir|old/downloads|]
+  createDirIfMissing True $ baseDir </> nested
 
-  withCurrentDir baseDir $ assertRunDirs accDir [accDir, bankDir, ownerDir, importDir] [yearDir, inDir]
+  withCurrentDir baseDir $ assertRunDirs accDir [accDir, bankDir, ownerDir, importDir] [inDir, yearDir, archive, nested]
 
 testRunDirs :: Test
 testRunDirs =

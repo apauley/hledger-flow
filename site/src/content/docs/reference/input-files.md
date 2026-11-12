@@ -109,8 +109,15 @@ process leaves this lock behind, the error explains how to remove the
 empty lock directory once no import is running and retry. A failed run may
 have moved some outputs already; they remain recoverable in `.trash`.
 
-Moves respect the selected import directory and `--start-year`, including
-when the last input has been removed. Include files are rebuilt globally
+Running `hledger-flow import` from anywhere below an account selects the
+whole account for statement conversion and orphan cleanup. For example,
+running it from `import/john/mybank/savings/1-in/2018/archive/` selects
+`savings` across its statement years and leaves sibling accounts' statements
+and generated journals alone. The same scope applies when you pass that
+directory to `import`. Use `--start-year` to limit conversion and cleanup
+to that year and later years, including years whose last input was removed.
+
+Include files are rebuilt globally
 from source-backed journals and supported manual files, so orphaned
 journals outside the cleanup scope are also excluded from the ledger.
 Obsolete generated year and account indexes are rewritten as empty ledgers.
