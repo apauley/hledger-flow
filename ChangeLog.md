@@ -77,6 +77,8 @@ How to keep this ChangeLog
   including when output is piped to a slow reader.
 - `import --start-year` now rejects mistyped years such as `24` before
   importing. Use four digits or `current`.
+- `status --rules-template` gives every CSV column a distinct field name,
+  even when the header already contains a name such as `Reference_2`.
 - Local Linux x86-64 Snap builds now package the hledger-flow version named
   on the snap and verify the executable before installation.
 

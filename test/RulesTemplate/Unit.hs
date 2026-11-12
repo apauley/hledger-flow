@@ -17,6 +17,11 @@ tests =
       "hledger's special names renamed" ~: templateFields ["Date", "Description", "Amount", "Balance", "Status", "Code"]
         ~?= ["date", "description", "amount", "bank_balance", "bank_status", "bank_code"],
       "single amount column mapped" ~: templateFields ["Date", "Desc", "Transaction Amount"] ~?= ["date", "description", "amount"],
+      "suffixes are unique even when present in the header" ~:
+        templateFields ["Reference", "Reference", "Reference_2", "Reference"]
+        ~?= ["reference", "reference_2", "reference_2_2", "reference_3"],
+      "skip a suffix already used by an earlier column" ~:
+        templateFields ["Reference_2", "Reference", "Reference"] ~?= ["reference_2", "reference", "reference_3"],
       "debit and credit amounts left alone" ~: templateFields ["Date", "Desc", "Debit Amount", "Credit Amount"]
         ~?= ["date", "description", "debit_amount", "credit_amount"],
       "renamed columns explained" ~: fmap (T.isInfixOf "bank_balance")
