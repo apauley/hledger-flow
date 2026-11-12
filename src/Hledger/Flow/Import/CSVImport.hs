@@ -10,7 +10,6 @@ import Control.Concurrent.STM
 import Control.Monad
 import Data.Maybe (fromMaybe)
 import qualified Data.Text as T
-import qualified Data.Text.IO as T
 import Hledger.Flow.DateTime (timeAction)
 import Hledger.Flow.Environment (importSettings, renderSettings)
 import Hledger.Flow.BaseDir (effectiveRunDir, relativeToBase)

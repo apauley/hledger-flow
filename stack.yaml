@@ -3,3 +3,6 @@ resolver: lts-24.65
 
 packages:
 - .
+
+ghc-options:
+  hledger-flow: -Wall -Werror

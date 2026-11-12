@@ -115,15 +115,15 @@ testHome =
       next shell cwd s = nextStep 2026 shell homes cwd s
       unset = blank {lsAccounts = [acct], lsLedgerFile = Nothing}
       quoted parts = "\"" <> T.pack (FilePath.joinPath ("$HOME" : parts)) <> "\""
-      odd = blank {lsBaseDir = testRoot </> [reldir|fin$|], lsAccounts = [acct], lsLedgerFile = Nothing}
+      dollarInPath = unset {lsBaseDir = testRoot </> [reldir|fin$|]}
    in TestList
         [ "posix export" ~: nsCommand (next Posix (lsBaseDir blank) unset) ~?= Just ("export LEDGER_FILE=" <> quoted ["fin", "all-years.journal"]),
           "powershell export" ~: nsCommand (next PowerShell (lsBaseDir blank) unset) ~?= Just ("$env:LEDGER_FILE = " <> quoted ["fin", "all-years.journal"]),
           "ledger argument" ~: nsCommand (next Posix elsewhere blank {lsAccounts = [acct]}) ~?= Just ("hledger-flow report " <> quoted ["fin"]),
           "summary" ~: nsSummary (next Posix elsewhere blank {lsAccounts = [acct {asWithoutRules = 1, asRulesFile = Nothing}]})
             ~?= T.pack ("Create " <> FilePath.joinPath ["~", "fin", "import", "me", "mybank", "checking", "mybank-checking.rules"]) <> " (rules for me/mybank/checking)",
-          "special character falls back to the absolute path" ~: nsCommand (next Posix (lsBaseDir odd) odd)
-            ~?= Just ("export LEDGER_FILE='" <> T.pack (toFilePath (lsBaseDir odd </> [relfile|all-years.journal|])) <> "'")
+          "special character falls back to the absolute path" ~: nsCommand (next Posix (lsBaseDir dollarInPath) dollarInPath)
+            ~?= Just ("export LEDGER_FILE='" <> T.pack (toFilePath (lsBaseDir dollarInPath </> [relfile|all-years.journal|])) <> "'")
         ]
 
 testVersion :: Test
