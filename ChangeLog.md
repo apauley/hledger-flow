@@ -69,6 +69,8 @@ How to keep this ChangeLog
   who already have journals.
 - `status` marks journals outdated when a shared CSV rules file changes,
   including rules included by another rules file.
+- Owners, banks and accounts named `import` are supported when importing
+  statements and checking their status from the ledger root.
 - Local Linux x86-64 Snap builds now package the hledger-flow version named
   on the snap and verify the executable before installation.
 

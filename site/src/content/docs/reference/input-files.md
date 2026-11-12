@@ -15,6 +15,11 @@ For example, assuming you have a `savings` account at `mybank`, you'll
 put your first CSV statement here:
 `import/john/mybank/savings/1-in/2018/123456789_2018-06-30.csv`.
 
+An owner, bank, or account can itself be named `import`. For example,
+`import/john/mybank/import/1-in/2018/april.csv` belongs to John's account
+named `import` at `mybank`. Run `hledger-flow import` and `hledger-flow status`
+from the ledger root to use that layout.
+
 Some people may want to include accounts belonging to their spouse as
 part of the household finances:
 `import/spouse/otherbank/checking/1-in/2018/987654321_2018-06-30.csv`.

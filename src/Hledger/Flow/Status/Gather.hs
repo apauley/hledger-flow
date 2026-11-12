@@ -82,7 +82,7 @@ accountName root file = case stripProperPrefix root file of
 accountStatus :: BaseDir -> T.Text -> [AbsFile] -> IO AccountStatus
 accountStatus base name statements = do
   dirs <- case statements of
-    s : _ -> either (ioError . userError . T.unpack) return (extractImportDirs s)
+    s : _ -> either (ioError . userError . T.unpack) return (extractImportDirs (base </> [reldir|import|]) s)
     [] -> ioError (userError ("No statements for " ++ T.unpack name))
   let relative = relativeToBase' (toFilePath base) . toFilePath
   defaults <- defaultRulesCandidates dirs
