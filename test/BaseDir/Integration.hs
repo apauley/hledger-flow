@@ -23,7 +23,7 @@ assertSubDirsForDetermineBaseDir initialPwd expectedBaseDir importDirs = do
 assertDetermineBaseDir :: AbsDir -> BaseDir -> Path.Path b Dir -> IO ()
 assertDetermineBaseDir initialPwd expectedBaseDir subDir = do
   setCurrentDir initialPwd
-  (bd1, runDir1) <- determineBaseDir $ Just $ pathToTurtle subDir
+  (bd1, runDir1) <- determineBaseDir $ Just $ toFilePath subDir
   assertFindTestFileUsingRundir bd1 runDir1
 
   setCurrentDir subDir
@@ -57,7 +57,7 @@ assertCurrentDirVariations absoluteTempDir bdRelativeToTempDir = do
     (bd1, runDir1) <- determineBaseDir Nothing
     (bd2, runDir2) <- determineBaseDir $ Just "."
     (bd3, runDir3) <- determineBaseDir $ Just "./"
-    (bd4, runDir4) <- determineBaseDir $ Just $ pathToTurtle absBaseDir
+    (bd4, runDir4) <- determineBaseDir $ Just $ toFilePath absBaseDir
 
     let msg label dir = "When pwd is the base dir, determineBaseDir returns the same " ++ label ++ ", regardless of the input variation. " ++ show dir
     sequence_ $ map (\dir -> assertEqual (msg "baseDir" dir) absBaseDir dir) [bd1, bd2, bd3, bd4]
@@ -71,7 +71,7 @@ testBaseDirWithTempDir initialPwd absoluteTempDir = do
   let unrelatedDir = absoluteTempDir </> [reldir|unrelated|]
   createDir unrelatedDir
 
-  bdUnrelated <- try $ determineBaseDir $ Just (pathToTurtle unrelatedDir)
+  bdUnrelated <- try $ determineBaseDir $ Just (toFilePath unrelatedDir)
   assertEqual "determineBaseDir produces an error message when it cannot find a baseDir" (Left $ MissingBaseDir unrelatedDir) bdUnrelated
 
   let baseDir = [reldir|bd1|]
@@ -86,8 +86,8 @@ testBaseDirWithTempDir initialPwd absoluteTempDir = do
   createDirIfMissing True $ absoluteTempDir </> yearDir
 
   let fictionalDir = absoluteTempDir </> ownerDir </> [reldir|fictionalDir|]
-  errorSub <- try $ determineBaseDir $ Just $ pathToTurtle fictionalDir
-  assertEqual "determineBaseDir produces an error message when given a non-existant subdir of a valid basedir" (Left $ InvalidTurtleDir $ pathToTurtle fictionalDir) errorSub
+  errorSub <- try $ determineBaseDir $ Just $ toFilePath fictionalDir
+  assertEqual "determineBaseDir produces an error message when given a non-existant subdir of a valid basedir" (Left $ InvalidTurtleDir $ toFilePath fictionalDir) errorSub
 
   assertCurrentDirVariations absoluteTempDir baseDir
 
@@ -114,7 +114,7 @@ assertRunDirs accDir businessAsUsualRundirs specialTreatmentRundirs = do
 
 assertRunDir :: (RelDir -> RelDir) -> String -> RelDir -> IO ()
 assertRunDir expectedRunDir msg subDir = do
-  (_, runDir) <- determineBaseDir $ Just $ pathToTurtle subDir
+  (_, runDir) <- determineBaseDir $ Just $ toFilePath subDir
   assertEqual msg (expectedRunDir subDir) runDir
 
 testRunDirsWithTempDir :: AbsDir -> IO ()

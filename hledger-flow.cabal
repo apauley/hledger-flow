@@ -111,9 +111,11 @@ test-suite hledger-flow-test
       Environment.Unit
       ImportHelpers.Integration
       Init.Integration
+      PathHelpers.Compatibility
       PathHelpers.Unit
       ReleaseNotice.Unit
       RulesTemplate.Unit
+      RuntimeOptions.Unit
       Status.Integration
       Status.Unit
       TestHelpers

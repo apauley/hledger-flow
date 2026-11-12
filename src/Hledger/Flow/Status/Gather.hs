@@ -21,7 +21,7 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import Data.Time.Clock (UTCTime)
 import Hledger.Flow.BaseDir (findBaseDir, relativeToBase')
-import Hledger.Flow.Common (configuredLedgerFile, firstExistingFile)
+import Hledger.Flow.Common (configuredLedgerFile, firstExistingFile, groupValuesBy)
 import Hledger.Flow.Import.ImportHelpers (defaultRulesCandidates, extractImportDirs, rulesFileCandidates)
 import Hledger.Flow.Import.ImportHelpersTurtle (includesNeedUpdate)
 import Hledger.Flow.Import.Inventory (classifyGeneratedOutputs, findImportFiles, generatedOutput, isManualJournal, managedIncludeFiles, stageFiles)
@@ -52,7 +52,7 @@ gatherStatus hledger base = do
   let root = base </> [reldir|import|]
   files <- findImportFiles root
   let statements = stageFiles root [reldir|1-in|] files
-      groups = Map.toAscList (Map.fromListWith (flip (++)) [(accountName root s, [s]) | s <- statements])
+      groups = Map.toAscList (groupValuesBy (accountName root) statements)
   accounts <- forM groups (uncurry (accountStatus base))
   configured <- configuredLedgerFile
   ledgerFile <- forM configured $ \(value, path) -> LedgerFile value <$> Directory.doesFileExist path

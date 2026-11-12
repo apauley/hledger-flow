@@ -9,11 +9,8 @@ import Control.Concurrent.Async (concurrently, mapConcurrently)
 import Control.Concurrent.STM
 import Data.Char (isAlphaNum, isAscii, isDigit)
 import Data.Either
-import Data.Function (on)
-import qualified Data.List as List (groupBy, isPrefixOf, isSuffixOf, nub, null, sortBy)
-import Data.Maybe (mapMaybe)
+import qualified Data.List as List (isPrefixOf, isSuffixOf, nub, null)
 import qualified Data.Map.Strict as Map
-import Data.Ord (comparing)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import qualified Data.Text.Read as T
@@ -21,7 +18,7 @@ import qualified GHC.IO.Handle.FD as H
 import Hledger.Flow.DateTime (timeAction)
 import Hledger.Flow.BaseDir (relativeToBase)
 import Hledger.Flow.Logging
-import Hledger.Flow.PathHelpers (AbsFile, RelDir, fromTurtleAbsFile, literalGlobPath, withStagedOutput)
+import Hledger.Flow.PathHelpers (AbsFile, RelDir, literalGlobPath, withStagedOutput)
 import qualified Hledger.Flow.RuntimeOptions as RT
 import Hledger.Flow.Types
 import Path (reldir, relfile, toFilePath)
@@ -42,7 +39,7 @@ hledgerPathFromOption :: Maybe FilePath -> IO AbsFile
 hledgerPathFromOption pathOption = do
   case pathOption of
     Just h -> do
-      hlAbs <- fromTurtleAbsFile h
+      hlAbs <- Path.parseAbsFile h
       isOnDisk <- Path.doesFileExist hlAbs
       if isOnDisk
         then return hlAbs
@@ -359,24 +356,10 @@ needsRegeneration src target = do
   newer <- tryIOError $ (>) <$> Path.getModificationTime src <*> Path.getModificationTime target
   return (either (const True) id newer)
 
-groupPairs' :: (Eq a, Ord a) => [(a, b)] -> [(a, [b])]
-groupPairs' =
-  mapMaybe
-    ( \ll -> case ll of
-        [] -> Nothing
-        ((k, _) : _) -> Just (k, map snd ll)
-    )
-    . List.groupBy ((==) `on` fst)
-    . List.sortBy (comparing fst)
-
-groupPairs :: (Eq a, Ord a) => [(a, b)] -> Map.Map a [b]
-groupPairs = Map.fromList . groupPairs'
-
-pairBy :: (a -> b) -> [a] -> [(b, a)]
-pairBy keyFun = map (\v -> (keyFun v, v))
-
-groupValuesBy :: (Ord k, Ord v) => (v -> k) -> [v] -> Map.Map k [v]
-groupValuesBy keyFun = groupPairs . pairBy keyFun
+-- | Group by key, preserving input order within each group.
+groupValuesBy :: Ord k => (v -> k) -> [v] -> Map.Map k [v]
+groupValuesBy key values =
+  Map.map reverse (Map.fromListWith (++) [(key v, [v]) | v <- values])
 
 allYearsFileName :: FilePath
 allYearsFileName = "all-years" <.> "journal"

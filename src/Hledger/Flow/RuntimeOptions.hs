@@ -2,8 +2,8 @@ module Hledger.Flow.RuntimeOptions where
 
 import qualified Data.Text as T
 import Hledger.Flow.Internals (SystemInfo)
-import Hledger.Flow.Types
-import Prelude hiding (putStrLn)
+import Hledger.Flow.Types (BaseDir, HledgerConf, HledgerInfo, RunDir)
+import qualified Hledger.Flow.Types as Types
 
 data RuntimeOptions = RuntimeOptions
   { baseDir :: BaseDir,
@@ -22,20 +22,20 @@ data RuntimeOptions = RuntimeOptions
   }
   deriving (Show)
 
-instance HasVerbosity RuntimeOptions where
-  verbose (RuntimeOptions _ _ _ _ _ _ _ _ v _ _ _ _) = v
+instance Types.HasVerbosity RuntimeOptions where
+  verbose RuntimeOptions {verbose = value} = value
 
-instance HasSequential RuntimeOptions where
-  sequential (RuntimeOptions _ _ _ _ _ _ _ _ _ _ sq _ _) = sq
+instance Types.HasSequential RuntimeOptions where
+  sequential RuntimeOptions {sequential = value} = value
 
-instance HasBatchSize RuntimeOptions where
-  batchSize (RuntimeOptions _ _ _ _ _ _ _ _ _ _ _ bs _) = bs
+instance Types.HasBatchSize RuntimeOptions where
+  batchSize RuntimeOptions {batchSize = value} = value
 
-instance HasBaseDir RuntimeOptions where
-  baseDir (RuntimeOptions bd _ _ _ _ _ _ _ _ _ _ _ _) = bd
+instance Types.HasBaseDir RuntimeOptions where
+  baseDir RuntimeOptions {baseDir = value} = value
 
-instance HasRunDir RuntimeOptions where
-  importRunDir (RuntimeOptions _ rd _ _ _ _ _ _ _ _ _ _ _) = rd
+instance Types.HasRunDir RuntimeOptions where
+  importRunDir RuntimeOptions {importRunDir = value} = value
 
-instance HasPrettyReports RuntimeOptions where
-  prettyReports (RuntimeOptions _ _ _ _ _ _ _ _ _ _ _ _ pr) = pr
+instance Types.HasPrettyReports RuntimeOptions where
+  prettyReports RuntimeOptions {prettyReports = value} = value
