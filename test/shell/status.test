@@ -123,3 +123,33 @@ run_suggestion "$(next_command "../$target")" > report-output
 test -s "../$target/reports/$owner/2026/accounts.txt"
 test ! -e reports
 $ sh -eu
+
+# Readable paths show the home folder as ~, and pasteable commands use "$HOME" unless the rest of the path needs quoting.
+<
+. ./test/shell/status-commands.sh
+case "$(uname -s)" in MINGW*|MSYS*) exit 0 ;; esac
+HOME=$(mktemp -d "${TMPDIR:-/tmp}/hledger-flow.XXXXXXXX")
+export HOME
+unset LEDGER_FILE
+cd "$HOME"
+hledger-flow init 'my finances' > output
+grep -qx 'Started a ledger in ~/my finances' output
+change=$(sed -n 's/^Change to it first: //p' output)
+test "$change" = 'cd "$HOME/my finances"'
+cd 'my finances'
+mkdir -p import/me/mybank/checking/1-in/2026
+printf 'Date,Desc,Amount\n2026-01-02,Coffee,-3.50\n' > import/me/mybank/checking/1-in/2026/jan.csv
+printf 'skip 1\nfields date, description, amount\naccount1 assets:checking\n' > import/me/mybank/checking/mybank-checking.rules
+hledger-flow import > /dev/null
+hledger-flow status > ../status-output
+grep -q '^Ledger: ~/my finances ' ../status-output
+grep -q '^  Ledger *~/my finances$' ../status-output
+set_ledger=$(sed -n 's/^ *Run: //p' ../status-output)
+test "$set_ledger" = 'export LEDGER_FILE="$HOME/my finances/all-years.journal"'
+run_suggestion "$set_ledger; hledger-flow status --json" | jq -e '.ledgerFile.exists and (.baseDir | startswith("/"))' > /dev/null
+cd "$HOME"
+hledger-flow init 'cost $5' > output
+change=$(sed -n 's/^Change to it first: //p' output)
+case "$change" in *HOME*) exit 1 ;; esac
+run_suggestion "$change; hledger-flow status --json" | jq -e '.baseDir | endswith("cost $5")' > /dev/null
+$ sh -eu

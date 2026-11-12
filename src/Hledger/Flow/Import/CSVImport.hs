@@ -43,7 +43,8 @@ type FileWasGenerated = Bool
 
 importCSVs :: RuntimeOptions -> IO ()
 importCSVs opts = withConsoleLogging $ \ch -> do
-  when (showOptions opts) (channelOutLn ch (T.unlines (renderSettings id (importSettings opts))))
+  homes <- homeDirs
+  when (showOptions opts) (channelOutLn ch (T.unlines (renderSettings id (importSettings homes opts))))
   logVerbose opts ch "Starting import"
   (journals, diff) <- timeAction $ importCSVs' opts ch
   let importRoot = baseDir opts Path.</> [Path.reldir|import|]
@@ -53,7 +54,7 @@ importCSVs opts = withConsoleLogging $ \ch -> do
   channelOutLn ch (importSummary scope (length journals) (length (filter snd journals)) accounts)
   logVerbose opts ch ("Import took " <> T.pack (show diff))
   status <- gatherStatus (Just (hledgerInfo opts)) (baseDir opts)
-  next <- nextStepHere status
+  next <- nextStepHere homes status
   color <- useColor stdout
   channelOut ch (renderNext color next)
 
@@ -235,7 +236,8 @@ customConstruct opts ch constructScript dirs csvFile journalOut = do
   let csvSrc = Path.toFilePath csvFile
   let relScript = relativeToBase opts (Path.toFilePath constructScript)
   let constructArgs = [T.pack csvSrc, "-"] ++ hookDirArgs dirs
-  let constructCmdText = "Running: " <> T.pack relScript <> " " <> showCmdArgs constructArgs
+  homes <- homeDirs
+  let constructCmdText = "Running: " <> T.pack relScript <> " " <> showCmdArgsAt homes constructArgs
   (cmd, hookArgs) <- hookCommand constructScript constructArgs
   let hook = (Process.proc (T.unpack cmd) (map T.unpack hookArgs))
         { Process.std_in = Process.CreatePipe, Process.std_out = Process.CreatePipe }

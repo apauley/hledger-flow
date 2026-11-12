@@ -47,6 +47,16 @@ whenever it could inspect the ledger, even when it found problems.
 
 You can run the suggested command from the directory where you requested
 status. Commands use PowerShell syntax on Windows and POSIX shell syntax on
-macOS and Linux. Status recommends a full import when conversion inputs have
+macOS and Linux.
+
+## Paths in your home folder
+
+Status, init, import and report show paths in your home folder as `~`, such
+as `~/finances`. In commands to paste they write the home folder as `$HOME`,
+which the shell expands where a quoted `~` wouldn't, such as
+`export LEDGER_FILE="$HOME/finances/all-years.journal"`. A path whose rest
+contains a character that is special inside double quotes, such as `$`,
+appears in full instead. `status --json` always gives full paths, and
+hledger's own messages are shown as hledger printed them. Status recommends a full import when conversion inputs have
 changed, generated files have lost their source statements, or journal
 includes need updating.

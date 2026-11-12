@@ -205,9 +205,23 @@ testFindHledgerConf = TestLabel "hledger config lookup" $ TestCase $ withTestDir
         found (root </> "home" </> ".hledger.conf")
         Directory.removeFile (root </> "home" </> ".hledger.conf")
         found (root </> "xdg" </> "hledger" </> "hledger.conf")
-  where
-    withEnv name value action = bracket (lookupEnv name) (maybe (unsetEnv name) (setEnv name)) $ \_ ->
-      setEnv name value >> action
+
+-- HUnit runs these cases sequentially; restore the variable even on failure.
+withEnv :: String -> String -> IO a -> IO a
+withEnv name value action = bracket (lookupEnv name) (maybe (unsetEnv name) (setEnv name)) $ \_ ->
+  setEnv name value >> action
+
+-- Paths come out resolved (macOS /private/var, symlinked homes), so match both spellings of HOME.
+testHomeDirs :: Test
+testHomeDirs = TestLabel "home folder spellings" $ TestCase $ unless (Sys.os == "mingw32") $ withTestDir $ \base -> do
+  let root = Path.toFilePath base
+  Directory.createDirectory (root </> "real")
+  Directory.createDirectoryLink (root </> "real") (root </> "link")
+  real <- Directory.canonicalizePath (root </> "real")
+  forM_ ([root </> "link", root </> "link/", real ++ "/"] :: [FilePath]) $ \home -> withEnv "HOME" home $ do
+    homes <- homeDirs
+    assertEqual ("resolved path with HOME=" ++ home) ("~" </> "fin") (tildePath homes (real </> "fin"))
+    assertEqual ("HOME's spelling with HOME=" ++ home) ("~" </> "fin") (tildePath homes (home </> "fin"))
 
 tests :: Test
-tests = TestList [testHledgerLookup, testFindHledgerConf, testFilterPaths, testFirstExistingFile, testVerboseTestFile, testNeedsRegeneration, testBatchOrder, testBatchFailure]
+tests = TestList [testHledgerLookup, testFindHledgerConf, testHomeDirs, testFilterPaths, testFirstExistingFile, testVerboseTestFile, testNeedsRegeneration, testBatchOrder, testBatchFailure]

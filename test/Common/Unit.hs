@@ -73,6 +73,28 @@ testHledgerFileArgument = TestList
   where
     argument version = hledgerFileArgument (defaultHlInfo {hlVersion = version}) "April [1].csv"
 
+testHomePaths :: Test
+testHomePaths =
+  let homes = ["/home/me/", "/real/me"]
+      native = T.pack . FilePath.joinPath
+      quoted parts = "\"" <> native ("$HOME" : parts) <> "\""
+   in TestList
+        [ "home itself" ~: tildePath homes "/home/me" ~?= "~",
+          "below home, trailing slash on HOME" ~: tildePath homes "/home/me/fin" ~?= FilePath.joinPath ["~", "fin"],
+          "resolved spelling" ~: tildePath homes "/real/me/fin" ~?= FilePath.joinPath ["~", "fin"],
+          "a sibling with the same prefix" ~: tildePath homes "/home/meg/fin" ~?= "/home/meg/fin",
+          "outside home" ~: tildePath homes "/srv/fin" ~?= "/srv/fin",
+          "command line" ~: showCmdArgsAt homes ["/home/me/bin/hledger", "--file", "/home/me/my fin/a.csv", "/srv/b"]
+            ~?= native ["~", "bin/hledger"] <> " --file ~" <> T.singleton FilePath.pathSeparator <> "'" <> native ["my fin", "a.csv"] <> "' /srv/b",
+          "posix command path" ~: homeShellPath Posix homes "/home/me/my fin" ~?= Just (quoted ["my fin"]),
+          "home itself in a command" ~: homeShellPath Posix homes "/real/me" ~?= Just "\"$HOME\"",
+          "powershell command path" ~: homeShellPath PowerShell homes "/home/me/Lee's fin" ~?= Just (quoted ["Lee's fin"]),
+          "outside home in a command" ~: homeShellPath Posix homes "/srv/fin" ~?= Nothing,
+          "posix specials fall back" ~: map (\c -> homeShellPath Posix homes ("/home/me/a" ++ [c])) "$`\"\\!" ~?= replicate 5 Nothing,
+          "powershell specials fall back" ~: map (\c -> homeShellPath PowerShell homes ("/home/me/a" ++ [c])) "$`\"\x201c\x201d\x201e" ~?= replicate 6 Nothing,
+          "posix-only specials are fine in powershell" ~: homeShellPath PowerShell homes "/home/me/a!" ~?= Just (quoted ["a!"])
+        ]
+
 testRelativeToBase :: Test
 testRelativeToBase =
   TestCase
@@ -141,7 +163,7 @@ testGroupValuesBy =
     )
 
 tests :: Test
-tests = TestList [testDocURL, testDocLinksHaveRedirects, testShowCmdArgs, testHledgerConfArgs, testHledgerFileArgument, testRelativeToBase, testExtractDigits, testGroupValuesBy, testTrimToolOutput]
+tests = TestList [testDocURL, testDocLinksHaveRedirects, testShowCmdArgs, testHledgerConfArgs, testHledgerFileArgument, testHomePaths, testRelativeToBase, testExtractDigits, testGroupValuesBy, testTrimToolOutput]
 
 testTrimToolOutput :: Test
 testTrimToolOutput =

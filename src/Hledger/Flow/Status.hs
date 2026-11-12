@@ -19,10 +19,10 @@ module Hledger.Flow.Status
 where
 
 import Data.Char (isDigit, toLower)
-import Data.Maybe (mapMaybe)
+import Data.Maybe (fromMaybe, mapMaybe)
 import qualified Data.Set as Set
 import qualified Data.Text as T
-import Hledger.Flow.Common (Shell (..), hledgerVersionNumber, posixLiteral, powerShellLiteral, shellArgument)
+import Hledger.Flow.Common (Shell (..), hledgerVersionNumber, homeShellPath, posixLiteral, powerShellLiteral, shellArgument, tildePath)
 import Hledger.Flow.DocHelpers (DocLink (..), docURL)
 import Hledger.Flow.Import.Inventory (stageFiles)
 import Hledger.Flow.PathHelpers (AbsDir, AbsFile)
@@ -108,8 +108,9 @@ plural 1 noun = "1 " <> noun
 plural n noun = T.pack (show n) <> " " <> noun <> "s"
 
 -- | The single most important next step. The first matching rule wins.
-nextStep :: Integer -> Shell -> AbsDir -> LedgerStatus -> NextStep
-nextStep year shell cwd s
+-- Paths under one of @homes@ show as @~@, and as @"$HOME/…"@ in commands.
+nextStep :: Integer -> Shell -> [FilePath] -> AbsDir -> LedgerStatus -> NextStep
+nextStep year shell homes cwd s
   | Nothing <- lsHledger s =
       NextStep "Install hledger, or pass its location with --hledger-path" Nothing [] (Just "https://hledger.org/install.html")
   | statements == 0 && null (lsMisplaced s) && lsManualJournals s == 0 && not (lsNeedsReconciliation s) =
@@ -128,7 +129,7 @@ nextStep year shell cwd s
         (Just (docURL InputFiles))
   | a : _ <- filter needsRules (lsAccounts s) =
       NextStep
-        ("Create " <> T.pack (firstCandidate a) <> " (rules for " <> asAccount a <> ")")
+        ("Create " <> T.pack (tildePath homes (firstCandidate a)) <> " (rules for " <> asAccount a <> ")")
         (Just (command "status" <> " --rules-template " <> shellArgument shell (asAccount a)))
         ["Save its output as that file, then edit it."]
         (Just (docURL RulesFiles))
@@ -152,7 +153,8 @@ nextStep year shell cwd s
     command subcommand = "hledger-flow " <> subcommand <> baseArgument
     baseArgument
       | cwd == lsBaseDir s = ""
-      | otherwise = " " <> shellArgument shell (T.pack (FilePath.dropTrailingPathSeparator (toFilePath (lsBaseDir s))))
+      | otherwise = " " <> pasteable (shellArgument shell) (FilePath.dropTrailingPathSeparator (toFilePath (lsBaseDir s)))
+    pasteable literal path = fromMaybe (literal (T.pack path)) (homeShellPath shell homes path)
     importCommand = command "import"
     statements = sum (map asStatements (lsAccounts s))
     toImport = sum [asJournalsMissing a + asJournalsOutdated a | a <- lsAccounts s]
@@ -161,7 +163,7 @@ nextStep year shell cwd s
       c : _ | cwd /= lsBaseDir s -> toFilePath (lsBaseDir s) FilePath.</> c
             | otherwise -> c
       [] -> "a rules file"
-    allYears = T.pack (toFilePath (lsBaseDir s </> [relfile|all-years.journal|]))
+    allYears = toFilePath (lsBaseDir s </> [relfile|all-years.journal|])
     exportLine = case shell of
-      Posix -> "export LEDGER_FILE=" <> posixLiteral allYears
-      PowerShell -> "$env:LEDGER_FILE = " <> powerShellLiteral allYears
+      Posix -> "export LEDGER_FILE=" <> pasteable posixLiteral allYears
+      PowerShell -> "$env:LEDGER_FILE = " <> pasteable powerShellLiteral allYears

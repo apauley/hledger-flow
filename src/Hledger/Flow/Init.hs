@@ -9,17 +9,17 @@ module Hledger.Flow.Init
   )
 where
 
-import Control.Exception (IOException, catch)
 import Control.Monad (when)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import Hledger.Flow.BaseDir (findBaseDir)
-import Hledger.Flow.Common (Shell (..), nativeShell, shellArgument)
+import Data.Maybe (fromMaybe)
+import Hledger.Flow.Common (Shell (..), homeDirs, homeShellPath, nativeShell, shellArgument, tildePath)
 import Hledger.Flow.PathHelpers (AbsDir)
-import Hledger.Flow.Status.Render (printNext, tildePath)
+import Hledger.Flow.Status.Render (printNext)
 import Hledger.Flow.Types (BaseDir)
 import Path
-import Path.IO (createDirIfMissing, doesDirExist, getHomeDir)
+import Path.IO (createDirIfMissing, doesDirExist)
 import qualified System.FilePath as FilePath
 
 data InitOutcome
@@ -48,9 +48,9 @@ initLedger dir = do
 -- | Run @hledger-flow init@ for a folder, printing what happened and what's next.
 runInit :: Maybe FilePath -> AbsDir -> AbsDir -> IO ()
 runInit hledgerPath cwd dir = do
-  home <- (Just <$> getHomeDir) `catch` (\e -> const (return Nothing) (e :: IOException))
-  let absolute = T.pack . FilePath.dropTrailingPathSeparator . toFilePath
-      shown = T.pack . tildePath home . T.unpack . absolute
+  homes <- homeDirs
+  let absolute = FilePath.dropTrailingPathSeparator . toFilePath
+      shown = T.pack . tildePath homes . absolute
   outcome <- initLedger dir
   case outcome of
     AlreadyLedger b ->
@@ -66,5 +66,6 @@ runInit hledgerPath cwd dir = do
         let changeDir = case nativeShell of
               Posix -> "cd "
               PowerShell -> "Set-Location -LiteralPath "
-        T.putStrLn ("Change to it first: " <> changeDir <> shellArgument nativeShell (absolute base))
+            path = absolute base
+        T.putStrLn ("Change to it first: " <> changeDir <> fromMaybe (shellArgument nativeShell (T.pack path)) (homeShellPath nativeShell homes path))
       printNext hledgerPath base
