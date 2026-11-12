@@ -37,7 +37,7 @@ under your home directory. If the `home` plug is disconnected, run
 Account scripts can call `hledger` by name. Other commands and interpreters
 used by `preprocess` and `construct` must also be accessible inside the snap.
 
-See the [usage guide](../docs/README.md) for importing statements and
+See the [usage guide](https://hledger-flow.github.io/quickstart/) for importing statements and
 producing reports.
 
 Read the changes for the installed version with

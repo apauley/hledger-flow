@@ -1,0 +1,8 @@
+{
+  "docs": "/quickstart/",
+  "getting-started": "/quickstart/#import-your-first-statement",
+  "input-files": "/reference/input-files/",
+  "rules-files": "/reference/rules-files/",
+  "preprocess-script": "/reference/preprocess/",
+  "set-ledger-file": "/quickstart/#import-your-first-statement"
+}

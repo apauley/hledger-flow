@@ -1,0 +1,44 @@
+/* The site is an accountant's columnar pad: pale green paper, ink for what
+   you write, pencil for what is generated, and the red margin rule.
+   Shared by the landing page and the Starlight docs. */
+
+:root {
+  --paper: #eef2ea;
+  --paper-raised: #e4eadf;
+  --rule: #c3d2bf;
+  --ink: #16233f;
+  --pencil: #4d5a70;
+  --link: #1d4fa6;
+  --margin: #b5372e;
+
+  --font-text: 'Recursive Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-code: 'Recursive Variable', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  --mono-on: 'MONO' 1;
+  --mono-off: 'MONO' 0;
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --paper: #111c19;
+    --paper-raised: #18261f;
+    --rule: #2c4238;
+    --ink: #e2eadf;
+    --pencil: #a3b3a6;
+    --link: #93b6ff;
+    --margin: #e07a6f;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme='dark'] {
+  --paper: #111c19;
+  --paper-raised: #18261f;
+  --rule: #2c4238;
+  --ink: #e2eadf;
+  --pencil: #a3b3a6;
+  --link: #93b6ff;
+  --margin: #e07a6f;
+  color-scheme: dark;
+}

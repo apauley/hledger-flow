@@ -55,6 +55,21 @@ Store it as the repository Actions secret `HACKAGE_TOKEN`, for example with
 Candidate upload and Hackage publication use that secret on a GitHub-hosted runner. Local Cabal
 credentials are optional.
 
+### Project site deploy key
+
+The **Project site** workflow publishes https://hledger-flow.github.io/ by
+pushing to `hledger-flow/hledger-flow.github.io`. Set it up once:
+
+``` bash
+ssh-keygen -t ed25519 -N '' -C 'hledger-flow site deploy' -f hf_site_deploy_key
+gh repo deploy-key add hf_site_deploy_key.pub -R hledger-flow/hledger-flow.github.io --allow-write --title 'hledger-flow site'
+gh secret set SITE_DEPLOY_KEY -R apauley/hledger-flow < hf_site_deploy_key
+rm hf_site_deploy_key hf_site_deploy_key.pub
+```
+
+To publish the current `master` between releases, run the workflow by hand:
+`gh workflow run site.yaml -R apauley/hledger-flow`.
+
 ## Quick reference
 
 ``` bash
@@ -292,6 +307,10 @@ the command checks CI for the current tap revision. If tap CI fails, inspect the
 linked run, fix the tap or rerun the failed jobs, then retry publication.
 The command refuses to downgrade a newer formula. Hackage and GitHub releases
 remain public while a tap update is being retried.
+
+Publishing the GitHub release also starts the **Project site** workflow,
+which publishes https://hledger-flow.github.io/ from the tagged commit. Check
+that its run is green.
 
 Once the GitHub release is public, the [local Snap build](snap/README.md)
 can use its immutable Linux x64 asset. During packaging it checks the archive

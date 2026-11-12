@@ -30,8 +30,11 @@ How to keep this ChangeLog
 
 ## Unreleased
 
+- The documentation has moved to the [project site](https://hledger-flow.github.io/).
+  Links in hledger-flow's messages and `--help` now open the relevant section
+  there. Links printed by earlier versions still lead to the right page.
 - `status` now tells you whether you're running the latest hledger-flow, and
-  [how to upgrade](https://github.com/apauley/hledger-flow/blob/master/docs/README.md#release-notices)
+  [how to upgrade](https://hledger-flow.github.io/reference/release-notices/)
   if not. Set `HLEDGER_FLOW_NO_UPDATE_CHECK=1` to turn the check off.
 - Local Linux x86-64 Snap builds now package the hledger-flow version named
   on the snap and verify the executable before installation.

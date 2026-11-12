@@ -6,7 +6,8 @@ module Common.Unit where
 
 import Hledger.Flow.BaseDir (relativeToBase')
 import Hledger.Flow.Common
-import Hledger.Flow.DocHelpers (docURL)
+import Data.Aeson (eitherDecodeFileStrict)
+import Hledger.Flow.DocHelpers (DocLink (..), docSlug, docURL)
 import Hledger.Flow.RuntimeOptions (RuntimeOptions (hledgerConf))
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
@@ -19,8 +20,14 @@ import qualified System.FilePath as FilePath
 testDocURL :: Test
 testDocURL = TestCase $
   assertEqual "Input files documentation URL"
-    "https://github.com/apauley/hledger-flow/tree/master/docs#input-files"
-    (docURL "input-files")
+    "https://hledger-flow.github.io/go/input-files/"
+    (docURL InputFiles)
+
+testDocLinksHaveRedirects :: Test
+testDocLinksHaveRedirects = TestCase $ do
+  redirects <- either fail pure =<< eitherDecodeFileStrict "site/go-links.json" :: IO (Map.Map T.Text T.Text)
+  let missing = [docSlug l | l <- [minBound .. maxBound], docSlug l `Map.notMember` redirects]
+  assertEqual "Every DocLink needs a redirect in site/go-links.json" [] missing
 
 testShowCmdArgs :: Test
 testShowCmdArgs =
@@ -121,7 +128,7 @@ testGroupValuesBy =
     )
 
 tests :: Test
-tests = TestList [testDocURL, testShowCmdArgs, testHledgerConfArgs, testRelativeToBase, testExtractDigits, testGroupValuesBy, testTrimToolOutput]
+tests = TestList [testDocURL, testDocLinksHaveRedirects, testShowCmdArgs, testHledgerConfArgs, testRelativeToBase, testExtractDigits, testGroupValuesBy, testTrimToolOutput]
 
 testTrimToolOutput :: Test
 testTrimToolOutput =

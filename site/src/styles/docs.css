@@ -1,0 +1,59 @@
+/* Starlight theme mapped onto the ledger-pad tokens. */
+
+:root {
+  --sl-font: var(--font-text);
+  --sl-font-mono: var(--font-code);
+  --sl-text-body: 1.0625rem;
+  --sl-line-height: 1.65;
+}
+
+/* Starlight's dark theme is its default (:root). */
+:root {
+  --sl-color-accent-low: #1c2c4a;
+  --sl-color-accent: #93b6ff;
+  --sl-color-accent-high: #d3e0ff;
+  --sl-color-white: #f1f5ee;
+  --sl-color-gray-1: #e2eadf;
+  --sl-color-gray-2: #c3cfc2;
+  --sl-color-gray-3: #a3b3a6;
+  --sl-color-gray-4: #6b7f72;
+  --sl-color-gray-5: #2c4238;
+  --sl-color-gray-6: #18261f;
+  --sl-color-black: #111c19;
+}
+
+:root[data-theme='light'] {
+  --sl-color-accent-low: #d5e0f5;
+  --sl-color-accent: #1d4fa6;
+  --sl-color-accent-high: #12305f;
+  --sl-color-white: #16233f;
+  --sl-color-gray-1: #24324d;
+  --sl-color-gray-2: #3a475e;
+  --sl-color-gray-3: #4d5a70;
+  --sl-color-gray-4: #6f7c76;
+  --sl-color-gray-5: #c3d2bf;
+  --sl-color-gray-6: #e4eadf;
+  --sl-color-gray-7: #e9eee4;
+  --sl-color-black: #eef2ea;
+}
+
+body {
+  font-variation-settings: var(--mono-off);
+}
+
+code,
+pre,
+kbd,
+.expressive-code {
+  font-variation-settings: var(--mono-on);
+}
+
+.sl-markdown-content :is(h1, h2, h3) {
+  letter-spacing: -0.01em;
+}
+
+/* The red margin rule beside the page title, as on a ledger pad. */
+.content-panel:first-of-type h1#_top {
+  border-inline-start: 3px double var(--margin);
+  padding-inline-start: 0.75rem;
+}

@@ -1,10 +1,37 @@
 # Start using hledger-flow
 
-hledger-flow turns bank statements into journals and reports. Install
-[hledger](https://hledger.org/install.html) separately and put its executable
-on your PATH. The release binaries run without a Haskell toolchain.
+hledger-flow turns bank statements into journals and reports using
+[hledger](https://hledger.org/). Homebrew installs both. If you download a
+release instead, [install hledger](https://hledger.org/install.html) separately
+and put its executable on your PATH. The release binaries run without a Haskell toolchain.
 
-## Choose and verify your download
+## Install with Homebrew
+
+On a [supported Mac or Linux system](https://github.com/FernTrail/homebrew-tap#supported-platforms),
+check that `brew --version` works in your terminal. If you’re new to Homebrew,
+[install Homebrew](https://brew.sh/) and follow the installer’s instructions to add `brew` to your `PATH`.
+
+Install hledger-flow and its `hledger` dependency:
+
+```sh
+brew install ferntrail/tap/hledger-flow
+```
+
+Homebrew adds FernTrail’s package repository (its *tap*) automatically and
+trusts only the named formula. See [Homebrew’s tap trust guide](https://docs.brew.sh/Tap-Trust).
+To inspect the package before installing it (Homebrew 6 or newer):
+
+```sh
+brew trust --formula ferntrail/tap/hledger-flow
+brew info ferntrail/tap/hledger-flow
+```
+
+If you don’t want Homebrew to install `hledger`, add `--without-hledger` to the install command.
+For later releases, run `brew update` and `brew upgrade ferntrail/tap/hledger-flow`.
+
+Skip ahead to [import your first statement](#import-your-first-statement).
+
+## Download a release
 
 Get the archive for your computer from the [official releases](https://github.com/apauley/hledger-flow/releases).
 
@@ -69,6 +96,12 @@ anyway** starts it when your device policy permits. File Explorer’s
 Copy `hledger-flow.exe` to a folder on your user PATH, or add its folder under
 **Edit environment variables for your account → Path** and open a new terminal.
 
+## Build from source
+
+From a checkout of the [repository](https://github.com/apauley/hledger-flow), run `stack install`.
+Add the directory reported by `stack path --local-bin` to your `PATH` and [install hledger](https://hledger.org/install.html).
+See the [build instructions](https://github.com/apauley/hledger-flow/blob/master/CONTRIBUTING.md#build-the-project) for prerequisites and tests.
+
 ## Import your first statement
 
 Check that both commands are available in a new terminal:
@@ -77,6 +110,9 @@ Check that both commands are available in a new terminal:
 hledger --version
 hledger-flow --version
 ```
+
+To use a specific copy of hledger, pass its path before the command, for
+example `hledger-flow --hledger-path /path/to/hledger import`.
 
 Start a ledger in an empty folder, then let `hledger-flow status` guide you.
 Each `status` ends with a `Next:` line saying exactly what to do:
@@ -98,8 +134,8 @@ hledger-flow status
 
 Running `hledger-flow` with no command does the same as `status` inside a
 ledger. Scripts and AI agents can use `hledger-flow status --json`; see
-[status for scripts and agents](https://github.com/apauley/hledger-flow/blob/master/docs/README.md#status-for-scripts-and-agents).
-The [step-by-step tutorial](https://github.com/apauley/hledger-flow/blob/master/step-by-step/README.md)
+[status for scripts and agents](https://hledger-flow.github.io/reference/status/#status-for-scripts-and-agents).
+The [step-by-step tutorial](https://hledger-flow.github.io/tutorial/)
 explains each part in depth.
 
 On Windows, run `chcp 65001` in your terminal before querying the journal
@@ -109,6 +145,6 @@ In PowerShell, set `LEDGER_FILE` with
 
 Rules-based imports work on all three platforms. On native Windows you can
 put `preprocess.ps1` and `construct.ps1`, or their `.exe` equivalents, in
-the account directory. See [Windows import hooks](https://github.com/apauley/hledger-flow/blob/master/docs/README.md#windows-import-hooks)
+the account directory. See [Windows import hooks](https://hledger-flow.github.io/reference/windows-hooks/)
 for the arguments and commands to use from Command Prompt or PowerShell.
 For extensionless Unix shell scripts, use Linux, macOS, or WSL with Linux binaries.

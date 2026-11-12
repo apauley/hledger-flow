@@ -43,6 +43,7 @@ import Hledger.Flow.Status.Render ( printStatus )
 import qualified Data.Text as Text
 import Path.IO ( getCurrentDir, resolveDir' )
 import Hledger.Flow.Init ( runInit )
+import Hledger.Flow.DocHelpers ( DocLink (Docs), docURL, siteURL )
 import Hledger.Flow.RulesTemplate ( rulesTemplateFor )
 import Hledger.Flow.Internals (versionInfo, systemInfo)
 import Hledger.Flow.BaseDir ( determineBaseDir, findBaseDir )
@@ -120,7 +121,7 @@ fatalMessage e
 
 runCommand :: IO ()
 runCommand = do
-  let description = "An hledger workflow focusing on automated statement import and classification:\nhttps://github.com/apauley/hledger-flow#readme"
+  let description = pretty ("An hledger workflow focusing on automated statement import and classification:\n" <> Text.unpack siteURL)
   cmd <- customExecParser (prefs mempty)
     (info (helper <*> baseCommandParser) (headerDoc (Just description) <> footerDoc (Just topExamples)))
   case cmd of
@@ -265,7 +266,7 @@ topExamples = lines'
     "  hledger-flow report          Generate reports",
     "  hledger-flow status --json   The same status, for scripts and agents",
     "",
-    "Docs: https://github.com/apauley/hledger-flow/tree/master/docs"
+    "Docs: " <> Text.unpack (docURL Docs)
   ]
 
 subcommandExamples :: [(String, [String])]

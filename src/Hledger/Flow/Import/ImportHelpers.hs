@@ -7,7 +7,7 @@ import qualified Data.Map.Strict as Map
 import Data.Maybe (fromMaybe)
 import qualified Data.Text as T
 import Hledger.Flow.Common (groupValuesBy)
-import Hledger.Flow.DocHelpers (docURL)
+import Hledger.Flow.DocHelpers (DocLink (..), docURL)
 import Hledger.Flow.Import.Types (ImportDirs (..), InputFileBundle)
 import Hledger.Flow.PathHelpers (AbsFile, RelDir, RelFile, pathSize)
 import Path
@@ -42,7 +42,7 @@ extractImportDirs inputFile = walk (parent inputFile) []
       <> "\n\nhledger-flow expects to find input files in this structure:\n"
       <> "import/owner/bank/account/filestate/year/trxfile\n\n"
       <> "Have a look at the documentation for a detailed explanation:\n"
-      <> docURL "input-files"
+      <> docURL InputFiles
 
 groupIncludesUpTo :: RelDir -> [RelFile] -> InputFileBundle
 groupIncludesUpTo stopAt = collect Map.empty

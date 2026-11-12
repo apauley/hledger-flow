@@ -23,7 +23,7 @@ import Data.Maybe (mapMaybe)
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import Hledger.Flow.Common (Shell (..), posixLiteral, powerShellLiteral, shellArgument)
-import Hledger.Flow.DocHelpers (docURL)
+import Hledger.Flow.DocHelpers (DocLink (..), docURL)
 import Hledger.Flow.Import.Inventory (stageFiles)
 import Hledger.Flow.PathHelpers (AbsDir, AbsFile)
 import Hledger.Flow.Types (BaseDir, HledgerInfo)
@@ -119,19 +119,19 @@ nextStep year shell cwd s
         [ "For example: import/me/mybank/checking/1-in/" <> T.pack (show year) <> "/statement.csv",
           "Then check with: " <> command "status"
         ]
-        (Just (docURL "input-files"))
+        (Just (docURL InputFiles))
   | not (null (lsMisplaced s)) =
       NextStep
         ("Move " <> plural (length (lsMisplaced s)) "file" <> " to where hledger-flow looks")
         Nothing
         [T.pack (mpPath m) <> " → " <> T.pack (mpSuggestion m) | m <- lsMisplaced s]
-        (Just (docURL "input-files"))
+        (Just (docURL InputFiles))
   | a : _ <- filter needsRules (lsAccounts s) =
       NextStep
         ("Create " <> T.pack (firstCandidate a) <> " (rules for " <> asAccount a <> ")")
         (Just (command "status" <> " --rules-template " <> shellArgument shell (asAccount a)))
         ["Save its output as that file, then edit it."]
-        (Just (docURL "rules-files"))
+        (Just (docURL RulesFiles))
   | toImport > 0 =
       NextStep ("Import " <> plural toImport "new or changed statement") (Just importCommand) [] Nothing
   | not (lsAllYearsExists s) =
@@ -145,7 +145,7 @@ nextStep year shell cwd s
         [ "LEDGER_FILE is set to " <> T.pack (lfValue lf) <> ", which doesn't exist."
           | Just lf <- [lsLedgerFile s]
         ]
-        (Just "https://github.com/apauley/hledger-flow/blob/master/QUICKSTART.md#import-your-first-statement")
+        (Just (docURL SetLedgerFile))
   | otherwise =
       NextStep "Generate reports, or explore with hledger" (Just (command "report")) ["Or try: hledger balance"] Nothing
   where

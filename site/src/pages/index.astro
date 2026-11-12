@@ -1,0 +1,762 @@
+---
+import '@fontsource-variable/recursive/mono.css';
+import '../styles/tokens.css';
+
+// Output on this page comes from a real run of hledger-flow and hledger on
+// the statement and rules shown. Rerun them when the output format changes.
+const title = 'hledger-flow: rebuild your ledger from bank statements';
+const description =
+  'hledger-flow files bank statements by owner, bank, account and year, converts them with hledger CSV rules, and rebuilds every journal when your rules change.';
+
+const tree = [
+  { path: 'all-years.journal', note: 'Point LEDGER_FILE here', href: '/go/set-ledger-file/', made: true },
+  { path: 'directives.journal', note: 'Optional: commodity formats, account types', href: '/reference/directives/' },
+  { path: 'prices/2025/prices.journal', note: 'Optional: market prices for the year', href: '/reference/price-files/' },
+  { path: 'import/', note: '' },
+  { path: '  mybank.rules', note: 'CSV rules for every mybank statement', href: '/go/rules-files/' },
+  { path: '  john/', note: 'Owner' },
+  { path: '    _manual_/2025/post-import.journal', note: 'Transactions without a statement', href: '/reference/manual-journals/' },
+  { path: '    mybank/', note: 'Bank' },
+  { path: '      checking/', note: 'Account' },
+  { path: '        1-in/2025/2025-03.csv', note: 'The statement, as downloaded', href: '/go/input-files/' },
+  { path: '        preprocess', note: 'Optional: clean the CSV before the rules run', href: '/go/preprocess-script/' },
+  { path: '        3-journal/2025/2025-03.journal', note: 'One journal per statement', made: true },
+  { path: '        2025-include.journal', note: 'Includes for the year, at every level', made: true },
+];
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href="https://hledger-flow.github.io/" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <script is:inline>
+      // Follow the theme chosen in the docs (Starlight stores it here).
+      try {
+        const theme = localStorage.getItem('starlight-theme');
+        if (theme === 'light' || theme === 'dark') document.documentElement.dataset.theme = theme;
+      } catch {}
+    </script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="top">
+      <a class="wordmark" href="/">hledger-flow</a>
+      <nav aria-label="Main">
+        <a href="/quickstart/">Quick start</a>
+        <a href="/tutorial/">Tutorial</a>
+        <a href="/reference/status/">Reference</a>
+        <a href="https://github.com/apauley/hledger-flow">GitHub</a>
+      </nav>
+    </header>
+
+    <main id="main">
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero-text">
+          <h1 id="hero-title">File your bank statements. Rebuild your ledger from them, any time.</h1>
+          <div>
+          <p class="lead">
+            hledger-flow keeps each statement in a folder for its owner, bank, account and year. It converts every
+            statement with <a href="https://hledger.org/">hledger</a>’s CSV rules and includes the results in one
+            <code>all-years.journal</code>. Improve a rule, import again, and years of transactions are reclassified.
+            <code>git diff</code> shows exactly what changed.
+          </p>
+          <div class="actions">
+            <a class="button" href="/quickstart/">Read the quick start</a>
+            <div class="command">
+              <code id="brew">brew install ferntrail/tap/hledger-flow</code>
+              <button type="button" data-copy="brew" aria-label="Copy the Homebrew install command">Copy</button>
+            </div>
+          </div>
+          </div>
+        </div>
+
+        <figure class="sheet" aria-labelledby="sheet-caption">
+          <ol>
+            <li style="--step: 0">
+              <span class="where yours">1-in/2025/2025-03.csv</span>
+              <pre>2025-03-14,City Rail monthly pass,-62.50</pre>
+            </li>
+            <li style="--step: 1">
+              <span class="where yours">import/mybank.rules</span>
+              <pre>fields date, description, amount
+account1 assets:john:mybank:checking
+
+if City Rail
+  account2 expenses:transport</pre>
+            </li>
+            <li style="--step: 2">
+              <span class="where made">3-journal/2025/2025-03.journal</span>
+              <pre>2025-03-14 City Rail monthly pass
+    assets:john:mybank:checking         <span class="neg">$-62.50</span>
+    expenses:transport                   $62.50</pre>
+            </li>
+            <li style="--step: 3">
+              <span class="where yours">hledger bal expenses</span>
+              <pre>       $4.80  expenses:misc
+      $62.50  expenses:transport
+--------------------
+      $67.30</pre>
+            </li>
+          </ol>
+          <figcaption id="sheet-caption">One line of a March statement, from the downloaded CSV to a report.</figcaption>
+        </figure>
+      </section>
+
+      <section class="layout" aria-labelledby="layout-title">
+        <div class="prose">
+          <h2 id="layout-title">A folder for every statement</h2>
+          <p>
+            The folders tell hledger-flow who owns an account, where it’s held and which year a statement covers.
+            You add the statements, rules and manual journals. hledger-flow writes the rest, so you can delete every
+            generated file and get the same ledger back.
+          </p>
+          <p class="legend"><span class="yours">Ink</span> marks the files you write. <span class="made">Pencil</span> marks generated files.</p>
+        </div>
+        <ul class="tree">
+          {
+            tree.map((row) => (
+              <li class={row.made ? 'made' : 'yours'}>
+                <code>{row.path}</code>
+                {row.href ? <a href={row.href}>{row.note}</a> : <span>{row.note}</span>}
+              </li>
+            ))
+          }
+        </ul>
+      </section>
+
+      <section class="rebuild" aria-labelledby="rebuild-title">
+        <div class="prose">
+          <h2 id="rebuild-title">Change a rule, rebuild every year</h2>
+          <p>
+            City Rail purchases have been landing in <code>expenses:misc</code>. Add a rule to
+            <code>import/mybank.rules</code> and run <code>hledger-flow import</code>. Every statement that uses those
+            rules is converted again, in every year you’ve imported.
+          </p>
+        </div>
+        <div class="diffs">
+          <figure>
+            <figcaption><code>import/mybank.rules</code></figcaption>
+            <pre><span class="ctx"> if Salary
+   account2 income:salary</span>
+<span class="add">+
++if City Rail
++  account2 expenses:transport</span></pre>
+          </figure>
+          <figure>
+            <figcaption><code>git diff -- import/</code></figcaption>
+            <pre><span class="ctx"> 2025-03-14 City Rail monthly pass
+     assets:john:mybank:checking         $-62.50</span>
+<span class="del">-    expenses:misc                        $62.50</span>
+<span class="add">+    expenses:transport                   $62.50</span></pre>
+          </figure>
+        </div>
+        <p class="prose after">
+          Handwritten transactions live in <a href="/reference/manual-journals/">manual journals</a>, so a rebuild never
+          touches them.
+        </p>
+      </section>
+
+      <section class="choose" aria-labelledby="choose-title">
+        <h2 id="choose-title">hledger-flow or plain <code>hledger import</code>?</h2>
+        <div class="columns">
+          <div>
+            <h3>Choose hledger-flow</h3>
+            <p>
+              if you keep complete, non-overlapping statements and want to apply better rules to several years of
+              transactions. It suits several accounts or owners, and reviewing each statement’s journal before you
+              commit it.
+            </p>
+          </div>
+          <div>
+            <h3>Choose <code>hledger import</code></h3>
+            <p>
+              if you want to append new transactions and then edit, split or annotate them in your journal, or you
+              download rolling windows such as “the last 90 days”. hledger-flow converts each statement on its own, so
+              overlapping files would count a purchase twice. See
+              <a href="https://hledger.org/dev/hledger.html#import">hledger’s import guide</a>.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section class="install" aria-labelledby="install-title">
+        <h2 id="install-title">Install</h2>
+        <dl>
+          <div>
+            <dt>Homebrew <span>macOS, Linux</span></dt>
+            <dd><code>brew install ferntrail/tap/hledger-flow</code></dd>
+          </div>
+          <div>
+            <dt>Release download <span>Windows, macOS, Linux</span></dt>
+            <dd><a href="/quickstart/#download-a-release">Choose the archive for your system</a></dd>
+          </div>
+          <div>
+            <dt>From source <span>Any platform with Stack</span></dt>
+            <dd><a href="/quickstart/#build-from-source"><code>stack install</code> from a checkout</a></dd>
+          </div>
+        </dl>
+        <p>
+          Then follow the <a href="/quickstart/#import-your-first-statement">quick start</a> to import your first
+          statement, or the <a href="/tutorial/">tutorial</a> for the whole story.
+        </p>
+      </section>
+    </main>
+
+    <footer class="bottom">
+      <p>
+        hledger-flow is free software under the GPL-3.0 licence, supported by
+        <a href="https://ferntrail.tech/">FernTrail B.V.</a>
+      </p>
+      <nav aria-label="Project">
+        <a href="https://github.com/apauley/hledger-flow">Source</a>
+        <a href="https://github.com/apauley/hledger-flow/blob/master/ChangeLog.md">Changelog</a>
+        <a href="https://hackage.haskell.org/package/hledger-flow">Hackage</a>
+        <a href="https://github.com/apauley/hledger-flow/issues">Issues</a>
+      </nav>
+    </footer>
+
+    <script>
+      for (const button of document.querySelectorAll<HTMLButtonElement>('[data-copy]')) {
+        button.addEventListener('click', async () => {
+          const text = document.getElementById(button.dataset.copy!)?.textContent ?? '';
+          try {
+            await navigator.clipboard.writeText(text);
+            button.textContent = 'Copied';
+          } catch {
+            button.textContent = 'Select and copy';
+          }
+          setTimeout(() => (button.textContent = 'Copy'), 2000);
+        });
+      }
+    </script>
+  </body>
+</html>
+
+<style is:global>
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-text);
+    font-variation-settings: var(--mono-off);
+    font-size: 100%;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    font-size: 1.0625rem;
+    line-height: 1.6;
+  }
+
+  code,
+  pre {
+    font-family: var(--font-code);
+    font-variation-settings: var(--mono-on);
+    font-size: 0.875em;
+  }
+
+  a {
+    color: var(--link);
+    text-underline-offset: 0.18em;
+    text-decoration-thickness: 1px;
+  }
+
+  a:hover {
+    text-decoration-thickness: 2px;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--link);
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+
+  h1,
+  h2,
+  h3 {
+    line-height: 1.1;
+    letter-spacing: -0.015em;
+    margin: 0;
+  }
+
+  h2 {
+    font-size: clamp(1.6rem, 1.2rem + 1.4vw, 2.25rem);
+    font-weight: 720;
+  }
+
+  h3 {
+    font-size: 1.25rem;
+    font-weight: 680;
+  }
+
+  .skip {
+    position: absolute;
+    left: -100vw;
+  }
+
+  .skip:focus {
+    left: 1rem;
+    top: 1rem;
+    background: var(--paper);
+    padding: 0.5rem 0.75rem;
+  }
+
+  /* Page frame: content sits right of the red margin rule. */
+  .top,
+  main > section,
+  .bottom {
+    width: min(100% - 2rem, 71rem);
+    margin-inline: auto;
+  }
+
+  @media (min-width: 48rem) {
+    .top,
+    main > section,
+    .bottom {
+      width: min(100% - 5rem, 71rem);
+    }
+  }
+
+  .top {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 2rem;
+    align-items: baseline;
+    justify-content: space-between;
+    padding-block: 1.25rem;
+  }
+
+  .wordmark {
+    font-weight: 800;
+    font-size: 1.2rem;
+    color: var(--ink);
+    text-decoration: none;
+    font-variation-settings: var(--mono-on);
+  }
+
+  .top nav,
+  .bottom nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 1.25rem;
+  }
+
+  .top nav a {
+    color: var(--ink);
+    text-decoration: none;
+  }
+
+  .top nav a:hover {
+    text-decoration: underline;
+  }
+
+  main > section {
+    padding-block: clamp(3rem, 6vw, 5.5rem);
+  }
+
+  main > section + section {
+    border-top: 1px solid var(--rule);
+  }
+
+  .prose {
+    max-width: 38rem;
+  }
+
+  .prose p,
+  p.prose {
+    margin-block: 1rem 0;
+  }
+
+  /* Hero */
+  .hero,
+  .layout,
+  .diffs,
+  .columns,
+  .install dl > div {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .hero {
+    display: grid;
+    gap: clamp(2.5rem, 5vw, 4rem);
+  }
+
+  @media (min-width: 64rem) {
+    .hero-text {
+      display: grid;
+      grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+      gap: 4rem;
+      align-items: end;
+    }
+
+    .hero-text .lead {
+      margin-top: 0;
+    }
+  }
+
+  .lead code {
+    white-space: nowrap;
+  }
+
+  h1 {
+    font-size: clamp(2.4rem, 1.6rem + 3.2vw, 4rem);
+    font-weight: 780;
+    letter-spacing: -0.025em;
+    line-height: 1.02;
+    max-width: 19ch;
+    text-wrap: balance;
+  }
+
+  .lead {
+    margin: 1.5rem 0 0;
+    max-width: 34rem;
+    color: var(--pencil);
+    font-size: 1.125rem;
+  }
+
+  .lead a,
+  .lead code {
+    color: var(--ink);
+  }
+
+  .actions {
+    margin-top: 2rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: center;
+  }
+
+  .button {
+    display: inline-block;
+    background: var(--ink);
+    color: var(--paper);
+    text-decoration: none;
+    font-weight: 650;
+    padding: 0.7rem 1.1rem;
+    border-radius: 3px;
+  }
+
+  .button:hover {
+    background: var(--link);
+  }
+
+  .command {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    padding: 0.35rem 0.35rem 0.35rem 0.75rem;
+    max-width: 100%;
+  }
+
+  .command code {
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  .command button {
+    font: inherit;
+    font-size: 0.875rem;
+    color: var(--ink);
+    background: var(--paper-raised);
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+    padding: 0.25rem 0.6rem;
+    cursor: pointer;
+  }
+
+  /* The ledger sheet: one transaction, a row per stage. */
+  .sheet {
+    margin: 0;
+    background: var(--paper-raised);
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+  }
+
+  .sheet ol {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .sheet li {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .sheet .where {
+    padding: 0.75rem 1rem 0;
+    font-family: var(--font-code);
+    font-variation-settings: var(--mono-on);
+    font-size: 0.8125rem;
+    overflow-wrap: anywhere;
+  }
+
+  .sheet pre {
+    margin: 0;
+    padding: 0.5rem 1rem 0.9rem;
+    overflow-x: auto;
+    line-height: 1.55;
+  }
+
+  @media (min-width: 40rem) {
+    .sheet li {
+      grid-template-columns: 16.5rem minmax(0, 1fr);
+    }
+
+    .sheet .where {
+      padding: 0.9rem 1rem;
+      border-right: 3px double var(--margin);
+    }
+
+    .sheet pre {
+      padding: 0.9rem 1rem;
+    }
+  }
+
+  .sheet figcaption {
+    padding: 0.75rem 1rem;
+    color: var(--pencil);
+    font-size: 0.9375rem;
+  }
+
+  .neg {
+    color: var(--margin);
+  }
+
+  .yours {
+    color: var(--ink);
+    font-weight: 620;
+  }
+
+  .made {
+    color: var(--pencil);
+  }
+
+  /* The one orchestrated moment: each stage is written in, in order. */
+  @media (prefers-reduced-motion: no-preference) {
+    .sheet li {
+      animation: write-in 520ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+      animation-delay: calc(250ms + var(--step) * 420ms);
+    }
+
+    @keyframes write-in {
+      from {
+        clip-path: inset(0 100% 0 0);
+        opacity: 0.4;
+      }
+      to {
+        clip-path: inset(0 0 0 0);
+        opacity: 1;
+      }
+    }
+  }
+
+  /* Folder layout */
+  .layout {
+    display: grid;
+    gap: 2.5rem;
+  }
+
+  @media (min-width: 64rem) {
+    .layout {
+      grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+      gap: 4rem;
+    }
+  }
+
+  .legend {
+    color: var(--pencil);
+  }
+
+  .tree {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border-top: 1px solid var(--rule);
+  }
+
+  .tree li {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0 1.5rem;
+    padding: 0.45rem 0;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .tree code {
+    white-space: pre;
+    overflow-x: auto;
+    font-size: 0.875rem;
+  }
+
+  .tree li > :last-child {
+    font-size: 0.9375rem;
+    font-weight: 400;
+  }
+
+  .tree li.made code {
+    color: var(--pencil);
+  }
+
+  .tree li > span:last-child {
+    color: var(--pencil);
+  }
+
+  @media (min-width: 40rem) {
+    .tree li {
+      grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+      align-items: baseline;
+    }
+  }
+
+  /* Rebuild diffs */
+  .diffs {
+    display: grid;
+    gap: 1.5rem;
+    margin-top: 2.5rem;
+  }
+
+  @media (min-width: 64rem) {
+    .diffs {
+      grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+    }
+  }
+
+  .diffs figure {
+    margin: 0;
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+    background: var(--paper-raised);
+  }
+
+  .diffs figcaption {
+    padding: 0.6rem 1rem;
+    border-bottom: 1px solid var(--rule);
+    color: var(--pencil);
+  }
+
+  .diffs pre {
+    margin: 0;
+    padding: 1rem;
+    overflow-x: auto;
+    line-height: 1.55;
+  }
+
+  .ctx {
+    color: var(--pencil);
+  }
+
+  .add {
+    color: var(--link);
+    font-weight: 600;
+  }
+
+  .del {
+    color: var(--margin);
+  }
+
+  .after {
+    margin-top: 1.5rem;
+  }
+
+  /* Choosing */
+  .columns {
+    display: grid;
+    gap: 2rem;
+    margin-top: 2rem;
+  }
+
+  @media (min-width: 48rem) {
+    .columns {
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+    }
+
+    .columns > div + div {
+      border-left: 1px solid var(--rule);
+      padding-left: 2.5rem;
+    }
+
+    .columns > div:first-child {
+      padding-right: 2.5rem;
+    }
+  }
+
+  .columns p {
+    margin: 0.5rem 0 0;
+    max-width: 34rem;
+  }
+
+  /* Install */
+  .install dl {
+    margin: 2rem 0 0;
+    border-top: 1px solid var(--rule);
+  }
+
+  .install dl > div {
+    display: grid;
+    gap: 0.25rem 2rem;
+    padding: 0.9rem 0;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  @media (min-width: 48rem) {
+    .install dl > div {
+      grid-template-columns: 18rem 1fr;
+      align-items: baseline;
+    }
+  }
+
+  .install dt {
+    font-weight: 650;
+  }
+
+  .install dt span {
+    display: block;
+    font-weight: 400;
+    color: var(--pencil);
+    font-size: 0.9375rem;
+  }
+
+  .install dd {
+    margin: 0;
+    overflow-x: auto;
+  }
+
+  .install > p {
+    margin-top: 1.5rem;
+  }
+
+  .bottom {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem 2rem;
+    justify-content: space-between;
+    padding-block: 2rem 3rem;
+    border-top: 1px solid var(--rule);
+    color: var(--pencil);
+    font-size: 0.9375rem;
+  }
+
+  .bottom p {
+    margin: 0;
+    max-width: 36rem;
+  }
+</style>

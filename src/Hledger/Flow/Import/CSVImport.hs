@@ -15,7 +15,7 @@ import Hledger.Flow.DateTime (timeAction)
 import Hledger.Flow.Environment (importSettings, renderSettings)
 import Hledger.Flow.BaseDir (effectiveRunDir, relativeToBase)
 import Hledger.Flow.Common
-import Hledger.Flow.DocHelpers (docURL)
+import Hledger.Flow.DocHelpers (DocLink (..), docURL)
 import Hledger.Flow.Import.ImportHelpers
 import Hledger.Flow.Import.ImportHelpersTurtle (writeIncludesFromInventory, writeToplevelAllYearsInclude)
 import Hledger.Flow.Import.Inventory
@@ -204,7 +204,7 @@ hledgerImport opts ch importDirs csvFile journalOut = do
       let args = hledgerConfArgs opts ++ ["print", "--explicit"] ++ directivesArgs ++ csvArgs
 
       let cmdLabel = "importing '" <> T.pack relCSV <> "' using rules file '" <> T.pack relRules <> "'"
-      let hints = ["Check the skip, fields and separator lines in " <> T.pack relRules <> ".", "Docs: " <> docURL "rules-files"]
+      let hints = ["Check the skip, fields and separator lines in " <> T.pack relRules <> ".", "Docs: " <> docURL RulesFiles]
       ((_, stdOut, _), _) <- timeAndExitOnErr' opts ch cmdLabel [] hints dummyLogger channelErr (hledger, args, Nothing)
       T.writeFile (Path.toFilePath journalOut) stdOut
     Nothing ->
@@ -215,7 +215,7 @@ hledgerImport opts ch importDirs csvFile journalOut = do
                 <> "\n\nI will happily use the first rules file I can find from any one of these "
                 <> T.pack (show (length candidates)) <> " files:\n" <> candidatesTxt
                 <> "\n\nHere is a bit of documentation about rules files that you may find helpful:\n"
-                <> docURL "rules-files"
+                <> docURL RulesFiles
         errExit 1 ch msg ()
 
 hookDirArgs :: ImportDirs b -> [T.Text]

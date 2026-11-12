@@ -5,14 +5,26 @@
 - Most accounting logic comes from upstream `hledger`; `hledger-flow` focuses on directory conventions, preprocessing/construct hooks, include-file generation, and report automation.
 
 **Primary docs**
-- `README.md` for project overview and status.
-- `docs/README.md` for the feature reference and directory layout details.
-- `step-by-step/README.md` for a tutorial-style walkthrough.
+- The project site, https://hledger-flow.github.io/, built from `site/` (Astro Starlight). It holds the landing page, tutorial, reference and guides.
+- `QUICKSTART.md` is the quick start. It ships in every release archive, and `site/scripts/sync-repo-docs.mjs` copies it into the site at build time.
+- `README.md` is the GitHub and Hackage front page: overview, install summary and links to the site.
 - `CONTRIBUTING.md` for build/test instructions and contributor workflow.
+- `docs/README.md` and `step-by-step/` are stubs that keep old URLs working. Don't add content there.
+
+**Keeping the docs in step with the code**
+- Every user-visible change updates the site in the same commit as the code: the reference page, `QUICKSTART.md`, the tutorial or the landing page (`site/src/pages/index.astro`), whichever describes the changed behaviour.
+- Doc links printed by the CLI go through `DocLink` in `src/Hledger/Flow/DocHelpers.hs`. Each constructor's slug is a permanent `https://hledger-flow.github.io/go/<slug>/` URL. `site/go-links.json` maps each slug to its current page and section.
+  - When a message should point at docs, link the exact section: add a `DocLink` constructor and a `go-links.json` entry. Never hard-code a docs URL.
+  - When you move or rename a page or heading, update its targets in `go-links.json`.
+  - Never remove or rename a slug. Released binaries keep printing it.
+- Within the site, link pages with root-relative paths such as `/reference/rules-files/#stability`. Use full `https://hledger-flow.github.io/...` URLs in `QUICKSTART.md`, `README.md` and the ChangeLog.
+- The landing page's examples came from a real run of hledger-flow and hledger. If the output format changes, rerun the example and update them.
+- `cd site && npm run check` builds the site and fails on broken internal links, missing anchors and `/go/` links that don't resolve. HUnit fails if a `DocLink` has no `go-links.json` entry.
+- `cd site && npm run dev` serves the site locally on port 4321.
 
 **Core commands**
 - Build + test (from `CONTRIBUTING.md`):
-  - `./bin/build-and-test` (HUnit, platform CLI scenarios, offline release checks, then installation; requires Stack, hledger, Git, jq and Python 3).
+  - `./bin/build-and-test` (HUnit, site checks, platform CLI scenarios, offline release checks, then installation; requires Stack, hledger, Git, jq, Python 3 and Node.js with npm).
 - Run locally without installing:
   - `stack exec hledger-flow -- import [DIR]`
   - `stack exec hledger-flow -- report [BASEDIR]`
@@ -21,10 +33,7 @@
 - Requirements:
   - `stack` is required for building and tests.
   - A recent `hledger` binary must be available on `PATH`, or pass `--hledger-path`.
-  - Submodules are required for full docs/examples:
-    - `git submodule init`
-    - `git submodule update`
-
+  
 **Runtime expectations (base dir and layout)**
 - Base directory is detected by walking upward until an `import/` directory is found. You can also pass a directory explicitly on the `import` and `report` subcommands.
 - Expected input layout (examples):
@@ -48,6 +57,7 @@
 - `src/Hledger/Flow/Common.hs` and `src/Hledger/Flow/Logging.hs` provide shared utilities and logging.
 - `test/Spec.hs` is the HUnit test entry point; tests live under `test/`.
 - `bin/` contains helper scripts for build/test and releases.
+- `site/` is the project site. Docs pages live in `site/src/content/docs/`. `.github/workflows/site.yaml` checks the site on every push and publishes it when a release is published.
 
 **Implementation notes and conventions**
 - Follow the writing guidelines at the top of [ChangeLog.md](ChangeLog.md?plain=1).

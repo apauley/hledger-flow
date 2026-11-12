@@ -5,7 +5,7 @@
 module CSVImport.ImportHelperTests where
 
 import qualified Data.Text as T
-import Hledger.Flow.DocHelpers (docURL)
+import Hledger.Flow.DocHelpers (DocLink (..), docURL)
 import Hledger.Flow.Import.ImportHelpers (extractImportDirs, groupIncludesUpTo)
 import Hledger.Flow.Import.Types (ImportDirs (..), InputFileBundle)
 import Path
@@ -42,7 +42,7 @@ testExtractImportDirs = TestList
             <> "\n\nhledger-flow expects to find input files in this structure:\n"
             <> "import/owner/bank/account/filestate/year/trxfile\n\n"
             <> "Have a look at the documentation for a detailed explanation:\n"
-            <> docURL "input-files") err
+            <> docURL InputFiles) err
 
 testGroupIncludesUpTo :: Test
 testGroupIncludesUpTo = TestCase $ do

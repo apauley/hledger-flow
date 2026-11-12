@@ -5,7 +5,7 @@ module Hledger.Flow.PathHelpers where
 import Control.Monad.Catch (Exception, MonadThrow, throwM)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import qualified Data.Text as T
-import Hledger.Flow.DocHelpers (docURL)
+import Hledger.Flow.DocHelpers (DocLink (..), docURL)
 import qualified Path
 import qualified Path.IO as Path
 import System.Directory (doesDirectoryExist)
@@ -29,7 +29,7 @@ instance Show PathException where
       ++ ").\n"
       ++ "Run `hledger-flow init` to start one here, or pass the ledger's folder as an argument.\n"
       ++ "Docs: "
-      ++ T.unpack (docURL "getting-started")
+      ++ T.unpack (docURL GettingStarted)
   show (InvalidTurtleDir d) = "Not a folder: " ++ d
 
 instance Exception PathException

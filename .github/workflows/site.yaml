@@ -1,0 +1,79 @@
+name: Project site
+
+# Checks the site on every change. Publishes it to https://hledger-flow.github.io/
+# when a release is published, or on demand (Run workflow) to publish the
+# current master between releases.
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+  release:
+    types:
+      - published
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+
+      - name: Build the site and check every link
+        working-directory: site
+        run: |
+          npm ci
+          npm run check
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: site
+          path: site/dist
+          retention-days: 7
+
+  publish:
+    needs: check
+    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    concurrency: publish-site
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: site
+          path: dist
+
+      - name: Push to hledger-flow/hledger-flow.github.io
+        env:
+          # A write deploy key on hledger-flow/hledger-flow.github.io.
+          SITE_DEPLOY_KEY: ${{ secrets.SITE_DEPLOY_KEY }}
+          SOURCE: ${{ github.repository }}@${{ github.sha }}
+        run: |
+          : "${SITE_DEPLOY_KEY:?Add the SITE_DEPLOY_KEY secret: a write deploy key for hledger-flow/hledger-flow.github.io.}"
+          install -m 600 /dev/null ~/deploy_key
+          printf '%s\n' "$SITE_DEPLOY_KEY" > ~/deploy_key
+          export GIT_SSH_COMMAND="ssh -i ~/deploy_key -o IdentitiesOnly=yes"
+          git clone --depth 1 git@github.com:hledger-flow/hledger-flow.github.io.git pages
+          find pages -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          cp -R dist/. pages/
+          touch pages/.nojekyll
+          cd pages
+          git add -A
+          if git diff --cached --quiet; then
+            echo "The published site is already up to date."
+            exit 0
+          fi
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+            commit -m "Publish site from $SOURCE"
+          git push origin HEAD:main

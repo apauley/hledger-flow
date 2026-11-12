@@ -100,7 +100,7 @@ On Windows, run the Stack commands directly from PowerShell. Stack installs
 the required GHC and MSYS2 toolchain automatically. Use
 `stack path --local-bin` to find the directory containing `hledger-flow.exe`.
 Running imports and reports also requires `hledger` on `PATH` (or the
-`--hledger-path` option). The [Windows hook reference](docs/README.md#windows-import-hooks)
+`--hledger-path` option). The [Windows hook reference](https://hledger-flow.github.io/reference/windows-hooks/)
 describes PowerShell scripts, native executables, and the order of discovery.
 
 ### Run the command-line scenarios
@@ -108,8 +108,10 @@ describes PowerShell scripts, native executables, and the order of discovery.
 For the complete local check, run `./bin/build-and-test` from Bash (Git Bash
 on Windows). It runs HUnit, builds this checkout and shelltestrunner, runs all
 CLI scenarios supported by the platform, runs the offline release checks,
-and installs hledger-flow only after everything passes. Put Stack, hledger,
-Git, jq and a working Python 3 command named `python3` on `PATH` first.
+and installs hledger-flow only after everything passes. It also builds the
+[project site](#work-on-the-project-site) and checks its links. Put Stack,
+hledger, Git, jq, a working Python 3 command named `python3`, and Node.js with
+`npm` on `PATH` first.
 The release checks use temporary repositories and fake services; they do not
 publish anything or need credentials.
 
@@ -151,6 +153,25 @@ terminal, compare `hledger -f all-years.journal print -O csv` and
 each annual journal, and run `hledger -f all-years.journal check` in both
 bases. The Windows ING test covered three years, 290 transactions, and 580
 postings. Every posting and each annual and combined balance matched.
+
+### Work on the project site
+
+The documentation at https://hledger-flow.github.io/ is built from `site/`
+with [Astro Starlight](https://starlight.astro.build/). Change the docs in the
+same pull request as the behaviour they describe. To preview your changes:
+
+``` bash
+cd site
+npm ci
+npm run dev
+```
+
+Docs pages are Markdown files in `site/src/content/docs/`. The quick start
+comes from `QUICKSTART.md` at the repository root, because it also ships in
+the release archives; restart `npm run dev` to see edits to it. `npm run check` builds the site and fails on broken
+internal links and on `/go/` links that no longer reach their section.
+These permanent links are what the CLI prints. [AGENTS.md](AGENTS.md)
+explains how to add one.
 
 ### Find an Issue
 

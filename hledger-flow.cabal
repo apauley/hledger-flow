@@ -7,7 +7,7 @@ cabal-version: 1.12
 name:           hledger-flow
 version:        0.19.0
 synopsis:       An hledger workflow focusing on automated statement import and classification.
-description:    Please see the README on GitHub at <https://github.com/apauley/hledger-flow#readme>
+description:    Documentation and a quick start are at <https://hledger-flow.github.io/>
 category:       Finance, Console
 homepage:       https://github.com/apauley/hledger-flow#readme
 bug-reports:    https://github.com/apauley/hledger-flow/issues
@@ -20,6 +20,7 @@ build-type:     Simple
 extra-source-files:
     README.md
     ChangeLog.md
+    site/go-links.json
 
 source-repository head
   type: git

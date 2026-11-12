@@ -16,7 +16,7 @@ import qualified Data.List as List
 import Data.Maybe (fromMaybe)
 import qualified Data.Text as T
 import Hledger.Flow.BaseDir (relativeToBase')
-import Hledger.Flow.DocHelpers (docURL)
+import Hledger.Flow.DocHelpers (DocLink (..), docURL)
 import Hledger.Flow.Import.Inventory (findImportFiles, stageFiles)
 import Hledger.Flow.Status.Gather (accountName, cachedStatement)
 import Hledger.Flow.Types (BaseDir)
@@ -83,14 +83,14 @@ notCsv :: FilePath -> T.Text
 notCsv path =
   T.pack path <> " isn't a CSV file, so there's no header row to build rules from. "
     <> "A preprocess script can convert it to CSV first: "
-    <> docURL "the-preprocess-script"
+    <> docURL PreprocessScript
 
 -- | The starter rules file for a statement, from its contents.
 rulesTemplate :: T.Text -> T.Text -> FilePath -> T.Text -> Either T.Text T.Text
 rulesTemplate bank account path contents
   | map toLower (FilePath.takeExtension path) `notElem` [".csv", ".tsv", ".ssv"] = Left (notCsv path)
   | T.null (T.strip line) || not (looksLikeHeader names) =
-      Left ("The first line of " <> T.pack path <> " looks like data, not column names. Write the fields line yourself: " <> docURL "rules-files")
+      Left ("The first line of " <> T.pack path <> " looks like data, not column names. Write the fields line yourself: " <> docURL RulesFiles)
   | otherwise =
       Right . T.unlines $
         [ "# Starter rules for " <> bank <> "/" <> account <> ", made by hledger-flow from the header row of",

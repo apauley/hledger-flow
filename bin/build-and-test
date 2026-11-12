@@ -3,13 +3,14 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-for tool in stack hledger git jq python3; do
+for tool in stack hledger git jq python3 npm; do
     command -v "$tool" >/dev/null || { echo "Install $tool and put it on PATH before running the full suite." >&2; exit 1; }
 done
 python3 --version
 hledger --version
 
 stack test --interleaved-output
+(cd site && npm ci --no-audit --no-fund && npm run check)
 stack build hledger-flow shelltestrunner
 case "$(uname -s)" in
     MINGW*|MSYS*) stack exec -- shelltest --timeout=120 --shell=sh --exclude=posix-preprocess.test test/shell test/windows ;;
