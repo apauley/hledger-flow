@@ -110,6 +110,24 @@ test ! -e reports/gawie/2016/unknown-transactions.txt
 test -s reports/gawie/2016/accounts.txt
 $ sh -eu
 
+# Retiring the last statement for a year preserves its reports while a newer year is reported.
+<
+. ./test/shell/setup.sh
+flow import
+flow report --ascii-reports
+test -s reports/gawie/2016/income-expenses.txt
+cp -R reports/gawie/2016 archived-2016
+rm "$inbox/march.csv"
+mkdir -p "$account/1-in/2017"
+printf '%s\n' '2017-03-01,New year fee,-9' > "$account/1-in/2017/march.csv"
+flow import
+test ! -e "$journal"
+flow report --ascii-reports
+diff -r archived-2016 reports/gawie/2016
+report_row reports/gawie/2017/income-expenses.txt expenses:bank-fees
+$ sh -eu
+expenses:bank-fees || 9
+
 # Each owner's accounts report uses the full directory name, including dots.
 <
 . ./test/shell/setup.sh
