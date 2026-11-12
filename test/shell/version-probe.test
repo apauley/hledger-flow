@@ -1,0 +1,26 @@
+# An interrupted hledger version probe cancels status; an ordinary failure means unavailable.
+<
+. ./test/shell/setup.sh
+case "$(uname -s)" in MINGW*|MSYS*) exit 0 ;; esac
+printf '%s\n' '#!/bin/sh' 'touch probe-started' 'exec sleep 30' > probe
+chmod +x probe
+python3 - <<'PY'
+import os, signal, subprocess, time
+from pathlib import Path
+cmd = ["hledger-flow", "--hledger-path", os.path.abspath("probe"), "status", "--json"]
+with subprocess.Popen(cmd, stdout=subprocess.PIPE) as process:
+    for _ in range(500):
+        if Path("probe-started").exists():
+            break
+        time.sleep(0.01)
+    else:
+        process.kill()
+        raise AssertionError("version probe did not start")
+    process.send_signal(signal.SIGINT)
+    output, _ = process.communicate(timeout=10)
+    assert process.returncode != 0 and not output, "interrupted status produced a result"
+PY
+printf '%s\n' '#!/bin/sh' 'exit 17' > probe
+hledger-flow --hledger-path "$PWD/probe" status --json | jq -e 'has("hledger") and .hledger == null' > /dev/null
+if hledger-flow --hledger-path "$PWD/probe" import; then exit 1; else test "$?" -eq 17; fi
+$ sh -eu

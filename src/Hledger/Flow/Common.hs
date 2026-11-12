@@ -4,7 +4,6 @@
 module Hledger.Flow.Common where
 
 import Control.Concurrent (threadDelay)
-import Control.Exception (SomeException, try)
 import Control.Monad (filterM, forM_, when)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Concurrent.Async (concurrently, mapConcurrently)
@@ -74,11 +73,20 @@ findHledger pathOption = do
   case found of
     Nothing -> return Nothing
     Just hlp -> do
-      version <- try (hledgerVersionFromPath hlp) :: IO (Either SomeException T.Text)
-      return (either (const Nothing) (Just . HledgerInfo hlp) version)
+      result <- tryIOError (probeHledgerVersion hlp)
+      return $ case result of
+        Right (ExitSuccess, version) -> Just (HledgerInfo hlp version)
+        _ -> Nothing
 
 hledgerVersionFromPath :: AbsFile -> IO T.Text
 hledgerVersionFromPath hlp = do
+  (status, version) <- probeHledgerVersion hlp
+  case status of
+    ExitSuccess -> return version
+    ExitFailure _ -> exitWith status
+
+probeHledgerVersion :: AbsFile -> IO (ExitCode, T.Text)
+probeHledgerVersion hlp = do
   let command = (Process.proc (toFilePath hlp) ["--version"])
         { Process.std_in = Process.CreatePipe, Process.std_out = Process.CreatePipe }
   Process.withCreateProcess command $ \input output _ handle -> do
@@ -86,9 +94,7 @@ hledgerVersionFromPath hlp = do
     Just stdoutPipe <- return output
     version <- T.hGetContents stdoutPipe
     status <- Process.waitForProcess handle
-    case status of
-      ExitSuccess -> return (T.strip version)
-      ExitFailure _ -> exitWith status
+    return (status, T.strip version)
 
 hledgerInfoFromPath :: Maybe FilePath -> IO HledgerInfo
 hledgerInfoFromPath pathOption = do

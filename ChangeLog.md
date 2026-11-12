@@ -71,6 +71,8 @@ How to keep this ChangeLog
   including rules included by another rules file.
 - Owners, banks and accounts named `import` are supported when importing
   statements and checking their status from the ledger root.
+- Ctrl-C during hledger version detection now cancels `status`, including
+  `status --json`.
 - Local Linux x86-64 Snap builds now package the hledger-flow version named
   on the snap and verify the executable before installation.
 
