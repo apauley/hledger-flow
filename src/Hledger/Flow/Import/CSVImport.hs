@@ -86,9 +86,11 @@ importCSVs' opts ch = do
   logVerbose opts ch $ "Found " <> T.pack (show fileCount) <> " input files" <> startYearMsg <> "in " <> T.pack (show diff) <> ". Proceeding with import..."
   importedJournals <- parAwareActions opts (map (extractAndImport opts ch importRoot) inputFiles)
 
-  -- Hooks may create files, so reconcile against a fresh inventory only after
-  -- every selected conversion succeeds. A cached CSV is never a source.
-  (refreshed, journalFindTime) <- timeAction $ findImportFiles importRoot
+  -- Running a preprocess hook also forces conversion. When every journal was
+  -- skipped, neither a hook nor a conversion could have changed the inventory.
+  (refreshed, journalFindTime) <- if any snd importedJournals
+    then timeAction (findImportFiles importRoot)
+    else return (inventory, 0)
   (orphans, journalsOnDisk) <- classifyGeneratedOutputs importRoot refreshed (stageFiles importRoot [Path.reldir|1-in|] refreshed)
   forM_ (filter selected orphans) $ \file -> do
     target <- moveToTrash file

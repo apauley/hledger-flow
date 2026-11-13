@@ -11,15 +11,16 @@ $ sh -eu
 2016-03-01,Monthly bank fee,-5
 Monthly bank fee
 
-# Status picks up a statement added by a hook after import chose its inputs.
+# Reconciliation sees a hook-created source and its existing journal in the same import.
 <
 . ./test/shell/setup.sh
 printf '%s\n' '#!/bin/sh' 'set -e' 'cp "$1" "$2"' 'cp "$1" "${1%/*}/later.csv"' > "$account/preprocess"
 chmod +x "$account/preprocess"
+mkdir -p "$account/3-journal/2016"
+printf '2016-02-01 Hook sibling\n    expenses:cash  1\n    assets:cash\n' > "$account/3-journal/2016/later.journal"
 flow import
-flow status
-grep -q '^Next: Import 1 new or changed statement' "$finance/flow.log"
-test ! -e "$account/3-journal/2016/later.journal"
+hledger -f all-years.journal descriptions | tr -d '\r' | grep -qx 'Hook sibling'
+test ! -e "$account/.trash"
 $ sh -eu
 
 # Both hooks receive the account's file and the original bank, account and owner names.
