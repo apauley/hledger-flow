@@ -6,7 +6,7 @@ module Hledger.Flow.BaseDir
     findBaseDir,
     relativeToBase,
     relativeToBase',
-    turtleBaseDir,
+    baseDirFilePath,
     effectiveRunDir,
   )
 where
@@ -30,7 +30,7 @@ determineBaseDir suppliedDir = do
 
 determineBaseDir' :: AbsDir -> Maybe FilePath -> IO (BaseDir, RunDir)
 determineBaseDir' pwd (Just suppliedDir) = do
-  absDir <- turtleToAbsDir pwd suppliedDir
+  absDir <- resolveExistingDir pwd suppliedDir
   determineBaseDirFromStartDir absDir
 determineBaseDir' pwd Nothing = determineBaseDirFromStartDir pwd
 
@@ -71,7 +71,7 @@ limitRunDir bd absRunDir = do
       | otherwise = dir
 
 relativeToBase :: (HasBaseDir o) => o -> FilePath -> FilePath
-relativeToBase opts = relativeToBase' $ toFilePath (baseDir opts)
+relativeToBase opts = relativeToBase' $ baseDirFilePath opts
 
 relativeToBase' :: FilePath -> FilePath -> FilePath
 relativeToBase' bd p
@@ -83,8 +83,8 @@ relativeToBase' bd p
           let suffix = concat parts
            in if FilePath.takeFileName suffix == ".." then suffix ++ "/" else suffix
 
-turtleBaseDir :: (HasBaseDir o) => o -> FilePath
-turtleBaseDir opts = toFilePath $ baseDir opts
+baseDirFilePath :: (HasBaseDir o) => o -> FilePath
+baseDirFilePath opts = toFilePath $ baseDir opts
 
 effectiveRunDir :: BaseDir -> RunDir -> AbsDir
 effectiveRunDir bd rd = do

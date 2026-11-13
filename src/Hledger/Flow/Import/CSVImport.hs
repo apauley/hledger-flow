@@ -16,7 +16,7 @@ import Hledger.Flow.BaseDir (effectiveRunDir, relativeToBase)
 import Hledger.Flow.Common
 import Hledger.Flow.DocHelpers (DocLink (..), docURL)
 import Hledger.Flow.Import.ImportHelpers
-import Hledger.Flow.Import.ImportHelpersTurtle (writeIncludesFromInventory, writeToplevelAllYearsInclude)
+import Hledger.Flow.Import.IncludeFiles (writeIncludesFromInventory, writeToplevelAllYearsInclude)
 import Hledger.Flow.Import.Inventory
 import Hledger.Flow.Import.Types
 import Hledger.Flow.Logging

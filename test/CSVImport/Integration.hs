@@ -6,7 +6,7 @@ module CSVImport.Integration (tests) where
 import Control.Concurrent.STM
 import qualified Data.Map.Strict as Map
 import qualified Data.Text.IO as T
-import Hledger.Flow.Import.ImportHelpersTurtle (extraIncludesForFile, includePreamble, toIncludeFiles, writeIncludesFromInventory, writeToplevelAllYearsInclude)
+import Hledger.Flow.Import.IncludeFiles (extraIncludesForFile, includePreamble, toIncludeFiles, writeIncludesFromInventory, writeToplevelAllYearsInclude)
 import Hledger.Flow.Import.Inventory (findImportFiles)
 import Hledger.Flow.RuntimeOptions (RuntimeOptions)
 import Hledger.Flow.Types (LogMessage)

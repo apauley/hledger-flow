@@ -2,7 +2,7 @@
 {-# LANGUAGE QuasiQuotes #-}
 
 -- | Generate journal include files and their relative include directives.
-module Hledger.Flow.Import.ImportHelpersTurtle
+module Hledger.Flow.Import.IncludeFiles
   ( extraIncludesForFile,
     includePreamble,
     includesNeedUpdate,
@@ -38,16 +38,16 @@ import System.FilePath ((</>))
 isJournalFile :: FilePath -> Bool
 isJournalFile f = FilePath.takeExtension f == ".journal"
 
-yearsIncludeMap :: [FilePath] -> TurtleFileBundle
+yearsIncludeMap :: [FilePath] -> IncludeFileMap
 yearsIncludeMap = groupValuesBy allYearsPath
 
 allYearsPath :: FilePath -> FilePath
 allYearsPath journal = fst (FilePath.splitFileName journal) </> allYearsFileName
 
-toIncludeFiles :: (HasBaseDir o, HasVerbosity o) => o -> TChan LogMessage -> TurtleFileBundle -> IO (Map.Map FilePath T.Text)
+toIncludeFiles :: (HasBaseDir o, HasVerbosity o) => o -> TChan LogMessage -> IncludeFileMap -> IO (Map.Map FilePath T.Text)
 toIncludeFiles opts ch = renderIncludeFiles (baseDir opts) (logVerbose opts ch)
 
-renderIncludeFiles :: BaseDir -> (T.Text -> IO ()) -> TurtleFileBundle -> IO (Map.Map FilePath T.Text)
+renderIncludeFiles :: BaseDir -> (T.Text -> IO ()) -> IncludeFileMap -> IO (Map.Map FilePath T.Text)
 renderIncludeFiles base logMessage m = do
   let extras suffixes manual prices = Map.unions <$> mapM
         (\file -> findExtraIncludes base logMessage file suffixes manual prices) (Map.keys m)
@@ -55,7 +55,7 @@ renderIncludeFiles base logMessage m = do
   postMap <- extras ["closing.journal"] ["post-import.journal"] ["prices.journal"]
   return $ (addPreamble . toIncludeFiles' preMap postMap) m
 
-toIncludeFiles' :: TurtleFileBundle -> TurtleFileBundle -> TurtleFileBundle -> Map.Map FilePath T.Text
+toIncludeFiles' :: IncludeFileMap -> IncludeFileMap -> IncludeFileMap -> Map.Map FilePath T.Text
 toIncludeFiles' preMap postMap = Map.mapWithKey $ generatedIncludeText preMap postMap
 
 addPreamble :: Map.Map FilePath T.Text -> Map.Map FilePath T.Text
@@ -66,7 +66,7 @@ toIncludeLine base file = "include " <> T.pack (literalGlobPath (map forwardSlas
   where
     forwardSlash c = if FilePath.isPathSeparator c then '/' else c
 
-generatedIncludeText :: TurtleFileBundle -> TurtleFileBundle -> FilePath -> [FilePath] -> T.Text
+generatedIncludeText :: IncludeFileMap -> IncludeFileMap -> FilePath -> [FilePath] -> T.Text
 generatedIncludeText preMap postMap outputFile fs = do
   let preFiles = fromMaybe [] $ Map.lookup outputFile preMap
   let files = List.nub . List.sort $ fs
@@ -140,10 +140,10 @@ toplevelAllYearsInclude base = do
       allTop = Map.singleton top ["import" </> allYearsFileName]
   return $ (addPreamble . toIncludeFiles' preMap Map.empty) allTop
 
-extraIncludesForFile :: (HasVerbosity o, HasBaseDir o) => o -> TChan LogMessage -> FilePath -> [T.Text] -> [FilePath] -> [FilePath] -> IO TurtleFileBundle
+extraIncludesForFile :: (HasVerbosity o, HasBaseDir o) => o -> TChan LogMessage -> FilePath -> [T.Text] -> [FilePath] -> [FilePath] -> IO IncludeFileMap
 extraIncludesForFile opts ch = findExtraIncludes (baseDir opts) (logVerbose opts ch)
 
-findExtraIncludes :: BaseDir -> (T.Text -> IO ()) -> FilePath -> [T.Text] -> [FilePath] -> [FilePath] -> IO TurtleFileBundle
+findExtraIncludes :: BaseDir -> (T.Text -> IO ()) -> FilePath -> [T.Text] -> [FilePath] -> [FilePath] -> IO IncludeFileMap
 findExtraIncludes base logMessage file extraSuffixes manualFiles prices = do
   let name = FilePath.takeFileName file
       stem = if "." `List.isPrefixOf` name then name else FilePath.dropExtensions name

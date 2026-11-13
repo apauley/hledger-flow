@@ -4,7 +4,7 @@ import qualified Data.Map.Strict as Map
 import Hledger.Flow.PathHelpers (RelFile)
 import Path (Dir, Path)
 
-type TurtleFileBundle = Map.Map FilePath [FilePath]
+type IncludeFileMap = Map.Map FilePath [FilePath]
 
 type InputFileBundle = Map.Map RelFile [RelFile]
 

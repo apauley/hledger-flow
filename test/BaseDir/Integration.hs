@@ -66,7 +66,7 @@ assertCurrentDirVariations absoluteTempDir bdRelativeToTempDir = do
 testBaseDirWithTempDir :: AbsDir -> AbsDir -> IO ()
 testBaseDirWithTempDir initialPwd absoluteTempDir = do
   error1 <- try $ determineBaseDir $ Just "/path/to/dir"
-  assertEqual "determineBaseDir produces an error message when given a non-existant dir" (Left $ InvalidTurtleDir "/path/to/dir") error1
+  assertEqual "determineBaseDir produces an error message when given a non-existant dir" (Left $ NotADirectory "/path/to/dir") error1
 
   let unrelatedDir = absoluteTempDir </> [reldir|unrelated|]
   createDir unrelatedDir
@@ -87,7 +87,7 @@ testBaseDirWithTempDir initialPwd absoluteTempDir = do
 
   let fictionalDir = absoluteTempDir </> ownerDir </> [reldir|fictionalDir|]
   errorSub <- try $ determineBaseDir $ Just $ toFilePath fictionalDir
-  assertEqual "determineBaseDir produces an error message when given a non-existant subdir of a valid basedir" (Left $ InvalidTurtleDir $ toFilePath fictionalDir) errorSub
+  assertEqual "determineBaseDir produces an error message when given a non-existant subdir of a valid basedir" (Left $ NotADirectory $ toFilePath fictionalDir) errorSub
 
   assertCurrentDirVariations absoluteTempDir baseDir
 
@@ -100,7 +100,7 @@ testBaseDirWithTempDir initialPwd absoluteTempDir = do
   let file = toFilePath (absoluteTempDir </> yearDir </> [relfile|test-file.txt|])
   T.writeFile file (T.pack $ "The expected base dir is " ++ show absoluteBaseDir)
   fileResult <- try $ determineBaseDir (Just file)
-  assertEqual "An existing file cannot be used as the base directory" (Left (InvalidTurtleDir file)) fileResult
+  assertEqual "An existing file cannot be used as the base directory" (Left (NotADirectory file)) fileResult
 
   assertSubDirsForDetermineBaseDir absoluteTempDir absoluteBaseDir subDirs
   assertSubDirsForDetermineBaseDir absoluteTempDir absoluteBaseDir absoluteSubDirs

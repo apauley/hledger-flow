@@ -35,7 +35,7 @@ library
       Hledger.Flow.Environment
       Hledger.Flow.Import.CSVImport
       Hledger.Flow.Import.ImportHelpers
-      Hledger.Flow.Import.ImportHelpersTurtle
+      Hledger.Flow.Import.IncludeFiles
       Hledger.Flow.Import.Inventory
       Hledger.Flow.Import.Types
       Hledger.Flow.Init
@@ -105,13 +105,12 @@ test-suite hledger-flow-test
       Common.Integration
       Common.Unit
       CSVImport.ImportHelperTests
-      CSVImport.ImportHelperTurtleTests
+      CSVImport.IncludeFilesTests
       CSVImport.Integration
       CSVImport.Unit
       Environment.Unit
       ImportHelpers.Integration
       Init.Integration
-      PathHelpers.Compatibility
       PathHelpers.Unit
       ReleaseNotice.Unit
       RulesTemplate.Unit

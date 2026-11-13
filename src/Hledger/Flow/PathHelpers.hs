@@ -38,7 +38,7 @@ literalGlobPath = concatMap escape
       | c `elem` ("*?[{<" :: String) = ['[', c, '-', c, ']']
       | otherwise = [c]
 
-data PathException = MissingBaseDir AbsDir | InvalidTurtleDir FilePath
+data PathException = MissingBaseDir AbsDir | NotADirectory FilePath
   deriving (Eq)
 
 instance Show PathException where
@@ -49,36 +49,16 @@ instance Show PathException where
       ++ "Run `hledger-flow init` to start one here, or pass the ledger's folder as an argument.\n"
       ++ "Docs: "
       ++ T.unpack (docURL GettingStarted)
-  show (InvalidTurtleDir d) = "Not a folder: " ++ d
+  show (NotADirectory d) = "Not a folder: " ++ d
 
 instance Exception PathException
 
-{-# DEPRECATED fromTurtleAbsFile "Use Path.parseAbsFile instead." #-}
-fromTurtleAbsFile :: (MonadThrow m) => FilePath -> m AbsFile
-fromTurtleAbsFile = Path.parseAbsFile
-
-{-# DEPRECATED fromTurtleRelFile "Use Path.parseRelFile instead." #-}
-fromTurtleRelFile :: (MonadThrow m) => FilePath -> m RelFile
-fromTurtleRelFile = Path.parseRelFile
-
-{-# DEPRECATED fromTurtleAbsDir "Use Path.parseAbsDir instead." #-}
-fromTurtleAbsDir :: (MonadThrow m) => FilePath -> m AbsDir
-fromTurtleAbsDir = Path.parseAbsDir
-
-{-# DEPRECATED fromTurtleRelDir "Use Path.parseRelDir instead." #-}
-fromTurtleRelDir :: (MonadThrow m) => FilePath -> m RelDir
-fromTurtleRelDir = Path.parseRelDir
-
-turtleToAbsDir :: (MonadIO m, MonadThrow m) => AbsDir -> FilePath -> m AbsDir
-turtleToAbsDir baseDir p = do
+resolveExistingDir :: (MonadIO m, MonadThrow m) => AbsDir -> FilePath -> m AbsDir
+resolveExistingDir baseDir p = do
   isDir <- liftIO (doesDirectoryExist p)
   if isDir
     then Path.resolveDir baseDir p
-    else throwM $ InvalidTurtleDir p
-
-{-# DEPRECATED pathToTurtle "Use Path.toFilePath instead." #-}
-pathToTurtle :: Path.Path b t -> FilePath
-pathToTurtle = Path.toFilePath
+    else throwM $ NotADirectory p
 
 forceTrailingSlash :: FilePath -> FilePath
 forceTrailingSlash = FilePath.addTrailingPathSeparator . FilePath.normalise

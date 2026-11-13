@@ -54,7 +54,7 @@ import Hledger.Flow.Import.CSVImport ( importCSVs )
 
 import qualified Data.Text.IO as T
 import Control.Exception (SomeAsyncException (..), SomeException, catch, displayException, fromException, throwIO)
-import Hledger.Flow.PathHelpers (PathException (..), turtleToAbsDir)
+import Hledger.Flow.PathHelpers (PathException (..), resolveExistingDir)
 import System.Exit (ExitCode (..), exitWith)
 import System.IO (hPutStrLn, hSetEncoding, stderr, stdout, utf8)
 import System.IO.Error (ioeGetErrorString, isUserError)
@@ -162,7 +162,7 @@ briefUsage =
 runStatus :: MainParams -> StatusParams -> IO ()
 runStatus mainParams' params = do
   cwd <- getCurrentDir
-  dir <- maybe (return cwd) (turtleToAbsDir cwd) (statusDir params)
+  dir <- maybe (return cwd) (resolveExistingDir cwd) (statusDir params)
   base <- findBaseDir dir >>= maybe (throwIO (MissingBaseDir dir)) return
   case statusRulesTemplate params of
     Just account -> rulesTemplateFor base (Text.pack account) >>= either (ioError . userError . Text.unpack) T.putStr

@@ -1,13 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module CSVImport.ImportHelperTurtleTests where
+module CSVImport.IncludeFilesTests where
 
 import Control.Concurrent.STM (newTChanIO)
 import Data.Either (lefts)
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import Hledger.Flow.Common (includeYears')
-import Hledger.Flow.Import.ImportHelpersTurtle (includePreamble, toIncludeFiles, toIncludeLine, yearsIncludeMap)
+import Hledger.Flow.Import.IncludeFiles (includePreamble, toIncludeFiles, toIncludeLine, yearsIncludeMap)
 import qualified Path
 import System.FilePath ((</>))
 import Test.HUnit
