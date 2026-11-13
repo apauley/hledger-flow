@@ -8,7 +8,7 @@ import Control.Concurrent.MVar (newEmptyMVar, putMVar, takeMVar, tryTakeMVar)
 import Control.Concurrent.STM (atomically, modifyTVar', newTChanIO, newTVarIO, readTVarIO, tryReadTChan)
 import Control.Exception (bracket, bracket_, finally)
 import Control.Monad (forM_, unless)
-import qualified Data.List as List (intercalate, isInfixOf)
+import qualified Data.List as List (intercalate, isInfixOf, isPrefixOf)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import Data.Time.Clock (UTCTime(..), addUTCTime, secondsToDiffTime)
@@ -225,5 +225,28 @@ testHomeDirs = TestLabel "home folder spellings" $ TestCase $ unless (Sys.os == 
     assertEqual ("resolved path with HOME=" ++ home) ("~" </> "fin") (tildePath homes (real </> "fin"))
     assertEqual ("HOME's spelling with HOME=" ++ home) ("~" </> "fin") (tildePath homes (home </> "fin"))
 
+testWriteGeneratedText :: Test
+testWriteGeneratedText = TestLabel "write generated text" $ TestCase $ withTestDir $ \base -> do
+  let dir = Path.toFilePath base </> "out"
+      journal = dir </> "2024-include.journal"
+  writeGeneratedText journal "first\n"
+  T.readFile journal >>= assertEqual "create missing directory and file" "first\n"
+  unless (Sys.os == "mingw32") $ do
+    perms <- Directory.getPermissions journal
+    Directory.setPermissions journal (Directory.setOwnerExecutable True perms)
+    let real = dir </> "real.journal"
+        link = dir </> "link.journal"
+    T.writeFile real "old\n"
+    Directory.createFileLink "real.journal" link
+    writeGeneratedText link "through link\n"
+    T.readFile real >>= assertEqual "replace the file behind a symlink" "through link\n"
+    Directory.pathIsSymbolicLink link >>= assertBool "keep the symlink"
+  writeGeneratedText journal "second\n"
+  T.readFile journal >>= assertEqual "replace existing contents" "second\n"
+  unless (Sys.os == "mingw32") $
+    Directory.getPermissions journal >>= assertBool "keep existing permissions" . Directory.executable
+  entries <- Directory.listDirectory dir
+  assertBool ("no staged files left: " ++ show entries) (not (any (List.isPrefixOf ".") entries))
+
 tests :: Test
-tests = TestList [testHledgerLookup, testFindHledgerConf, testHomeDirs, testFilterPaths, testFirstExistingFile, testVerboseTestFile, testNeedsRegeneration, testBatchOrder, testBatchFailure]
+tests = TestList [testWriteGeneratedText, testHledgerLookup, testFindHledgerConf, testHomeDirs, testFilterPaths, testFirstExistingFile, testVerboseTestFile, testNeedsRegeneration, testBatchOrder, testBatchFailure]
