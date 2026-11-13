@@ -77,6 +77,7 @@ testHomePaths =
   let homes = ["/home/me/", "/real/me"]
       native = T.pack . FilePath.joinPath
       quoted parts = "\"" <> native ("$HOME" : parts) <> "\""
+      displayedProgram = if FilePath.isPathSeparator '\\' then "~\\'bin\\hledger'" else "~/bin/hledger"
    in TestList
         [ "home itself" ~: tildePath homes "/home/me" ~?= "~",
           "below home, trailing slash on HOME" ~: tildePath homes "/home/me/fin" ~?= FilePath.joinPath ["~", "fin"],
@@ -84,12 +85,14 @@ testHomePaths =
           "a sibling with the same prefix" ~: tildePath homes "/home/meg/fin" ~?= "/home/meg/fin",
           "outside home" ~: tildePath homes "/srv/fin" ~?= "/srv/fin",
           "command line" ~: showCmdArgsAt homes ["/home/me/bin/hledger", "--file", "/home/me/my fin/a.csv", "/srv/b"]
-            ~?= native ["~", "bin/hledger"] <> " --file ~" <> T.singleton FilePath.pathSeparator <> "'" <> native ["my fin", "a.csv"] <> "' /srv/b",
+            ~?= displayedProgram <> " --file ~" <> T.singleton FilePath.pathSeparator <> "'" <> native ["my fin", "a.csv"] <> "' /srv/b",
           "posix command path" ~: homeShellPath Posix homes "/home/me/my fin" ~?= Just (quoted ["my fin"]),
           "home itself in a command" ~: homeShellPath Posix homes "/real/me" ~?= Just "\"$HOME\"",
           "powershell command path" ~: homeShellPath PowerShell homes "/home/me/Lee's fin" ~?= Just (quoted ["Lee's fin"]),
           "outside home in a command" ~: homeShellPath Posix homes "/srv/fin" ~?= Nothing,
-          "posix specials fall back" ~: map (\c -> homeShellPath Posix homes ("/home/me/a" ++ [c])) "$`\"\\!" ~?= replicate 5 Nothing,
+          "posix specials fall back" ~: map (\c -> homeShellPath Posix homes ("/home/me/a" ++ [c])) "$`\"!" ~?= replicate 4 Nothing,
+          "trailing backslash is special unless it separates paths" ~: homeShellPath Posix homes "/home/me/a\\"
+            ~?= if FilePath.isPathSeparator '\\' then Just (quoted ["a"]) else Nothing,
           "powershell specials fall back" ~: map (\c -> homeShellPath PowerShell homes ("/home/me/a" ++ [c])) "$`\"\x201c\x201d\x201e" ~?= replicate 6 Nothing,
           "posix-only specials are fine in powershell" ~: homeShellPath PowerShell homes "/home/me/a!" ~?= Just (quoted ["a!"])
         ]
