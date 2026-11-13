@@ -57,6 +57,7 @@ How to keep this ChangeLog
 - Cached imports recheck apparent orphans before moving them to trash. A failed
   hledger version check reports the command and exit code before conversions
   begin. An explicit `--hledger-path` also works when `PATH` is unset.
+- When a symlink points to a generated journal, the ledger counts its transactions once.
 - Dots before a statement's rules override are now supported. For example,
   `2024.04_rfo-card.csv` uses `rfo-card.rules` when present.
 - If writing a rules-generated journal or an include file fails, the previous

@@ -100,7 +100,20 @@ classifyGeneratedOutputs root inventory sources = do
     resolved <- Map.keysSet <$> canonicalOutputs pairs
     filterM (fmap (`Set.notMember` resolved) . canonicalFile) unmatched
   let retired = Set.fromList orphans
-  return (orphans, filter (`Set.notMember` retired) journals)
+      active = filter (`Set.notMember` retired) journals
+      preferExpected a b = if rank a <= rank b then a else b
+      rank file = (Set.notMember (toFilePath file) expected, file)
+  -- Resolve year directories once, including symlinked directories. Names
+  -- came from listing the directory, so only symlinks need a full lookup.
+  groups <- forM (Map.toList (groupValuesBy (FilePath.takeDirectory . toFilePath) active)) $ \(dir, files) -> do
+    resolvedDir <- Directory.canonicalizePath dir
+    forM files $ \file -> do
+      link <- PathIO.isSymlink file
+      key <- if link then Directory.canonicalizePath (toFilePath file)
+             else return (resolvedDir FilePath.</> FilePath.takeFileName (toFilePath file))
+      return (key, file)
+  let chosen = Map.fromListWith preferExpected (concat groups)
+  return (orphans, List.sort (Map.elems chosen))
 
 -- | Inventory, orphaned outputs and source-backed journals for reconciliation.
 reconciliationInventory :: AbsDir -> Maybe [AbsFile] -> IO ([AbsFile], [AbsFile], [AbsFile])

@@ -101,7 +101,8 @@ into the account's `.trash` directory. A corresponding input must be in
 output when its extension is replaced. An old preprocessed CSV does not
 keep an orphaned journal active. If two inputs would produce the same
 output, import stops before converting or moving files and names the
-conflicting inputs.
+conflicting inputs. If a symlink points to a source-backed journal, import keeps
+the link and includes the journal once, preferring the generated filename.
 
 For example, removing or renaming `1-in/2026/march.csv` retires its old
 outputs to:

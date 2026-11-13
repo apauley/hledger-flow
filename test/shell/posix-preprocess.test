@@ -196,4 +196,7 @@ cp "$journal" "$account/3-journal/2016/retired.journal"
 flow import
 test -L "$account/3-journal/2016/alias.journal"
 test -f "$account/.trash/2016/3-journal/retired.journal"
+hledger -f all-years.journal balance expenses:bank-fees --flat --no-total --format '%(total)'
+grep -Fxq 'include 3-journal/2016/march.journal' "$account/2016-include.journal"
 $ sh -eu
+5
