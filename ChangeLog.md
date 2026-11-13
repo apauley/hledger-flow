@@ -31,7 +31,7 @@ How to keep this ChangeLog
   existing destination belongs in release-procedure.md.
 -->
 
-## Unreleased
+## 0.20.0
 
 - If you have statements with brackets in their filenames, such as
   `April [1].csv`, run `hledger-flow import` to regenerate their journals.
