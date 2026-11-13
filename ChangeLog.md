@@ -10,6 +10,9 @@ How to keep this ChangeLog
 - Say what users can now do, what behaves differently or what action they
   need to take. Name the affected platform, command, option, file or output
   when it helps readers recognise the change.
+- When a change affects multiple platforms, list Linux first, then macOS,
+  then Windows. Omit unaffected platforms and keep corresponding figures
+  in the same order.
 - Keep each entry brief. Put commands and step-by-step instructions in the
   relevant guide. Link directly to that section when readers need details.
   Use a full URL so the link also works in the GitHub release notes.
@@ -44,11 +47,12 @@ How to keep this ChangeLog
 - `report` now writes aggregate annual and monthly income statements and
   balance sheets even with zero or one owner, so they include root-level
   manual entries. Owner reports still show only that owner's entries.
-- `import` is faster. A full import takes about 40% less time, and
-  `import --new-files-only` about 70% less when most statements are up to
-  date. Parallel imports and reports start the next file as soon as a worker
-  is free, and by default run one file per core instead of 20. Use
-  `--batch-size` to change this.
+- In a benchmark rebuilding 124 statements, `import` took 11% less time on
+  Linux, 42% less on macOS, and 8% less on Windows than in 0.19.0. When
+  all four statements selected from that archive were up to date,
+  `import --new-files-only` took 82%, 71%, and 81% less time, respectively.
+  Parallel imports and reports start the next file as soon as a worker is
+  free and default to one file per core. Use `--batch-size` to change this.
 - Dots before a statement's rules override are now supported. For example,
   `2024.04_rfo-card.csv` uses `rfo-card.rules` when present.
 - `import` no longer ends with a `Next:` suggestion. Run `hledger-flow status`

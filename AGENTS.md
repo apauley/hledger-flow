@@ -63,6 +63,7 @@
 
 **Implementation notes and conventions**
 - Follow the writing guidelines at the top of [ChangeLog.md](ChangeLog.md?plain=1).
+- When describing changes across platforms, list Linux first, then macOS, then Windows. Use the same order for subsets, table rows and columns, and corresponding figures. This applies to documentation, release notes, benchmark reports, and replies.
 - Paths are handled using `path` and `path-io` with helpers in `Hledger.Flow.PathHelpers`. Prefer those helpers for new filesystem code.
 - `RuntimeOptions` is the primary config type; new CLI flags typically require adding fields to `RuntimeOptions` and wiring them through `app/Main.hs`.
 - Import flow is orchestrated in `Hledger.Flow.Import.CSVImport`:
