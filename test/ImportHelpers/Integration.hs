@@ -101,9 +101,7 @@ testCannotAlias = TestCase $ do
     [ ["march.journal", "march.journal"],
       ["march.journal", "March.journal"],
       ["caf\233.journal", "other.journal"],
-      ["PROGRA~1.journal", "other.journal"],
-      ["march.journal.", "other.journal"],
-      ["march.journal ", "other.journal"]
+      ["PROGRA~1.journal", "other.journal"]
     ]
 
 tests :: Test

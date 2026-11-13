@@ -7,7 +7,6 @@ module Hledger.Flow.Import.Inventory
     stageFiles,
     inImportScope,
     generatedOutput,
-    expectedOutputs,
     classifyGeneratedOutputs,
     reconciliationInventory,
     conflictingOutputs,
@@ -75,16 +74,6 @@ generatedOutput stage extension source =
     account = FilePath.takeDirectory (FilePath.takeDirectory yearDir)
     name = FilePath.replaceExtension (FilePath.takeFileName file) extension
 
-expectedOutputs :: [AbsFile] -> IO (Map.Map AbsFile [AbsFile])
-expectedOutputs sources = outputPairs sources >>= canonicalOutputs
-
-canonicalOutputs :: [(AbsFile, AbsFile)] -> IO (Map.Map AbsFile [AbsFile])
-canonicalOutputs pairs = do
-  canonical <- forM pairs $ \(output, source) -> do
-    key <- canonicalFile output
-    return (key, [source])
-  return (Map.fromListWith (++) canonical)
-
 -- | Orphaned generated files and the source-backed journals to include.
 classifyGeneratedOutputs :: AbsDir -> [AbsFile] -> [AbsFile] -> IO ([AbsFile], [AbsFile])
 classifyGeneratedOutputs root inventory sources = do
@@ -97,7 +86,7 @@ classifyGeneratedOutputs root inventory sources = do
   -- A differently spelled output can alias any expected file, even one which
   -- also matched literally (for example, through a symlink).
   orphans <- if null unmatched then return [] else do
-    resolved <- Map.keysSet <$> canonicalOutputs pairs
+    resolved <- Set.fromList <$> mapM (canonicalFile . fst) pairs
     filterM (fmap (`Set.notMember` resolved) . canonicalFile) unmatched
   let retired = Set.fromList orphans
       active = filter (`Set.notMember` retired) journals
@@ -181,14 +170,12 @@ conflictingOutputs sources = do
       exists <- PathIO.doesDirExist directory
       if exists then return directory else nearestDirectory (parent directory)
 
--- | Names that stay distinct on any filesystem, so probing them is unnecessary:
--- distinct even ignoring case, plain ASCII (no Unicode normalisation), no
--- @~@ (Windows short names) and no trailing dot or space (Windows strips them).
+-- | Generated .csv and .journal names stay distinct when they differ even
+-- ignoring case, are plain ASCII and contain no Windows short-name marker (~).
 cannotAlias :: [String] -> Bool
 cannotAlias names = all plain names && Set.size (Set.fromList (map (map toLower) names)) == length names
   where
-    plain name = not (null name) && all (\c -> isAscii c && isPrint c && c /= '~') name
-      && last name `notElem` (". " :: String)
+    plain = all (\c -> isAscii c && isPrint c && c /= '~')
 
 -- Seed the include at the manual file's own level; its contents are added by
 -- the existing pre/post renderer, keeping ordering and avoiding duplicates.

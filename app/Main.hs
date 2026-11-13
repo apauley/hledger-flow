@@ -46,8 +46,8 @@ import Path.IO ( getCurrentDir, resolveDir' )
 import Hledger.Flow.Init ( runInit )
 import Hledger.Flow.DocHelpers ( DocLink (Docs), docURL, siteURL )
 import Hledger.Flow.RulesTemplate ( rulesTemplateFor )
-import Hledger.Flow.Internals (versionInfo, systemInfo)
-import GHC.Conc (getNumCapabilities)
+import Data.Maybe (fromMaybe)
+import Hledger.Flow.Internals (availableCores, versionInfo, systemInfo)
 import Hledger.Flow.BaseDir ( determineBaseDir, findBaseDir )
 import qualified Hledger.Flow.RuntimeOptions as RT
 import Hledger.Flow.ReleaseNotice ( withReleaseNotice )
@@ -184,11 +184,6 @@ runBare mainParams' = do
           <> "\nNo hledger-flow ledger here or in any parent folder.\n"
           <> "Run `hledger-flow init` in an empty folder to start one.\n"
 
--- One hledger process per core in use keeps every core busy without
--- multiplying memory on small machines. The runtime fixed this at startup.
-determineBatchSize :: MainParams -> IO Int
-determineBatchSize mainParams' = maybe getNumCapabilities return (batchSize mainParams')
-
 toRuntimeOptionsImport :: MainParams -> ImportParams -> IO RT.RuntimeOptions
 toRuntimeOptionsImport mainParams' subParams' = do
   startYear <- traverse resolveStartYear (importStartYear subParams')
@@ -197,7 +192,6 @@ toRuntimeOptionsImport mainParams' subParams' = do
   hlp <- hledgerPathFromOption $ hledgerPathOpt mainParams'
   version <- deferredHledgerVersion hlp
   conf <- findHledgerConf $ hledgerConfOpt mainParams'
-  size <- determineBatchSize mainParams'
   sysInfo <- systemInfo
   return RT.RuntimeOptions { RT.baseDir = bd
                            , RT.importRunDir = runDir
@@ -211,7 +205,7 @@ toRuntimeOptionsImport mainParams' subParams' = do
                            , RT.verbose = verbosity mainParams' > 0
                            , RT.showOptions = showOpts mainParams'
                            , RT.sequential = sequential mainParams'
-                           , RT.batchSize = size
+                           , RT.batchSize = fromMaybe (availableCores sysInfo) (batchSize mainParams')
                            , RT.prettyReports = True
                            }
 
@@ -221,7 +215,6 @@ toRuntimeOptionsReport mainParams' subParams' = do
   (bd, _) <- determineBaseDir maybeBD
   HledgerInfo hlp version <- hledgerInfoFromPath $ hledgerPathOpt mainParams'
   conf <- findHledgerConf $ hledgerConfOpt mainParams'
-  size <- determineBatchSize mainParams'
   sysInfo <- systemInfo
   return RT.RuntimeOptions { RT.baseDir = bd
                            , RT.importRunDir = [reldir|.|]
@@ -235,7 +228,7 @@ toRuntimeOptionsReport mainParams' subParams' = do
                            , RT.verbose = verbosity mainParams' > 0
                            , RT.showOptions = showOpts mainParams'
                            , RT.sequential = sequential mainParams'
-                           , RT.batchSize = size
+                           , RT.batchSize = fromMaybe (availableCores sysInfo) (batchSize mainParams')
                            , RT.prettyReports = not(asciiReports subParams')
                            }
 
