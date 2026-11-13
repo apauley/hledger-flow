@@ -18,3 +18,4 @@ releases/
 .ralphex/progress/
 /.claude/
 /tmp/
+/.stack-work-prof/
