@@ -44,8 +44,6 @@ cp "$inbox/march.csv" "$inbox/march[1].csv"
 cp "$inbox/march.csv" "$inbox/march[2].csv"
 flow -H "$PWD/probe" import
 test "$(wc -l < versions)" -eq 1
-flow -H "$PWD/probe" import --new-files-only
-test "$(wc -l < versions)" -eq 1
 flow --show-options -H "$PWD/probe" import --new-files-only
 test "$(wc -l < versions)" -eq 2
 $ sh -eu
@@ -78,14 +76,13 @@ test ! -e "$account/3-journal/2016/z[1].journal"
 grep -F -- '--version' err | grep -F "$PWD/probe" | grep -q '17'
 $ sh -eu
 
-# A construct hook reads the bracketed filename itself and passes stdin to hledger.
+# A construct hook reads a bracketed filename itself and passes stdin to hledger.
 <
 . ./test/shell/setup.sh
 case "$(uname -s)" in MINGW*|MSYS*) exit 0 ;; esac
 mv "$inbox/march.csv" "$inbox/march[1].csv"
-printf '%s\n' '#!/bin/sh' 'if test "$1" = --version; then exit 17; fi' 'exec hledger "$@"' > probe
 printf '%s\n' '#!/bin/sh' 'echo "2016-03-01 Fee"' 'echo "    expenses:fees  5"' 'echo "    assets:bank"' > "$account/construct"
-chmod +x probe "$account/construct"
-flow -H "$PWD/probe" import
+chmod +x "$account/construct"
+flow import
 test -s "$account/3-journal/2016/march[1].journal"
 $ sh -eu

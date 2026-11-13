@@ -112,8 +112,7 @@ outputs to:
 .trash/2026/3-journal/march.journal
 ```
 
-A fully cached import checks the directory again before moving apparent orphans,
-so it can pick up sources restored since the first scan. Each move is reported. Existing trash entries are preserved, with `.1`,
+Each move is reported. Existing trash entries are preserved, with `.1`,
 `.2`, and so on appended to subsequent filenames. The trash is never
 imported or emptied automatically. Restore the input and run import again
 to regenerate its outputs, or recover handwritten transactions from a

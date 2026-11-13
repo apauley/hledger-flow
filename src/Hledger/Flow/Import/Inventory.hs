@@ -116,12 +116,13 @@ classifyGeneratedOutputs root inventory sources = do
   return (orphans, List.sort (Map.elems chosen))
 
 -- | Inventory, orphaned outputs and source-backed journals for reconciliation.
-reconciliationInventory :: AbsDir -> Maybe [AbsFile] -> IO ([AbsFile], [AbsFile], [AbsFile])
-reconciliationInventory root cached = case cached of
+-- Only orphans in scope are moved, so only those justify a fresh inventory.
+reconciliationInventory :: (AbsFile -> Bool) -> AbsDir -> Maybe [AbsFile] -> IO ([AbsFile], [AbsFile], [AbsFile])
+reconciliationInventory inScope root cached = case cached of
   Nothing -> refresh
   Just files -> do
     result@(_, orphans, _) <- classify files
-    if null orphans then return result else refresh
+    if any inScope orphans then refresh else return result
   where
     -- A source may have been restored since discovery.
     refresh = findImportFiles root >>= classify
