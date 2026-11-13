@@ -47,6 +47,7 @@ import Hledger.Flow.Init ( runInit )
 import Hledger.Flow.DocHelpers ( DocLink (Docs), docURL, siteURL )
 import Hledger.Flow.RulesTemplate ( rulesTemplateFor )
 import Hledger.Flow.Internals (versionInfo, systemInfo)
+import GHC.Conc (getNumCapabilities)
 import Hledger.Flow.BaseDir ( determineBaseDir, findBaseDir )
 import qualified Hledger.Flow.RuntimeOptions as RT
 import Hledger.Flow.ReleaseNotice ( withReleaseNotice )
@@ -183,14 +184,10 @@ runBare mainParams' = do
           <> "\nNo hledger-flow ledger here or in any parent folder.\n"
           <> "Run `hledger-flow init` in an empty folder to start one.\n"
 
-defaultBatchSize :: Int
-defaultBatchSize = 20
-
+-- One hledger process per core in use keeps every core busy without
+-- multiplying memory on small machines. The runtime fixed this at startup.
 determineBatchSize :: MainParams -> IO Int
-determineBatchSize mainParams' =
-  case (batchSize mainParams') of
-    Nothing   -> return defaultBatchSize
-    Just size -> return size
+determineBatchSize mainParams' = maybe getNumCapabilities return (batchSize mainParams')
 
 toRuntimeOptionsImport :: MainParams -> ImportParams -> IO RT.RuntimeOptions
 toRuntimeOptionsImport mainParams' subParams' = do
@@ -291,7 +288,7 @@ verboseParser = MainParams
   <*> optional (option str (long "hledger-path" <> short 'H' <> metavar "HLEDGER-PATH" <> help "The full path to an hledger executable"))
   <*> optional (option str (long "hledger-conf" <> metavar "PATH" <> hidden <> help "The hledger config file to pass to hledger --conf"))
   <*> switch (long "show-options" <> hidden <> help "Print the hledger-flow version, hledger path and settings import or report runs with. status always shows them.")
-  <*> optional (option auto (long "batch-size" <> metavar "SIZE" <> hidden <> help ("Number of files to process in parallel. Must be positive. Default: " <> show defaultBatchSize <> ". Ignored during sequential processing.")))
+  <*> optional (option auto (long "batch-size" <> metavar "SIZE" <> hidden <> help "Number of files to process in parallel. Must be positive. Default: the number of cores in use. Ignored during sequential processing."))
   <*> switch (long "sequential" <> hidden <> help "Disable parallel processing")
 
 subcommandParserImport :: Parser ImportParams

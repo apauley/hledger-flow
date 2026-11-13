@@ -24,8 +24,9 @@ Some people may want to include accounts belonging to their spouse as
 part of the household finances:
 `import/spouse/otherbank/checking/1-in/2018/987654321_2018-06-30.csv`.
 
-Parallel import starts another statement as soon as a worker finishes. Use
-`--batch-size N` to limit concurrent statements or `--sequential` to run one at a time.
+Parallel import converts one statement per core at a time, and starts another
+as soon as a worker finishes. Use `--batch-size N` to set how many run at once
+or `--sequential` to run one at a time.
 
 ## More About Input Files
 

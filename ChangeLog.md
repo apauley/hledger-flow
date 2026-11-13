@@ -52,7 +52,8 @@ How to keep this ChangeLog
 - `import` is faster: about a third faster when converting every statement,
   and about four times faster with `--new-files-only` when most statements
   are up to date. Parallel imports and reports start the next file as soon as
-  a worker is free. `--batch-size` still limits the number running at once.
+  a worker is free, and by default run one file per core instead of 20.
+  `--batch-size` still sets the number running at once.
 - Dots before a statement's rules override are now supported. For example,
   `2024.04_rfo-card.csv` uses `rfo-card.rules` when present.
 - If writing a rules-generated journal or an include file fails, the previous
