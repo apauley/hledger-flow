@@ -47,6 +47,8 @@ How to keep this ChangeLog
   manual entries. Owner reports still show only that owner's entries.
 - `import --new-files-only` now picks up statement corrections made later in
   the same second as the previous output.
+- `import` now finishes with the statement summary. Run `hledger-flow status`
+  for a suggested next step.
 - Dots before a statement's rules override are now supported. For example,
   `2024.04_rfo-card.csv` uses `rfo-card.rules` when present.
 - If writing a rules-generated journal or an include file fails, the previous

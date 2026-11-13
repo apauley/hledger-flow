@@ -46,7 +46,7 @@ Next: Create import/gawie/goggatjie/tips/goggatjie-tips.rules (rules for gawie/g
       Docs: https://hledger-flow.github.io/go/rules-files/
 
 Environment:
-  hledger-flow  0.19.0 (2a937e9), ghc 9.10, darwin aarch64
+  hledger-flow  0.19.0 (daf42b5), ghc 9.10, darwin aarch64
   hledger       ~/bin/hledger  (1.99.6-gc3a608c2b-20261101)   --hledger-path
   hledger.conf  none                                          --hledger-conf
   Cores         18, using 18
@@ -148,10 +148,6 @@ hledger balance tips
 
 ```text
 Imported 8 statements for 4 accounts.
-
-Next: Generate reports, or explore with hledger
-      Run: hledger-flow report
-      Or try: hledger balance
           750.00 MZN
             R2135.00
            45.00 USD  assets:goggatjie:tips
@@ -184,10 +180,6 @@ hledger balance tips --value=then,R
 
 ```text
 Imported 8 statements for 4 accounts.
-
-Next: Generate reports, or explore with hledger
-      Run: hledger-flow report
-      Or try: hledger balance
             R3045.50  assets:goggatjie:tips
            R-3045.50  income:tips
 --------------------
@@ -250,7 +242,7 @@ Next: Generate reports, or explore with hledger
       Or try: hledger balance
 
 Environment:
-  hledger-flow  0.19.0 (2a937e9), ghc 9.10, darwin aarch64
+  hledger-flow  0.19.0 (daf42b5), ghc 9.10, darwin aarch64
   hledger       ~/bin/hledger  (1.99.6-gc3a608c2b-20261101)   --hledger-path
   hledger.conf  none                                          --hledger-conf
   Cores         18, using 18

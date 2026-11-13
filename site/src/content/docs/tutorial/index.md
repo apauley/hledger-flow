@@ -56,7 +56,7 @@ The output below each command came from running it with these versions:
 
 ```text
 $ hledger-flow --version
-hledger-flow 0.19.0 darwin aarch64 ghc 9.10 2a937e9378423c76dfbbbf0762d87bfec658309b
+hledger-flow 0.19.0 darwin aarch64 ghc 9.10 daf42b5983ebb811dc7e68344d3612542b6e1f2a
 $ hledger --version
 hledger 1.99.6-gc3a608c2b-20261101, mac-aarch64
 ```

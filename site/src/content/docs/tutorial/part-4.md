@@ -60,10 +60,6 @@ hledger incomestatement
 
 ```text
 Imported 7 statements for gawie/bogart/cheque, gawie/bogart/savings, gawie/kudu/creditcard.
-
-Next: Generate reports, or explore with hledger
-      Run: hledger-flow report
-      Or try: hledger balance
 hledger: Error: /home/gawie/my-finances/import/gawie/bogart/savings/3-journal/2017/123456790_2017-01-27.journal:2:57:
   | 2016-01-02 * Oordrag Van Tjekrekening
 2 |     assets:bogart:savings                      R5000.00 = R13579.50
@@ -171,10 +167,6 @@ head -n 9 import/gawie/bogart/savings/2-preprocessed/2017/123456790_2017-01-27.c
 
 ```text
 Imported 7 statements for gawie/bogart/cheque, gawie/bogart/savings, gawie/kudu/creditcard.
-
-Next: Generate reports, or explore with hledger
-      Run: hledger-flow report
-      Or try: hledger balance
 2,123456790,'MNR GAWIE DE GROOT','BOGART SPAARREKENING'
 3,,'Staat'
 3,'Staatnommer','Vanaf Datum','Tot Datum'

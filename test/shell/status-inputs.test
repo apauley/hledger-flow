@@ -73,6 +73,7 @@ check_stale 0
 touch -t 201701010000 'import/shared rules/nested/fields.rules'
 check_stale 1
 flow import --start-year 2017
+flow status
 grep -q '^Next: Import 1 new or changed statement' "$finance/flow.log"
 rm 'import/shared rules/nested/fields.rules'
 check_stale 1

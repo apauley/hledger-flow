@@ -234,6 +234,7 @@ mkdir -p "$inbox/archive" "$sibling/1-in/2016" "$sibling/3-journal/2016"
 cp "$inbox/march.csv" "$sibling/1-in/2016/savings.csv"
 printf '; previous savings journal\n' > "$sibling/3-journal/2016/retired.journal"
 (cd "$inbox/archive" && flow import)
+flow status
 grep -q '^Next: Import 1 new or changed statement' "$finance/flow.log"
 hledger -f "$journal" descriptions
 test ! -e "$sibling/3-journal/2016/savings.journal"
@@ -242,16 +243,18 @@ test ! -e "$sibling/.trash"
 $ sh -eu
 Monthly bank fee
 
-# A year-filtered import still recommends cleaning up orphans from earlier years.
+# Status recommends cleaning up orphans left by a year-filtered import.
 <
 . ./test/shell/setup.sh
 export LEDGER_FILE=all-years.journal
 flow import
 cp "$journal" "$account/3-journal/2016/orphan.journal"
 flow import --start-year 2017
+flow status
 grep -q '^Next: Run import to reconcile generated files and journal includes' "$finance/flow.log"
 test -f "$account/3-journal/2016/orphan.journal"
 flow import
+flow status
 grep -q '^Next: Generate reports' "$finance/flow.log"
 test ! -e "$account/3-journal/2016/orphan.journal"
 $ sh -eu

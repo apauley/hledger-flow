@@ -29,7 +29,7 @@ Next: Create import/gawie/bogart/cheque/bogart-cheque.rules (rules for gawie/bog
       Docs: https://hledger-flow.github.io/go/rules-files/
 
 Environment:
-  hledger-flow  0.19.0 (2a937e9), ghc 9.10, darwin aarch64
+  hledger-flow  0.19.0 (daf42b5), ghc 9.10, darwin aarch64
   hledger       ~/bin/hledger  (1.99.6-gc3a608c2b-20261101)   --hledger-path
   hledger.conf  none                                          --hledger-conf
   Cores         18, using 18
@@ -190,10 +190,6 @@ head -n 7 import/gawie/bogart/cheque/3-journal/2016/123456789_2016-03-30.journal
 
 ```text
 Imported 6 statements for gawie/bogart/cheque, gawie/kudu/creditcard.
-
-Next: Generate reports, or explore with hledger
-      Run: hledger-flow report
-      Or try: hledger balance
 2016-03-01 * Monthly Bank Fee
     assets:bogart:cheque                       R-500.00 = R40000.00
     expenses:bank-fees                          R500.00
@@ -251,10 +247,6 @@ hledger incomestatement --monthly --pretty
 
 ```text
 Imported 6 statements for gawie/bogart/cheque, gawie/kudu/creditcard.
-
-Next: Generate reports, or explore with hledger
-      Run: hledger-flow report
-      Or try: hledger balance
 Monthly Income Statement 2016-03-01..2016-05-31
 
 ┌───────────────────────╥───────────┬───────────┬───────────┐

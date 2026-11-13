@@ -5,10 +5,6 @@
 module Hledger.Flow.Status.Gather
   ( classifyDir,
     gatherStatus,
-    StatusInventory,
-    statusInventory,
-    inventoryStatements,
-    statusFromInventory,
     accountName,
     cachedStatement,
     hookExists,
@@ -51,48 +47,29 @@ classifyDir dir = do
       let names = map (FilePath.dropTrailingPathSeparator . toFilePath) dirs ++ map toFilePath files
       return (if all ("." `List.isPrefixOf`) names then EmptyDir else Elsewhere)
 
--- These inputs are unchanged by publishing includes and trashing generated outputs.
-data StatusInventory = StatusInventory
-  { inventoryStatements :: [AbsFile],
-    inventoryMisplaced :: [Misplaced],
-    inventoryManualCount :: Int
-  }
-
-statusInventory :: AbsDir -> [AbsFile] -> StatusInventory
-statusInventory root files = StatusInventory
-  { inventoryStatements = stageFiles root [reldir|1-in|] files,
-    inventoryMisplaced = List.sortOn mpPath (misplacedFiles root files),
-    inventoryManualCount = length (filter (isManualJournal root) files)
-  }
-
 gatherStatus :: Maybe HledgerInfo -> BaseDir -> IO LedgerStatus
 gatherStatus hledger base = do
   let root = base </> [reldir|import|]
   files <- findImportFiles root
-  let inventory = statusInventory root files
+  let statements = stageFiles root [reldir|1-in|] files
+      groups = Map.toAscList (groupValuesBy (accountName root) statements)
+  accounts <- forM groups (uncurry (accountStatus base))
+  configured <- configuredLedgerFile
+  ledgerFile <- forM configured $ \(value, path) -> LedgerFile value <$> Directory.doesFileExist path
   allYears <- PathIO.doesFileExist (base </> [relfile|all-years.journal|])
-  (orphans, journals) <- classifyGeneratedOutputs root files (inventoryStatements inventory)
+  (orphans, journals) <- classifyGeneratedOutputs root files statements
   -- A newly initialised, empty ledger has no indexes to reconcile yet.
   reconciliation <- if allYears && null orphans
     then includesNeedUpdate base root files journals
     else return (not (null orphans) || not (null (managedIncludeFiles root files)))
-  statusFromInventory hledger base inventory allYears reconciliation
-
-statusFromInventory :: Maybe HledgerInfo -> BaseDir -> StatusInventory -> Bool -> Bool -> IO LedgerStatus
-statusFromInventory hledger base inventory allYears reconciliation = do
-  let root = base </> [reldir|import|]
-      groups = Map.toAscList (groupValuesBy (accountName root) (inventoryStatements inventory))
-  accounts <- forM groups (uncurry (accountStatus base))
-  configured <- configuredLedgerFile
-  ledgerFile <- forM configured $ \(value, path) -> LedgerFile value <$> Directory.doesFileExist path
   return
     LedgerStatus
       { lsBaseDir = base,
         lsHledger = hledger,
         lsLedgerFile = ledgerFile,
         lsAccounts = accounts,
-        lsMisplaced = inventoryMisplaced inventory,
-        lsManualJournals = inventoryManualCount inventory,
+        lsMisplaced = List.sortOn mpPath (misplacedFiles root files),
+        lsManualJournals = length (filter (isManualJournal root) files),
         lsAllYearsExists = allYears,
         lsNeedsReconciliation = reconciliation
       }
