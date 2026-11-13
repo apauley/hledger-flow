@@ -93,7 +93,7 @@ importCSVs' opts ch = do
   -- Running a preprocess hook also forces conversion. When every journal was
   -- skipped, neither a hook nor a conversion could have changed the inventory.
   let cached = if any snd importedJournals then Nothing else Just inventory
-  ((refreshed, orphans, journalsOnDisk), journalFindTime) <- timeAction $ reconciliationInventory selected importRoot cached
+  ((refreshed, orphans, journalsOnDisk), journalFindTime) <- timeAction $ reconciliationInventory importRoot cached
   forM_ (filter selected orphans) $ \file -> do
     target <- moveToTrash file
     channelOutLn ch $ "Moved orphaned output " <> relative file <> " to " <> relative target

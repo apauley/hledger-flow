@@ -200,3 +200,22 @@ hledger -f all-years.journal balance expenses:bank-fees --flat --no-total --form
 grep -Fxq 'include 3-journal/2016/march.journal' "$account/2016-include.journal"
 $ sh -eu
 5
+
+# A cached year-scoped import keeps a restored older fee in the global balance.
+<
+. ./test/shell/setup.sh
+mkdir -p "$account/1-in/2017"
+printf '2017-01-01,No fee,0\n' > "$account/1-in/2017/jan[1].csv"
+flow import
+mv "$inbox/march.csv" parked.csv
+# The bracketed path triggers the version probe after discovery and before reconciliation.
+printf '%s\n' '#!/bin/sh' 'set -eu' 'if test "$1" = --version; then mv parked.csv "$RESTORED_SOURCE"; fi' 'exec hledger "$@"' > probe
+chmod +x probe
+export RESTORED_SOURCE="$inbox/march.csv"
+flow -H "$PWD/probe" import --start-year 2017 --new-files-only
+grep -q '1 already up to date' "$finance/flow.log"
+test -f "$RESTORED_SOURCE"
+test -s "$journal"
+hledger -f all-years.journal balance expenses:bank-fees --flat --no-total --format '%(total)'
+$ sh -eu
+5

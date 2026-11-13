@@ -68,12 +68,10 @@ testRestoredSource = TestLabel "restore a source after discovery" $ TestCase $ w
   mapM_ touchFile [csv, journal]
   cached <- findImportFiles root
   touchFile source
-  (files, orphans, journals) <- reconciliationInventory (const True) root (Just cached)
+  (files, orphans, journals) <- reconciliationInventory root (Just cached)
   assertEqual "keep both restored outputs" [] orphans
   assertEqual "include the restored journal" [journal] journals
   assertBool "use refreshed inventory for includes" (source `elem` files)
-  (scopedFiles, _, _) <- reconciliationInventory (const False) root (Just cached)
-  assertEqual "keep the cached inventory when no orphan is in scope" cached scopedFiles
 
 testStagedOutput :: Test
 testStagedOutput = TestCase $ withSystemTempDir "hlflow-output" $ \dir -> do
