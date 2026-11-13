@@ -50,7 +50,7 @@ How to keep this ChangeLog
 - `import` now finishes with the statement summary. Run `hledger-flow status`
   for a suggested next step.
 - `import` is faster: about a third faster when converting every statement,
-  and about three times faster with `--new-files-only` when most statements
+  and about four times faster with `--new-files-only` when most statements
   are up to date. Parallel imports and reports start the next file as soon as
   a worker is free. `--batch-size` still limits the number running at once.
 - Dots before a statement's rules override are now supported. For example,

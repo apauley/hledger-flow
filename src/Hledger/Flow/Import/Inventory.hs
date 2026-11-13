@@ -10,6 +10,7 @@ module Hledger.Flow.Import.Inventory
     expectedOutputs,
     classifyGeneratedOutputs,
     conflictingOutputs,
+    cannotAlias,
     canonicalFile,
     manualIncludeFiles,
     isManualJournal,
@@ -20,7 +21,7 @@ where
 
 import Control.Exception (bracket_)
 import Control.Monad (filterM, forM)
-import Data.Char (isDigit)
+import Data.Char (isAscii, isDigit, isPrint, toLower)
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -124,8 +125,9 @@ conflictingOutputs sources = do
   concat <$> mapM checkDirectory (Map.toList (Map.fromListWith (++) groups))
   where
     checkDirectory (_, [_]) = return []
+    checkDirectory (_, outputs) | cannotAlias (outputNames outputs) = return []
     checkDirectory (directory, outputs) = do
-      let names = map (toFilePath . filename . fst) outputs
+      let names = outputNames outputs
           distinct = Set.fromList names
       listed <- tryIOError (Directory.listDirectory (toFilePath directory))
       case listed of
@@ -144,9 +146,20 @@ conflictingOutputs sources = do
               return [(output, source : map snd rest)
                      | (output, source) : rest <- Map.elems groups, not (null rest)]
 
+    outputNames = map (toFilePath . filename . fst)
+
     nearestDirectory directory = do
       exists <- PathIO.doesDirExist directory
       if exists then return directory else nearestDirectory (parent directory)
+
+-- | Names that stay distinct on any filesystem, so probing them is unnecessary:
+-- distinct even ignoring case, plain ASCII (no Unicode normalisation), no
+-- @~@ (Windows short names) and no trailing dot or space (Windows strips them).
+cannotAlias :: [String] -> Bool
+cannotAlias names = all plain names && Set.size (Set.fromList (map (map toLower) names)) == length names
+  where
+    plain name = not (null name) && all (\c -> isAscii c && isPrint c && c /= '~') name
+      && last name `notElem` (". " :: String)
 
 -- Seed the include at the manual file's own level; its contents are added by
 -- the existing pre/post renderer, keeping ordering and avoiding duplicates.

@@ -80,8 +80,20 @@ testStagedOutput = TestCase $ withSystemTempDir "hlflow-output" $ \dir -> do
   withStagedOutput target $ \staged -> T.writeFile (toFilePath staged) "complete"
   T.readFile (toFilePath target) >>= assertEqual "publish successful retry" "complete"
 
+testCannotAlias :: Test
+testCannotAlias = TestCase $ do
+  assertBool "distinct plain names" (cannotAlias ["2024-01.journal", "2024-02.journal", "April [1].journal"])
+  mapM_ (\names -> assertBool ("may alias: " ++ show names) (not (cannotAlias names)))
+    [ ["march.journal", "march.journal"],
+      ["march.journal", "March.journal"],
+      ["caf\233.journal", "other.journal"],
+      ["PROGRA~1.journal", "other.journal"],
+      ["march.journal.", "other.journal"],
+      ["march.journal ", "other.journal"]
+    ]
+
 tests :: Test
-tests = TestList [testInventory, testStagedOutput, testTrashLock]
+tests = TestList [testInventory, testStagedOutput, testTrashLock, testCannotAlias]
 
 testTrashLock :: Test
 testTrashLock = TestCase $ withSystemTempDir "hlflow-trash" $ \root -> do
