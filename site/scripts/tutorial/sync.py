@@ -33,6 +33,9 @@ VERSIONS = re.compile(r"```text\n\$ hledger-flow --version\n.*?```", re.S)
 
 # Lines that differ between machines and commits, ignored by --check.
 MASKS = [
+    # Some upstream release binaries append their Git revision and date.
+    (re.compile(r"(?<=\d)-g[0-9a-f]+-\d{8}(?=,| found\)|\))"), ""),
+    (re.compile(r"^(  hledger\.conf  .+?) +(--hledger-conf)$", re.M), r"\1  \2"),
     (re.compile(r"^(hledger-flow \S+) .*$", re.M), r"\1 BUILD"),
     (re.compile(r"^(hledger \S+), .*$", re.M), r"\1, PLATFORM"),
     (re.compile(r"^(  hledger-flow  \S+) .*$", re.M), r"\1 BUILD"),
