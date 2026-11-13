@@ -18,10 +18,12 @@ extra-source-files:
 # synopsis:            Short description of your package
 # category:            Finance, Console
 
-# To avoid duplicated efforts in documentation and dealing with the
-# complications of embedding Haddock markup inside cabal files, it is
-# common to point users to the README file.
-description: Documentation and a quick start are at <https://hledger-flow.github.io/>
+description: |
+  hledger-flow uses hledger's CSV rules to turn each bank statement into a
+  separate journal. It combines those journals with your manual entries for
+  reporting. When your rules change, you can rebuild the journals from the
+  original statements and review which transactions changed.
+  See <https://hledger-flow.github.io/> for the quick start and tutorial.
 
 dependencies:
   - base >= 4.20 && < 4.22

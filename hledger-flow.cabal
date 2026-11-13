@@ -7,7 +7,11 @@ cabal-version: 1.12
 name:           hledger-flow
 version:        0.20.0
 synopsis:       An hledger workflow focusing on automated statement import and classification.
-description:    Documentation and a quick start are at <https://hledger-flow.github.io/>
+description:    hledger-flow uses hledger's CSV rules to turn each bank statement into a
+                separate journal. It combines those journals with your manual entries for
+                reporting. When your rules change, you can rebuild the journals from the
+                original statements and review which transactions changed.
+                See <https://hledger-flow.github.io/> for the quick start and tutorial.
 category:       Finance, Console
 homepage:       https://github.com/apauley/hledger-flow#readme
 bug-reports:    https://github.com/apauley/hledger-flow/issues
