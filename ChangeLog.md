@@ -30,39 +30,36 @@ How to keep this ChangeLog
 
 ## Unreleased
 
-- Statements with brackets in their filenames, such as `April [1].csv`, now
-  import exactly once alongside `April 1.csv`. If your ledger was affected,
-  run `hledger-flow import` to regenerate the journals.
+- If you have statements with brackets in their filenames, such as
+  `April [1].csv`, run `hledger-flow import` to regenerate their journals.
+  Each now imports exactly once alongside `April 1.csv`.
 - If a statement is newer than its cached CSV and its preprocess hook is
   missing, import stops and names both files. Restore the hook or move the
   cached CSV aside, then run `hledger-flow import`.
 - The documentation has moved to the [project site](https://hledger-flow.github.io/).
-  Links in hledger-flow's messages and `--help` now open the relevant section
-  there. Links printed by earlier versions still lead to the right page.
-  The [tutorial](https://hledger-flow.github.io/tutorial/) is rewritten for
-  this release. It shows how far hledger's rules files go before you need a
-  preprocess or construct script.
+  Links in hledger-flow's messages and `--help` open the relevant section
+  there, and links printed by earlier versions still lead to the right page.
+  The rewritten [tutorial](https://hledger-flow.github.io/tutorial/) shows how
+  far hledger's rules files go before you need a preprocess or construct script.
 - `report` now writes aggregate annual and monthly income statements and
   balance sheets even with zero or one owner, so they include root-level
   manual entries. Owner reports still show only that owner's entries.
-- `import --new-files-only` now picks up statement corrections made later in
-  the same second as the previous output.
-- `import` now finishes with the statement summary. Run `hledger-flow status`
-  for a suggested next step.
-- `import` is faster: about a third faster when converting every statement,
-  and about four times faster with `--new-files-only` when most statements
-  are up to date. Parallel imports and reports start the next file as soon as
-  a worker is free, and by default run one file per core instead of 20.
-  `--batch-size` still sets the number running at once.
-- If `hledger --version` fails, `import` and `report` now name the command and
-  its exit code instead of exiting silently.
-- When a symlink points to a generated journal, the ledger counts its transactions once.
+- `import` is faster. A full import takes about 40% less time, and
+  `import --new-files-only` about 70% less when most statements are up to
+  date. Parallel imports and reports start the next file as soon as a worker
+  is free, and by default run one file per core instead of 20. Use
+  `--batch-size` to change this.
 - Dots before a statement's rules override are now supported. For example,
   `2024.04_rfo-card.csv` uses `rfo-card.rules` when present.
+- `import` no longer ends with a `Next:` suggestion. Run `hledger-flow status`
+  to see the next step.
+- `import --new-files-only` now picks up statement corrections made later in
+  the same second as the previous output.
 - If writing a rules-generated journal or an include file fails, the previous
   complete copy stays in place for the next import.
-- Running `import` from a folder below a statement year now limits conversion
-  and orphan cleanup to that account. Sibling accounts keep their outputs.
+- Running `import` from a subfolder of a statement year, such as
+  `1-in/2024/archive/`, now limits conversion and orphan cleanup to that
+  account. Sibling accounts keep their outputs.
 - `status` and `--show-options` now name the
   [hledger config file](https://hledger-flow.github.io/reference/status/#hledger-config-file)
   that hledger finds by itself, such as `~/.hledger.conf`, instead of showing
@@ -72,8 +69,8 @@ How to keep this ChangeLog
   paths in your home folder as `~`. The commands they suggest write the home
   folder as `"$HOME/…"`, so you can still paste them. `status --json` keeps
   [full paths](https://hledger-flow.github.io/reference/status/#paths-in-your-home-folder).
-- Preparing a directory for a future owner no longer blocks reports for owners
-  who already have journals.
+- An empty owner folder created for future statements no longer stops
+  `report` for owners who already have journals.
 - `status` marks journals outdated when a shared CSV rules file changes,
   including rules included by another rules file.
 - Owners, banks and accounts named `import` are supported when importing
@@ -86,6 +83,10 @@ How to keep this ChangeLog
   importing. Use four digits or `current`.
 - `status --rules-template` gives every CSV column a distinct field name,
   even when the header already contains a name such as `Reference_2`.
+- If `hledger --version` fails, `import` and `report` now name the command and
+  its exit code instead of exiting silently.
+- When a symlink in a `3-journal` folder points to a generated journal, the
+  ledger now counts its transactions once.
 - Local Linux x86-64 Snap builds now package the hledger-flow version named
   on the snap and verify the executable before installation.
 
