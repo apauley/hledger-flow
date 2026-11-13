@@ -72,6 +72,8 @@ touch -t 201501010000 "$inbox/march.csv" import/bogart.rules 'import/shared rule
 check_stale 0
 touch -t 201701010000 'import/shared rules/nested/fields.rules'
 check_stale 1
+flow import --start-year 2017
+grep -q '^Next: Import 1 new or changed statement' "$finance/flow.log"
 rm 'import/shared rules/nested/fields.rules'
 check_stale 1
 printf 'include ../labels.rules\n' > 'import/shared rules/nested/fields.rules'

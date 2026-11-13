@@ -11,6 +11,16 @@ $ sh -eu
 2016-03-01,Monthly bank fee,-5
 Monthly bank fee
 
+# The next step includes a statement added by a hook after import chose its inputs.
+<
+. ./test/shell/setup.sh
+printf '%s\n' '#!/bin/sh' 'set -e' 'cp "$1" "$2"' 'cp "$1" "${1%/*}/later.csv"' > "$account/preprocess"
+chmod +x "$account/preprocess"
+flow import
+grep -q '^Next: Import 1 new or changed statement' "$finance/flow.log"
+test ! -e "$account/3-journal/2016/later.journal"
+$ sh -eu
+
 # Both hooks receive the account's file and the original bank, account and owner names.
 <
 . ./test/shell/setup.sh

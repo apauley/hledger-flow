@@ -33,7 +33,7 @@ import qualified System.Process as Process
 import System.FilePath (dropTrailingPathSeparator, takeExtension, (</>))
 import qualified Data.List as List
 import Hledger.Flow.Status (plural)
-import Hledger.Flow.Status.Gather (accountName, gatherStatus)
+import Hledger.Flow.Status.Gather (StatusInventory, accountName, inventoryStatements, statusFromInventory, statusInventory)
 import Hledger.Flow.Status.Render (nextStepHere, renderNext, useColor)
 import System.IO (stdout)
 import Prelude hiding (putStrLn, take, writeFile)
@@ -45,14 +45,14 @@ importCSVs opts = withConsoleLogging $ \ch -> do
   homes <- homeDirs
   when (showOptions opts) (channelOutLn ch (T.unlines (renderSettings id (importSettings homes opts))))
   logVerbose opts ch "Starting import"
-  (journals, diff) <- timeAction $ importCSVs' opts ch
+  ((journals, inventory, hasRemainingOrphans), diff) <- timeAction $ importCSVs' opts ch
   let importRoot = baseDir opts Path.</> [Path.reldir|import|]
       effectiveDir = effectiveRunDir (baseDir opts) (importRunDir opts)
       scope = T.pack (dropTrailingPathSeparator (relativeToBase opts (Path.toFilePath effectiveDir)))
       accounts = List.nub (map (accountName importRoot . fst) journals)
   channelOutLn ch (importSummary scope (length journals) (length (filter snd journals)) accounts)
   logVerbose opts ch ("Import took " <> T.pack (show diff))
-  status <- gatherStatus (Just (hledgerInfo opts)) (baseDir opts)
+  status <- statusFromInventory (Just (hledgerInfo opts)) (baseDir opts) inventory True hasRemainingOrphans
   next <- nextStepHere homes status
   color <- useColor stdout
   channelOut ch (renderNext color next)
@@ -70,7 +70,7 @@ importSummary scope total generated accounts
       | length accounts <= 3 = T.intercalate ", " accounts
       | otherwise = plural (length accounts) "account"
 
-importCSVs' :: RuntimeOptions -> TChan FlowTypes.LogMessage -> IO [(AbsFile, FileWasGenerated)]
+importCSVs' :: RuntimeOptions -> TChan FlowTypes.LogMessage -> IO ([(AbsFile, FileWasGenerated)], StatusInventory, Bool)
 importCSVs' opts ch = do
   let effectiveDir = effectiveRunDir (baseDir opts) (importRunDir opts)
       importRoot = baseDir opts Path.</> [Path.reldir|import|]
@@ -93,15 +93,17 @@ importCSVs' opts ch = do
   -- Hooks may create files, so reconcile against a fresh inventory only after
   -- every selected conversion succeeds. A cached CSV is never a source.
   (refreshed, journalFindTime) <- timeAction $ findImportFiles importRoot
-  (orphans, journalsOnDisk) <- classifyGeneratedOutputs importRoot refreshed (stageFiles importRoot [Path.reldir|1-in|] refreshed)
-  forM_ (filter selected orphans) $ \file -> do
+  let ledger = statusInventory importRoot refreshed
+  (orphans, journalsOnDisk) <- classifyGeneratedOutputs importRoot refreshed (inventoryStatements ledger)
+  let (toMove, remaining) = List.partition selected orphans
+  forM_ toMove $ \file -> do
     target <- moveToTrash file
     channelOutLn ch $ "Moved orphaned output " <> relative file <> " to " <> relative target
   (_, writeIncludeTime1) <- timeAction $ writeIncludesFromInventory opts ch importRoot refreshed journalsOnDisk
   (_, writeIncludeTime2) <- timeAction $ writeToplevelAllYearsInclude opts
   let includeGenTime = journalFindTime + writeIncludeTime1 + writeIncludeTime2
   logVerbose opts ch $ "Wrote include files for " <> T.pack (show (length journalsOnDisk)) <> " generated journals in " <> T.pack (show includeGenTime)
-  return importedJournals
+  return (importedJournals, ledger, not (null remaining))
 
 extractAndImport :: RuntimeOptions -> TChan FlowTypes.LogMessage -> AbsDir -> AbsFile -> IO (AbsFile, FileWasGenerated)
 extractAndImport opts ch root inputFile = do
