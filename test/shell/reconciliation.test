@@ -255,3 +255,28 @@ flow import
 grep -q '^Next: Generate reports' "$finance/flow.log"
 test ! -e "$account/3-journal/2016/orphan.journal"
 $ sh -eu
+
+# Distinct Unicode spellings must follow the destination filesystem's equivalence rules.
+<
+. ./test/shell/setup.sh
+python3 - "$inbox" "$account/3-journal/2016" <<'PY'
+from pathlib import Path
+import sys
+inbox, dest = map(Path, sys.argv[1:])
+dest.mkdir(parents=True)
+first, second = "caf\u00e9", "cafe\u0301"
+(dest / (first + ".journal")).write_text("; existing\n")
+Path("alias-result").write_text("alias" if (dest / (second + ".journal")).exists() else "distinct")
+csv = (inbox / "march.csv").read_bytes()
+(inbox / (first + ".csv")).write_bytes(csv)
+(inbox / (second + ".tsv")).write_bytes(csv.replace(b",", b"\t"))
+PY
+if test "$(cat alias-result)" = alias; then
+    if hledger-flow import > failure.log 2>&1; then exit 1; fi
+    grep -q 'same output' failure.log
+    test ! -f "$journal"
+else
+    flow import
+    test -f "$journal"
+fi
+$ sh -eu

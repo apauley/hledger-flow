@@ -172,3 +172,26 @@ flow import
 hledger -f all-years.journal descriptions
 $ sh -eu
 Corrected fee
+
+# Two lexical year directories can refer to the same physical output directory.
+<
+. ./test/shell/setup.sh
+sibling=import/gawie/bogart/savings
+mkdir -p "$sibling/1-in/2016" "$account/3-journal"
+cp "$inbox/march.csv" "$sibling/1-in/2016/march.csv"
+ln -s ../cheque/3-journal "$sibling/3-journal"
+if hledger-flow import > failure.log 2>&1; then exit 1; fi
+grep -q 'same output' failure.log
+test ! -e "$journal"
+$ sh -eu
+
+# An unmatched path can alias an output which also matched its source by name.
+<
+. ./test/shell/setup.sh
+flow import
+ln -s march.journal "$account/3-journal/2016/alias.journal"
+cp "$journal" "$account/3-journal/2016/retired.journal"
+flow import
+test -L "$account/3-journal/2016/alias.journal"
+test -f "$account/.trash/2016/3-journal/retired.journal"
+$ sh -eu
