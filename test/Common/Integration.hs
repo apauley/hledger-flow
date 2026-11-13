@@ -5,8 +5,8 @@
 module Common.Integration (tests) where
 
 import Control.Concurrent.MVar (newEmptyMVar, putMVar, takeMVar, tryTakeMVar)
-import Control.Concurrent.STM (atomically, newTChanIO, tryReadTChan)
-import Control.Exception (bracket, finally)
+import Control.Concurrent.STM (atomically, modifyTVar', newTChanIO, newTVarIO, readTVarIO, tryReadTChan)
+import Control.Exception (bracket, bracket_, finally)
 import Control.Monad (forM_, unless)
 import qualified Data.List as List (intercalate, isInfixOf)
 import qualified Data.Text as T
@@ -150,16 +150,18 @@ testNeedsRegeneration = TestCase $ withTestDir $ \base -> do
 
 testBatchOrder :: Test
 testBatchOrder = TestCase $ do
-  secondStarted <- newEmptyMVar
-  firstFinished <- newEmptyMVar
-  let first = takeMVar secondStarted >> putMVar firstFinished () >> return (1 :: Int)
-      second = putMVar secondStarted () >> return 2
-      third = do
-        finished <- tryTakeMVar firstFinished
-        assertEqual "finish the current batch before starting the next" (Just ()) finished
-        return 3
-  result <- timeout 10000000 (parBatchedActions 2 [0] [first, second, third])
-  assertEqual "preserve input order across parallel batches" (Just [0, 1, 2, 3]) result
+  firstStarted <- newEmptyMVar
+  thirdStarted <- newEmptyMVar
+  concurrency <- newTVarIO (0, 0 :: Int)
+  let track = bracket_
+        (atomically $ modifyTVar' concurrency $ \(active, peak) -> (active + 1, max peak (active + 1)))
+        (atomically $ modifyTVar' concurrency $ \(active, peak) -> (active - 1, peak))
+      first = putMVar firstStarted () >> takeMVar thirdStarted >> return (1 :: Int)
+      second = takeMVar firstStarted >> return 2
+      third = putMVar thirdStarted () >> return 3
+  result <- timeout 10000000 (parBatchedActions 2 [0] (map track [first, second, third]))
+  readTVarIO concurrency >>= assertEqual "two simultaneous workers, both joined" (0, 2)
+  assertEqual "refill a free worker while preserving input order" (Just [0, 1, 2, 3]) result
 
 testBatchFailure :: Test
 testBatchFailure = TestLabel "batch failure cancels siblings and stops later batches" $

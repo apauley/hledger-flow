@@ -7,6 +7,7 @@ import Control.Monad (filterM, forM_, when)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Concurrent.MVar (modifyMVar, newMVar)
 import Control.Concurrent.Async (concurrently, mapConcurrently)
+import Control.Concurrent.Stream (mapConcurrentlyBounded)
 import Control.Concurrent.STM
 import Data.Char (isAlphaNum, isAscii, isDigit)
 import Data.Either
@@ -341,14 +342,8 @@ parAwareActions opts = if (sequential opts) then sequence else parBatchedActions
 parBatchedActions :: Int -> [a] -> [IO a] -> IO [a]
 parBatchedActions batch done todo
   | batch < 1 = ioError (userError "--batch-size must be positive")
-  | otherwise = (done ++) <$> runBatches todo
-  where
-    runBatches [] = return []
-    runBatches actions = do
-      let (current, remaining) = splitAt batch actions
-      -- Keep result order, but cancel the batch as soon as any action fails.
-      results <- mapConcurrently id current
-      (results ++) <$> runBatches remaining
+  | null (drop batch todo) = (done ++) <$> mapConcurrently id todo
+  | otherwise = (done ++) <$> mapConcurrentlyBounded batch id todo
 
 verboseTestFile :: (HasVerbosity o, HasBaseDir o) => o -> TChan LogMessage -> AbsFile -> IO Bool
 verboseTestFile opts ch p = do
