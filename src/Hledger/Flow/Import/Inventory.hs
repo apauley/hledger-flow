@@ -64,9 +64,14 @@ inImportScope scope startYear file =
     year = FilePath.dropTrailingPathSeparator (toFilePath (dirname (parent file)))
 
 generatedOutput :: RelDir -> String -> AbsFile -> IO AbsFile
-generatedOutput stage extension source = do
-  name <- parseRelFile (FilePath.replaceExtension (toFilePath (filename source)) extension)
-  return (parent (parent (parent source)) </> stage </> dirname (parent source) </> name)
+generatedOutput stage extension source =
+  -- One parse instead of chained Path.parent calls, which each renormalise the whole path.
+  parseAbsFile (account FilePath.</> toFilePath stage FilePath.</> FilePath.takeFileName yearDir FilePath.</> name)
+  where
+    file = toFilePath source
+    yearDir = FilePath.takeDirectory file
+    account = FilePath.takeDirectory (FilePath.takeDirectory yearDir)
+    name = FilePath.replaceExtension (FilePath.takeFileName file) extension
 
 expectedOutputs :: [AbsFile] -> IO (Map.Map AbsFile [AbsFile])
 expectedOutputs sources = outputPairs sources >>= canonicalOutputs

@@ -49,8 +49,10 @@ How to keep this ChangeLog
   the same second as the previous output.
 - `import` now finishes with the statement summary. Run `hledger-flow status`
   for a suggested next step.
-- Parallel imports and reports start the next file as soon as a worker is free.
-  `--batch-size` still limits the number running at once.
+- `import` is faster: about a third faster when converting every statement,
+  and about three times faster with `--new-files-only` when most statements
+  are up to date. Parallel imports and reports start the next file as soon as
+  a worker is free. `--batch-size` still limits the number running at once.
 - Dots before a statement's rules override are now supported. For example,
   `2024.04_rfo-card.csv` uses `rfo-card.rules` when present.
 - If writing a rules-generated journal or an include file fails, the previous
