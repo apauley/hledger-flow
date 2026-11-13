@@ -42,9 +42,6 @@ How to keep this ChangeLog
   The [tutorial](https://hledger-flow.github.io/tutorial/) is rewritten for
   this release. It shows how far hledger's rules files go before you need a
   preprocess or construct script.
-- `status` now tells you whether you're running the latest hledger-flow, and
-  [how to upgrade](https://hledger-flow.github.io/reference/release-notices/)
-  if not. Set `HLEDGER_FLOW_NO_UPDATE_CHECK=1` to turn the check off.
 - `report` now writes aggregate annual and monthly income statements and
   balance sheets even with zero or one owner, so they include root-level
   manual entries. Owner reports still show only that owner's entries.

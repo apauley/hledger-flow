@@ -10,7 +10,7 @@ import Hledger.Flow.Types (HledgerConf (..))
 import Path
 import Test.HUnit
 import qualified System.FilePath as FilePath
-import TestHelpers (defaultHlInfo, defaultOpts, testRoot)
+import TestHelpers (defaultOpts, testRoot)
 
 opts :: RuntimeOptions
 opts = defaultOpts (testRoot </> [reldir|fin|])
@@ -28,20 +28,20 @@ testImportLines = TestCase $ do
 
 testMissingHledger :: Test
 testMissingHledger = TestCase $ do
-  let out = renderSettings (\v -> "<" <> v <> ">") (environmentSettings [] (sysInfo opts) Nothing Nothing (baseDir opts))
+  let out = renderSettings (\v -> "<" <> v <> ">") (environmentSettings [] (sysInfo opts) Nothing Nothing)
   assertBool "missing hledger styled as a problem" (any ("<not found" `T.isInfixOf`) out)
   assertBool "only that line styled" (length (filter ("<" `T.isInfixOf`) out) == 1)
 
 testHledgerConf :: Test
 testHledgerConf = TestCase $ do
-  let confLine c = filter ("hledger.conf " `T.isPrefixOf`) (renderSettings id (environmentSettings [] (sysInfo opts) Nothing c (baseDir opts)))
+  let confLine c = filter ("hledger.conf " `T.isPrefixOf`) (renderSettings id (environmentSettings [] (sysInfo opts) Nothing c))
   assertBool "no config" (any ("  none" `T.isInfixOf`) (confLine Nothing))
   assertBool "given config" (any ("  /given.conf " `T.isInfixOf`) (confLine (Just (GivenConf "/given.conf"))))
   assertBool "found config is named" (any ("/home/me/.hledger.conf  (found by hledger)" `T.isInfixOf`) (confLine (Just (FoundConf "/home/me/.hledger.conf"))))
 
 testHomePaths :: Test
 testHomePaths = TestCase $ do
-  let out = renderSettings id (environmentSettings [toFilePath testRoot] (sysInfo opts) (Just defaultHlInfo) Nothing (baseDir opts))
+  let out = renderSettings id (importSettings [toFilePath testRoot] opts)
       line l = filter ((l <> " ") `T.isPrefixOf`) out
   assertBool "hledger under home" (any ((T.pack (FilePath.joinPath ["~", "path", "to", "hledger"]) <> "  (1.2.3)") `T.isInfixOf`) (line "hledger"))
   assertBool "ledger under home" (any ((T.pack (FilePath.joinPath ["~", "fin"])) `T.isSuffixOf`) (line "Ledger"))

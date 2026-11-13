@@ -19,7 +19,7 @@ import Hledger.Flow.Common (tildePath)
 import Hledger.Flow.Internals (SystemInfo (..), gitCommit)
 import Hledger.Flow.RuntimeOptions
 import Hledger.Flow.Status (hledgerVersionNumber)
-import Hledger.Flow.Types (BaseDir, HledgerConf (..), HledgerInfo (..), hledgerConfPath)
+import Hledger.Flow.Types (HledgerConf (..), HledgerInfo (..), hledgerConfPath)
 import Path (toFilePath)
 import Paths_hledger_flow (version)
 import System.FilePath (dropTrailingPathSeparator)
@@ -30,16 +30,15 @@ data Setting = Setting {sLabel :: T.Text, sValue :: T.Text, sFlags :: T.Text, sP
 setting :: T.Text -> T.Text -> T.Text -> Setting
 setting l v f = Setting l v f False
 
--- | What every command shares: hledger-flow, hledger, its config and the ledger.
+-- | What every command shares: hledger-flow, hledger, and its config.
 -- Paths under one of @homes@ show as @~@.
-environmentSettings :: [FilePath] -> SystemInfo -> Maybe HledgerInfo -> Maybe HledgerConf -> BaseDir -> [Setting]
-environmentSettings homes sys hledger conf base =
+environmentSettings :: [FilePath] -> SystemInfo -> Maybe HledgerInfo -> Maybe HledgerConf -> [Setting]
+environmentSettings homes sys hledger conf =
   [ setting "hledger-flow" (T.pack (showVersion version <> " (" <> gitCommit <> "), " <> compilerName sys <> " " <> showVersion (compilerVersion sys) <> ", " <> os sys <> " " <> arch sys)) "",
     case hledger of
       Just hl -> setting "hledger" (shown (toFilePath (hlPath hl)) <> "  (" <> hledgerVersionNumber (hlVersion hl) <> ")") "--hledger-path"
       Nothing -> Setting "hledger" "not found" "--hledger-path" True,
-    setting "hledger.conf" confText "--hledger-conf",
-    setting "Ledger" (shown (dropTrailingPathSeparator (toFilePath base))) ""
+    setting "hledger.conf" confText "--hledger-conf"
   ]
   where
     shown = T.pack . tildePath homes
@@ -52,7 +51,9 @@ coresSetting :: SystemInfo -> Setting
 coresSetting sys = setting "Cores" (tshow (cores sys) <> ", using " <> tshow (availableCores sys)) ""
 
 optsEnvironment :: [FilePath] -> RuntimeOptions -> [Setting]
-optsEnvironment homes o = environmentSettings homes (sysInfo o) (Just (hledgerInfo o)) (hledgerConf o) (baseDir o)
+optsEnvironment homes o =
+  environmentSettings homes (sysInfo o) (Just (hledgerInfo o)) (hledgerConf o)
+    ++ [setting "Ledger" (T.pack (tildePath homes (dropTrailingPathSeparator (toFilePath (baseDir o))))) ""]
 
 parallelism :: RuntimeOptions -> Setting
 parallelism o = setting "Parallelism" value "--batch-size, --sequential"

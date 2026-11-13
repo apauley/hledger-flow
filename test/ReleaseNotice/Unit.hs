@@ -10,8 +10,7 @@ import Data.IORef
 import qualified Data.Text as T
 import Data.Version (makeVersion, showVersion)
 import Paths_hledger_flow (version)
-import GHC.Clock (getMonotonicTimeNSec)
-import Hledger.Flow.ReleaseNotice (NoticeTiming (..), ReleaseResult (..), checkRelease, finishCommand, renderStatusRelease, startCheck)
+import Hledger.Flow.ReleaseNotice (ReleaseResult (..), checkRelease, finishCommand, renderUpdate, startCheck)
 import Path (toFilePath)
 import System.Directory (createDirectoryIfMissing)
 import System.Exit (ExitCode (ExitFailure))
@@ -34,13 +33,10 @@ tests = TestLabel "release notice" $ TestList
         let response = Just (encode (object ["tag_name" .= tag]))
         notice <- checkRelease (const $ pure response) (fail "unexpected ownership check")
         UpToDate @=? notice
-  , "status footer keeps its meaning with colour disabled" ~: TestCase $ do
+  , "upgrade notice keeps its meaning with colour disabled" ~: TestCase $ do
       let installed = T.pack (showVersion version)
-      ("  ✓ hledger-flow " <> installed <> " is up to date.") @=? renderStatusRelease False UpToDate
       ("  ↑ hledger-flow 999 is available (installed " <> installed <> ").\n    upgrade advice")
-        @=? renderStatusRelease False (UpdateAvailable (makeVersion [999]) "upgrade advice")
-      "  ⚠ Could not confirm the latest hledger-flow release.\n    Set HLEDGER_FLOW_NO_UPDATE_CHECK=1 to skip this check."
-        @=? renderStatusRelease False CheckUnavailable
+        @=? renderUpdate False (makeVersion [999]) "upgrade advice"
   , "verified Homebrew ownership and published formula" ~: TestCase $
       withTestDir $ \dir -> do
         let keg = toFilePath dir </> "Cellar" </> "hledger-flow" </> "1.2.3"
@@ -69,22 +65,13 @@ tests = TestLabel "release notice" $ TestList
   , "command finishes with worker still pending" ~: TestCase $ do
       started <- newEmptyMVar
       release <- newEmptyMVar
-      finish <- startCheck PollAtExit (putMVar started () >> takeMVar release)
+      finish <- startCheck (putMVar started () >> takeMVar release)
       takeMVar started
       success <- timeout 1000000 $ finishCommand finish (pure ())
       failure <- timeout 1000000 $ try (finishCommand finish (throwIO (ExitFailure 37)))
       Just () @=? success
       Just (Left (ExitFailure 37)) @=? failure
       putMVar release UpToDate
-  , "status gives a pending check one more second" ~: TestCase $ do
-      release <- newEmptyMVar
-      finish <- startCheck WaitAfterStatus (takeMVar release)
-      start <- getMonotonicTimeNSec
-      done <- timeout 2500000 finish
-      end <- getMonotonicTimeNSec
-      putMVar release UpToDate
-      Just () @=? done
-      assertBool "returned before the one-second grace period" (end - start >= 990000000)
   , "ready notice follows diagnostics and preserves the exit code" ~: TestCase $ do
       events <- newIORef ([] :: [String])
       let record msg = modifyIORef' events (++ [msg])

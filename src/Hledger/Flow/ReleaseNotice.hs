@@ -1,11 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Hledger.Flow.ReleaseNotice
-  ( NoticeTiming (..), ReleaseResult (..), withReleaseNotice, startCheck,
-    finishCommand, checkRelease, renderStatusRelease
+  ( ReleaseResult (..), withReleaseNotice, startCheck,
+    finishCommand, checkRelease, renderUpdate
   ) where
 
-import Control.Concurrent.Async (async, poll, waitCatch)
+import Control.Concurrent.Async (async, poll)
 import Control.Exception (catch, evaluate, throwIO, try)
 import Control.Monad (guard, join)
 import Data.Aeson (decode, decodeFileStrict, withObject, (.:), (.:?), (.!=))
@@ -17,7 +17,7 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as T
 import Data.Version (Version, parseVersion, showVersion)
-import Hledger.Flow.Status.Render (bold, green, useColor, yellow)
+import Hledger.Flow.Status.Render (useColor, yellow)
 import Network.HTTP.Client (HttpException, checkResponse, httpLbs, parseRequest, requestHeaders, responseBody, throwErrorStatusCodes)
 import Network.HTTP.Client.TLS (getGlobalManager)
 import Paths_hledger_flow (version)
@@ -25,18 +25,16 @@ import System.Directory (canonicalizePath)
 import System.Environment (getExecutablePath, lookupEnv)
 import System.Exit (ExitCode)
 import System.FilePath ((</>), takeDirectory, takeFileName)
-import System.IO (hFlush, hIsTerminalDevice, stderr, stdout)
+import System.IO (hIsTerminalDevice, stderr, stdout)
 import System.IO.Error (catchIOError)
 import System.Timeout (timeout)
 import Text.ParserCombinators.ReadP (eof, readP_to_S)
 
-data NoticeTiming = PollAtExit | WaitAfterStatus
-
 data ReleaseResult = UpToDate | UpdateAvailable !Version !T.Text | CheckUnavailable
   deriving (Eq, Show)
 
-withReleaseNotice :: NoticeTiming -> IO () -> IO ()
-withReleaseNotice timing command = do
+withReleaseNotice :: IO () -> IO ()
+withReleaseNotice command = do
   finish <- setup `catchIOError` const (pure (pure ()))
   finishCommand finish command
   where
@@ -45,39 +43,24 @@ withReleaseNotice timing command = do
       outTTY <- hIsTerminalDevice stdout
       errTTY <- hIsTerminalDevice stderr
       if disabled /= Just "1" && outTTY && errTTY
-        then startCheck timing (checkRelease fetch getExecutablePath)
+        then startCheck (checkRelease fetch getExecutablePath)
         else pure (pure ())
 
 -- The CLI owns the worker. Let process exit handle any pending network cleanup.
-startCheck :: NoticeTiming -> IO ReleaseResult -> IO (IO ())
-startCheck timing check = do
+startCheck :: IO ReleaseResult -> IO (IO ())
+startCheck check = do
   worker <- async (check >>= evaluate)
-  pure $ case timing of
-    PollAtExit -> do
-      result <- poll worker
-      case result of
-        Just (Right update@(UpdateAvailable _ _)) -> do
-          color <- useColor stderr
-          T.hPutStrLn stderr ("\n" <> renderStatusRelease color update)
-        _ -> pure ()
-    WaitAfterStatus -> do
-      color <- useColor stderr
-      hFlush stdout
-      T.hPutStrLn stderr ("\n" <> bold color "Updates:")
-      hFlush stderr
-      result <- timeout 1000000 (waitCatch worker)
-      let outcome = case result of
-            Just (Right release) -> release
-            _ -> CheckUnavailable
-      T.hPutStrLn stderr (renderStatusRelease color outcome)
+  pure $ do
+    result <- poll worker
+    case result of
+      Just (Right (UpdateAvailable latest advice)) -> do
+        color <- useColor stderr
+        T.hPutStrLn stderr ("\n" <> renderUpdate color latest advice)
+      _ -> pure ()
 
-renderStatusRelease :: Bool -> ReleaseResult -> T.Text
-renderStatusRelease color outcome = case outcome of
-  UpToDate -> "  " <> green color ("✓ hledger-flow " <> renderVersion version <> " is up to date.")
-  UpdateAvailable latest advice ->
-    "  " <> yellow color ("↑ " <> availableMessage latest) <> "\n    " <> advice
-  CheckUnavailable -> "  " <> yellow color "⚠ Could not confirm the latest hledger-flow release."
-                   <> "\n    Set HLEDGER_FLOW_NO_UPDATE_CHECK=1 to skip this check."
+renderUpdate :: Bool -> Version -> T.Text -> T.Text
+renderUpdate color latest advice =
+  "  " <> yellow color ("↑ " <> availableMessage latest) <> "\n    " <> advice
 
 availableMessage :: Version -> T.Text
 availableMessage latest = "hledger-flow " <> renderVersion latest <> " is available (installed "

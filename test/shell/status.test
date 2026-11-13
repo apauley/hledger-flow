@@ -143,7 +143,7 @@ printf 'skip 1\nfields date, description, amount\naccount1 assets:checking\n' > 
 hledger-flow import > /dev/null
 hledger-flow status > ../status-output
 grep -q '^Ledger: ~/my finances ' ../status-output
-grep -q '^  Ledger *~/my finances$' ../status-output
+if grep -q '^  Ledger ' ../status-output; then exit 1; fi
 set_ledger=$(sed -n 's/^ *Run: //p' ../status-output)
 test "$set_ledger" = 'export LEDGER_FILE="$HOME/my finances/all-years.journal"'
 run_suggestion "$set_ledger; hledger-flow status --json" | jq -e '.ledgerFile.exists and (.baseDir | startswith("/"))' > /dev/null

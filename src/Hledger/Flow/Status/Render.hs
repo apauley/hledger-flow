@@ -3,7 +3,7 @@
 -- | Status as text for people and JSON for scripts and agents.
 module Hledger.Flow.Status.Render
   ( useColor,
-    bold, green, yellow,
+    yellow,
     renderStatus,
     renderNext,
     renderEnvironment,
@@ -147,7 +147,7 @@ renderEnvironment :: Bool -> [FilePath] -> SystemInfo -> Maybe HledgerConf -> Le
 renderEnvironment color homes sys conf s =
   T.unlines ("" : bold color "Environment:" : map ("  " <>) (renderSettings (red color) settings))
   where
-    settings = environmentSettings homes sys (lsHledger s) conf (lsBaseDir s) ++ [coresSetting sys]
+    settings = environmentSettings homes sys (lsHledger s) conf ++ [coresSetting sys]
 
 -- | Print the ledger's status as text, or as JSON for scripts and agents.
 printStatus :: Maybe FilePath -> Maybe FilePath -> Bool -> BaseDir -> IO ()
