@@ -18,10 +18,6 @@ hledger-flow import
 
 ```text
 Imported 3 statements for gawie/kudu/creditcard.
-
-Next: Generate reports, or explore with hledger
-      Run: hledger-flow report
-      Or try: hledger balance
 ```
 
 ```bash
@@ -100,10 +96,6 @@ hledger balance
 
 ```text
 Imported 3 statements for gawie/kudu/creditcard.
-
-Next: Generate reports, or explore with hledger
-      Run: hledger-flow report
-      Or try: hledger balance
           R-43000.00  assets:transfers:creditcard
             R9055.00  expenses:car
             R6197.00  expenses:groceries

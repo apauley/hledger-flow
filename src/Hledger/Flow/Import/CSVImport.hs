@@ -20,7 +20,7 @@ import Hledger.Flow.Import.IncludeFiles (writeIncludesFromInventory, writeToplev
 import Hledger.Flow.Import.Inventory
 import Hledger.Flow.Import.Types
 import Hledger.Flow.Logging
-import Hledger.Flow.PathHelpers (AbsDir, AbsFile)
+import Hledger.Flow.PathHelpers (AbsDir, AbsFile, isGlobMetacharacter)
 import Hledger.Flow.RuntimeOptions
 import qualified Hledger.Flow.Types as FlowTypes
 import qualified Path
@@ -33,17 +33,17 @@ import qualified System.Process as Process
 import System.FilePath (dropTrailingPathSeparator, takeExtension, (</>))
 import qualified Data.List as List
 import Hledger.Flow.Status (plural)
-import Hledger.Flow.Status.Gather (accountName, gatherStatus)
-import Hledger.Flow.Status.Render (nextStepHere, renderNext, useColor)
-import System.IO (stdout)
+import Hledger.Flow.Status.Gather (accountName)
 import Prelude hiding (putStrLn, take, writeFile)
 
 type FileWasGenerated = Bool
 
 importCSVs :: RuntimeOptions -> IO ()
 importCSVs opts = withConsoleLogging $ \ch -> do
-  homes <- homeDirs
-  when (showOptions opts) (channelOutLn ch (T.unlines (renderSettings id (importSettings homes opts))))
+  when (showOptions opts) $ do
+    homes <- homeDirs
+    info <- hledgerInfo opts
+    channelOutLn ch (T.unlines (renderSettings id (importSettings homes info opts)))
   logVerbose opts ch "Starting import"
   (journals, diff) <- timeAction $ importCSVs' opts ch
   let importRoot = baseDir opts Path.</> [Path.reldir|import|]
@@ -52,10 +52,6 @@ importCSVs opts = withConsoleLogging $ \ch -> do
       accounts = List.nub (map (accountName importRoot . fst) journals)
   channelOutLn ch (importSummary scope (length journals) (length (filter snd journals)) accounts)
   logVerbose opts ch ("Import took " <> T.pack (show diff))
-  status <- gatherStatus (Just (hledgerInfo opts)) (baseDir opts)
-  next <- nextStepHere homes status
-  color <- useColor stdout
-  channelOut ch (renderNext color next)
 
 -- | One line saying what import did.
 importSummary :: T.Text -> Int -> Int -> [T.Text] -> T.Text
@@ -88,12 +84,16 @@ importCSVs' opts ch = do
       T.intercalate "\n" [relative output <> " <- " <> T.intercalate ", " (map relative sources)
                          | (output, sources) <- collisions])
   logVerbose opts ch $ "Found " <> T.pack (show fileCount) <> " input files" <> startYearMsg <> "in " <> T.pack (show diff) <> ". Proceeding with import..."
+  -- Glob escaping depends on the hledger version. Check it before any worker
+  -- writes output; conversions reuse this result. directives.journal and
+  -- cached CSVs share these paths' base and statement names.
+  when (any (any isGlobMetacharacter . Path.toFilePath) inputFiles) $ void (hledgerVersion opts)
   importedJournals <- parAwareActions opts (map (extractAndImport opts ch importRoot) inputFiles)
 
-  -- Hooks may create files, so reconcile against a fresh inventory only after
-  -- every selected conversion succeeds. A cached CSV is never a source.
-  (refreshed, journalFindTime) <- timeAction $ findImportFiles importRoot
-  (orphans, journalsOnDisk) <- classifyGeneratedOutputs importRoot refreshed (stageFiles importRoot [Path.reldir|1-in|] refreshed)
+  -- Running a preprocess hook also forces conversion. When every journal was
+  -- skipped, neither a hook nor a conversion could have changed the inventory.
+  let cached = if any snd importedJournals then Nothing else Just inventory
+  ((refreshed, orphans, journalsOnDisk), journalFindTime) <- timeAction $ reconciliationInventory importRoot cached
   forM_ (filter selected orphans) $ \file -> do
     target <- moveToTrash file
     channelOutLn ch $ "Moved orphaned output " <> relative file <> " to " <> relative target
@@ -204,10 +204,13 @@ hledgerImport opts ch importDirs csvFile journalOut = do
   case maybeRulesFile of
     Just rf -> do
       let relRules = relativeToBase opts (Path.toFilePath rf)
-      let hledger = T.pack (Path.toFilePath (FlowTypes.hlPath (hledgerInfo opts)))
+      let hledger = T.pack (Path.toFilePath (hledgerExecutable opts))
       let directives = directivesFile opts
       directivesExist <- PathIO.doesFileExist directives
-      let fileArgument = hledgerFileArgument (hledgerInfo opts)
+      let paths = csvSrc : [Path.toFilePath directives | directivesExist]
+      fileArgument <- if any (any isGlobMetacharacter) paths
+        then hledgerFileArgument <$> hledgerInfo opts
+        else return T.pack
       let directivesArgs = if directivesExist then ["--file", fileArgument (Path.toFilePath directives)] else []
       let csvArgs = ["--file", fileArgument csvSrc, "--rules-file", T.pack (Path.toFilePath rf)]
       let args = hledgerConfArgs opts ++ ["print", "--explicit"] ++ directivesArgs ++ csvArgs
@@ -240,7 +243,7 @@ customConstruct opts ch constructScript dirs csvFile journalOut = do
   (cmd, hookArgs) <- hookCommand constructScript constructArgs
   let hook = (Process.proc (T.unpack cmd) (map T.unpack hookArgs))
         { Process.std_in = Process.CreatePipe, Process.std_out = Process.CreatePipe }
-  let hledger = T.pack (Path.toFilePath (FlowTypes.hlPath (hledgerInfo opts)))
+  let hledger = T.pack (Path.toFilePath (hledgerExecutable opts))
   let args =
         hledgerConfArgs opts
           ++ [ "print",

@@ -16,14 +16,19 @@ import System.FilePath (dropTrailingPathSeparator)
 import qualified System.FilePath as FilePath
 
 extractImportDirs :: Path b Dir -> Path b File -> Either T.Text (ImportDirs b)
-extractImportDirs root inputFile = walk (parent inputFile) []
+extractImportDirs root inputFile =
+  -- Split the short relative part once: each Path.parent renormalises the whole path.
+  case FilePath.splitDirectories . toFilePath <$> stripProperPrefix root inputFile of
+    Just [owner, bank, account, state, year, _] -> maybe malformed Right $ do
+      ownerD <- below root owner
+      bankD <- below ownerD bank
+      accountD <- below bankD account
+      stateD <- below accountD state
+      yearD <- below stateD year
+      return (ImportDirs root ownerD bankD accountD stateD yearD)
+    _ -> malformed
   where
-    walk dir children
-      | dir == root = case children of
-          [owner, bank, account, state, year] -> Right (ImportDirs dir owner bank account state year)
-          _ -> malformed
-      | parent dir == dir = malformed
-      | otherwise = walk (parent dir) (dir : children)
+    below dir name = (dir </>) <$> parseRelDir name
 
     malformed = Left $
       "I couldn't find the right number of directories between \"import\" and the input file:\n"

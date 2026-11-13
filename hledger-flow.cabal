@@ -58,7 +58,7 @@ library
   build-depends:
       aeson >=2.2.5 && <2.3
     , ansi-terminal >=1.1.5 && <1.2
-    , async >=2.2.5 && <2.3
+    , async >=2.2.6 && <2.3
     , base >=4.20 && <4.22
     , bytestring ==0.12.*
     , containers ==0.7.*

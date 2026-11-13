@@ -3,9 +3,11 @@
 
 module Hledger.Flow.Common where
 
-import Control.Monad (filterM, forM_, when)
+import Control.Monad (filterM, forM_, unless, when)
 import Control.Monad.IO.Class (MonadIO, liftIO)
+import Control.Concurrent.MVar (modifyMVar, newMVar)
 import Control.Concurrent.Async (concurrently, mapConcurrently)
+import Control.Concurrent.Stream (mapConcurrentlyBounded)
 import Control.Concurrent.STM
 import Data.Char (isAlphaNum, isAscii, isDigit)
 import Data.Either
@@ -40,12 +42,15 @@ hledgerPathFromOption pathOption = do
   case pathOption of
     Just h -> do
       hlAbs <- Path.parseAbsFile h
-      isOnDisk <- Path.doesFileExist hlAbs
-      if isOnDisk
-        then return hlAbs
-        else do
-          let msg = "Unable to find hledger at " <> T.pack h
-          errExit' 1 (T.hPutStrLn H.stderr) msg
+      exists <- Path.doesFileExist hlAbs
+      let failWith = errExit' 1 (T.hPutStrLn H.stderr)
+      unless exists $ failWith ("Unable to find hledger at " <> T.pack h)
+      -- Windows has no POSIX execute bit.
+      unless (Sys.os == "mingw32") $ do
+        permissions <- Directory.getPermissions h
+        unless (Directory.executable permissions) $
+          failWith ("The hledger file is not executable: " <> T.pack h)
+      return hlAbs
     Nothing -> do
       maybeH <- Directory.findExecutable "hledger"
       case maybeH of
@@ -79,7 +84,9 @@ hledgerVersionFromPath hlp = do
   (status, version) <- probeHledgerVersion hlp
   case status of
     ExitSuccess -> return version
-    ExitFailure _ -> exitWith status
+    ExitFailure code -> errExit' code (T.hPutStrLn H.stderr) $
+      "Failed to run " <> showCmdArgs [T.pack (toFilePath hlp), "--version"]
+        <> " (exit code " <> T.pack (show code) <> ")."
 
 probeHledgerVersion :: AbsFile -> IO (ExitCode, T.Text)
 probeHledgerVersion hlp = do
@@ -91,6 +98,14 @@ probeHledgerVersion hlp = do
     version <- T.hGetContents stdoutPipe
     status <- Process.waitForProcess handle
     return (status, T.strip version)
+
+-- Share a successful probe among parallel conversions in this invocation.
+deferredHledgerVersion :: AbsFile -> IO (IO T.Text)
+deferredHledgerVersion path = do
+  cached <- newMVar Nothing
+  return $ modifyMVar cached $ \previous -> do
+    version <- maybe (hledgerVersionFromPath path) return previous
+    return (Just version, version)
 
 hledgerInfoFromPath :: Maybe FilePath -> IO HledgerInfo
 hledgerInfoFromPath pathOption = do
@@ -332,14 +347,8 @@ parAwareActions opts = if (sequential opts) then sequence else parBatchedActions
 parBatchedActions :: Int -> [a] -> [IO a] -> IO [a]
 parBatchedActions batch done todo
   | batch < 1 = ioError (userError "--batch-size must be positive")
-  | otherwise = (done ++) <$> runBatches todo
-  where
-    runBatches [] = return []
-    runBatches actions = do
-      let (current, remaining) = splitAt batch actions
-      -- Keep result order, but cancel the batch as soon as any action fails.
-      results <- mapConcurrently id current
-      (results ++) <$> runBatches remaining
+  | null (drop batch todo) = (done ++) <$> mapConcurrently id todo
+  | otherwise = (done ++) <$> mapConcurrentlyBounded batch id todo
 
 verboseTestFile :: (HasVerbosity o, HasBaseDir o) => o -> TChan LogMessage -> AbsFile -> IO Bool
 verboseTestFile opts ch p = do

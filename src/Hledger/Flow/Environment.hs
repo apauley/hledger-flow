@@ -50,9 +50,9 @@ environmentSettings homes sys hledger conf =
 coresSetting :: SystemInfo -> Setting
 coresSetting sys = setting "Cores" (tshow (cores sys) <> ", using " <> tshow (availableCores sys)) ""
 
-optsEnvironment :: [FilePath] -> RuntimeOptions -> [Setting]
-optsEnvironment homes o =
-  environmentSettings homes (sysInfo o) (Just (hledgerInfo o)) (hledgerConf o)
+optsEnvironment :: [FilePath] -> HledgerInfo -> RuntimeOptions -> [Setting]
+optsEnvironment homes info o =
+  environmentSettings homes (sysInfo o) (Just info) (hledgerConf o)
     ++ [setting "Ledger" (T.pack (tildePath homes (dropTrailingPathSeparator (toFilePath (baseDir o))))) ""]
 
 parallelism :: RuntimeOptions -> Setting
@@ -63,9 +63,9 @@ parallelism o = setting "Parallelism" value "--batch-size, --sequential"
       | sequential o = "one file at a time"
       | otherwise = tshow (batchSize o) <> " files at a time, " <> tshow (availableCores sys) <> " of " <> tshow (cores sys) <> " cores"
 
-importSettings :: [FilePath] -> RuntimeOptions -> [Setting]
-importSettings homes o =
-  optsEnvironment homes o
+importSettings :: [FilePath] -> HledgerInfo -> RuntimeOptions -> [Setting]
+importSettings homes info o =
+  optsEnvironment homes info o
     ++ [ setting "Run from" runFrom "",
          setting "Start year" (maybe "all years" (\y -> tshow y <> " onwards") (importStartYear o)) "--start-year",
          setting "Files" (if onlyNewFiles o then "only new or changed" else "regenerate all") "--new-files-only",
@@ -76,9 +76,9 @@ importSettings homes o =
       "." -> ". (whole ledger)"
       dir -> T.pack dir
 
-reportSettings :: [FilePath] -> RuntimeOptions -> [Setting]
-reportSettings homes o =
-  optsEnvironment homes o
+reportSettings :: [FilePath] -> HledgerInfo -> RuntimeOptions -> [Setting]
+reportSettings homes info o =
+  optsEnvironment homes info o
     ++ [ setting "Tables" (if prettyReports o then "pretty" else "ASCII") "--ascii-reports",
          parallelism o
        ]

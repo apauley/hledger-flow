@@ -64,9 +64,7 @@ Next: Put your first statement in import/<owner>/<bank>/<account>/1-in/<year>/
       Docs: https://hledger-flow.github.io/go/input-files/
 ```
 
-Every `hledger-flow` command that can tell what to do next ends with a
-`Next:` line like this one. Gawie will follow them through the whole
-tutorial.
+Gawie can run `hledger-flow status` at any point to see the next step.
 
 ## The first statement
 
@@ -101,7 +99,7 @@ Next: Create import/gawie/kudu/creditcard/kudu-creditcard.rules (rules for gawie
       Docs: https://hledger-flow.github.io/go/rules-files/
 
 Environment:
-  hledger-flow  0.19.0 (2a937e9), ghc 9.10, darwin aarch64
+  hledger-flow  0.19.0 (daf42b5), ghc 9.10, darwin aarch64
   hledger       ~/bin/hledger  (1.99.6-gc3a608c2b-20261101)   --hledger-path
   hledger.conf  none                                          --hledger-conf
   Cores         18, using 18
@@ -164,10 +162,6 @@ hledger-flow import
 
 ```text
 Imported 1 statement for gawie/kudu/creditcard.
-
-Next: Point LEDGER_FILE at this ledger so hledger finds it
-      Run: export LEDGER_FILE="$HOME/my-finances/all-years.journal"
-      Docs: https://hledger-flow.github.io/go/set-ledger-file/
 ```
 
 That was it. Here’s what the import made:
@@ -224,8 +218,8 @@ together, so the top-level `all-years.journal` holds the whole ledger.
 
 ## Ask hledger
 
-Gawie runs the line the `Next:` line suggested. To keep `LEDGER_FILE` for
-future sessions, he also adds it to his shell profile.
+Gawie sets `LEDGER_FILE` so hledger reads the journal he just imported.
+He also adds the export line to his shell profile for future sessions.
 
 ```bash
 export LEDGER_FILE="$HOME/my-finances/all-years.journal"

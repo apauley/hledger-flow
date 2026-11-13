@@ -36,7 +36,8 @@ import Options.Applicative
       str,
       switch )
 
-import Hledger.Flow.Common ( findHledgerConf, hledgerInfoFromPath )
+import Hledger.Flow.Types (HledgerInfo (..))
+import Hledger.Flow.Common ( deferredHledgerVersion, findHledgerConf, hledgerPathFromOption, hledgerInfoFromPath )
 import Hledger.Flow.Status ( Situation (..) )
 import Hledger.Flow.Status.Gather ( classifyDir )
 import Hledger.Flow.Status.Render ( printStatus )
@@ -45,7 +46,8 @@ import Path.IO ( getCurrentDir, resolveDir' )
 import Hledger.Flow.Init ( runInit )
 import Hledger.Flow.DocHelpers ( DocLink (Docs), docURL, siteURL )
 import Hledger.Flow.RulesTemplate ( rulesTemplateFor )
-import Hledger.Flow.Internals (versionInfo, systemInfo)
+import Data.Maybe (fromMaybe)
+import Hledger.Flow.Internals (availableCores, versionInfo, systemInfo)
 import Hledger.Flow.BaseDir ( determineBaseDir, findBaseDir )
 import qualified Hledger.Flow.RuntimeOptions as RT
 import Hledger.Flow.ReleaseNotice ( withReleaseNotice )
@@ -182,36 +184,28 @@ runBare mainParams' = do
           <> "\nNo hledger-flow ledger here or in any parent folder.\n"
           <> "Run `hledger-flow init` in an empty folder to start one.\n"
 
-defaultBatchSize :: Int
-defaultBatchSize = 20
-
-determineBatchSize :: MainParams -> IO Int
-determineBatchSize mainParams' =
-  case (batchSize mainParams') of
-    Nothing   -> return defaultBatchSize
-    Just size -> return size
-
 toRuntimeOptionsImport :: MainParams -> ImportParams -> IO RT.RuntimeOptions
 toRuntimeOptionsImport mainParams' subParams' = do
   startYear <- traverse resolveStartYear (importStartYear subParams')
   let maybeBD = maybeImportBaseDir subParams' :: Maybe FilePath
   (bd, runDir) <- determineBaseDir maybeBD
-  hli <- hledgerInfoFromPath $ hledgerPathOpt mainParams'
+  hlp <- hledgerPathFromOption $ hledgerPathOpt mainParams'
+  version <- deferredHledgerVersion hlp
   conf <- findHledgerConf $ hledgerConfOpt mainParams'
-  size <- determineBatchSize mainParams'
   sysInfo <- systemInfo
   return RT.RuntimeOptions { RT.baseDir = bd
                            , RT.importRunDir = runDir
                            , RT.importStartYear = startYear
                            , RT.onlyNewFiles = onlyNewFiles subParams'
                            , RT.hfVersion = versionInfo sysInfo
-                           , RT.hledgerInfo = hli
+                           , RT.hledgerExecutable = hlp
+                           , RT.hledgerVersion = version
                            , RT.hledgerConf = conf
                            , RT.sysInfo = sysInfo
                            , RT.verbose = verbosity mainParams' > 0
                            , RT.showOptions = showOpts mainParams'
                            , RT.sequential = sequential mainParams'
-                           , RT.batchSize = size
+                           , RT.batchSize = fromMaybe (availableCores sysInfo) (batchSize mainParams')
                            , RT.prettyReports = True
                            }
 
@@ -219,22 +213,22 @@ toRuntimeOptionsReport :: MainParams -> ReportParams -> IO RT.RuntimeOptions
 toRuntimeOptionsReport mainParams' subParams' = do
   let maybeBD = maybeReportBaseDir subParams' :: Maybe FilePath
   (bd, _) <- determineBaseDir maybeBD
-  hli <- hledgerInfoFromPath $ hledgerPathOpt mainParams'
+  HledgerInfo hlp version <- hledgerInfoFromPath $ hledgerPathOpt mainParams'
   conf <- findHledgerConf $ hledgerConfOpt mainParams'
-  size <- determineBatchSize mainParams'
   sysInfo <- systemInfo
   return RT.RuntimeOptions { RT.baseDir = bd
                            , RT.importRunDir = [reldir|.|]
                            , RT.importStartYear = Nothing
                            , RT.onlyNewFiles = False
                            , RT.hfVersion = versionInfo sysInfo
-                           , RT.hledgerInfo = hli
+                           , RT.hledgerExecutable = hlp
+                           , RT.hledgerVersion = return version
                            , RT.hledgerConf = conf
                            , RT.sysInfo = sysInfo
                            , RT.verbose = verbosity mainParams' > 0
                            , RT.showOptions = showOpts mainParams'
                            , RT.sequential = sequential mainParams'
-                           , RT.batchSize = size
+                           , RT.batchSize = fromMaybe (availableCores sysInfo) (batchSize mainParams')
                            , RT.prettyReports = not(asciiReports subParams')
                            }
 
@@ -287,7 +281,7 @@ verboseParser = MainParams
   <*> optional (option str (long "hledger-path" <> short 'H' <> metavar "HLEDGER-PATH" <> help "The full path to an hledger executable"))
   <*> optional (option str (long "hledger-conf" <> metavar "PATH" <> hidden <> help "The hledger config file to pass to hledger --conf"))
   <*> switch (long "show-options" <> hidden <> help "Print the hledger-flow version, hledger path and settings import or report runs with. status always shows them.")
-  <*> optional (option auto (long "batch-size" <> metavar "SIZE" <> hidden <> help ("Number of files to process in parallel. Must be positive. Default: " <> show defaultBatchSize <> ". Ignored during sequential processing.")))
+  <*> optional (option auto (long "batch-size" <> metavar "SIZE" <> hidden <> help "Number of files to process in parallel. Must be positive. Default: the number of cores in use. Ignored during sequential processing."))
   <*> switch (long "sequential" <> hidden <> help "Disable parallel processing")
 
 subcommandParserImport :: Parser ImportParams

@@ -5,10 +5,10 @@
 module Common.Integration (tests) where
 
 import Control.Concurrent.MVar (newEmptyMVar, putMVar, takeMVar, tryTakeMVar)
-import Control.Concurrent.STM (atomically, newTChanIO, tryReadTChan)
-import Control.Exception (bracket, finally)
+import Control.Concurrent.STM (atomically, modifyTVar', newTChanIO, newTVarIO, readTVarIO, tryReadTChan)
+import Control.Exception (bracket, bracket_, finally)
 import Control.Monad (forM_, unless)
-import qualified Data.List as List (intercalate, isInfixOf)
+import qualified Data.List as List (intercalate, isInfixOf, isPrefixOf)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import Data.Time.Clock (UTCTime(..), addUTCTime, secondsToDiffTime)
@@ -150,16 +150,18 @@ testNeedsRegeneration = TestCase $ withTestDir $ \base -> do
 
 testBatchOrder :: Test
 testBatchOrder = TestCase $ do
-  secondStarted <- newEmptyMVar
-  firstFinished <- newEmptyMVar
-  let first = takeMVar secondStarted >> putMVar firstFinished () >> return (1 :: Int)
-      second = putMVar secondStarted () >> return 2
-      third = do
-        finished <- tryTakeMVar firstFinished
-        assertEqual "finish the current batch before starting the next" (Just ()) finished
-        return 3
-  result <- timeout 10000000 (parBatchedActions 2 [0] [first, second, third])
-  assertEqual "preserve input order across parallel batches" (Just [0, 1, 2, 3]) result
+  firstStarted <- newEmptyMVar
+  thirdStarted <- newEmptyMVar
+  concurrency <- newTVarIO (0, 0 :: Int)
+  let track = bracket_
+        (atomically $ modifyTVar' concurrency $ \(active, peak) -> (active + 1, max peak (active + 1)))
+        (atomically $ modifyTVar' concurrency $ \(active, peak) -> (active - 1, peak))
+      first = putMVar firstStarted () >> takeMVar thirdStarted >> return (1 :: Int)
+      second = takeMVar firstStarted >> return 2
+      third = putMVar thirdStarted () >> return 3
+  result <- timeout 10000000 (parBatchedActions 2 [0] (map track [first, second, third]))
+  readTVarIO concurrency >>= assertEqual "two simultaneous workers, both joined" (0, 2)
+  assertEqual "refill a free worker while preserving input order" (Just [0, 1, 2, 3]) result
 
 testBatchFailure :: Test
 testBatchFailure = TestLabel "batch failure cancels siblings and stops later batches" $
@@ -223,5 +225,28 @@ testHomeDirs = TestLabel "home folder spellings" $ TestCase $ unless (Sys.os == 
     assertEqual ("resolved path with HOME=" ++ home) ("~" </> "fin") (tildePath homes (real </> "fin"))
     assertEqual ("HOME's spelling with HOME=" ++ home) ("~" </> "fin") (tildePath homes (home </> "fin"))
 
+testWriteGeneratedText :: Test
+testWriteGeneratedText = TestLabel "write generated text" $ TestCase $ withTestDir $ \base -> do
+  let dir = Path.toFilePath base </> "out"
+      journal = dir </> "2024-include.journal"
+  writeGeneratedText journal "first\n"
+  T.readFile journal >>= assertEqual "create missing directory and file" "first\n"
+  unless (Sys.os == "mingw32") $ do
+    perms <- Directory.getPermissions journal
+    Directory.setPermissions journal (Directory.setOwnerExecutable True perms)
+    let real = dir </> "real.journal"
+        link = dir </> "link.journal"
+    T.writeFile real "old\n"
+    Directory.createFileLink "real.journal" link
+    writeGeneratedText link "through link\n"
+    T.readFile real >>= assertEqual "replace the file behind a symlink" "through link\n"
+    Directory.pathIsSymbolicLink link >>= assertBool "keep the symlink"
+  writeGeneratedText journal "second\n"
+  T.readFile journal >>= assertEqual "replace existing contents" "second\n"
+  unless (Sys.os == "mingw32") $
+    Directory.getPermissions journal >>= assertBool "keep existing permissions" . Directory.executable
+  entries <- Directory.listDirectory dir
+  assertBool ("no staged files left: " ++ show entries) (not (any (List.isPrefixOf ".") entries))
+
 tests :: Test
-tests = TestList [testHledgerLookup, testFindHledgerConf, testHomeDirs, testFilterPaths, testFirstExistingFile, testVerboseTestFile, testNeedsRegeneration, testBatchOrder, testBatchFailure]
+tests = TestList [testWriteGeneratedText, testHledgerLookup, testFindHledgerConf, testHomeDirs, testFilterPaths, testFirstExistingFile, testVerboseTestFile, testNeedsRegeneration, testBatchOrder, testBatchFailure]

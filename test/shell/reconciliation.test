@@ -198,7 +198,7 @@ flow import
 hledger-flow status --json | jq -e '.next.summary | startswith("Put your first statement")' > /dev/null
 $ sh -eu
 
-# A new manual journal needs import even when its year already has an include file.
+# A fully cached import still retires orphans and includes a new manual journal.
 <
 . ./test/shell/setup.sh
 flow import
@@ -206,7 +206,10 @@ export LEDGER_FILE=all-years.journal
 mkdir -p "$account/_manual_/2016"
 printf '2016-01-01 Manual entry\n    expenses:cash  3\n    assets:cash\n' > "$account/_manual_/2016/pre-import.journal"
 hledger-flow status --json | jq -e '.next.command == "hledger-flow import"' > /dev/null
-flow import
+cp "$journal" "$account/3-journal/2016/orphan.journal"
+flow import --new-files-only
+grep -q '1 already up to date' "$finance/flow.log"
+test -f "$account/.trash/2016/3-journal/orphan.journal"
 hledger-flow status --json | jq -e '.next.command == "hledger-flow report"' > /dev/null
 hledger -f all-years.journal descriptions | tr -d '\r' | grep -x 'Manual entry'
 $ sh -eu
@@ -234,9 +237,52 @@ mkdir -p "$inbox/archive" "$sibling/1-in/2016" "$sibling/3-journal/2016"
 cp "$inbox/march.csv" "$sibling/1-in/2016/savings.csv"
 printf '; previous savings journal\n' > "$sibling/3-journal/2016/retired.journal"
 (cd "$inbox/archive" && flow import)
+flow status
+grep -q '^Next: Import 1 new or changed statement' "$finance/flow.log"
 hledger -f "$journal" descriptions
 test ! -e "$sibling/3-journal/2016/savings.journal"
 test -f "$sibling/3-journal/2016/retired.journal"
 test ! -e "$sibling/.trash"
 $ sh -eu
 Monthly bank fee
+
+# Status recommends cleaning up orphans left by a year-filtered import.
+<
+. ./test/shell/setup.sh
+export LEDGER_FILE=all-years.journal
+flow import
+cp "$journal" "$account/3-journal/2016/orphan.journal"
+flow import --start-year 2017
+flow status
+grep -q '^Next: Run import to reconcile generated files and journal includes' "$finance/flow.log"
+test -f "$account/3-journal/2016/orphan.journal"
+flow import
+flow status
+grep -q '^Next: Generate reports' "$finance/flow.log"
+test ! -e "$account/3-journal/2016/orphan.journal"
+$ sh -eu
+
+# Distinct Unicode spellings must follow the destination filesystem's equivalence rules.
+<
+. ./test/shell/setup.sh
+python3 - "$inbox" "$account/3-journal/2016" <<'PY'
+from pathlib import Path
+import sys
+inbox, dest = map(Path, sys.argv[1:])
+dest.mkdir(parents=True)
+first, second = "caf\u00e9", "cafe\u0301"
+(dest / (first + ".journal")).write_text("; existing\n")
+Path("alias-result").write_text("alias" if (dest / (second + ".journal")).exists() else "distinct")
+csv = (inbox / "march.csv").read_bytes()
+(inbox / (first + ".csv")).write_bytes(csv)
+(inbox / (second + ".tsv")).write_bytes(csv.replace(b",", b"\t"))
+PY
+if test "$(cat alias-result)" = alias; then
+    if hledger-flow import > failure.log 2>&1; then exit 1; fi
+    grep -q 'same output' failure.log
+    test ! -f "$journal"
+else
+    flow import
+    test -f "$journal"
+fi
+$ sh -eu

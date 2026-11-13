@@ -186,14 +186,13 @@ $ sh -eu
 >2 /--batch-size must be positive/
 >= 1
 
-# A successful import prints a one-line summary and the next step, without timings.
+# A successful import prints just the one-line summary.
 <
 . ./test/shell/setup.sh
 hledger-flow import > out
-tr -d '\r' < out | grep -Fxq 'Imported 1 statement for gawie/bogart/cheque.'
-grep -q '^Next: Point LEDGER_FILE at this ledger' out
-if grep -q 'Collecting' out; then exit 1; fi
+tr -d '\r' < out
 $ sh -eu
+Imported 1 statement for gawie/bogart/cheque.
 
 # A failing hledger conversion names the rules file to check and doesn't dump the whole input.
 <

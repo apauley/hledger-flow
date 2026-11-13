@@ -59,6 +59,20 @@ testInventory = TestLabel "active inventory discovery and scope" $ TestCase $ wi
     [account </> [relfile|3-journal/2019/march.bank.journal|]]
     (stageFiles root [reldir|3-journal|] inventory)
 
+testRestoredSource :: Test
+testRestoredSource = TestLabel "restore a source after discovery" $ TestCase $ withTestDir $ \root -> do
+  let account = root </> [reldir|owner/bank/checking|]
+      source = account </> [relfile|1-in/2026/march.txt|]
+      csv = account </> [relfile|2-preprocessed/2026/march.csv|]
+      journal = account </> [relfile|3-journal/2026/march.journal|]
+  mapM_ touchFile [csv, journal]
+  cached <- findImportFiles root
+  touchFile source
+  (files, orphans, journals) <- reconciliationInventory root (Just cached)
+  assertEqual "keep both restored outputs" [] orphans
+  assertEqual "include the restored journal" [journal] journals
+  assertBool "use refreshed inventory for includes" (source `elem` files)
+
 testStagedOutput :: Test
 testStagedOutput = TestCase $ withSystemTempDir "hlflow-output" $ \dir -> do
   let target = dir </> [relfile|march.bank.csv|]
@@ -80,8 +94,18 @@ testStagedOutput = TestCase $ withSystemTempDir "hlflow-output" $ \dir -> do
   withStagedOutput target $ \staged -> T.writeFile (toFilePath staged) "complete"
   T.readFile (toFilePath target) >>= assertEqual "publish successful retry" "complete"
 
+testCannotAlias :: Test
+testCannotAlias = TestCase $ do
+  assertBool "distinct plain names" (cannotAlias ["2024-01.journal", "2024-02.journal", "April [1].journal"])
+  mapM_ (\names -> assertBool ("may alias: " ++ show names) (not (cannotAlias names)))
+    [ ["march.journal", "march.journal"],
+      ["march.journal", "March.journal"],
+      ["caf\233.journal", "other.journal"],
+      ["PROGRA~1.journal", "other.journal"]
+    ]
+
 tests :: Test
-tests = TestList [testInventory, testStagedOutput, testTrashLock]
+tests = TestList [testInventory, testRestoredSource, testStagedOutput, testTrashLock, testCannotAlias]
 
 testTrashLock :: Test
 testTrashLock = TestCase $ withSystemTempDir "hlflow-trash" $ \root -> do

@@ -10,14 +10,14 @@ import Hledger.Flow.Types (HledgerConf (..))
 import Path
 import Test.HUnit
 import qualified System.FilePath as FilePath
-import TestHelpers (defaultOpts, testRoot)
+import TestHelpers (defaultHlInfo, defaultOpts, testRoot)
 
 opts :: RuntimeOptions
 opts = defaultOpts (testRoot </> [reldir|fin|])
 
 testImportLines :: Test
 testImportLines = TestCase $ do
-  let out = renderSettings id (importSettings [] opts {importStartYear = Just 2024, batchSize = 20})
+  let out = renderSettings id (importSettings [] defaultHlInfo opts {importStartYear = Just 2024, batchSize = 20})
       line l = filter ((l <> " ") `T.isPrefixOf`) out
   assertEqual "one line per setting" 8 (length out)
   assertBool "full hledger path and version" (any ((T.pack (toFilePath [relfile|path/to/hledger|]) <> "  (1.2.3)") `T.isInfixOf`) (line "hledger"))
@@ -41,14 +41,14 @@ testHledgerConf = TestCase $ do
 
 testHomePaths :: Test
 testHomePaths = TestCase $ do
-  let out = renderSettings id (importSettings [toFilePath testRoot] opts)
+  let out = renderSettings id (importSettings [toFilePath testRoot] defaultHlInfo opts)
       line l = filter ((l <> " ") `T.isPrefixOf`) out
   assertBool "hledger under home" (any ((T.pack (FilePath.joinPath ["~", "path", "to", "hledger"]) <> "  (1.2.3)") `T.isInfixOf`) (line "hledger"))
   assertBool "ledger under home" (any ((T.pack (FilePath.joinPath ["~", "fin"])) `T.isSuffixOf`) (line "Ledger"))
 
 testReportTables :: Test
 testReportTables = TestCase $ do
-  let out = renderSettings id (reportSettings [] opts {prettyReports = False, sequential = True})
+  let out = renderSettings id (reportSettings [] defaultHlInfo opts {prettyReports = False, sequential = True})
   assertBool "ascii tables" (any ("ASCII" `T.isInfixOf`) out)
   assertBool "sequential" (any ("one file at a time" `T.isInfixOf`) out)
   assertBool "no import settings" (not (any ("Start year" `T.isPrefixOf`) out))

@@ -20,6 +20,11 @@ change the journals import generates, such as `--layout` under `[print]`.
 The `hledger.conf` line in the Environment section at the end of status names
 the file, marked `(found by hledger)` when you didn't give it.
 
+Import checks the hledger version before writing journals when a statement path
+contains glob characters such as `[`, which need version-specific escaping.
+`--show-options` always reads the version. You can give an absolute executable
+path with `--hledger-path` even when `PATH` is unset.
+
 ## Status for scripts and agents
 
 `hledger-flow status --json` prints the same status as one JSON object:

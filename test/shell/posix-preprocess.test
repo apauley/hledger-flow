@@ -11,6 +11,18 @@ $ sh -eu
 2016-03-01,Monthly bank fee,-5
 Monthly bank fee
 
+# Reconciliation sees a hook-created source and its existing journal in the same import.
+<
+. ./test/shell/setup.sh
+printf '%s\n' '#!/bin/sh' 'set -e' 'cp "$1" "$2"' 'cp "$1" "${1%/*}/later.csv"' > "$account/preprocess"
+chmod +x "$account/preprocess"
+mkdir -p "$account/3-journal/2016"
+printf '2016-02-01 Hook sibling\n    expenses:cash  1\n    assets:cash\n' > "$account/3-journal/2016/later.journal"
+flow import
+hledger -f all-years.journal descriptions | tr -d '\r' | grep -qx 'Hook sibling'
+test ! -e "$account/.trash"
+$ sh -eu
+
 # Both hooks receive the account's file and the original bank, account and owner names.
 <
 . ./test/shell/setup.sh
@@ -162,3 +174,48 @@ flow import
 hledger -f all-years.journal descriptions
 $ sh -eu
 Corrected fee
+
+# Two lexical year directories can refer to the same physical output directory.
+<
+. ./test/shell/setup.sh
+sibling=import/gawie/bogart/savings
+mkdir -p "$sibling/1-in/2016" "$account/3-journal"
+cp "$inbox/march.csv" "$sibling/1-in/2016/march.csv"
+ln -s ../cheque/3-journal "$sibling/3-journal"
+if hledger-flow import > failure.log 2>&1; then exit 1; fi
+grep -q 'same output' failure.log
+test ! -e "$journal"
+$ sh -eu
+
+# An unmatched path can alias an output which also matched its source by name.
+<
+. ./test/shell/setup.sh
+flow import
+ln -s march.journal "$account/3-journal/2016/alias.journal"
+cp "$journal" "$account/3-journal/2016/retired.journal"
+flow import
+test -L "$account/3-journal/2016/alias.journal"
+test -f "$account/.trash/2016/3-journal/retired.journal"
+hledger -f all-years.journal balance expenses:bank-fees --flat --no-total --format '%(total)'
+grep -Fxq 'include 3-journal/2016/march.journal' "$account/2016-include.journal"
+$ sh -eu
+5
+
+# A cached year-scoped import keeps a restored older fee in the global balance.
+<
+. ./test/shell/setup.sh
+mkdir -p "$account/1-in/2017"
+printf '2017-01-01,No fee,0\n' > "$account/1-in/2017/jan[1].csv"
+flow import
+mv "$inbox/march.csv" parked.csv
+# The bracketed path triggers the version probe after discovery and before reconciliation.
+printf '%s\n' '#!/bin/sh' 'set -eu' 'if test "$1" = --version; then mv parked.csv "$RESTORED_SOURCE"; fi' 'exec hledger "$@"' > probe
+chmod +x probe
+export RESTORED_SOURCE="$inbox/march.csv"
+flow -H "$PWD/probe" import --start-year 2017 --new-files-only
+grep -q '1 already up to date' "$finance/flow.log"
+test -f "$RESTORED_SOURCE"
+test -s "$journal"
+hledger -f all-years.journal balance expenses:bank-fees --flat --no-total --format '%(total)'
+$ sh -eu
+5

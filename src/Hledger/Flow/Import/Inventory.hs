@@ -7,9 +7,10 @@ module Hledger.Flow.Import.Inventory
     stageFiles,
     inImportScope,
     generatedOutput,
-    expectedOutputs,
     classifyGeneratedOutputs,
+    reconciliationInventory,
     conflictingOutputs,
+    cannotAlias,
     canonicalFile,
     manualIncludeFiles,
     isManualJournal,
@@ -19,18 +20,18 @@ module Hledger.Flow.Import.Inventory
 where
 
 import Control.Exception (bracket_)
-import Control.Monad (forM)
-import Data.Char (isDigit)
+import Control.Monad (filterM, forM)
+import Data.Char (isAscii, isDigit, isPrint, toLower)
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
-import Hledger.Flow.Common (homeDirs, tildePath)
+import Hledger.Flow.Common (groupValuesBy, homeDirs, tildePath)
 import Hledger.Flow.PathHelpers (AbsDir, AbsFile, RelDir)
 import Path
 import qualified Path.IO as PathIO
 import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
-import System.IO.Error (catchIOError, isAlreadyExistsError, isDoesNotExistError)
+import System.IO.Error (catchIOError, isAlreadyExistsError, isDoesNotExistError, tryIOError)
 
 findImportFiles :: AbsDir -> IO [AbsFile]
 findImportFiles root = List.sort <$> PathIO.walkDirAccum (Just exclude) collect root
@@ -64,30 +65,59 @@ inImportScope scope startYear file =
     year = FilePath.dropTrailingPathSeparator (toFilePath (dirname (parent file)))
 
 generatedOutput :: RelDir -> String -> AbsFile -> IO AbsFile
-generatedOutput stage extension source = do
-  name <- parseRelFile (FilePath.replaceExtension (toFilePath (filename source)) extension)
-  return (parent (parent (parent source)) </> stage </> dirname (parent source) </> name)
-
-expectedOutputs :: [AbsFile] -> IO (Map.Map AbsFile [AbsFile])
-expectedOutputs sources = do
-  pairs <- outputPairs sources
-  canonical <- forM pairs $ \(output, source) -> do
-    key <- canonicalFile output
-    return (key, [source])
-  return (Map.fromListWith (++) canonical)
+generatedOutput stage extension source =
+  -- One parse instead of chained Path.parent calls, which each renormalise the whole path.
+  parseAbsFile (account FilePath.</> toFilePath stage FilePath.</> FilePath.takeFileName yearDir FilePath.</> name)
+  where
+    file = toFilePath source
+    yearDir = FilePath.takeDirectory file
+    account = FilePath.takeDirectory (FilePath.takeDirectory yearDir)
+    name = FilePath.replaceExtension (FilePath.takeFileName file) extension
 
 -- | Orphaned generated files and the source-backed journals to include.
 classifyGeneratedOutputs :: AbsDir -> [AbsFile] -> [AbsFile] -> IO ([AbsFile], [AbsFile])
 classifyGeneratedOutputs root inventory sources = do
-  expected <- expectedOutputs sources
-  let staged stage ext = filter ((== ext) . FilePath.takeExtension . toFilePath) (stageFiles root stage inventory)
+  pairs <- outputPairs sources
+  let expected = Set.fromList (map (toFilePath . fst) pairs)
+      staged stage ext = filter ((== ext) . FilePath.takeExtension . toFilePath) (stageFiles root stage inventory)
       cached = staged [reldir|2-preprocessed|] ".csv"
       journals = staged [reldir|3-journal|] ".journal"
-  classified <- forM (cached ++ journals) $ \file -> do
-    key <- canonicalFile file
-    return (file, Map.member key expected)
-  return ([file | (file, False) <- classified],
-          [file | (file, True) <- classified, FilePath.takeExtension (toFilePath file) == ".journal"])
+      unmatched = filter ((`Set.notMember` expected) . toFilePath) (cached ++ journals)
+  -- A differently spelled output can alias any expected file, even one which
+  -- also matched literally (for example, through a symlink).
+  orphans <- if null unmatched then return [] else do
+    resolved <- Set.fromList <$> mapM (canonicalFile . fst) pairs
+    filterM (fmap (`Set.notMember` resolved) . canonicalFile) unmatched
+  let retired = Set.fromList orphans
+      active = filter (`Set.notMember` retired) journals
+      preferExpected a b = if rank a <= rank b then a else b
+      rank file = (Set.notMember (toFilePath file) expected, file)
+  -- Resolve year directories once, including symlinked directories. Names
+  -- came from listing the directory, so only symlinks need a full lookup.
+  groups <- forM (Map.toList (groupValuesBy (FilePath.takeDirectory . toFilePath) active)) $ \(dir, files) -> do
+    resolvedDir <- Directory.canonicalizePath dir
+    forM files $ \file -> do
+      link <- PathIO.isSymlink file
+      key <- if link then Directory.canonicalizePath (toFilePath file)
+             else return (resolvedDir FilePath.</> FilePath.takeFileName (toFilePath file))
+      return (key, file)
+  let chosen = Map.fromListWith preferExpected (concat groups)
+  return (orphans, List.sort (Map.elems chosen))
+
+-- | Inventory, orphaned outputs and source-backed journals for reconciliation.
+-- Includes cover every year and account, even when orphan moves are scoped.
+reconciliationInventory :: AbsDir -> Maybe [AbsFile] -> IO ([AbsFile], [AbsFile], [AbsFile])
+reconciliationInventory root cached = case cached of
+  Nothing -> refresh
+  Just files -> do
+    result@(_, orphans, _) <- classify files
+    if null orphans then return result else refresh
+  where
+    -- A source may have been restored since discovery.
+    refresh = findImportFiles root >>= classify
+    classify files = do
+      (orphans, journals) <- classifyGeneratedOutputs root files (stageFiles root [reldir|1-in|] files)
+      return (files, orphans, journals)
 
 canonicalFile :: AbsFile -> IO AbsFile
 canonicalFile file = Directory.canonicalizePath (toFilePath file) >>= parseAbsFile
@@ -105,24 +135,47 @@ outputPairs sources = concat <$> mapM outputs sources
 conflictingOutputs :: [AbsFile] -> IO [(AbsFile, [AbsFile])]
 conflictingOutputs sources = do
   pairs <- outputPairs sources
-  grouped <- forM pairs $ \pair@(output, _) -> do
-    directory <- Directory.canonicalizePath (toFilePath (parent output)) >>= parseAbsDir
-    return (directory, [pair])
-  fmap concat $ forM (Map.toAscList (Map.fromListWith (++) grouped)) $ \(directory, outputs) -> do
-    existing <- nearestDirectory directory
-    PathIO.withTempDir existing ".hledger-flow-destinations-" $ \tmp -> do
-      names <- forM outputs $ \pair@(output, _) -> do
-        name <- parseRelDir (toFilePath (filename output))
-        let probe = tmp </> name
-        PathIO.createDirIfMissing True probe
-        key <- Directory.canonicalizePath (toFilePath probe)
-        return (key, [pair])
-      return [(output, source : map snd rest)
-             | (output, source) : rest <- Map.elems (Map.fromListWith (++) names), not (null rest)]
+  -- Resolve each parent once, including links shared by different accounts.
+  let byParent = groupValuesBy (parent . fst) pairs
+  groups <- forM (Map.toList byParent) $ \(dir, outputs) -> do
+    resolved <- Directory.canonicalizePath (toFilePath dir) >>= parseAbsDir
+    return (resolved, outputs)
+  concat <$> mapM checkDirectory (Map.toList (Map.fromListWith (++) groups))
   where
+    checkDirectory (_, [_]) = return []
+    checkDirectory (_, outputs) | cannotAlias (outputNames outputs) = return []
+    checkDirectory (directory, outputs) = do
+      let names = outputNames outputs
+          distinct = Set.fromList names
+      listed <- tryIOError (Directory.listDirectory (toFilePath directory))
+      case listed of
+        Right entries
+          | Set.size distinct == length names && distinct `Set.isSubsetOf` Set.fromList entries -> return []
+        _ -> do
+          existing <- nearestDirectory directory
+          PathIO.withTempDir existing ".hledger-flow-destinations-" $ \tmp -> do
+            let probes = map (toFilePath tmp FilePath.</>) names
+            mapM_ (Directory.createDirectoryIfMissing False) probes
+            entries <- Directory.listDirectory (toFilePath tmp)
+            if length entries == length names then return [] else do
+              -- Resolve individual probes only when some names actually alias.
+              keys <- mapM Directory.canonicalizePath probes
+              let groups = Map.fromListWith (++) (zip keys (map (:[]) outputs))
+              return [(output, source : map snd rest)
+                     | (output, source) : rest <- Map.elems groups, not (null rest)]
+
+    outputNames = map (toFilePath . filename . fst)
+
     nearestDirectory directory = do
       exists <- PathIO.doesDirExist directory
       if exists then return directory else nearestDirectory (parent directory)
+
+-- | Generated .csv and .journal names stay distinct when they differ even
+-- ignoring case, are plain ASCII and contain no Windows short-name marker (~).
+cannotAlias :: [String] -> Bool
+cannotAlias names = all plain names && Set.size (Set.fromList (map (map toLower) names)) == length names
+  where
+    plain = all (\c -> isAscii c && isPrint c && c /= '~')
 
 -- Seed the include at the manual file's own level; its contents are added by
 -- the existing pre/post renderer, keeping ordering and avoiding duplicates.
