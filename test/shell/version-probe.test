@@ -22,5 +22,28 @@ with subprocess.Popen(cmd, stdout=subprocess.PIPE) as process:
 PY
 printf '%s\n' '#!/bin/sh' 'exit 17' > probe
 hledger-flow --hledger-path "$PWD/probe" status --json | jq -e 'has("hledger") and .hledger == null' > /dev/null
-if hledger-flow --hledger-path "$PWD/probe" import; then exit 1; else test "$?" -eq 17; fi
+if hledger-flow --show-options --hledger-path "$PWD/probe" import; then exit 1; else test "$?" -eq 17; fi
+$ sh -eu
+
+# Ordinary and skipped imports need no version lookup. Parallel glob paths share one.
+<
+. ./test/shell/setup.sh
+case "$(uname -s)" in MINGW*|MSYS*) exit 0 ;; esac
+cat > probe <<'SH'
+#!/bin/sh
+if test "$1" = --version; then echo probe >> versions; fi
+exec hledger "$@"
+SH
+if hledger-flow -H "$PWD/probe" import --start-year 2099 > /dev/null 2>&1; then exit 1; fi
+chmod +x probe
+flow -H "$PWD/probe" import
+flow -H "$PWD/probe" import --new-files-only
+flow -H "$PWD/probe" import --start-year 2099
+test ! -f versions
+cp "$inbox/march.csv" "$inbox/march[1].csv"
+cp "$inbox/march.csv" "$inbox/march[2].csv"
+flow -H "$PWD/probe" import
+test "$(wc -l < versions)" -eq 1
+flow --show-options -H "$PWD/probe" import --new-files-only
+test "$(wc -l < versions)" -eq 2
 $ sh -eu

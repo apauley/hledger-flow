@@ -36,7 +36,8 @@ import Options.Applicative
       str,
       switch )
 
-import Hledger.Flow.Common ( findHledgerConf, hledgerInfoFromPath )
+import Hledger.Flow.Types (HledgerInfo (..))
+import Hledger.Flow.Common ( deferredHledgerVersion, findHledgerConf, hledgerPathFromOption, hledgerInfoFromPath )
 import Hledger.Flow.Status ( Situation (..) )
 import Hledger.Flow.Status.Gather ( classifyDir )
 import Hledger.Flow.Status.Render ( printStatus )
@@ -196,7 +197,8 @@ toRuntimeOptionsImport mainParams' subParams' = do
   startYear <- traverse resolveStartYear (importStartYear subParams')
   let maybeBD = maybeImportBaseDir subParams' :: Maybe FilePath
   (bd, runDir) <- determineBaseDir maybeBD
-  hli <- hledgerInfoFromPath $ hledgerPathOpt mainParams'
+  hlp <- hledgerPathFromOption $ hledgerPathOpt mainParams'
+  version <- deferredHledgerVersion hlp
   conf <- findHledgerConf $ hledgerConfOpt mainParams'
   size <- determineBatchSize mainParams'
   sysInfo <- systemInfo
@@ -205,7 +207,8 @@ toRuntimeOptionsImport mainParams' subParams' = do
                            , RT.importStartYear = startYear
                            , RT.onlyNewFiles = onlyNewFiles subParams'
                            , RT.hfVersion = versionInfo sysInfo
-                           , RT.hledgerInfo = hli
+                           , RT.hledgerExecutable = hlp
+                           , RT.hledgerVersion = version
                            , RT.hledgerConf = conf
                            , RT.sysInfo = sysInfo
                            , RT.verbose = verbosity mainParams' > 0
@@ -219,7 +222,7 @@ toRuntimeOptionsReport :: MainParams -> ReportParams -> IO RT.RuntimeOptions
 toRuntimeOptionsReport mainParams' subParams' = do
   let maybeBD = maybeReportBaseDir subParams' :: Maybe FilePath
   (bd, _) <- determineBaseDir maybeBD
-  hli <- hledgerInfoFromPath $ hledgerPathOpt mainParams'
+  HledgerInfo hlp version <- hledgerInfoFromPath $ hledgerPathOpt mainParams'
   conf <- findHledgerConf $ hledgerConfOpt mainParams'
   size <- determineBatchSize mainParams'
   sysInfo <- systemInfo
@@ -228,7 +231,8 @@ toRuntimeOptionsReport mainParams' subParams' = do
                            , RT.importStartYear = Nothing
                            , RT.onlyNewFiles = False
                            , RT.hfVersion = versionInfo sysInfo
-                           , RT.hledgerInfo = hli
+                           , RT.hledgerExecutable = hlp
+                           , RT.hledgerVersion = return version
                            , RT.hledgerConf = conf
                            , RT.sysInfo = sysInfo
                            , RT.verbose = verbosity mainParams' > 0

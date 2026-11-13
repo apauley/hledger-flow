@@ -20,6 +20,9 @@ change the journals import generates, such as `--layout` under `[print]`.
 The `hledger.conf` line in the Environment section at the end of status names
 the file, marked `(found by hledger)` when you didn't give it.
 
+Import reads the hledger version for `--show-options` and for filenames that need
+version-specific glob escaping.
+
 ## Status for scripts and agents
 
 `hledger-flow status --json` prints the same status as one JSON object:

@@ -20,7 +20,7 @@ import Hledger.Flow.Import.IncludeFiles (writeIncludesFromInventory, writeToplev
 import Hledger.Flow.Import.Inventory
 import Hledger.Flow.Import.Types
 import Hledger.Flow.Logging
-import Hledger.Flow.PathHelpers (AbsDir, AbsFile)
+import Hledger.Flow.PathHelpers (AbsDir, AbsFile, isGlobMetacharacter)
 import Hledger.Flow.RuntimeOptions
 import qualified Hledger.Flow.Types as FlowTypes
 import qualified Path
@@ -42,7 +42,8 @@ importCSVs :: RuntimeOptions -> IO ()
 importCSVs opts = withConsoleLogging $ \ch -> do
   when (showOptions opts) $ do
     homes <- homeDirs
-    channelOutLn ch (T.unlines (renderSettings id (importSettings homes opts)))
+    info <- hledgerInfo opts
+    channelOutLn ch (T.unlines (renderSettings id (importSettings homes info opts)))
   logVerbose opts ch "Starting import"
   (journals, diff) <- timeAction $ importCSVs' opts ch
   let importRoot = baseDir opts Path.</> [Path.reldir|import|]
@@ -199,10 +200,13 @@ hledgerImport opts ch importDirs csvFile journalOut = do
   case maybeRulesFile of
     Just rf -> do
       let relRules = relativeToBase opts (Path.toFilePath rf)
-      let hledger = T.pack (Path.toFilePath (FlowTypes.hlPath (hledgerInfo opts)))
+      let hledger = T.pack (Path.toFilePath (hledgerExecutable opts))
       let directives = directivesFile opts
       directivesExist <- PathIO.doesFileExist directives
-      let fileArgument = hledgerFileArgument (hledgerInfo opts)
+      let paths = csvSrc : [Path.toFilePath directives | directivesExist]
+      fileArgument <- if any (any isGlobMetacharacter) paths
+        then hledgerFileArgument <$> hledgerInfo opts
+        else return T.pack
       let directivesArgs = if directivesExist then ["--file", fileArgument (Path.toFilePath directives)] else []
       let csvArgs = ["--file", fileArgument csvSrc, "--rules-file", T.pack (Path.toFilePath rf)]
       let args = hledgerConfArgs opts ++ ["print", "--explicit"] ++ directivesArgs ++ csvArgs
@@ -235,7 +239,7 @@ customConstruct opts ch constructScript dirs csvFile journalOut = do
   (cmd, hookArgs) <- hookCommand constructScript constructArgs
   let hook = (Process.proc (T.unpack cmd) (map T.unpack hookArgs))
         { Process.std_in = Process.CreatePipe, Process.std_out = Process.CreatePipe }
-  let hledger = T.pack (Path.toFilePath (FlowTypes.hlPath (hledgerInfo opts)))
+  let hledger = T.pack (Path.toFilePath (hledgerExecutable opts))
   let args =
         hledgerConfArgs opts
           ++ [ "print",

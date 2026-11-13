@@ -39,7 +39,9 @@ type ReportGenerator = RuntimeOptions -> TChan FlowTypes.LogMessage -> [FilePath
 generateReports :: RuntimeOptions -> IO ()
 generateReports opts = withConsoleLogging $ \ch -> do
   homes <- homeDirs
-  when (showOptions opts) $ channelOutLn ch (T.unlines (renderSettings id (reportSettings homes opts)))
+  when (showOptions opts) $ do
+    info <- hledgerInfo opts
+    channelOutLn ch (T.unlines (renderSettings id (reportSettings homes info opts)))
   (reports, diff) <- timeAction $ generateReports' opts ch
   let skipped = length (lefts reports)
       skippedText = if skipped == 0 then "" else " Skipped " <> plural skipped "empty report" <> "."
@@ -120,11 +122,12 @@ generateReport opts ch journals year reportsDir fileName args successCheck = do
   let relativeJournals = map (relativeToBase opts) journals
   let relativeOutputFile = relativeToBase opts (toFilePath outputFile)
   let confArgs = hledgerConfArgs opts
-  let fileArgs = concatMap (\file -> ["--file", hledgerFileArgument (hledgerInfo opts) file])
+  info <- hledgerInfo opts
+  let fileArgs = concatMap (\file -> ["--file", hledgerFileArgument info file])
   let periodArgs = ["--period", T.pack (show year)]
   let reportArgs = confArgs ++ fileArgs journals ++ periodArgs ++ args
   let reportDisplayArgs = confArgs ++ fileArgs relativeJournals ++ periodArgs ++ args
-  let hledger = T.pack (toFilePath (FlowTypes.hlPath (hledgerInfo opts)))
+  let hledger = T.pack (toFilePath (FlowTypes.hlPath info))
   let cmdLabel = "hledger " <> showCmdArgs reportDisplayArgs
   ((_, stdOut, _), _) <- timeAndExitOnErr opts ch cmdLabel dummyLogger channelErr (hledger, reportArgs, Nothing)
   if (successCheck stdOut)

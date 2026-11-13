@@ -1,8 +1,9 @@
 module Hledger.Flow.RuntimeOptions where
 
 import qualified Data.Text as T
+import Hledger.Flow.PathHelpers (AbsFile)
 import Hledger.Flow.Internals (SystemInfo)
-import Hledger.Flow.Types (BaseDir, HledgerConf, HledgerInfo, RunDir)
+import Hledger.Flow.Types (BaseDir, HledgerConf, HledgerInfo (..), RunDir)
 import qualified Hledger.Flow.Types as Types
 
 data RuntimeOptions = RuntimeOptions
@@ -11,7 +12,8 @@ data RuntimeOptions = RuntimeOptions
     importStartYear :: Maybe Integer,
     onlyNewFiles :: Bool,
     hfVersion :: T.Text,
-    hledgerInfo :: HledgerInfo,
+    hledgerExecutable :: AbsFile,
+    hledgerVersion :: IO T.Text,
     hledgerConf :: Maybe HledgerConf,
     sysInfo :: SystemInfo,
     verbose :: Bool,
@@ -20,7 +22,9 @@ data RuntimeOptions = RuntimeOptions
     batchSize :: Int,
     prettyReports :: Bool
   }
-  deriving (Show)
+
+hledgerInfo :: RuntimeOptions -> IO HledgerInfo
+hledgerInfo opts = HledgerInfo (hledgerExecutable opts) <$> hledgerVersion opts
 
 instance Types.HasVerbosity RuntimeOptions where
   verbose RuntimeOptions {verbose = value} = value

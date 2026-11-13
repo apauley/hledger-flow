@@ -5,6 +5,7 @@ module Hledger.Flow.Common where
 
 import Control.Monad (filterM, forM_, when)
 import Control.Monad.IO.Class (MonadIO, liftIO)
+import Control.Concurrent.MVar (modifyMVar, newMVar)
 import Control.Concurrent.Async (concurrently, mapConcurrently)
 import Control.Concurrent.STM
 import Data.Char (isAlphaNum, isAscii, isDigit)
@@ -40,10 +41,10 @@ hledgerPathFromOption pathOption = do
   case pathOption of
     Just h -> do
       hlAbs <- Path.parseAbsFile h
-      isOnDisk <- Path.doesFileExist hlAbs
-      if isOnDisk
-        then return hlAbs
-        else do
+      executable <- Directory.findExecutable (toFilePath hlAbs)
+      case executable of
+        Just _ -> return hlAbs
+        Nothing -> do
           let msg = "Unable to find hledger at " <> T.pack h
           errExit' 1 (T.hPutStrLn H.stderr) msg
     Nothing -> do
@@ -91,6 +92,14 @@ probeHledgerVersion hlp = do
     version <- T.hGetContents stdoutPipe
     status <- Process.waitForProcess handle
     return (status, T.strip version)
+
+-- Share a successful probe among parallel conversions in this invocation.
+deferredHledgerVersion :: AbsFile -> IO (IO T.Text)
+deferredHledgerVersion path = do
+  cached <- newMVar Nothing
+  return $ modifyMVar cached $ \previous -> do
+    version <- maybe (hledgerVersionFromPath path) return previous
+    return (Just version, version)
 
 hledgerInfoFromPath :: Maybe FilePath -> IO HledgerInfo
 hledgerInfoFromPath pathOption = do

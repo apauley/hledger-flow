@@ -29,13 +29,16 @@ withStagedOutput target writeOutput = do
     writeOutput staged
     Path.renameFile staged target
 
+isGlobMetacharacter :: Char -> Bool
+isGlobMetacharacter c = c `elem` ("*?[{<" :: String)
+
 -- | Match one literal path in an hledger glob. A range of one character
 -- keeps hledger's include reader from treating the encoded spelling as a filename.
 literalGlobPath :: FilePath -> FilePath
 literalGlobPath = concatMap escape
   where
     escape c
-      | c `elem` ("*?[{<" :: String) = ['[', c, '-', c, ']']
+      | isGlobMetacharacter c = ['[', c, '-', c, ']']
       | otherwise = [c]
 
 data PathException = MissingBaseDir AbsDir | NotADirectory FilePath
