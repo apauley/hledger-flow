@@ -138,8 +138,10 @@ ledger. Scripts and AI agents can use `hledger-flow status --json`; see
 The [step-by-step tutorial](https://hledger-flow.github.io/tutorial/)
 explains each part in depth.
 
-On Windows, run `chcp 65001` in your terminal before querying the journal
-with standalone hledger. Then run `hledger -f all-years.journal bal`.
+On Windows, run `chcp 65001` before querying the journal with standalone
+hledger. This sets the current terminal session to UTF-8 so currency
+symbols and accented letters display correctly. Then run
+`hledger -f all-years.journal bal`.
 In PowerShell, set `LEDGER_FILE` with
 `$env:LEDGER_FILE = (Resolve-Path .\all-years.journal).Path`.
 
