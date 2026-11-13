@@ -59,6 +59,20 @@ testInventory = TestLabel "active inventory discovery and scope" $ TestCase $ wi
     [account </> [relfile|3-journal/2019/march.bank.journal|]]
     (stageFiles root [reldir|3-journal|] inventory)
 
+testRestoredSource :: Test
+testRestoredSource = TestLabel "restore a source after discovery" $ TestCase $ withTestDir $ \root -> do
+  let account = root </> [reldir|owner/bank/checking|]
+      source = account </> [relfile|1-in/2026/march.txt|]
+      csv = account </> [relfile|2-preprocessed/2026/march.csv|]
+      journal = account </> [relfile|3-journal/2026/march.journal|]
+  mapM_ touchFile [csv, journal]
+  cached <- findImportFiles root
+  touchFile source
+  (files, orphans, journals) <- reconciliationInventory root (Just cached)
+  assertEqual "keep both restored outputs" [] orphans
+  assertEqual "include the restored journal" [journal] journals
+  assertBool "use refreshed inventory for includes" (source `elem` files)
+
 testStagedOutput :: Test
 testStagedOutput = TestCase $ withSystemTempDir "hlflow-output" $ \dir -> do
   let target = dir </> [relfile|march.bank.csv|]
@@ -93,7 +107,7 @@ testCannotAlias = TestCase $ do
     ]
 
 tests :: Test
-tests = TestList [testInventory, testStagedOutput, testTrashLock, testCannotAlias]
+tests = TestList [testInventory, testRestoredSource, testStagedOutput, testTrashLock, testCannotAlias]
 
 testTrashLock :: Test
 testTrashLock = TestCase $ withSystemTempDir "hlflow-trash" $ \root -> do

@@ -9,6 +9,7 @@ module Hledger.Flow.Import.Inventory
     generatedOutput,
     expectedOutputs,
     classifyGeneratedOutputs,
+    reconciliationInventory,
     conflictingOutputs,
     cannotAlias,
     canonicalFile,
@@ -100,6 +101,20 @@ classifyGeneratedOutputs root inventory sources = do
     filterM (fmap (`Set.notMember` resolved) . canonicalFile) unmatched
   let retired = Set.fromList orphans
   return (orphans, filter (`Set.notMember` retired) journals)
+
+-- | Inventory, orphaned outputs and source-backed journals for reconciliation.
+reconciliationInventory :: AbsDir -> Maybe [AbsFile] -> IO ([AbsFile], [AbsFile], [AbsFile])
+reconciliationInventory root cached = case cached of
+  Nothing -> refresh
+  Just files -> do
+    result@(_, orphans, _) <- classify files
+    if null orphans then return result else refresh
+  where
+    -- A source may have been restored since discovery.
+    refresh = findImportFiles root >>= classify
+    classify files = do
+      (orphans, journals) <- classifyGeneratedOutputs root files (stageFiles root [reldir|1-in|] files)
+      return (files, orphans, journals)
 
 canonicalFile :: AbsFile -> IO AbsFile
 canonicalFile file = Directory.canonicalizePath (toFilePath file) >>= parseAbsFile

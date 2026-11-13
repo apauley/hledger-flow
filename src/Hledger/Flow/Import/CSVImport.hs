@@ -8,7 +8,7 @@ where
 
 import Control.Concurrent.STM
 import Control.Monad
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, isNothing)
 import qualified Data.Text as T
 import Hledger.Flow.DateTime (timeAction)
 import Hledger.Flow.Environment (importSettings, renderSettings)
@@ -84,14 +84,15 @@ importCSVs' opts ch = do
       T.intercalate "\n" [relative output <> " <- " <> T.intercalate ", " (map relative sources)
                          | (output, sources) <- collisions])
   logVerbose opts ch $ "Found " <> T.pack (show fileCount) <> " input files" <> startYearMsg <> "in " <> T.pack (show diff) <> ". Proceeding with import..."
-  importedJournals <- parAwareActions opts (map (extractAndImport opts ch importRoot) inputFiles)
+  -- Prepare glob paths before any worker writes output. Ordinary statements
+  -- keep their parallel setup and never require a version probe.
+  actions <- forM inputFiles $ \file -> do
+    let prepare = prepareImport opts ch importRoot file
+    if any isGlobMetacharacter (Path.toFilePath file) then prepare else return (join prepare)
+  importedJournals <- parAwareActions opts actions
 
-  -- Running a preprocess hook also forces conversion. When every journal was
-  -- skipped, neither a hook nor a conversion could have changed the inventory.
-  (refreshed, journalFindTime) <- if any snd importedJournals
-    then timeAction (findImportFiles importRoot)
-    else return (inventory, 0)
-  (orphans, journalsOnDisk) <- classifyGeneratedOutputs importRoot refreshed (stageFiles importRoot [Path.reldir|1-in|] refreshed)
+  let cached = if any snd importedJournals then Nothing else Just inventory
+  ((refreshed, orphans, journalsOnDisk), journalFindTime) <- timeAction $ reconciliationInventory importRoot cached
   forM_ (filter selected orphans) $ \file -> do
     target <- moveToTrash file
     channelOutLn ch $ "Moved orphaned output " <> relative file <> " to " <> relative target
@@ -101,34 +102,40 @@ importCSVs' opts ch = do
   logVerbose opts ch $ "Wrote include files for " <> T.pack (show (length journalsOnDisk)) <> " generated journals in " <> T.pack (show includeGenTime)
   return importedJournals
 
-extractAndImport :: RuntimeOptions -> TChan FlowTypes.LogMessage -> AbsDir -> AbsFile -> IO (AbsFile, FileWasGenerated)
-extractAndImport opts ch root inputFile = do
-  case extractImportDirs root inputFile of
-    Right importDirs -> importCSV opts ch importDirs inputFile
-    Left errorMessage -> do
-      errExit 1 ch errorMessage
-
-importCSV :: RuntimeOptions -> TChan FlowTypes.LogMessage -> ImportDirs Path.Abs -> AbsFile -> IO (AbsFile, FileWasGenerated)
-importCSV opts ch importDirs srcFile = do
+prepareImport :: RuntimeOptions -> TChan FlowTypes.LogMessage -> AbsDir -> AbsFile -> IO (IO (AbsFile, FileWasGenerated))
+prepareImport opts ch root srcFile = do
+  dirs <- either (errExit 1 ch) return (extractImportDirs root srcFile)
   csvOut <- generatedOutput [Path.reldir|2-preprocessed|] ".csv" srcFile
-  (csvFile, preprocessHappened) <- preprocessIfNeeded opts ch importDirs srcFile csvOut
+  (csvFile, runPreprocess) <- planPreprocess opts ch dirs srcFile csvOut
   journalOut <- generatedOutput [Path.reldir|3-journal|] ".journal" csvFile
-  shouldImport <-
-    if onlyNewFiles opts && not preprocessHappened
-      then needsRegeneration csvFile journalOut
-      else return True
-  PathIO.createDirIfMissing True (Path.parent journalOut)
-  if shouldImport
-    then do
-      hook <- findHook opts ch (accountDir importDirs Path.</> [Path.relfile|construct|])
-      case hook of
-        Just script -> withStagedOutput journalOut (customConstruct opts ch script importDirs csvFile)
-        Nothing -> hledgerImport opts ch importDirs csvFile journalOut
-    else logNewFileSkip opts ch "import" journalOut
-  return (journalOut, shouldImport)
+  shouldImport <- if onlyNewFiles opts && isNothing runPreprocess
+    then needsRegeneration csvFile journalOut
+    else return True
+  let globPath = any isGlobMetacharacter (Path.toFilePath csvFile)
+      convert = do
+        hook <- findHook opts ch (accountDir dirs Path.</> [Path.relfile|construct|])
+        case hook of
+          Just script -> return $ withStagedOutput journalOut (customConstruct opts ch script dirs csvFile)
+          Nothing -> do
+            -- directives.journal shares the base directory with the CSV. Any
+            -- glob syntax in its path is therefore also present in csvFile.
+            fileArgument <- if globPath
+              then hledgerFileArgument <$> hledgerInfo opts
+              else return T.pack
+            return (hledgerImport opts ch dirs fileArgument csvFile journalOut)
+      journalAction
+        | not shouldImport = return (logNewFileSkip opts ch "import" journalOut)
+        | globPath = convert
+        | otherwise = return (join convert)
+  writeJournal <- journalAction
+  return $ do
+    sequence_ runPreprocess
+    when shouldImport $ PathIO.createDirIfMissing True (Path.parent journalOut)
+    writeJournal
+    return (journalOut, shouldImport)
 
-preprocessIfNeeded :: RuntimeOptions -> TChan FlowTypes.LogMessage -> ImportDirs Path.Abs -> AbsFile -> AbsFile -> IO (AbsFile, Bool)
-preprocessIfNeeded opts ch dirs src csvOut = do
+planPreprocess :: RuntimeOptions -> TChan FlowTypes.LogMessage -> ImportDirs Path.Abs -> AbsFile -> AbsFile -> IO (AbsFile, Maybe (IO ()))
+planPreprocess opts ch dirs src csvOut = do
   hook <- findHook opts ch (accountDir dirs Path.</> [Path.relfile|preprocess|])
   case hook of
     Nothing -> do
@@ -140,14 +147,15 @@ preprocessIfNeeded opts ch dirs src csvOut = do
             relativeToBase opts (Path.toFilePath src) ++ " is newer than its cached CSV "
               ++ relativeToBase opts (Path.toFilePath csvOut) ++ ". Restore the preprocess hook to regenerate it,"
               ++ " or move the cached CSV aside to use the source directly. Then run hledger-flow import."
-          return (csvOut, False)
-        else return (src, False)
+          return (csvOut, Nothing)
+        else return (src, Nothing)
     Just script -> do
       regenerate <- if onlyNewFiles opts then needsRegeneration src csvOut else return True
       if regenerate
-        then withStagedOutput csvOut (preprocess opts ch script dirs src)
-        else logNewFileSkip opts ch "preprocess" csvOut
-      return (csvOut, regenerate)
+        then return (csvOut, Just (withStagedOutput csvOut (preprocess opts ch script dirs src)))
+        else do
+          logNewFileSkip opts ch "preprocess" csvOut
+          return (csvOut, Nothing)
 
 findHook :: RuntimeOptions -> TChan FlowTypes.LogMessage -> AbsFile -> IO (Maybe AbsFile)
 findHook opts ch base = do
@@ -193,8 +201,8 @@ preprocess opts ch script dirs src csvOut = do
   _ <- timeAndExitOnErr opts ch cmdLabel channelOut channelErr (cmd, hookArgs, Nothing)
   return ()
 
-hledgerImport :: RuntimeOptions -> TChan FlowTypes.LogMessage -> ImportDirs Path.Abs -> AbsFile -> AbsFile -> IO ()
-hledgerImport opts ch importDirs csvFile journalOut = do
+hledgerImport :: RuntimeOptions -> TChan FlowTypes.LogMessage -> ImportDirs Path.Abs -> (FilePath -> T.Text) -> AbsFile -> AbsFile -> IO ()
+hledgerImport opts ch importDirs fileArgument csvFile journalOut = do
   let csvSrc = Path.toFilePath csvFile
   candidates <- rulesFileCandidates csvFile importDirs
   maybeRulesFile <- firstExistingFile candidates
@@ -205,10 +213,6 @@ hledgerImport opts ch importDirs csvFile journalOut = do
       let hledger = T.pack (Path.toFilePath (hledgerExecutable opts))
       let directives = directivesFile opts
       directivesExist <- PathIO.doesFileExist directives
-      let paths = csvSrc : [Path.toFilePath directives | directivesExist]
-      fileArgument <- if any (any isGlobMetacharacter) paths
-        then hledgerFileArgument <$> hledgerInfo opts
-        else return T.pack
       let directivesArgs = if directivesExist then ["--file", fileArgument (Path.toFilePath directives)] else []
       let csvArgs = ["--file", fileArgument csvSrc, "--rules-file", T.pack (Path.toFilePath rf)]
       let args = hledgerConfArgs opts ++ ["print", "--explicit"] ++ directivesArgs ++ csvArgs

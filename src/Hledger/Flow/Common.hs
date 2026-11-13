@@ -3,7 +3,7 @@
 
 module Hledger.Flow.Common where
 
-import Control.Monad (filterM, forM_, when)
+import Control.Monad (filterM, forM_, unless, when)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Concurrent.MVar (modifyMVar, newMVar)
 import Control.Concurrent.Async (concurrently, mapConcurrently)
@@ -42,12 +42,15 @@ hledgerPathFromOption pathOption = do
   case pathOption of
     Just h -> do
       hlAbs <- Path.parseAbsFile h
-      executable <- Directory.findExecutable (toFilePath hlAbs)
-      case executable of
-        Just _ -> return hlAbs
-        Nothing -> do
-          let msg = "Unable to find hledger at " <> T.pack h
-          errExit' 1 (T.hPutStrLn H.stderr) msg
+      exists <- Path.doesFileExist hlAbs
+      let failWith = errExit' 1 (T.hPutStrLn H.stderr)
+      unless exists $ failWith ("Unable to find hledger at " <> T.pack h)
+      -- Windows has no POSIX execute bit.
+      unless (Sys.os == "mingw32") $ do
+        permissions <- Directory.getPermissions h
+        unless (Directory.executable permissions) $
+          failWith ("The hledger file is not executable: " <> T.pack h)
+      return hlAbs
     Nothing -> do
       maybeH <- Directory.findExecutable "hledger"
       case maybeH of
@@ -81,7 +84,9 @@ hledgerVersionFromPath hlp = do
   (status, version) <- probeHledgerVersion hlp
   case status of
     ExitSuccess -> return version
-    ExitFailure _ -> exitWith status
+    ExitFailure code -> errExit' code (T.hPutStrLn H.stderr) $
+      "Failed to run " <> showCmdArgs [T.pack (toFilePath hlp), "--version"]
+        <> " (exit code " <> T.pack (show code) <> ")."
 
 probeHledgerVersion :: AbsFile -> IO (ExitCode, T.Text)
 probeHledgerVersion hlp = do
