@@ -140,9 +140,7 @@ An invalid value such as `24` stops the command before import begins.
 
 Include files are rebuilt globally
 from source-backed journals and supported manual files, so orphaned
-journals outside the cleanup scope are also excluded from the ledger. If an
-older statement is restored before orphan reconciliation, its existing journal
-still contributes to the global balance during a year-filtered import.
+journals outside the cleanup scope are also excluded from the ledger.
 Obsolete generated year and account indexes are rewritten as empty ledgers.
 Manual-only and empty imports succeed without dummy input files.
 
