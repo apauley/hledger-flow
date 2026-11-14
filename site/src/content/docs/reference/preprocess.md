@@ -37,6 +37,12 @@ After the script succeeds, hledger-flow moves its output into
 `2-preprocessed/<year>/`. If the script fails, any previous CSV stays in
 place. A failed first run leaves no cached CSV.
 
+`hledger-flow import --verbose` shows the command for each run, ready to paste
+into a shell at the base directory. It names the final CSV in `2-preprocessed/<year>/` instead of the
+temporary path, so a pasted command writes that CSV directly. If the script
+exits with an error, import stops with the same exit code and shows the
+script's error output under its name.
+
 If you remove the hook, import can still use its cached CSV while that CSV
 is at least as new as the original statement. If you then correct the
 statement and it is newer than the cache, both a full import and

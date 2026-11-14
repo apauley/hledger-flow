@@ -11,7 +11,10 @@ import Control.Concurrent.Stream (mapConcurrentlyBounded)
 import Control.Concurrent.STM
 import Data.Char (isAlphaNum, isAscii, isDigit)
 import Data.Either
-import qualified Data.List as List (isPrefixOf, isSuffixOf, nub, null)
+import Data.Maybe (fromMaybe)
+import Data.Time.Clock (NominalDiffTime)
+import Text.Printf (printf)
+import qualified Data.List as List (isPrefixOf, isSuffixOf, nub)
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
@@ -237,34 +240,103 @@ errExit' exitStatus logFun errorMessage = do
   logFun errorMessage
   exitWith (ExitFailure exitStatus)
 
-descriptiveOutput :: T.Text -> T.Text -> T.Text
-descriptiveOutput outputLabel outTxt = do
-  if not (T.null outTxt)
-    then outputLabel <> ":\n" <> outTxt <> "\n"
-    else ""
+-- | An external program hledger-flow runs, described for the people reading its output.
+data External = External
+  { -- | Who printed the output and who failed: @hledger@, or a hook script's path.
+    extName :: T.Text,
+    -- | What it runs for, after "to": @convert import/…/a.csv with …@.
+    extPurpose :: T.Text,
+    -- | The command line to show, as one or more commands piped together.
+    extCommand :: [[T.Text]],
+    -- | What to check when it fails.
+    extHints :: [T.Text]
+  }
 
-logTimedAction ::
-  (HasVerbosity o) =>
-  o ->
-  TChan LogMessage ->
-  T.Text ->
-  [T.Text] ->
-  T.Text ->
-  [T.Text] ->
-  (TChan LogMessage -> T.Text -> IO ()) ->
-  (TChan LogMessage -> T.Text -> IO ()) ->
-  IO FullOutput ->
-  IO FullTimedOutput
-logTimedAction opts ch cmdLabel extraCmdLabels cmd args stdoutLogger stderrLogger action = do
-  logVerbose opts ch $ "Begin: " <> cmdLabel
+-- | A command line to paste into this platform's shell from the base directory: paths below it
+-- start with @./@, and other paths under the home folder with @~@ or @$HOME@.
+pasteCommand :: Shell -> FilePath -> [FilePath] -> [[T.Text]] -> T.Text
+pasteCommand shell base homes = T.intercalate " | " . map command
+  where
+    command argv = case shell of
+      Posix -> T.unwords (map posixArg argv)
+      PowerShell -> case map powerShellArg argv of
+        -- PowerShell reads a quoted first word as a string, not a command to run.
+        first : rest | "'" `T.isPrefixOf` first || "\"" `T.isPrefixOf` first -> T.unwords ("&" : first : rest)
+        ws -> T.unwords ws
+    belowBase a = case belowHome [base] (T.unpack a) of
+      Just [] -> Just "."
+      Just rest -> Just (T.pack ('.' : FilePath.pathSeparator : FilePath.joinPath rest))
+      Nothing -> Nothing
+    posixArg a = maybe (showCmdArgsAt homes [a]) escapeArg (belowBase a)
+    powerShellArg a = case belowBase a of
+      Just rel -> shellArgument PowerShell rel
+      Nothing -> fromMaybe (shellArgument PowerShell a) (homeShellPath PowerShell homes (T.unpack a))
+
+-- | In verbose mode, say which program is about to run and show its command line.
+announceExternal :: (HasVerbosity o, HasBaseDir o) => o -> TChan LogMessage -> External -> IO ()
+announceExternal opts ch ext = when (verbose opts) $ do
   homes <- homeDirs
-  logVerbose opts ch $ showCmdArgsAt homes (cmd : args)
-  if (List.null extraCmdLabels) then return () else logVerbose opts ch $ T.intercalate "\n" extraCmdLabels
-  timed@((ec, stdOut, stdErr), diff) <- timeAction action
-  stdoutLogger ch stdOut
-  stderrLogger ch stdErr
-  logVerbose opts ch $ "End:   " <> cmdLabel <> " " <> T.pack (show ec) <> " (" <> T.pack (show diff) <> ")"
-  return timed
+  color <- useColor H.stderr
+  logToChannel ch $
+    "Running " <> extName ext <> " to " <> extPurpose ext <> ":\n"
+      <> "  " <> dim color "$" <> " " <> cyan color (pasteCommand nativeShell (toFilePath (baseDir opts)) homes (extCommand ext))
+
+-- | Run an external program, show what it printed, and stop with its exit code when it fails.
+-- Returns its standard output, which goes to the console only when 'showStdout' is set.
+runExternal :: (HasVerbosity o, HasBaseDir o) => o -> TChan LogMessage -> External -> Bool -> ProcInput -> IO T.Text
+runExternal opts ch ext showStdout input = do
+  announceExternal opts ch ext
+  (result@(_, out, _), duration) <- timeAction (runProcessCaptured input)
+  checkExternal opts ch ext showStdout duration result
+  return out
+
+-- | Show what an external program printed. When it failed, stop with its exit code and
+-- say plainly that the error came from that program.
+checkExternal :: (HasVerbosity o, HasBaseDir o) => o -> TChan LogMessage -> External -> Bool -> NominalDiffTime -> FullOutput -> IO ()
+checkExternal opts ch ext showStdout duration (status, out, err) = do
+  outColor <- useColor H.stdout
+  errColor <- useColor H.stderr
+  case status of
+    ExitSuccess -> do
+      logVerbose opts ch (green errColor (extName ext <> " finished") <> " in " <> showDuration duration)
+      when showStdout $ passOn (channelOut ch) outColor "Output" out
+      passOn (channelErr ch) errColor "Messages" err
+    ExitFailure code -> do
+      when showStdout $ passOn (channelOut ch) outColor "Output" out
+      homes <- homeDirs
+      let section label txt = outputSection errColor (verbose opts) (label <> " from " <> extName ext) txt
+      errExit code ch $ T.intercalate "\n" $
+        [ red errColor (bold errColor (extName ext <> " failed with exit code " <> T.pack (show code)))
+            <> " while trying to " <> extPurpose ext <> "."
+        ]
+          -- Verbose output showed the command just before it ran.
+          ++ (if verbose opts then [] else ["Command:", "  " <> pasteCommand nativeShell (toFilePath (baseDir opts)) homes (extCommand ext)])
+          ++ (if showStdout then [] else section "Output" out)
+          ++ section "Error output" err
+          ++ extHints ext
+  where
+    -- In verbose mode, mark the output as the program's; otherwise pass it on as it is.
+    passOn write color label txt
+      | T.null txt = return ()
+      | verbose opts = case outputSection color True (label <> " from " <> extName ext) txt of
+          heading : lns -> logToChannel ch heading >> write (T.unlines lns)
+          [] -> return ()
+      | otherwise = write txt
+
+-- | Another program's output under a label, each line behind a bar. Without 'complete',
+-- long output is trimmed.
+outputSection :: Bool -> Bool -> T.Text -> T.Text -> [T.Text]
+outputSection color complete label txt
+  | T.null (T.strip txt) = []
+  | otherwise = (label <> ":") : map bar (T.lines (if complete then txt else trimToolOutput txt))
+  where
+    -- Keep the program's own colours from spilling into the lines that follow.
+    bar l = dim color "  │" <> " " <> l <> (if color && "\ESC" `T.isInfixOf` l then resetCode else "")
+
+showDuration :: NominalDiffTime -> T.Text
+showDuration d
+  | d < 1 = T.pack (show (round (d * 1000) :: Integer)) <> " ms"
+  | otherwise = T.pack (printf "%.1f s" (realToFrac d :: Double))
 
 -- Drain both output pipes concurrently so a full stderr pipe cannot stall stdout.
 runProcessCaptured :: ProcInput -> IO FullOutput
@@ -285,47 +357,6 @@ runProcessCaptured (cmd, args, input) = do
     status <- Process.waitForProcess handle
     return (status, stdoutText, stderrText)
 
-timeAndExitOnErr ::
-  (HasVerbosity o) =>
-  o ->
-  TChan LogMessage ->
-  T.Text ->
-  (TChan LogMessage -> T.Text -> IO ()) ->
-  (TChan LogMessage -> T.Text -> IO ()) ->
-  ProcInput ->
-  IO FullTimedOutput
-timeAndExitOnErr opts ch cmdLabel = timeAndExitOnErr' opts ch cmdLabel [] []
-
-timeAndExitOnErr' ::
-  (HasVerbosity o) =>
-  o ->
-  TChan LogMessage ->
-  T.Text ->
-  [T.Text] ->
-  [T.Text] ->
-  (TChan LogMessage -> T.Text -> IO ()) ->
-  (TChan LogMessage -> T.Text -> IO ()) ->
-  ProcInput ->
-  IO FullTimedOutput
-timeAndExitOnErr' opts ch cmdLabel extraCmdLabels hints stdoutLogger stderrLogger input@(cmd, args, _) = do
-  let action = runProcessCaptured input
-  -- On failure the error output goes into the (trimmed) message, not straight to the console.
-  timed@((ec, stdOut, stdErr), _) <- logTimedAction opts ch cmdLabel extraCmdLabels cmd args stdoutLogger (\_ _ -> return ()) action
-  case ec of
-    ExitFailure i -> do
-      homes <- homeDirs
-      let cmdText = showCmdArgsAt homes (cmd : args)
-      let msgOut = descriptiveOutput "Standard output" (trimToolOutput stdOut)
-      let msgErr = descriptiveOutput "Error output" (trimToolOutput stdErr)
-      let exitMsg =
-            "Failed " <> cmdLabel <> " (exit code " <> T.pack (show i) <> ").\n"
-              <> "Command: " <> cmdText <> "\n" <> msgOut <> msgErr
-              <> T.unlines hints
-      errExit i ch exitMsg
-    ExitSuccess -> do
-      stderrLogger ch stdErr
-      return timed
-
 -- | Keep a tool's output readable: at most 20 lines of at most 300 characters.
 -- hledger can echo a whole statement on one line when parsing fails.
 trimToolOutput :: T.Text -> T.Text
@@ -338,7 +369,7 @@ trimToolOutput txt
     maxWidth = 300
     cut l = if T.length l > maxWidth then T.take maxWidth l <> "…" else l
     dropped = case length ls - maxLines of
-      n | n > 0 -> ["… (" <> T.pack (show n) <> " more lines)"]
+      n | n > 0 -> ["… (" <> T.pack (show n) <> " more lines; run with --verbose to see them all)"]
       _ -> []
 
 parAwareActions :: (HasSequential o, HasBatchSize o) => o -> [IO a] -> IO [a]
@@ -350,14 +381,24 @@ parBatchedActions batch done todo
   | null (drop batch todo) = (done ++) <$> mapConcurrently id todo
   | otherwise = (done ++) <$> mapConcurrentlyBounded batch id todo
 
-verboseTestFile :: (HasVerbosity o, HasBaseDir o) => o -> TChan LogMessage -> AbsFile -> IO Bool
-verboseTestFile opts ch p = do
+-- | Whether the file exists, saying in verbose mode what was looked for and where.
+verboseTestFile :: (HasVerbosity o, HasBaseDir o) => o -> TChan LogMessage -> T.Text -> AbsFile -> IO Bool
+verboseTestFile opts ch what p = do
   fileExists <- Path.doesFileExist p
+  color <- useColor H.stderr
   let rel = T.pack (relativeToBase opts (toFilePath p))
-  if fileExists
-    then logVerbose opts ch ("Found '" <> rel <> "'")
-    else logVerbose opts ch ("Looked for but did not find '" <> rel <> "'")
+  logVerbose opts ch $
+    if fileExists
+      then green color ("Found " <> what) <> ": " <> rel
+      else "No " <> what <> " at " <> rel
   return fileExists
+
+-- | The first of these files that exists, saying in verbose mode which ones were looked for.
+findFirstFile :: (HasVerbosity o, HasBaseDir o) => o -> TChan LogMessage -> T.Text -> [AbsFile] -> IO (Maybe AbsFile)
+findFirstFile _ _ _ [] = return Nothing
+findFirstFile opts ch what (file : rest) = do
+  exists <- verboseTestFile opts ch what file
+  if exists then return (Just file) else findFirstFile opts ch what rest
 
 needsRegeneration :: AbsFile -> AbsFile -> IO Bool
 needsRegeneration src target = do

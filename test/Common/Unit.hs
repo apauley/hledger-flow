@@ -94,7 +94,16 @@ testHomePaths =
           "trailing backslash is special unless it separates paths" ~: homeShellPath Posix homes "/home/me/a\\"
             ~?= if FilePath.isPathSeparator '\\' then Just (quoted ["a"]) else Nothing,
           "powershell specials fall back" ~: map (\c -> homeShellPath PowerShell homes ("/home/me/a" ++ [c])) "$`\"\x201c\x201d\x201e" ~?= replicate 6 Nothing,
-          "posix-only specials are fine in powershell" ~: homeShellPath PowerShell homes "/home/me/a!" ~?= Just (quoted ["a!"])
+          "posix-only specials are fine in powershell" ~: homeShellPath PowerShell homes "/home/me/a!" ~?= Just (quoted ["a!"]),
+          "posix pipeline" ~: pasteCommand Posix "/home/me/fin/" homes [["/srv/construct", "a b", "-"], ["/srv/hledger", "print"]]
+            ~?= "/srv/construct 'a b' - | /srv/hledger print",
+          "powershell runs a quoted program with &" ~: pasteCommand PowerShell "/home/me/fin/" homes [["/home/me/bin/pre.ps1", "Lee's"]]
+            ~?= "& " <> quoted ["bin", "pre.ps1"] <> " 'Lee''s'",
+          "powershell leaves a bare program alone" ~: pasteCommand PowerShell "/home/me/fin/" homes [["hledger", "print"]] ~?= "hledger print",
+          "paths below the base start with ./" ~: pasteCommand Posix "/home/me/fin/" homes [["/home/me/bin/hledger", "--file", "/home/me/fin/import/my a.csv", "/home/me/fin"]]
+            ~?= displayedProgram <> " --file '" <> native [".", "import", "my a.csv"] <> "' .",
+          "powershell paths below the base" ~: pasteCommand PowerShell "/home/me/fin/" homes [["/home/me/fin/my hooks/pre.ps1", "/home/me/fin/a b.csv"]]
+            ~?= "& '" <> native [".", "my hooks", "pre.ps1"] <> "' '" <> native [".", "a b.csv"] <> "'"
         ]
 
 testRelativeToBase :: Test
@@ -175,6 +184,6 @@ testTrimToolOutput =
   TestList
     [ "long line" ~: trimToolOutput (T.replicate 400 "x") ~?= T.replicate 300 "x" <> "…",
       "many lines" ~: T.lines (trimToolOutput (T.unlines (map (T.pack . show) [1 .. 25 :: Int])))
-        ~?= map (T.pack . show) [1 .. 20 :: Int] ++ ["… (5 more lines)"],
+        ~?= map (T.pack . show) [1 .. 20 :: Int] ++ ["… (5 more lines; run with --verbose to see them all)"],
       "short output unchanged" ~: trimToolOutput "a\nb\n" ~?= "a\nb\n"
     ]

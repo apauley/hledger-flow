@@ -29,27 +29,10 @@ import qualified Data.Text as T
 import Hledger.Flow.Status
 import Hledger.Flow.Types (HledgerConf, HledgerInfo (..))
 import Path (toFilePath)
-import System.Console.ANSI (Color (..), ColorIntensity (..), ConsoleIntensity (..), ConsoleLayer (..), SGR (..), hSupportsANSIColor, setSGRCode)
-import System.Environment (lookupEnv)
+import Hledger.Flow.Logging (bold, green, red, useColor, yellow)
 import qualified System.FilePath as FilePath
-import System.IO (Handle, stdout)
+import System.IO (stdout)
 
--- | Colour only on a terminal, and only when NO_COLOR is unset or empty.
-useColor :: Handle -> IO Bool
-useColor h = do
-  noColor <- lookupEnv "NO_COLOR"
-  supported <- hSupportsANSIColor h
-  return (supported && maybe True null noColor)
-
-paint :: Bool -> [SGR] -> T.Text -> T.Text
-paint False _ txt = txt
-paint True sgr txt = T.pack (setSGRCode sgr) <> txt <> T.pack (setSGRCode [Reset])
-
-green, red, yellow, bold :: Bool -> T.Text -> T.Text
-green c = paint c [SetColor Foreground Vivid Green]
-red c = paint c [SetColor Foreground Vivid Red]
-yellow c = paint c [SetColor Foreground Vivid Yellow]
-bold c = paint c [SetConsoleIntensity BoldIntensity]
 
 baseText :: LedgerStatus -> FilePath
 baseText = FilePath.dropTrailingPathSeparator . toFilePath . lsBaseDir

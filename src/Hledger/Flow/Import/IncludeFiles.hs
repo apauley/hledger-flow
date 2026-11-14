@@ -154,12 +154,18 @@ findExtraIncludes base logMessage file extraSuffixes manualFiles prices = do
   let priceFiles = map ((((FilePath.takeDirectory file </> "..") </> "prices") </> dirprefix) </>) prices
   let extraFiles = suffixFiles ++ suffixDirFiles ++ priceFiles
   filtered <- filterPaths doesFileExist extraFiles
-  let relative = relativeToBase' (Path.toFilePath base)
+  let relative = T.pack . withoutDotDot . relativeToBase' (Path.toFilePath base)
+      list = T.intercalate ", " . map relative
+      missing = filter (`notElem` filtered) extraFiles
       logMsg =
-        "Looking for possible extra include files for '" <> T.pack (relative file)
-          <> "' among these " <> T.pack (show (length extraFiles)) <> " options: "
-          <> T.pack (show (map (T.pack . relative) extraFiles))
-          <> ". Found " <> T.pack (show (length filtered)) <> ": "
-          <> T.pack (show (map (T.pack . relative) filtered))
+        "Extra files for " <> relative file <> ": "
+          <> T.intercalate "; " (["found " <> list filtered | not (null filtered)] ++ ["not found: " <> list missing | not (null missing)])
   logMessage logMsg
   return $ Map.fromList [(file, filtered)]
+
+-- | @import/john/../prices@ → @import/prices@, for display.
+withoutDotDot :: FilePath -> FilePath
+withoutDotDot = FilePath.joinPath . reverse . foldl step [] . FilePath.splitDirectories
+  where
+    step (dir : dirs) ".." | dir /= ".." = dirs
+    step dirs part = part : dirs

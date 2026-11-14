@@ -12,5 +12,6 @@ with subprocess.Popen(["hledger-flow", "import"], stdout=subprocess.PIPE, stderr
     _, error = process.communicate(timeout=10)
     assert process.returncode == 23, process.returncode
     assert b"preprocess failed deliberately" in error, "lost the fatal diagnostic"
+    assert b"preprocess failed with exit code 23" in error, "did not name the failing program"
 PY
 $ sh -eu

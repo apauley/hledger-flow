@@ -47,7 +47,7 @@ generateReports opts = withConsoleLogging $ \ch -> do
       skippedText = if skipped == 0 then "" else " Skipped " <> plural skipped "empty report" <> "."
   channelOutLn ch $ "Generated " <> plural (length (rights reports)) "report" <> " in reports/." <> skippedText
   channelOutLn ch "Each report starts with the hledger command that made it. Copy that line to tailor the report."
-  logVerbose opts ch ("Reports took " <> T.pack (show diff))
+  logVerbose opts ch ("Reports finished in " <> showDuration diff)
 
 generateReports' :: RuntimeOptions -> TChan FlowTypes.LogMessage -> IO [Either AbsFile AbsFile]
 generateReports' opts ch = do
@@ -115,31 +115,33 @@ transferBalance opts ch journals baseOutDir year = do
   generateReport opts ch journals year baseOutDir [relfile|transfer-balance.txt|] reportArgs (\txt -> (length $ T.lines txt) > 4)
 
 generateReport :: RuntimeOptions -> TChan FlowTypes.LogMessage -> [FilePath] -> Integer -> AbsDir -> RelFile -> [T.Text] -> (T.Text -> Bool) -> IO (Either AbsFile AbsFile)
-generateReport opts ch journals year reportsDir fileName args successCheck = do
+generateReport opts logCh journals year reportsDir fileName args successCheck = do
   yearDir <- parseRelDir (show year)
   let outputFile = reportsDir </> yearDir </> fileName
-  PathIO.createDirIfMissing True (parent outputFile)
-  let relativeJournals = map (relativeToBase opts) journals
-  let relativeOutputFile = relativeToBase opts (toFilePath outputFile)
-  let confArgs = hledgerConfArgs opts
-  info <- hledgerInfo opts
-  let fileArgs = concatMap (\file -> ["--file", hledgerFileArgument info file])
-  let periodArgs = ["--period", T.pack (show year)]
-  let reportArgs = confArgs ++ fileArgs journals ++ periodArgs ++ args
-  let reportDisplayArgs = confArgs ++ fileArgs relativeJournals ++ periodArgs ++ args
-  let hledger = T.pack (toFilePath (FlowTypes.hlPath info))
-  let cmdLabel = "hledger " <> showCmdArgs reportDisplayArgs
-  ((_, stdOut, _), _) <- timeAndExitOnErr opts ch cmdLabel dummyLogger channelErr (hledger, reportArgs, Nothing)
-  if (successCheck stdOut)
-    then do
-      T.writeFile (toFilePath outputFile) (cmdLabel <> "\n\n" <> stdOut)
-      logVerbose opts ch $ "Wrote " <> T.pack relativeOutputFile
-      return $ Right outputFile
-    else do
-      logVerbose opts ch $ "Skipped empty report " <> T.pack relativeOutputFile
-      exists <- PathIO.doesFileExist outputFile
-      when exists (PathIO.removeFile outputFile)
-      return $ Left outputFile
+  withLogBlock opts (sequential opts) logCh ("Report " <> T.pack (relativeToBase opts (toFilePath outputFile))) $ \ch -> do
+    PathIO.createDirIfMissing True (parent outputFile)
+    let relativeJournals = map (relativeToBase opts) journals
+    let relativeOutputFile = relativeToBase opts (toFilePath outputFile)
+    let confArgs = hledgerConfArgs opts
+    info <- hledgerInfo opts
+    let fileArgs = concatMap (\file -> ["--file", hledgerFileArgument info file])
+    let periodArgs = ["--period", T.pack (show year)]
+    let reportArgs = confArgs ++ fileArgs journals ++ periodArgs ++ args
+    let reportDisplayArgs = confArgs ++ fileArgs relativeJournals ++ periodArgs ++ args
+    let hledger = T.pack (toFilePath (FlowTypes.hlPath info))
+    let cmdLabel = "hledger " <> showCmdArgs reportDisplayArgs
+    let external = External "hledger" ("write " <> T.pack relativeOutputFile) [hledger : reportArgs] []
+    stdOut <- runExternal opts ch external False (hledger, reportArgs, Nothing)
+    if (successCheck stdOut)
+      then do
+        T.writeFile (toFilePath outputFile) (cmdLabel <> "\n\n" <> stdOut)
+        logVerbose opts ch $ "Wrote " <> T.pack relativeOutputFile
+        return $ Right outputFile
+      else do
+        logVerbose opts ch $ "Skipped empty report " <> T.pack relativeOutputFile
+        exists <- PathIO.doesFileExist outputFile
+        when exists (PathIO.removeFile outputFile)
+        return $ Left outputFile
 
 ownerParameters :: RuntimeOptions -> TChan FlowTypes.LogMessage -> [RelDir] -> IO [ReportParams]
 ownerParameters opts ch owners = do

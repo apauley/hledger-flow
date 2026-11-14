@@ -29,6 +29,12 @@ Parallel import converts one statement per core at a time, and starts another
 as soon as a worker finishes. Use `--batch-size N` to set how many run at once
 or `--sequential` to run one at a time.
 
+Run `hledger-flow import --verbose` to see where import looks for each
+statement's scripts, rules file and include files, and the exact commands it
+runs. Paths in the base directory start with `./`, so you can paste a command
+into a shell there. Each statement's lines appear together once
+it's done. With `--sequential`, they appear as import works.
+
 ## More About Input Files
 
 The owner folder groups accounts for reporting. For example, filing statements

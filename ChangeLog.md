@@ -33,6 +33,17 @@ How to keep this ChangeLog
 
 ## Unreleased
 
+- `hledger-flow import --verbose` and `hledger-flow report --verbose` are
+  easier to read. Each statement's lines appear together, files are labelled
+  by what import looked for, and every hledger or hook command is shown ready
+  to paste into a shell at the base directory, with paths there starting
+  with `./`. On a terminal, the output uses colour unless
+  `NO_COLOR` is set.
+- When hledger or a preprocess or construct script fails, the message names
+  that program, keeps its exit code and marks its output as its own. With
+  `--verbose`, the full error output is shown instead of the first 20 lines.
+  A construct script's error output now appears once the script finishes.
+
 ## 0.20.0
 
 - If you have statements with brackets in their filenames, such as

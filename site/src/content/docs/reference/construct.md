@@ -40,6 +40,13 @@ previous journal stays in place. This conversion runs hledger with
 and other statements present, run `hledger -f all-years.journal check` after import.
 
 You can still use `stderr` in your construct script for any other output that you may want to see.
+hledger-flow shows it once the script finishes.
+
+`hledger-flow import --verbose` shows each run as one pipeline, ready to paste
+into a shell at the base directory: your script, then the hledger command that reads its output.
+The pipeline names the final journal in `3-journal/<year>/`, so a pasted command
+writes that journal directly. If the script or hledger exits with an error,
+import stops with that program's exit code and shows its error output under its name.
 
 ## Stability
 

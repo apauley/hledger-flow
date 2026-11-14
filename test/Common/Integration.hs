@@ -9,7 +9,6 @@ import Control.Concurrent.STM (atomically, modifyTVar', newTChanIO, newTVarIO, r
 import Control.Exception (bracket, bracket_, finally)
 import Control.Monad (forM_, unless)
 import qualified Data.List as List (intercalate, isInfixOf, isPrefixOf)
-import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import Data.Time.Clock (UTCTime(..), addUTCTime, secondsToDiffTime)
 import Data.Time.Calendar (fromGregorian)
@@ -102,19 +101,16 @@ testVerboseTestFile = TestCase $ withTestDir $ \base -> do
       file = base Path.</> [Path.relfile|statement.csv|]
   ch <- newTChanIO
   let check expected message = do
-        exists <- verboseTestFile opts ch file
+        exists <- verboseTestFile opts ch "statement" file
         assertEqual "file existence" expected exists
         entry <- atomically (tryReadTChan ch)
         case entry of
-          Just (StdErr txt) -> do
-            let (timestamp, body) = T.breakOn "\t" txt
-            assertBool "verbose log starts with a timestamp" (not (T.null timestamp))
-            assertEqual "verbose log uses the relative path" ("\thledger-flow " <> message) body
+          Just (StdErr txt) -> assertEqual "verbose log names hledger-flow and uses the relative path" ("hledger-flow: " <> message) txt
           _ -> assertFailure "expected a verbose message on stderr"
-  check False "Looked for but did not find 'statement.csv'\n"
+  check False "No statement at statement.csv\n"
   T.writeFile (Path.toFilePath file) ""
-  check True "Found 'statement.csv'\n"
-  _ <- verboseTestFile (defaultOpts base) ch file
+  check True "Found statement: statement.csv\n"
+  _ <- verboseTestFile (defaultOpts base) ch "statement" file
   quietEntry <- atomically (tryReadTChan ch)
   case quietEntry of
     Nothing -> return ()
