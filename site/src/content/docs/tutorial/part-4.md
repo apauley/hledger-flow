@@ -219,13 +219,13 @@ Balance changes in 2016:
 └──────────────────────────╨────────┴────────┴────────┴────────────┘
 ```
 
-The transfer balance report lists transfer accounts that don’t add up to
-zero. `assets:transfers:creditcard` isn’t there: both sides of every card
-payment are imported. The savings deposits came from the cheque account,
-but its statements for those months aren’t in the ledger yet. When Gawie
-imports them, he’ll classify their side of each deposit as
-`assets:transfers:savings` too, and this row will drop to zero. Until then,
-the report reminds him.
+The report shows the change in each transfer account during each quarter.
+The card payments cancel within each quarter here. The R-10000 in the savings
+row is the other side of deposits into savings. Gawie has yet to import the
+cheque statements showing the withdrawals. When he does, he can check that
+the corresponding postings reach `assets:transfers:savings`. If the two
+sides fall in different quarters, both quarters can show a change even after
+the transfer balances.
 
 The story ends with [part 5](/tutorial/part-5/), and a file that isn’t a
 statement at all.

@@ -17,8 +17,8 @@ Save your `construct` script in the account directory, e.g.
 `hledger-flow` will call your `construct` script with 5 positional
 parameters:
 
-1.  The path to the input statement, e.g.
-    `import/john/mybank/savings/1-in/2018/123456789_2018-06-30.csv`
+1.  The path to the preprocessed CSV if one is in use, otherwise the original
+    statement in `1-in/<year>/`
 2.  A "-" (indicating that output should be sent to `stdout`)
 3.  The name of the bank, e.g. `mybank`
 4.  The name of the account, e.g. `savings`
@@ -35,7 +35,9 @@ Your `construct` script is expected to:
 
 hledger-flow replaces the journal in `3-journal/<year>/` only after both
 the construct script and hledger finish successfully. If either fails, the
-previous journal stays in place.
+previous journal stays in place. This conversion runs hledger with
+`--ignore-assertions`. To check balance assertions with the opening balances
+and other statements present, run `hledger -f all-years.journal check` after import.
 
 You can still use `stderr` in your construct script for any other output that you may want to see.
 

@@ -77,7 +77,7 @@ When you need to write the transactions yourself, use a
 executable called `construct`, `hledger-flow` runs it instead of using a
 rules file. It gets the statement’s path, a `-`, and the bank, account and
 owner names, and writes hledger journal entries to standard output.
-`hledger-flow` checks them with hledger and saves the result in
+hledger formats the entries and hledger-flow saves the result in
 `3-journal/`.
 
 Gawie writes his in Python and saves it as

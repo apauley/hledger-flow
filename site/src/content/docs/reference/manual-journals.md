@@ -28,10 +28,8 @@ so it appears in both John's reports and the aggregate reports.
 You can run `hledger-flow import --verbose` to see exactly which files
 are being looked for.
 
-As an example, assuming that the relevant year is `2019` and
-one or both of the following files will cause
-`import/john/2019-include.journal` to be generated and included in the
-root ledger:
+For example, import creates `import/john/2019-include.journal` and includes
+it in the root ledger when it finds either of these files:
 
 1.  `import/john/_manual_/2019/pre-import.journal`
 2.  `import/john/_manual_/2019/post-import.journal`

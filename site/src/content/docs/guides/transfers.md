@@ -5,14 +5,9 @@ description: Balance transfers when you import statements for both accounts.
 
 ## The Problem
 
-In your primary bank account you've happily been classifying transfers to a
-secondary account as just `expenses:other-account`.
-
-But you've recently started processing the statements from the second account as
-well so that you can classify those expenses more accurately.
-
-And now the balances of these two accounts are all wrong when the statements of
-each account deals with money transferred between these two accounts.
+Suppose you move $200 between two accounts and import both bank statements.
+If each statement creates a posting to each bank account, the combined ledger
+records a $400 transfer. Here are the two entries that cause the problem.
 
 In `bank1.journal`, imported from `bank1.csv`:
 
@@ -28,42 +23,38 @@ In `bank2.journal`, imported from `bank2.csv`:
 
 ## The Solution
 
-As soon as you start importing statements for both accounts you will have to
-introduce an intermediate account for classification between these two accounts.
-
-I use `assets:transfers:*`.
-
-And we may have reports looking at these transfers accounts at some point, you
-should consider using the same names.
-
-The above example then becomes as follows.
+Use a transfer account as the other side of each bank’s posting. In the CSV
+rules for each account, classify the matching rows with
+`account2 assets:transfers:bank1bank2`. Run `hledger-flow import` from the
+ledger root. The two statement entries now look like this.
 
 In `bank1.journal`, imported from `bank1.csv`:
 
-    2019-05-18 Transfer from primary account to secondary account
+    2018/11/09 Transfer from primary account to secondary account
         assets:bank1:primary         $-200
         assets:transfers:bank1bank2
 
 In `bank2.journal`, imported from `bank2.csv`:
 
-    2019-05-18 Transfer from primary account to secondary account
+    2018/11/09 Transfer from primary account to secondary account
         assets:bank2:secondary       $200
         assets:transfers:bank1bank2
 
-Any posting to `assets:transfers:*` indicates an in "in-flight" amount.
-You would expect the balance of `assets:transfers` to be zero most of the time.
-Whenever it isn't zero it means that you either don't yet have the other side of
-the transfer, or that something is wrong in your rules.
+The first statement puts $200 into the transfer account. The second takes
+$200 out. Each bank’s balance changes once. Using a subaccount for each pair
+of accounts helps narrow down a difference. Name it after the two accounts in
+sorted order, so both sides agree on the name whichever way the money moves:
+`bank1bank2`, never `bank2bank1`.
 
-You could theoretically just use `assets:transfers` without any subaccounts, but
-I found it useful to use subaccounts. Because then the subaccounts can show me
-where I should look for any missing transfer transaction.
+With `LEDGER_FILE` pointing to the combined journal, run
+`hledger register assets:transfers:bank1bank2` to see both postings and the
+running balance. They can fall on different dates. If a balance remains after
+both statements have arrived, check the amounts and classifications.
+A zero balance alone can hide offsetting mistakes.
 
-I typically use sorted names as the subaccount (Python code sample):
-
-``` python
-"assets:transfers:" + "".join(sorted(["bank2", "bank1"]))
-```
+`hledger-flow report` also runs a quarterly balance change report for accounts
+whose names contain `transfer`. Look for `transfer-balance.txt` in the
+aggregate reports for that year.
 
 ## External references
 

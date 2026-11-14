@@ -175,13 +175,14 @@ hledger --file import/gawie/all-years.journal --period 2016 print unknown
     expenses:unknown                            R189.50
 ```
 
-Each month, the routine is the same: copy in the new statements, run
-`hledger-flow import`, add `if` blocks for whatever turned up in
-`unknown-transactions.txt`, and run `hledger-flow report`.
+Each month, Gawie files the new statements, runs `hledger-flow import` and
+then `hledger-flow report`. He can leave unfamiliar purchases in
+`expenses:unknown` until he recognises them. After adding a category rule,
+he runs import again to rebuild the entries, then report to refresh his list.
 
 ## Try it yourself
 
-Classify the three transactions that are left: the pharmacy as
+Classify the five purchases from the three remaining merchants: the pharmacy as
 `expenses:health`, and the books and the weekend at the hot springs as
 `expenses:fun`. Then run `hledger-flow import` and `hledger-flow report`.
 

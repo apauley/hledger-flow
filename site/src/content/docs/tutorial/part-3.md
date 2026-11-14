@@ -66,8 +66,7 @@ transaction number are transactions. The dates have Afrikaans month names
 and no year. The description is spread over three columns.
 
 Gawie’s IT instincts say “write a script”. But each of these problems has
-an answer in hledger’s rules, and rules are easier to read, change and share
-than a script. He tries rules first.
+an answer in hledger’s rules, and the accounts can share those rules. He tries them first.
 
 ## Rules for a difficult CSV
 
@@ -199,9 +198,8 @@ Imported 6 statements for gawie/bogart/cheque, gawie/kudu/creditcard.
     expenses:rent                              R5000.00
 ```
 
-`hledger-flow import` regenerates every journal each time, so the card’s
-statements were imported again too. A change to a rules file always
-reaches every statement that uses it.
+Gawie ran a full import from `my-finances`, so it also rebuilt the card’s
+journals with the updated shared categories.
 
 ## An opening balance
 

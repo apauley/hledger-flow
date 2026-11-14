@@ -7,7 +7,7 @@ and put its executable on your PATH. The release binaries run without a Haskell 
 
 ## Install with Homebrew
 
-On a [supported Mac or Linux system](https://github.com/FernTrail/homebrew-tap#supported-platforms),
+On a [supported Linux or macOS system](https://github.com/FernTrail/homebrew-tap#supported-platforms),
 check that `brew --version` works in your terminal. If you’re new to Homebrew,
 [install Homebrew](https://brew.sh/) and follow the installer’s instructions to add `brew` to your `PATH`.
 
@@ -124,7 +124,8 @@ hledger-flow status
 ```
 
 1. Put a statement where `status` says, for example
-   `import/me/mybank/checking/1-in/2026/statement.csv`.
+   `import/me/mybank/checking/1-in/2026/statement.csv`. Use non-overlapping
+   exports for this account. A transaction in two files will be imported twice.
 2. Create the rules file `status` names. For a CSV with a header row,
    `hledger-flow status --rules-template me/mybank/checking` prints a starter
    to save as that file and edit.

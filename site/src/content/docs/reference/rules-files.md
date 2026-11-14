@@ -6,7 +6,7 @@ description: Where hledger-flow looks for the hledger CSV rules that convert eac
 For most downloaded bank CSVs, an hledger rules file handles the whole
 conversion. Use `fields` to map columns, `skip` to ignore headers, `if` to
 classify matching transactions, and `include` to share rules across accounts.
-See [hledger's CSV rules reference](https://hledger.org/1.52/hledger.html#csv).
+See [hledger’s CSV rules cheatsheet](https://hledger.org/hledger.html#csv-rules-cheatsheet).
 
 The upcoming hledger 2 release also has experimental rules functions,
 available since preview 1.99.6. For example, if you named a CSV column
@@ -31,12 +31,9 @@ because the first column already uses `reference_2`.
 
 ## Statement-specific Rules Files
 
-What happens if some of the statements for an account has a different
-format than the others?
-
-This can happen if you normally get your statements directly from your
-bank, but some statements you had to download from somewhere else, like
-Mint, because your bank is being daft with older statements.
+If your bank changes its CSV columns, keep the rules that still read the
+old statements. Give files in the new format a filename suffix to select a
+different rules file. A full rebuild can then read both formats.
 
 Add a final underscore-separated suffix beginning with `rfo` (rules file
 override) before the filename extensions. For example, both
@@ -91,7 +88,7 @@ Where `import/mybank-shared.rules` may define some shared attributes:
 ## Stability
 
 Rules files are a stable feature within
-[hledger](http://hledger.org/), and we're just using the normal
+[hledger](https://hledger.org/), and we're just using the normal
 hledger rules files. The account, bank and statement-specific rules
 files have been used and tested fairly extensively, I don't expect this
 to change.

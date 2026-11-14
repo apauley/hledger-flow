@@ -59,8 +59,8 @@ Paths under `import/` are relative to `baseDir`. Fields may be added within
 whenever it could inspect the ledger, even when it found problems.
 
 You can run the suggested command from the directory where you requested
-status. Commands use PowerShell syntax on Windows and POSIX shell syntax on
-macOS and Linux.
+status. Commands use POSIX shell syntax on Linux and macOS and PowerShell syntax
+on Windows.
 
 ## Paths in your home folder
 

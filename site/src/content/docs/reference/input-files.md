@@ -3,17 +3,18 @@ title: Input files
 description: Where to put your statements, and what happens to generated files when a statement goes away.
 ---
 
-Your input files will probably be CSV files with a line for each
-transaction, although other file types will work fine if you use a
-`preprocess` or a `construct` script that can read them. These scripts
-are explained later.
-
-We mostly use conventions based on a predefined directory structure for
-your input statements.
-
-For example, assuming you have a `savings` account at `mybank`, you'll
-put your first CSV statement here:
+Save each statement in `import/<owner>/<bank>/<account>/1-in/<year>/`.
+For example, John’s June savings statement might be
 `import/john/mybank/savings/1-in/2018/123456789_2018-06-30.csv`.
+Import reads every visible file directly in that year folder as a statement.
+For a format hledger’s CSV rules can’t read, supply a
+[preprocess](/reference/preprocess/) or [construct](/reference/construct/) script.
+
+Use non-overlapping exports for each account. If the same purchase appears in
+two statements, it gets two journal entries. When a bank issues a corrected
+statement, replace the original at the same path and run `hledger-flow import`.
+For a transfer between two accounts, keep both statements and
+[classify the two sides of the transfer](/guides/transfers/).
 
 An owner, bank, or account can itself be named `import`. For example,
 `import/john/mybank/import/1-in/2018/april.csv` belongs to John's account
@@ -30,36 +31,15 @@ or `--sequential` to run one at a time.
 
 ## More About Input Files
 
-All files and directories under the `import` directory are related to the
-automatic importing and classification of transactions.
+The owner folder groups accounts for reporting. For example, filing statements
+under `import/mycompany/` and `import/personal/` gives you reports for the
+company, for your personal accounts and for both together. You can create an
+owner folder in advance. Reporting skips that owner until import creates its
+`all-years.journal`.
 
-The directory directly under `import` is meant to indicate the owner or
-custodian of the accounts below it. It mostly has an impact on
-reporting. You may want to have separate reports for `import/mycompany`
-and `import/personal`.
-
-You can create an owner directory before its first statement arrives.
-`hledger-flow report` skips that owner until import creates its
-`all-years.journal` and continues generating reports for the other owners.
-
-Below the directory for the owner we can indicate where an account is
-held. For a bank account you may choose to name it `import/john/mybank`.
-
-If your underground bunker filled with gold has CSV statements linked to
-it, then you can absolutely create `import/john/secret-treasure-room`.
-
-Under the directory for the financial institution, you'll have a
-directory for each account at that institution, e.g.
-`import/mycompany/bigbankinc/customer-deposits` and
-`import/mycompany/bigbankinc/expense-account`.
-
-Next you'll create a directory named `1-in`. This is to distinguish it
-from `2-preprocessed` and `3-journal` which will be auto-generated
-later.
-
-Under `1-in` you'll create a directory for the year, e.g. `2018`, and
-within that you can copy the statements for that year:
-`import/john/mybank/savings/1-in/2018/123456789_2018-06-30.csv`
+Within each account, `1-in/` holds your originals, `2-preprocessed/` holds
+any CSVs written by a preprocess script, and `3-journal/` holds the journals.
+All three use the same year and filename stem.
 
 Keep the filenames your bank provides. For example, `April [1].csv`
 and `April 1.csv` can sit in the same year directory. Import treats the
@@ -74,7 +54,8 @@ modification time with its source. It rebuilds a preprocessed CSV or journal
 when its source is newer, even if the two timestamps differ by only a
 fraction of a second. Equal timestamps count as up to date. If you replace
 a statement and preserve its timestamp, run `hledger-flow import` to force
-a rebuild.
+a rebuild. Also use a full import after changing rules or hooks. The incremental
+check compares the statement, cached CSV and journal timestamps only.
 
 ## Generated Files and Recovery
 
@@ -144,8 +125,8 @@ journals outside the cleanup scope are also excluded from the ledger.
 Obsolete generated year and account indexes are rewritten as empty ledgers.
 Manual-only and empty imports succeed without dummy input files.
 
-Only the documented stage/year layout is processed. Unrelated files such
-as PDFs are left untouched; hidden files and directories are ignored.
+Import ignores hidden files and directories. Keep supporting documents such
+as PDF receipts outside `1-in/<year>/` unless a hook converts them.
 Deleting an input can therefore remove its transactions from the ledger,
 but does not permanently delete the generated files.
 
