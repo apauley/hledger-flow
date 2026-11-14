@@ -98,6 +98,13 @@ if City Rail
     expenses:transport                   $62.50</pre>
             </li>
             <li style="--step: 3">
+              <span class="where made">all-years.journal, read via LEDGER_FILE</span>
+              <pre>include import/all-years.journal
+  include 2025-include.journal
+    one per owner, bank and account
+      include 3-journal/2025/2025-03.journal</pre>
+            </li>
+            <li style="--step: 4">
               <span class="where yours">hledger bal expenses</span>
               <pre>       $4.80  expenses:misc
       $62.50  expenses:transport
@@ -105,7 +112,7 @@ if City Rail
       $67.30</pre>
             </li>
           </ol>
-          <figcaption id="sheet-caption">One line of a March statement, from the downloaded CSV to a report.</figcaption>
+          <figcaption id="sheet-caption">One line of a March statement, from the downloaded CSV through the generated includes to a report.</figcaption>
         </figure>
       </section>
 
@@ -164,26 +171,53 @@ if City Rail
       </section>
 
       <section class="choose" aria-labelledby="choose-title">
-        <h2 id="choose-title">hledger-flow or plain <code>hledger import</code>?</h2>
+        <div class="prose">
+          <h2 id="choose-title">hledger-flow or plain hledger?</h2>
+          <p>
+            All three read your statements with the same hledger rules files. They differ in which file is your
+            record, and in what happens when you improve a rule.
+          </p>
+        </div>
         <div class="columns">
           <div>
-            <h3>Choose hledger-flow</h3>
+            <h3><code>hledger import</code></h3>
+            <p class="record">The journal is your record.</p>
             <p>
-              if you keep complete, non-overlapping statements and want to apply better rules to several years of
-              transactions. It suits several accounts or owners, and reviewing each statement’s journal before you
-              commit it.
-            </p>
-          </div>
-          <div>
-            <h3>Choose <code>hledger import</code></h3>
-            <p>
-              if you want to append new transactions and then edit, split or annotate them in your journal, or you
-              download rolling windows such as “the last 90 days”. hledger-flow converts each statement on its own, so
-              overlapping files would count a purchase twice. See
+              Each import converts only the transactions it hasn’t seen before and appends them to your journal. From
+              then on they’re yours to edit, split or annotate by hand. A better rule affects future imports only.
+              Overlapping downloads such as “the last 90 days” are fine, so it suits frequent, small downloads. See
               <a href="https://hledger.org/dev/hledger.html#import">hledger’s import guide</a>.
             </p>
           </div>
+          <div>
+            <h3>Include the CSV</h3>
+            <p class="record">The CSV is your record, converted on every read.</p>
+            <p>
+              Write <code>include checking.csv</code> in your journal, with <code>checking.csv.rules</code> beside it.
+              hledger converts the CSV whenever it reads the journal. There are no generated files, and a rule change
+              applies to your whole history at once. You fix transactions in the rules, not by hand. It suits a few
+              large, regular files whose rules keep changing. See
+              <a href="https://hledger.org/dev/hledger.html#include-directive">hledger’s include directive</a>.
+            </p>
+          </div>
+          <div>
+            <h3>hledger-flow</h3>
+            <p class="record">The statements are your record. The journals are build output.</p>
+            <p>
+              Every statement stays as your bank issued it, filed by owner, account and year, so years later, in a tax
+              audit say, you can show where each transaction came from. Change your mind about a category, edit one
+              rules file, and every journal in every year is regenerated the same way, with no search-and-replace
+              through old entries. The journals are written out, so <code>git diff</code> shows what each change did
+              before you commit. Statements mustn’t overlap, because each is converted on its own.
+            </p>
+          </div>
         </div>
+        <p class="prose after">
+          In short: if you’d rather edit transactions than rules, use <code>hledger import</code>. If you have a few CSV
+          files and want the fewest moving parts, include them. Choose hledger-flow when your statements are records to
+          keep for years, and you want to reclassify, add detail or adopt a bank’s new format at any time, with every
+          year staying consistent and every change open to review.
+        </p>
       </section>
 
       <section class="install" aria-labelledby="install-title">
@@ -683,25 +717,29 @@ if City Rail
     margin-top: 2rem;
   }
 
-  @media (min-width: 48rem) {
+  @media (min-width: 64rem) {
     .columns {
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 0;
     }
 
     .columns > div + div {
       border-left: 1px solid var(--rule);
-      padding-left: 2.5rem;
+      padding-left: 2rem;
     }
 
-    .columns > div:first-child {
-      padding-right: 2.5rem;
+    .columns > div:not(:last-child) {
+      padding-right: 2rem;
     }
   }
 
   .columns p {
     margin: 0.5rem 0 0;
     max-width: 34rem;
+  }
+
+  .columns .record {
+    font-weight: 620;
   }
 
   /* Install */

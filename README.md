@@ -13,19 +13,36 @@ It grew out of scripts I wrote while using
 
 ## Who should use this?
 
-**Choose hledger-flow** if you keep non-overlapping statements and want to
-apply better rules to several years of transactions. It is especially useful
-when you manage several accounts or owners and want to review the changes
-to each statement's journal before committing them.
+hledger itself offers two ways to bring in statements, and hledger-flow adds a
+third. All three use the same hledger rules files. They differ in which file is
+your record, and in what happens when you improve a rule.
 
-**Choose plain `hledger import`** if you want to append new transactions
-and then review, split or annotate them directly in your journal. Your edits
-survive the next import. This also suits rolling downloads such as “the last
-90 days” from the same account. hledger remembers how far it got for each
-source, which works well when dates and the order of same-day transactions
-are stable. hledger-flow processes each statement independently, so overlapping
-files can count the same purchase twice. You can keep the original CSVs with
-either workflow. See [hledger's import guide](https://hledger.org/dev/hledger.html#import).
+**`hledger import`: the journal is your record.** Each import appends only the
+transactions it hasn't seen before, and from then on you edit, split or
+annotate them by hand. A better rule affects future imports only. Overlapping
+downloads such as “the last 90 days” are fine. See
+[hledger's import guide](https://hledger.org/dev/hledger.html#import).
+
+**Include the CSV: the CSV is your record, converted on every read.** Write
+`include checking.csv` in your journal, with `checking.csv.rules` beside it.
+There are no generated files, and a rule change applies to your whole history
+at once. You fix transactions in the rules, not by hand. See
+[hledger's include directive](https://hledger.org/dev/hledger.html#include-directive).
+
+**hledger-flow: the statements are your record, the journals are build
+output.** Every statement stays as your bank issued it, filed by owner,
+account and year, so years later, in a tax audit say, you can show where each
+transaction came from. Change your mind about a category, edit one rules
+file, and every journal in every year is regenerated the same way, with no
+search-and-replace through old entries. The journals are written out, so
+`git diff` shows what each change did before you commit. Statements must not
+overlap, because each is converted on its own.
+
+In short: if you'd rather edit transactions than rules, use `hledger import`.
+If you have a few CSV files and want the fewest moving parts, include them.
+Choose hledger-flow when your statements are records to keep for years, and
+you want to reclassify, add detail or adopt a bank's new format at any time,
+with every year staying consistent and every change open to review.
 
 ## Overview of the Basic Workflow
 
