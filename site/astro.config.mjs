@@ -46,7 +46,7 @@ export default defineConfig({
             'reference/release-notices',
           ],
         },
-        { label: 'Guides', items: ['guides/transfers', 'guides/ledger'] },
+        { label: 'Guides', items: ['guides/transfers', 'guides/ledger', 'guides/workload-generator'] },
       ],
     }),
   ],

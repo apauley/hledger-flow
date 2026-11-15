@@ -126,5 +126,92 @@ class ConversionTests(Workspace):
                 self.assertEqual([r["account"] for r in postings if r["account"].startswith("expenses:")],
                                  expected)
 
+class GeneratorCliTests(Workspace):
+    def setUp(self):
+        super().setUp()
+        self.script = self.root / "download.py"
+        shutil.copyfile(SCRIPT, self.script)
+
+    def generate(self, mode, name, *args):
+        base = self.root / name
+        return base, run(sys.executable, self.script, mode, base, *args)
+
+    def test_layout_counts_and_source_bytes(self):
+        def inputs(base):
+            self.assertFalse(any(base.rglob("2-preprocessed")))
+            self.assertFalse(any(base.rglob("*.journal")))
+            self.assertFalse(any(base.rglob("3-journal")))
+            self.assertFalse((base / "reports").exists())
+            return {p.relative_to(base): p.read_bytes() for p in base.rglob("*.csv")}
+
+        suite, output = self.generate("separate", "suite")
+        self.assertEqual({p.name for p in suite.iterdir()}, set(KINDS))
+        for kind in KINDS:
+            self.assertIn(f"{suite / kind}: 1 account, 2 statements, 20 transactions", output)
+            self.assertEqual(len(inputs(suite / kind)), 2)
+        mixed, output = self.generate("mixed", "mixed")
+        self.assertIn("5 accounts, 10 statements, 100 transactions", output)
+        larger, _ = self.generate("separate", "five", "--accounts", "5")
+        for kind in KINDS:
+            self.assertEqual(inputs(mixed), inputs(larger / kind))
+        copy, _ = self.generate("mixed", "copy")
+        self.assertEqual(inputs(mixed), inputs(copy))
+        args = ("--plain", "4", "--advanced", "2", "--preprocess", "2",
+                "--construct", "1", "--combined", "1", "--statements", "12",
+                "--transactions", "100", "--seed", "42")
+        varied, output = self.generate("mixed", "varied", *args)
+        self.assertIn("10 accounts, 120 statements, 12000 transactions", output)
+        raw = inputs(varied)
+        self.assertEqual(len(raw), 120)
+        self.assertTrue(all(len(data.splitlines()) == 101 for data in raw.values()))
+        only, output = self.generate("mixed", "only", "--construct", "2")
+        self.assertIn("2 accounts, 4 statements, 40 transactions", output)
+        self.assertEqual(len(list(only.rglob("construct*"))), 2)
+        self.assertFalse(list(only.rglob("*.rules")))
+
+    def test_reject_invalid_and_existing_destinations(self):
+        dest = self.root / "out"
+
+        def refuse(mode, *args):
+            result = subprocess.run([sys.executable, self.script, mode, dest, *args],
+                                    capture_output=True)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertTrue(result.stderr)
+
+        for args in (("mixed", "--plain", "0"), ("mixed", "--construct", "-1"),
+                     ("mixed", "--accounts", "2"), ("separate", "--plain", "1"),
+                     ("separate", "--accounts", "0"), ("mixed", "--statements", "-1"),
+                     ("separate", "--transactions", "0")):
+            refuse(*args)
+            self.assertFalse(dest.exists())
+        dest.write_text("keep")
+        refuse("mixed")
+        self.assertEqual(dest.read_text(), "keep")
+        dest.unlink()
+        dest.mkdir()
+        (dest / "sentinel").touch()
+        refuse("separate")
+        self.assertEqual(list(dest.iterdir()), [dest / "sentinel"])
+
+    def test_exclusive_creation_and_partial_failure(self):
+        dest = self.root / "race"
+        command = [sys.executable, self.script, "mixed", dest, "--plain", "1"]
+        processes = [subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                     for _ in range(2)]
+        for process in processes:
+            process.communicate()
+        self.assertEqual(sorted(p.returncode == 0 for p in processes), [False, True])
+        self.assertEqual(len(list(dest.rglob("*.csv"))), 2)
+        main = runpy.run_path(str(self.script))["main"]
+        partial = self.root / "partial"
+        with patch.dict(main.__globals__, write_statements=unittest.mock.Mock(
+                side_effect=OSError("disk full"))), patch("sys.stderr", new_callable=io.StringIO) as error:
+            self.assertNotEqual(main(["mixed", str(partial)]), 0)
+            self.assertIn(str(partial), error.getvalue())
+            self.assertIn("disk full", error.getvalue())
+        self.assertTrue(partial.is_dir())
+        retry = subprocess.run([sys.executable, self.script, "mixed", partial], capture_output=True)
+        self.assertNotEqual(retry.returncode, 0)
+
 if __name__ == "__main__":
     unittest.main()

@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """Generate synthetic statements for hledger-flow import benchmarks."""
 
+import argparse
 import csv
 import os
+from pathlib import Path
+import sys
 from datetime import date, timedelta
 
 # Each group supplies both the raw bank category and merchant names to match.
@@ -112,3 +115,67 @@ def write_conversion(base, account_dir, kind):
     else:
         rules += "account2 expenses:%category\n"
     (account_dir / f"examplebank-{account_dir.name}.rules").write_text(rules, encoding="utf-8")
+
+
+KINDS = ("plain", "advanced", "preprocess", "construct", "combined")
+
+
+def generate_base(base, counts, statements, transactions, seed):
+    index = 0
+    for kind, count in counts.items():
+        for _ in range(count):
+            account = base / "import/sample/examplebank" / f"account-{index + 1:04}"
+            write_statements(account, index * statements * transactions, statements, transactions, seed)
+            write_conversion(base, account, kind)
+            index += 1
+    totals = ((index, "account"), (index * statements, "statement"),
+              (index * statements * transactions, "transaction"))
+    summary = ", ".join(f"{n} {label}{'s' if n != 1 else ''}" for n, label in totals)
+    print(f"{base}: {summary}")
+
+
+def main(argv):
+    parser = argparse.ArgumentParser(description=__doc__)
+    modes = parser.add_subparsers(dest="mode", required=True)
+    separate = modes.add_parser("separate", help="create one base directory per account type")
+    mixed = modes.add_parser("mixed", help="create one base directory with a mix of account types")
+    for command in (separate, mixed):
+        command.add_argument("destination", type=Path, help="new output directory")
+        command.add_argument("--statements", type=int, default=2, help="statements per account (default 2)")
+        command.add_argument("--transactions", type=int, default=10, help="rows per statement (default 10)")
+        command.add_argument("--seed", type=int, default=1, help="reproducible data seed (default 1)")
+    separate.add_argument("--accounts", type=int, default=1, help="accounts per base (default 1)")
+    for kind in KINDS:
+        mixed.add_argument("--" + kind, type=int, help=f"number of {kind} accounts")
+    args = parser.parse_args(argv)
+    if args.statements < 1 or args.transactions < 1:
+        parser.error("--statements and --transactions must be positive")
+    dest = args.destination
+    if args.mode == "separate":
+        if args.accounts < 1:
+            parser.error("--accounts must be positive")
+        layouts = [(dest / kind, {kind: args.accounts}) for kind in KINDS]
+    else:
+        counts = {kind: getattr(args, kind) for kind in KINDS}
+        default = int(all(n is None for n in counts.values()))
+        counts = {kind: default if n is None else n for kind, n in counts.items()}
+        if any(n < 0 for n in counts.values()) or sum(counts.values()) == 0:
+            parser.error("specify nonnegative account counts with at least one account")
+        layouts = [(dest, counts)]
+
+    try:
+        dest.mkdir(parents=True)
+    except OSError as error:
+        print(f"Could not create {dest}: {error}", file=sys.stderr)
+        return 1
+    try:
+        for base, counts in layouts:
+            generate_base(base, counts, args.statements, args.transactions, args.seed)
+    except OSError as error:
+        print(f"Partial workload at {dest}: {error}", file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
