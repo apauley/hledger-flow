@@ -18,6 +18,7 @@ import Data.Text (Text)
 data DocLink
   = Docs
   | GettingStarted
+  | IncrementalImportFallback
   | InputFiles
   | RulesFiles
   | PreprocessScript
@@ -27,6 +28,7 @@ data DocLink
 docSlug :: DocLink -> Text
 docSlug Docs = "docs"
 docSlug GettingStarted = "getting-started"
+docSlug IncrementalImportFallback = "incremental-import-fallback"
 docSlug InputFiles = "input-files"
 docSlug RulesFiles = "rules-files"
 docSlug PreprocessScript = "preprocess-script"

@@ -68,10 +68,15 @@ importSettings homes info o =
   optsEnvironment homes info o
     ++ [ setting "Run from" runFrom "",
          setting "Start year" (maybe "all years" (\y -> tshow y <> " onwards") (importStartYear o)) "--start-year",
-         setting "Files" (if onlyNewFiles o then "only new or changed" else "regenerate all") "--new-files-only",
+         files,
          parallelism o
        ]
   where
+    files = case importPolicy o of
+      Full -> setting "Files" "regenerate all" "--new-files-only"
+      TimestampOnly -> setting "Files" "only new or changed" "--new-files-only"
+      Checked -> setting "Files" "incremental (checked)" "--incremental"
+      TrustScripts -> setting "Files" "incremental (trust-scripts)" "--incremental"
     runFrom = case dropTrailingPathSeparator (toFilePath (importRunDir o)) of
       "." -> ". (whole ledger)"
       dir -> T.pack dir

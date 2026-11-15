@@ -33,6 +33,7 @@ How to keep this ChangeLog
 
 ## Unreleased
 
+- Use `hledger-flow import --incremental=checked` to reuse journals when their inputs, including nested rules files, still match. Choose `--incremental=trust-scripts` to also reuse the outputs of unchanged hooks. See the [incremental import reference](https://hledger-flow.github.io/reference/incremental-import/).
 - `hledger-flow import --verbose` and `hledger-flow report --verbose` are
   easier to read. Each statement's lines appear together, files are labelled
   by what import looked for, and every hledger or hook command is shown ready

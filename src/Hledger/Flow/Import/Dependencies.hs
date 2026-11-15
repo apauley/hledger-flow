@@ -5,7 +5,7 @@
 module Hledger.Flow.Import.Dependencies
   ( Release (..), FallbackReason (..), ReuseDecision (..), Converter (..),
     ruleIncludes, resolveRuleInclude, discoverRules, selectRules, isSeparatedValues,
-    checkArguments, discoverConfig, discoverDirectives, checkConfig, checkDirectives,
+    checkedIO, atPath, checkArguments, discoverConfig, discoverDirectives, checkConfig, checkDirectives,
     newConverterProbe, converterProbeWith
   ) where
 

@@ -486,13 +486,16 @@ writeGeneratedText :: FilePath -> T.Text -> IO ()
 writeGeneratedText path contents = do
   -- Replace the file behind an existing symlink and keep its permissions.
   target <- Directory.canonicalizePath path >>= Path.parseAbsFile
-  withStagedOutput target $ \staged -> do
-    let tmp = toFilePath staged
-    exists <- Path.doesFileExist target
-    when exists $ do
-      T.writeFile tmp ""
-      Directory.copyPermissions (toFilePath target) tmp
-    T.writeFile tmp contents
+  withStagedOutput target (writeStagedText target contents)
+
+writeStagedText :: AbsFile -> T.Text -> AbsFile -> IO ()
+writeStagedText target contents staged = do
+  let tmp = toFilePath staged
+  exists <- Path.doesFileExist target
+  when exists $ do
+    T.writeFile tmp ""
+    Directory.copyPermissions (toFilePath target) tmp
+  T.writeFile tmp contents
 
 textFileNeedsUpdate :: FilePath -> T.Text -> IO Bool
 textFileNeedsUpdate path contents = either (const True) (/= contents) <$> tryIOError (T.readFile path)

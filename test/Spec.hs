@@ -53,5 +53,5 @@ main :: IO ()
 main = do
   child <- getArgs >>= Incremental.Snapshot.runWorker
   unless child $ do
-    counts <- runTestTT tests
-    when (errors counts > 0 || failures counts > 0) exitFailure
+    results <- runTestTT tests
+    when (errors results > 0 || failures results > 0) exitFailure

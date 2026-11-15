@@ -41,5 +41,12 @@ tests = TestLabel "incremental records" $ TestCase $ P.withSystemTempDir "record
   assertEqual "failed conversion leaves installed output" digest =<< digestFile out
   T.writeFile (P.toFilePath out) "another importer"
   assertBool "intervening writer invalidates record" . not =<< stageMatches (stageInputs stage) out (Just stage)
+  digestB <- installOutput False out $ \staged -> T.writeFile (P.toFilePath staged) "output from writer B"
+  let stageB = StageRecord [("source", "B")] digestB
+  saveRecord record (StatementRecord Nothing (Just stageB))
+  -- Writer A, paused after installing A, saves its record after B installs B.
+  saveRecord record entry
+  late <- readRecord record
+  assertBool "late publication must miss on B's output" . not =<< stageMatches (stageInputs stage) out (late >>= journalRecord)
   T.writeFile (P.toFilePath record) "{}"
   assertEqual "invalid record" Nothing =<< readRecord record

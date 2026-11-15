@@ -6,11 +6,17 @@ import Hledger.Flow.Internals (SystemInfo)
 import Hledger.Flow.Types (BaseDir, HledgerConf, HledgerInfo (..), RunDir)
 import qualified Hledger.Flow.Types as Types
 
+data ImportPolicy = Full | TimestampOnly | Checked | TrustScripts
+  deriving (Eq, Show)
+
+onlyNewFiles :: RuntimeOptions -> Bool
+onlyNewFiles = (== TimestampOnly) . importPolicy
+
 data RuntimeOptions = RuntimeOptions
   { baseDir :: BaseDir,
     importRunDir :: RunDir,
     importStartYear :: Maybe Integer,
-    onlyNewFiles :: Bool,
+    importPolicy :: ImportPolicy,
     hfVersion :: T.Text,
     hledgerExecutable :: AbsFile,
     hledgerVersion :: IO T.Text,

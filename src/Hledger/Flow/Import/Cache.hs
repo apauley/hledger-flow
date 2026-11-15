@@ -44,9 +44,8 @@ recordPath base source = do
   let year = P.parent source
       account = P.parent (P.parent year)
   group <- P.stripProperPrefix (base P.</> [P.reldir|import|]) account
-  name <- P.addExtension ".json" (P.filename source)
   pure $ base P.</> [P.reldir|.hledger-flow/cache/import|] P.</> group
-              P.</> P.dirname year P.</> name
+              P.</> P.dirname year P.</> P.filename source
 
 initializeCache :: AbsDir -> IO ()
 initializeCache base = do

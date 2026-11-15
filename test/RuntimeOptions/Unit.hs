@@ -20,4 +20,4 @@ tests = TestCase $ do
   assertEqual "verbose alone" (True, False, False) (flags opts {verbose = True})
   assertEqual "sequential alone" (False, True, False) (flags opts {sequential = True})
   assertEqual "pretty reports alone" (False, False, True) (flags opts {prettyReports = True})
-  assertEqual "unrelated flags" (False, False, False) (flags opts {onlyNewFiles = True, showOptions = True})
+  assertEqual "unrelated flags" (False, False, False) (flags opts {importPolicy = TimestampOnly, showOptions = True})
