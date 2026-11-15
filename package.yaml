@@ -52,6 +52,8 @@ library:
     - aeson >= 2.2.5.1 && < 2.3
     - ansi-terminal >= 1.1.5 && < 1.2
   when:
+    - condition: os(darwin)
+      c-sources: cbits/private_directory_darwin.c
     - condition: os(windows)
       then:
         dependencies:
@@ -108,10 +110,9 @@ tests:
       - time (>= 1.12.2 && < 1.13) || (>= 1.14 && < 1.15)
       - stm >= 2.5.3.1 && < 2.6
     when:
-      - condition: os(windows)
-        then:
-          dependencies:
-            - process >= 1.6.26.1 && < 1.7
-        else:
-          dependencies:
-            - unix >= 2.8 && < 2.9
+      - condition: os(windows) || os(darwin)
+        dependencies:
+          - process >= 1.6.26.1 && < 1.7
+      - condition: "!os(windows)"
+        dependencies:
+          - unix >= 2.8 && < 2.9

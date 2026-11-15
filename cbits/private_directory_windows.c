@@ -6,13 +6,13 @@
 #include <stdlib.h>
 #include <wchar.h>
 
-/* Query the resolved parent's volume, including mount points and junctions. */
-static DWORD check_persistent_acls(LPCWSTR parent)
+/* Check the volume of the newly created directory before any copies are made. */
+static DWORD check_persistent_acls(LPCWSTR path)
 {
     DWORD flags = 0;
-    HANDLE dir = CreateFileW(parent, FILE_READ_ATTRIBUTES,
+    HANDLE dir = CreateFileW(path, FILE_READ_ATTRIBUTES,
                              FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-                             NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
+                             NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT, NULL);
     if (dir == INVALID_HANDLE_VALUE)
         return GetLastError();
 
@@ -24,11 +24,9 @@ static DWORD check_persistent_acls(LPCWSTR parent)
     return (flags & FILE_PERSISTENT_ACLS) ? ERROR_SUCCESS : ERROR_NOT_SUPPORTED;
 }
 
-DWORD hf_create_private_directory(LPCWSTR parent, LPCWSTR path)
+DWORD hf_create_private_directory(LPCWSTR path)
 {
-    DWORD error = check_persistent_acls(parent);
-    if (error != ERROR_SUCCESS)
-        return error;
+    DWORD error;
 
     HANDLE token = NULL;
     TOKEN_USER *user = NULL;
@@ -70,7 +68,13 @@ DWORD hf_create_private_directory(LPCWSTR parent, LPCWSTR path)
         goto done;
     }
     attributes.lpSecurityDescriptor = descriptor;
-    error = CreateDirectoryW(path, &attributes) ? ERROR_SUCCESS : GetLastError();
+    if (CreateDirectoryW(path, &attributes)) {
+        error = check_persistent_acls(path);
+        if (error != ERROR_SUCCESS)
+            RemoveDirectoryW(path);
+    } else {
+        error = GetLastError();
+    }
 
 done:
     if (descriptor != NULL)

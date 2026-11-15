@@ -13,15 +13,21 @@ import Path
 import qualified Path.IO as PathIO
 import qualified System.Directory as Dir
 import System.IO.Error (tryIOError)
-import Test.HUnit
+import Test.HUnit hiding (Path)
 import TestHelpers (withTestDir)
 #ifdef mingw32_HOST_OS
 import System.Process (callProcess)
 import System.Environment (setEnv, unsetEnv)
 import Control.Exception (bracket_)
 #else
+import Control.Exception (bracket)
 import Data.Bits ((.&.))
 import qualified System.Posix.Files as Posix
+#endif
+#ifdef darwin_HOST_OS
+import Data.List (isInfixOf)
+import qualified System.Posix.Directory as Posix
+import System.Process (callProcess, readProcess)
 #endif
 
 tests :: Test
@@ -93,6 +99,24 @@ tests = TestLabel "Incremental platform primitives" $ TestList
       mode <- Posix.fileMode <$> Posix.getFileStatus (toFilePath run)
       assertEqual "owner-only directory" 0o700 (mode .&. 0o777)
 #endif
+#ifndef mingw32_HOST_OS
+  , TestLabel "unusable creation mode rejects the empty directory" $ TestCase $ withTestDir $ \root -> do
+      let run = root </> [reldir|run|]
+      result <- bracket (Posix.setFileCreationMask 0o177) Posix.setFileCreationMask $
+        \_ -> tryIOError (createPrivateDirectory run)
+      assertRejectedDirectory run result
+#endif
+#ifdef darwin_HOST_OS
+  , TestLabel "inherited macOS ACL rejects staging" $ TestCase $ withTestDir $ \root -> do
+      let probe = root </> [reldir|probe|]
+          run = root </> [reldir|run|]
+      callProcess "/bin/chmod" ["+a", "everyone allow list,search,directory_inherit", toFilePath root]
+      Posix.createDirectory (toFilePath probe) 0o700
+      acl <- readProcess "/bin/ls" ["-lde", toFilePath probe] ""
+      assertBool "the filesystem inherited the test grant" ("inherited allow" `isInfixOf` acl)
+      result <- tryIOError (createPrivateDirectory run)
+      assertRejectedDirectory run result
+#endif
   , TestLabel "occupied path stops staging before copying" $ TestCase $ withTestDir $ \root -> do
       let run = root </> [reldir|occupied|]
       PathIO.createDir run
@@ -105,6 +129,16 @@ tests = TestLabel "Incremental platform primitives" $ TestList
       entries <- Dir.listDirectory (toFilePath run)
       assertEqual "no copies made" [] entries
   ]
+
+#ifndef mingw32_HOST_OS
+assertRejectedDirectory :: Path Abs Dir -> Either IOError () -> Assertion
+assertRejectedDirectory run result = do
+  case result of
+    Left _ -> pure ()
+    Right () -> assertFailure "accepted unverified staging permissions"
+  exists <- PathIO.doesDirExist run
+  assertBool "removed the rejected empty directory" (not exists)
+#endif
 
 #ifdef mingw32_HOST_OS
 withAclPaths :: Path Abs Dir -> Path Abs Dir -> IO a -> IO a
