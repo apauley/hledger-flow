@@ -81,26 +81,6 @@ jobs:
           restore-keys: |
               ${{ steps.global-variables.outputs.cache-prefix }}-stack-work
 
-      - name: Install eget
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          cd /tmp && curl https://zyedidia.github.io/eget.sh | sh && \
-          mv ./eget /usr/local/bin/
-
-      - name: Install hledger
-        # hledger's releases are not available for linux-arm64
-        if: ${{ steps.global-variables.outputs.platform != 'linux-arm64' }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          eget hledgerorg/hledger --all --to /usr/local/bin/
-
-      - name: Show hledger version
-        # hledger's releases are not available for linux-arm64
-        if: ${{ steps.global-variables.outputs.platform != 'linux-arm64' }}
-        run: hledger --version
-
       - uses: haskell/ghcup-setup@v1
 
       - name: Setup ghcup
@@ -118,6 +98,16 @@ jobs:
 
       - name: Build and Test
         run: stack test --interleaved-output && stack install
+
+      - name: Install the pinned hledger for CLI scenarios
+        if: steps.global-variables.outputs.platform != 'linux-arm64'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash .github/scripts/install-test-hledger.sh
+
+      - name: Report skipped real-hledger scenarios on Linux ARM64
+        if: steps.global-variables.outputs.platform == 'linux-arm64'
+        run: echo '::notice::Skipping real-hledger CLI scenarios. Upstream provides no Linux ARM64 release binary.'
 
       - name: Test CLI scenarios
         if: ${{ steps.global-variables.outputs.platform != 'linux-arm64' }}
@@ -137,17 +127,9 @@ jobs:
       - name: Check the tutorial's output against a real run
         # Runs every tutorial command with the hledger version the tutorial uses.
         if: matrix.os == 'ubuntu-latest'
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
-          version=$(tr -d '[:space:]' < site/scripts/tutorial/hledger-version)
-          dir="$RUNNER_TEMP/hledger-$version"
-          mkdir -p "$dir"
-          gh release download "$version" -R hledgerorg/hledger -p hledger-linux-x64.tar.gz -D "$dir"
-          tar -xzf "$dir/hledger-linux-x64.tar.gz" -C "$dir"
           command -v tree >/dev/null || { sudo apt-get update && sudo apt-get install -y tree; }
-          HLEDGER=$(find "$dir" -type f -name hledger | head -n 1) HLEDGER_FLOW="$HOME/.local/bin/hledger-flow" \
-            bash site/scripts/tutorial/update.sh --check
+          HLEDGER_FLOW="$HOME/.local/bin/hledger-flow" bash site/scripts/tutorial/update.sh --check
 
       - name: Gather binaries
         run: |
@@ -193,14 +175,6 @@ jobs:
           restore-keys: |
             windows-x64-stack-
 
-      - name: Install the latest upstream hledger release
-        run: |
-          $zip = Join-Path $env:RUNNER_TEMP hledger-windows-x64.zip
-          $bin = Join-Path $env:RUNNER_TEMP hledger
-          Invoke-WebRequest https://github.com/hledgerorg/hledger/releases/latest/download/hledger-windows-x64.zip -OutFile $zip
-          Expand-Archive -LiteralPath $zip -DestinationPath $bin
-          $bin >> $env:GITHUB_PATH
-
       - name: Build and test hledger-flow from this checkout
         run: |
           stack test --interleaved-output
@@ -218,6 +192,12 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           # Relink even if the Stack cache contains a build without this resource.
           stack install hledger-flow --force-dirty --ghc-options="-fforce-recomp -optldist/version.o" --local-bin-path dist
+
+      - name: Install the pinned hledger for CLI scenarios
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash .github/scripts/install-test-hledger.sh
 
       - name: Test native Windows CLI scenarios with Git Bash
         shell: bash
