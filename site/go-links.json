@@ -5,5 +5,7 @@
   "incremental-import-fallback": "/reference/incremental-import/#when-reuse-is-unavailable",
   "rules-files": "/reference/rules-files/",
   "preprocess-script": "/reference/preprocess/",
-  "set-ledger-file": "/quickstart/#import-your-first-statement"
+  "set-ledger-file": "/quickstart/#import-your-first-statement",
+  "status": "/reference/status/",
+  "reports": "/tutorial/part-2/#reports"
 }

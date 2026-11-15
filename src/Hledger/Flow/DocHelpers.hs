@@ -23,6 +23,8 @@ data DocLink
   | RulesFiles
   | PreprocessScript
   | SetLedgerFile
+  | StatusCommand
+  | Reports
   deriving (Bounded, Enum, Eq, Show)
 
 docSlug :: DocLink -> Text
@@ -33,6 +35,8 @@ docSlug InputFiles = "input-files"
 docSlug RulesFiles = "rules-files"
 docSlug PreprocessScript = "preprocess-script"
 docSlug SetLedgerFile = "set-ledger-file"
+docSlug StatusCommand = "status"
+docSlug Reports = "reports"
 
 siteURL :: Text
 siteURL = "https://hledger-flow.github.io/"

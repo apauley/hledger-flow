@@ -41,6 +41,10 @@ How to keep this ChangeLog
   to paste into a shell at the base directory, with paths there starting
   with `./`. On a terminal, the output uses colour unless
   `NO_COLOR` is set.
+- `--help` is easier to scan. Each command's help lists the global options,
+  describes its examples and links to its docs. `import --help` shows each
+  `--incremental` mode on its own line. On a terminal, examples and modes use
+  colour unless `NO_COLOR` is set.
 - When hledger or a preprocess or construct script fails, the message names
   that program, keeps its exit code and marks its output as its own. With
   `--verbose`, the full error output is shown instead of the first 20 lines.

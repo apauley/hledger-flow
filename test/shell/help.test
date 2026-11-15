@@ -11,6 +11,38 @@ hledger-flow status --help | grep -q 'hledger-flow status --rules-template me/my
 hledger-flow import --help | grep -q 'hledger-flow import --start-year current'
 $ sh -eu
 
+# Subcommand help lists each incremental mode on its own line, the global
+# options and a docs link. Usage errors stay short.
+<
+help="${TMPDIR:-/tmp}/import-help.$$"
+hledger-flow import --help > "$help"
+grep -q -- '--incremental\[=MODE\]' "$help"
+grep -q '^  *run-scripts (default)$' "$help"
+grep -q '^  *skip-unchanged-scripts$' "$help"
+grep -q '^Global options:' "$help"
+grep -q -- '--hledger-path FILE' "$help"
+if grep -q -- '-V,--version' "$help"; then exit 1; fi
+grep -q '^Docs: https://hledger-flow.github.io/go/input-files/$' "$help"
+rm "$help"
+err="${TMPDIR:-/tmp}/import-err.$$"
+if hledger-flow import --incremental=fast 2> "$err"; then exit 1; fi
+grep -q "unknown mode 'fast'. Use run-scripts or skip-unchanged-scripts." "$err"
+if grep -q 'Global options' "$err"; then exit 1; fi
+rm "$err"
+$ sh -eu
+
+# Help is plain text when NO_COLOR is set, even on a terminal.
+<
+if ! command -v script > /dev/null; then exit 0; fi
+case "$(uname -s)" in
+    Darwin) run() { script -q /dev/null "$@"; } ;;
+    *) run() { script -qec "$*" /dev/null; } ;;
+esac
+esc=$(printf '\033')
+TERM=xterm run hledger-flow import --help | grep -q "$esc\[" || { echo "expected colour on a terminal"; exit 1; }
+if TERM=xterm NO_COLOR=1 run hledger-flow import --help | grep -q "$esc\["; then exit 1; fi
+$ sh -eu
+
 # Reject mistyped start years before import can write any journals.
 <
 . ./test/shell/setup.sh
