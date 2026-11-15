@@ -31,8 +31,10 @@ or `--sequential` to run one at a time.
 
 Run `hledger-flow import --verbose` to see where import looks for each
 statement's scripts, rules file and include files, and the exact commands it
-runs. Paths in the base directory start with `./`, so you can paste a command
-into a shell there. Each statement's lines appear together once
+runs. You can paste a command into a shell at the ledger root. If you started
+import elsewhere, the command first changes to that working directory so scripts
+can resolve relative paths and hledger can find the same config. Paths below the
+working directory start with `./`. Each statement's lines appear together once
 it's done. With `--sequential`, they appear as import works.
 
 ## More About Input Files
@@ -53,15 +55,19 @@ brackets literally and includes each statement's transactions once. If an
 earlier import duplicated one statement and omitted the other, run
 `hledger-flow import` to rebuild the journals from both files.
 
-## Incremental imports
+<span id="incremental-imports"></span>
+
+## Timestamp-only imports
 
 `hledger-flow import --new-files-only` compares each generated file's
 modification time with its source. It rebuilds a preprocessed CSV or journal
 when its source is newer, even if the two timestamps differ by only a
 fraction of a second. Equal timestamps count as up to date. If you replace
 a statement and preserve its timestamp, run `hledger-flow import` to force
-a rebuild. Also use a full import after changing rules or hooks. The incremental
-check compares the statement, cached CSV and journal timestamps only.
+a rebuild. Also use a full import after changing rules or hooks. This flag
+compares only the statement, cached CSV and journal timestamps. To track
+content changes in statements, rules and nested includes, see
+[Incremental import](/reference/incremental-import/).
 
 ## Generated Files and Recovery
 
@@ -69,6 +75,10 @@ When an import or report fails, the command finishes writing its queued
 diagnostics before it exits, even if a pipe consumer reads slowly. To save
 the failure message for inspection, capture standard error, for example
 with `hledger-flow import 2>import-errors.log`.
+
+On Windows, you can paste the displayed command into PowerShell at the ledger
+root. If `USERPROFILE` differs from the Windows profile directory, the
+command uses absolute paths for files outside the ledger so they still resolve.
 
 `1-in` is the source of truth. Both `2-preprocessed` and `3-journal`
 contain generated output; user-supplied files in those stages are not

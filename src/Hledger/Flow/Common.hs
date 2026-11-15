@@ -14,7 +14,7 @@ import Data.Either
 import Data.Maybe (fromMaybe)
 import Data.Time.Clock (NominalDiffTime)
 import Text.Printf (printf)
-import qualified Data.List as List (isPrefixOf, isSuffixOf, nub)
+import qualified Data.List as List (take, isPrefixOf, isSuffixOf, nub)
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
@@ -36,7 +36,7 @@ import System.Exit (ExitCode (..), exitWith)
 import System.IO (hClose)
 import qualified System.Info as Sys
 import qualified System.Process as Process
-import System.IO.Error (tryIOError)
+import System.IO.Error (isDoesNotExistError, tryIOError)
 import System.FilePath ((<.>))
 import Prelude hiding (putStrLn, readFile, writeFile)
 
@@ -142,19 +142,42 @@ hledgerConfArgs opts =
 -- by itself, like possibleConfFiles in hledger's Hledger.Cli.Conf: hledger.conf in the current
 -- directory or a parent, ~/.hledger.conf, or hledger.conf in the XDG config directory.
 findHledgerConf :: Maybe FilePath -> IO (Maybe HledgerConf)
-findHledgerConf (Just given) = return (Just (GivenConf given))
+findHledgerConf (Just given) = pure (Just (GivenConf given))
 findHledgerConf Nothing = do
-  found <- tryIOError $ do
-    here <- Directory.getCurrentDirectory
-    home <- Directory.getHomeDirectory
-    xdg <- Directory.getXdgDirectory Directory.XdgConfig "hledger"
-    let file d = d FilePath.</> if d == home then ".hledger.conf" else "hledger.conf"
-    filterM Directory.doesFileExist (map file (List.nub (upToRoot here ++ [home, xdg])))
-  return $ case found of
+  result <- tryIOError (hledgerConfCandidates >>= filterM Directory.doesFileExist)
+  pure $ case result of
     Right (f : _) -> Just (FoundConf f)
     _ -> Nothing
+
+-- | Fresh lookup for callers that need to distinguish absence from failed discovery.
+lookupHledgerConf :: Maybe FilePath -> IO (Maybe HledgerConf)
+lookupHledgerConf (Just given) = return (Just (GivenConf given))
+lookupHledgerConf Nothing = fmap FoundConf <$> (hledgerConfCandidates >>= firstConfirmedFile)
+
+hledgerConfCandidates :: IO [FilePath]
+hledgerConfCandidates = do
+  here <- Directory.getCurrentDirectory
+  home <- Directory.getHomeDirectory
+  xdg <- Directory.getXdgDirectory Directory.XdgConfig "hledger"
+  let file d = d FilePath.</> if d == home then ".hledger.conf" else "hledger.conf"
+  pure (map file (List.nub (List.take 100 (upToRoot here) ++ [home, xdg])))
   where
     upToRoot d = let up = FilePath.takeDirectory d in d : if up == d then [] else upToRoot up
+
+-- doesFileExist also returns False on permission errors. Verify a negative result
+-- before advancing to the next candidate so an uncertain selection cannot be cached.
+firstConfirmedFile :: [FilePath] -> IO (Maybe FilePath)
+firstConfirmedFile [] = pure Nothing
+firstConfirmedFile (file : rest) = do
+  exists <- Directory.doesFileExist file
+  if exists then pure (Just file) else do
+    status <- tryIOError (Directory.getPermissions file)
+    case status of
+      Left e | isDoesNotExistError e -> firstConfirmedFile rest
+             | otherwise -> ioError e
+      Right _ -> do
+        dir <- Directory.doesDirectoryExist file
+        if dir then firstConfirmedFile rest else ioError (userError ("Could not determine the file type of " ++ file))
 
 showCmdArgs :: [T.Text] -> T.Text
 showCmdArgs args = T.intercalate " " (map escapeArg args)
@@ -164,8 +187,14 @@ showCmdArgs args = T.intercalate " " (map escapeArg args)
 homeDirs :: IO [FilePath]
 homeDirs = either (const []) id <$> tryIOError (do
   home <- Directory.getHomeDirectory
-  real <- Directory.canonicalizePath home
-  return (List.nub [home, real]))
+  -- PowerShell expands $HOME from USERPROFILE. The Windows profile API can
+  -- still return the original profile after USERPROFILE has been overridden.
+  shellHome <- if nativeShell == PowerShell then lookupEnv "USERPROFILE" else pure (Just home)
+  case shellHome of
+    Just value | FilePath.equalFilePath value home -> do
+      real <- Directory.canonicalizePath home
+      pure (List.nub [home, real])
+    _ -> pure [])
 
 -- | The path's components below the home folder; @Just []@ for the home folder itself.
 belowHome :: [FilePath] -> FilePath -> Maybe [FilePath]
@@ -252,7 +281,7 @@ data External = External
     extHints :: [T.Text]
   }
 
--- | A command line to paste into this platform's shell from the base directory: paths below it
+-- | A command line to paste into this platform's shell from the given directory: paths below it
 -- start with @./@, and other paths under the home folder with @~@ or @$HOME@.
 pasteCommand :: Shell -> FilePath -> [FilePath] -> [[T.Text]] -> T.Text
 pasteCommand shell base homes = T.intercalate " | " . map command
@@ -272,14 +301,29 @@ pasteCommand shell base homes = T.intercalate " | " . map command
       Just rel -> shellArgument PowerShell rel
       Nothing -> fromMaybe (shellArgument PowerShell a) (homeShellPath PowerShell homes (T.unpack a))
 
+-- hledger discovers config files from its working directory, and scripts can read
+-- relative paths. Preserve that directory when replaying a command at the ledger root.
+externalCommand :: HasBaseDir o => o -> External -> IO T.Text
+externalCommand opts ext = do
+  homes <- homeDirs
+  cwd <- Directory.getCurrentDirectory
+  let command = pasteCommand nativeShell cwd homes (extCommand ext)
+      location = fromMaybe (shellArgument nativeShell (T.pack cwd)) (homeShellPath nativeShell homes cwd)
+  pure $ if FilePath.equalFilePath cwd (toFilePath (baseDir opts))
+    then command
+    else case nativeShell of
+      Posix -> "(cd " <> location <> " && " <> command <> ")"
+      PowerShell -> "& { Push-Location -LiteralPath " <> location <> " -ErrorAction Stop; try { "
+                    <> command <> " } finally { Pop-Location } }"
+
 -- | In verbose mode, say which program is about to run and show its command line.
 announceExternal :: (HasVerbosity o, HasBaseDir o) => o -> TChan LogMessage -> External -> IO ()
 announceExternal opts ch ext = when (verbose opts) $ do
-  homes <- homeDirs
+  command <- externalCommand opts ext
   color <- useColor H.stderr
   logToChannel ch $
     "Running " <> extName ext <> " to " <> extPurpose ext <> ":\n"
-      <> "  " <> dim color "$" <> " " <> cyan color (pasteCommand nativeShell (toFilePath (baseDir opts)) homes (extCommand ext))
+      <> "  " <> dim color "$" <> " " <> cyan color command
 
 -- | Run an external program, show what it printed, and stop with its exit code when it fails.
 -- Returns its standard output, which goes to the console only when 'showStdout' is set.
@@ -303,14 +347,16 @@ checkExternal opts ch ext showStdout duration (status, out, err) = do
       passOn (channelErr ch) errColor "Messages" err
     ExitFailure code -> do
       when showStdout $ passOn (channelOut ch) outColor "Output" out
-      homes <- homeDirs
+      commandLines <- if verbose opts then pure [] else do
+        command <- externalCommand opts ext
+        pure ["Command:", "  " <> command]
       let section label txt = outputSection errColor (verbose opts) (label <> " from " <> extName ext) txt
       errExit code ch $ T.intercalate "\n" $
         [ red errColor (bold errColor (extName ext <> " failed with exit code " <> T.pack (show code)))
             <> " while trying to " <> extPurpose ext <> "."
         ]
           -- Verbose output showed the command just before it ran.
-          ++ (if verbose opts then [] else ["Command:", "  " <> pasteCommand nativeShell (toFilePath (baseDir opts)) homes (extCommand ext)])
+          ++ commandLines
           ++ (if showStdout then [] else section "Output" out)
           ++ section "Error output" err
           ++ extHints ext
@@ -463,13 +509,16 @@ writeGeneratedText :: FilePath -> T.Text -> IO ()
 writeGeneratedText path contents = do
   -- Replace the file behind an existing symlink and keep its permissions.
   target <- Directory.canonicalizePath path >>= Path.parseAbsFile
-  withStagedOutput target $ \staged -> do
-    let tmp = toFilePath staged
-    exists <- Path.doesFileExist target
-    when exists $ do
-      T.writeFile tmp ""
-      Directory.copyPermissions (toFilePath target) tmp
-    T.writeFile tmp contents
+  withStagedOutput target (writeStagedText target contents)
+
+writeStagedText :: AbsFile -> T.Text -> AbsFile -> IO ()
+writeStagedText target contents staged = do
+  let tmp = toFilePath staged
+  exists <- Path.doesFileExist target
+  when exists $ do
+    T.writeFile tmp ""
+    Directory.copyPermissions (toFilePath target) tmp
+  T.writeFile tmp contents
 
 textFileNeedsUpdate :: FilePath -> T.Text -> IO Bool
 textFileNeedsUpdate path contents = either (const True) (/= contents) <$> tryIOError (T.readFile path)

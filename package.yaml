@@ -33,6 +33,7 @@ library:
   ghc-options:
     - -Wall
   dependencies:
+    - cryptohash-sha256 >= 0.11 && < 0.12
     - bytestring >= 0.12.2.0 && < 0.13
     - http-client >= 0.7.19 && < 0.8
     - http-client-tls >= 0.3.6.4 && < 0.4
@@ -50,6 +51,20 @@ library:
     - gitrev >= 1.3.1 && < 1.4
     - aeson >= 2.2.5.1 && < 2.3
     - ansi-terminal >= 1.1.5 && < 1.2
+  when:
+    - condition: os(darwin)
+      c-sources:
+        - cbits/private_directory_darwin.c
+        - cbits/sha256_darwin.c
+    - condition: os(windows)
+      then:
+        dependencies:
+          - Win32 >= 2.14 && < 2.15
+        c-sources: cbits/private_directory_windows.c
+        extra-libraries: advapi32
+      else:
+        dependencies:
+          - unix >= 2.8 && < 2.9
 
 executables:
   hledger-flow:
@@ -84,6 +99,7 @@ tests:
       - -rtsopts
       - -with-rtsopts=-N
     dependencies:
+      - bytestring >= 0.12.2.0 && < 0.13
       - hledger-flow
       - path >= 0.9.6 && < 0.10
       - path-io >= 1.8.2 && < 1.9
@@ -95,3 +111,8 @@ tests:
       - text >= 2.1.3 && < 2.2
       - time (>= 1.12.2 && < 1.13) || (>= 1.14 && < 1.15)
       - stm >= 2.5.3.1 && < 2.6
+      - process >= 1.6.26.1 && < 1.7
+    when:
+      - condition: "!os(windows)"
+        dependencies:
+          - unix >= 2.8 && < 2.9

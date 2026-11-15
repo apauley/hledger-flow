@@ -33,6 +33,8 @@ How to keep this ChangeLog
 
 ## Unreleased
 
+- Use `hledger-flow import --incremental` with hledger 1.52.4 or later to reuse journals when their inputs, including nested rules files, still match. Choose `--incremental=skip-unchanged-scripts` to also reuse the outputs of unchanged scripts. See the [incremental import reference](https://hledger-flow.github.io/reference/incremental-import/).
+- On macOS, incremental import checks the hledger executable faster and still detects a replacement build that reports the same version.
 - `hledger-flow import --verbose` and `hledger-flow report --verbose` are
   easier to read. Each statement's lines appear together, files are labelled
   by what import looked for, and every hledger or hook command is shown ready
@@ -49,8 +51,8 @@ How to keep this ChangeLog
 - If you have statements with brackets in their filenames, such as
   `April [1].csv`, run `hledger-flow import` to regenerate their journals.
   Each now imports exactly once alongside `April 1.csv`.
-- If a statement is newer than its cached CSV and its preprocess hook is
-  missing, import stops and names both files. Restore the hook or move the
+- If a statement is newer than its cached CSV and its preprocess script is
+  missing, import stops and names both files. Restore the script or move the
   cached CSV aside, then run `hledger-flow import`.
 - The documentation has moved to the [project site](https://hledger-flow.github.io/).
   Links in hledger-flow's messages and `--help` open the relevant section

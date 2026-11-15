@@ -35,6 +35,7 @@ export default defineConfig({
           items: [
             'reference/status',
             'reference/input-files',
+            'reference/incremental-import',
             'reference/rules-files',
             'reference/preprocess',
             'reference/construct',

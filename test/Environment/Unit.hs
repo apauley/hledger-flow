@@ -19,6 +19,9 @@ testImportLines :: Test
 testImportLines = TestCase $ do
   let out = renderSettings id (importSettings [] defaultHlInfo opts {importStartYear = Just 2024, batchSize = 20})
       line l = filter ((l <> " ") `T.isPrefixOf`) out
+  let files policy = [(sValue row,sFlags row) | row <- importSettings [] defaultHlInfo opts {importPolicy = policy}, sLabel row == "Files"]
+  files RunScripts @?= [("incremental (run-scripts)", "--incremental")]
+  files SkipUnchangedScripts @?= [("incremental (skip-unchanged-scripts)", "--incremental")]
   assertEqual "one line per setting" 8 (length out)
   assertBool "full hledger path and version" (any ((T.pack (toFilePath [relfile|path/to/hledger|]) <> "  (1.2.3)") `T.isInfixOf`) (line "hledger"))
   assertBool "flag beside its value" (any ("2024 onwards" `T.isInfixOf`) (line "Start year") && any ("--start-year" `T.isSuffixOf`) (line "Start year"))

@@ -72,8 +72,18 @@ Keep the generator revision and seed with the benchmark results. To compare
 copy of the base. Preserve executable permissions when copying hooks.
 Use the same machine, hledger executable, hledger configuration, Python interpreter and import
 concurrency (for example, `--batch-size 4`). Time only the import. Check the
-journal and run reports afterwards. For an incremental benchmark, first finish
-a full import on each copy, then time `hledger-flow import --new-files-only`.
+journal and run reports afterwards.
+
+For the timestamp-only check, finish a full import and time
+`hledger-flow import --new-files-only`. To benchmark dependency tracking,
+time the first `hledger-flow import --incremental` separately. It
+creates the records. Run the same command again to measure reuse, then
+add one statement and measure again. Check the regenerated statement
+counts as well as the elapsed time.
+
+The repository's [incremental benchmark driver](https://github.com/apauley/hledger-flow/blob/master/bin/bench-incremental.py)
+uses this generator to compare both the archive and 1,000-statement layouts.
+See [Incremental import](/reference/incremental-import/) for the reuse policies.
 
 To isolate a comparison from personal hledger settings, create an empty
 `benchmark.conf` next to the generated base directories. Pass the same file
