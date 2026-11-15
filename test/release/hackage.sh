@@ -6,21 +6,57 @@ work=$(mktemp -d)
 trap 'status=$?; if [ "$status" -ne 0 ] && [ -f "$work/result" ]; then cat "$work/result" >&2; fi; rm -rf "$work"' EXIT
 mkdir -p "$work/bin" "$work/mock"
 cp bin/release bin/hackage-artifacts.py bin/update-homebrew-formula.py "$work/bin/"
+cp test/release/mock-hackage-tools.py "$work/"
 printf 'version: 1.2.3\n' > "$work/package.yaml"
 cd "$work"
 export REAL_GIT
 REAL_GIT=$(command -v git)
-export PATH="$work/mock:$PATH" HACKAGE_MODE=local
+# Even if a future test bypasses a mock and starts real curl, it may only
+# use file URLs. Verify the restriction against loopback before any release step.
+mkdir "$work/curl-home"
+export CURL_HOME="$work/curl-home"
+printf '%s\n' 'proto = "=file"' 'proto-redir = "=file"' > "$CURL_HOME/.curlrc"
+# Git Bash and native Python can find different Windows executables.
+for real_curl in "$(type -P curl || true)" "${SYSTEMROOT:-}/System32/curl.exe"; do
+  [ -x "$real_curl" ] || continue
+  status=0
+  "$real_curl" --silent --noproxy '*' https://127.0.0.1:1/ || status=$?
+  [ "$status" = 1 ] || { echo "real curl must reject HTTPS in the offline fixture" >&2; exit 1; }
+done
+export HACKAGE_MODE=local
+# Native Windows installations may expose Python 3 as python.exe only.
+python_name=python3
+if ! python3 -c 'import sys; sys.exit(sys.version_info.major != 3)' >/dev/null 2>&1; then
+  python -c 'import sys; sys.exit(sys.version_info.major != 3)' || exit 1
+  python_name=python
+fi
 export REAL_PYTHON
-REAL_PYTHON=$(command -v python3)
+REAL_PYTHON=$(type -P "$python_name")
 unset HACKAGE_TOKEN
 mkdir hledger-flow-1.2.3 assets
 printf 'reviewed bytes' > hledger-flow-1.2.3/marker
 tar -czf source hledger-flow-1.2.3
 printf true > draft
 
+# Release subprocesses must fail if a Bash mock goes missing, rather than
+# continuing down PATH to the developer's real curl, Cabal, or GitHub CLI.
+curl() { "$work/mock/curl" "$@"; }
+cabal() { "$work/mock/cabal" "$@"; }
+gh() { "$work/mock/gh" "$@"; }
+export -f curl cabal gh
+
+# Git Bash ships sha256sum. The release scripts use shasum's spelling.
+if ! command -v shasum >/dev/null; then
+  shasum() {
+    [[ $1 == -a && $2 == 256 ]] || return 1
+    shift 2
+    sha256sum "$@"
+  }
+  export -f shasum
+fi
+
 # Push to a real, isolated Git remote. No production tap or credentials are used.
-export work GIT_CONFIG_GLOBAL="$work/gitconfig" GIT_CONFIG_NOSYSTEM=1
+export work GIT_ALLOW_PROTOCOL=file GIT_CONFIG_GLOBAL="$work/gitconfig" GIT_CONFIG_NOSYSTEM=1
 git config --global user.name "Release test"
 git config --global user.email test@example.invalid
 git init -q --bare -b main tap.git
@@ -97,6 +133,9 @@ MOCK
 cat > mock/python3 <<'MOCK'
 #!/usr/bin/env bash
 if [[ -n ${HACKAGE_TOKEN:-} && "$*" == *"$HACKAGE_TOKEN"* ]]; then echo "token in python arguments" >&2; exit 1; fi
+if [[ ${1##*/} == hackage-artifacts.py ]]; then
+  exec "$REAL_PYTHON" -I "$work/mock-hackage-tools.py" "$BASH" "$@"
+fi
 exec "$REAL_PYTHON" "$@"
 MOCK
 cat > mock/curl <<'MOCK'
@@ -200,7 +239,18 @@ esac
 MOCK
 echo license > LICENSE
 chmod +x mock/*
+export PATH="$work/mock:$PATH"
 fails() { if "$@" > result 2>&1; then echo "unexpected success: $*" >&2; exit 1; fi; }
+# A missing mock must fail here even when a real curl.exe is on PATH.
+mv mock/curl mock/curl.saved
+fails curl --version
+fails python3 bin/hackage-artifacts.py badges hledger-flow-1.2.3
+grep -Fq 'missing offline Hackage mock: curl' result
+mv mock/curl.saved mock/curl
+mv mock/cabal mock/cabal.saved
+fails python3 bin/hackage-artifacts.py upload-candidate hledger-flow-1.2.3 source
+grep -Fq 'missing offline Hackage mock: cabal' result
+mv mock/cabal.saved mock/cabal
 fails bin/release hackage
 grep -q 'configure a token' result
 export CABAL_FIELDS='+ token: dummy'
