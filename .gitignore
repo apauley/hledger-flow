@@ -8,6 +8,7 @@ scratch.org
 docs/my-finances
 /docs/superpowers/
 /docs/plans/
+/docs/proposals/
 releases/
 *.c.*
 .idea
