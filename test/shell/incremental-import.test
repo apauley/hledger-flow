@@ -1,0 +1,23 @@
+# CLI modes, selected statements, dependency edits and generated includes.
+$ python3 test/incremental_import.py Modes Rules
+>2 /OK/
+
+# Real hledger config discovery, explicit snapshot config and layout.
+$ python3 test/incremental_import.py Config.test_rules_config_discovery Config.test_construct_config_discovery
+>2 /OK/
+
+# Config regions that rebuild once or require ordinary conversion every time.
+$ python3 test/incremental_import.py Config.test_rebuilds_and_fallbacks
+>2 /OK/
+
+# Reproduce the ordinary converter's errors after snapshot cleanup.
+$ python3 test/incremental_import.py Diagnostics
+>2 /OK/
+
+# Hook invocations, dependency changes and mode switching.
+$ python3 test/incremental_import.py Hooks
+>2 /OK/
+
+# Recover from failed conversion, corrupt records and a killed writer.
+$ python3 test/incremental_import.py Cache Concurrent WindowsPaths
+>2 /OK/
