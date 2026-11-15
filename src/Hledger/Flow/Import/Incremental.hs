@@ -53,11 +53,11 @@ data HookInputs = HookInputs AbsFile FileObservation AbsFile FileObservation
   deriving (Eq, Show)
 
 observeHook :: AbsFile -> AbsFile -> IO (ReuseDecision HookInputs)
-observeHook script source = checkedIO "could not observe hook inputs" (P.toFilePath script) $ do
+observeHook script source = checkedIO "could not check script inputs" (P.toFilePath script) $ do
   runnable <- if Sys.os == "mingw32" then pure True else D.executable <$> D.getPermissions (P.toFilePath script)
   if runnable
     then Reusable <$> (HookInputs script <$> observeFile script <*> pure source <*> observeFile source)
-    else pure $ atPath "hook is not executable" (P.toFilePath script) ""
+    else pure $ atPath "script is not executable" (P.toFilePath script) ""
 
 hookInputsKey :: ImportDirs P.Abs -> FilePath -> T.Text -> HookInputs -> StageInputs
 hookInputsKey dirs cwd stage (HookInputs script s input i) =
@@ -89,7 +89,7 @@ importStatement (IncrementalRun snapshots probe reasons) opts ch dirs source = d
         atomicModifyIORef' reasons $ \m -> (Map.insertWith Set.union source (Set.singleton reason) m,())
         logVerbose opts ch $ reason <> " " <> detail
       changed = FallbackReason "dependency changed during conversion" (pathText source)
-      trusted = importPolicy opts == TrustScripts
+      skipScripts = importPolicy opts == SkipUnchangedScripts
   pre <- hook "preprocess"
   (csv,preRecord,preRan) <- case pre of
     Nothing -> do
@@ -100,9 +100,12 @@ importStatement (IncrementalRun snapshots probe reasons) opts ch dirs source = d
       let key = hookInputsKey dirs cwd "preprocess" <$> before
           prior = old >>= preprocessRecord
       hit <- case key of
-        Reusable k | trusted -> stageMatches k intermediate prior
+        Reusable k | skipScripts -> stageMatches k intermediate prior
         _ -> pure False
-      if hit then pure (intermediate,prior,False) else do
+      if hit then do
+        logVerbose opts ch "Skipped unchanged preprocess script."
+        pure (intermediate,prior,False)
+      else do
         previous <- digestIfPresent intermediate
         digest <- installOutput True intermediate (preprocess opts ch script dirs source intermediate)
         when (Just digest == previous) $ logVerbose opts ch "Preprocessing ran; the CSV is unchanged."
@@ -169,9 +172,13 @@ importStatement (IncrementalRun snapshots probe reasons) opts ch dirs source = d
   (journal,generated) <- case decision of
     Fallback r -> fallback r
     Reusable inputs -> do
-      hit <- if trusted || liveConstruct inputs == Nothing
+      hit <- if skipScripts || liveConstruct inputs == Nothing
                then stageMatches (recordedInputs inputs) output prior else pure False
-      if hit then logVerbose opts ch "Reused the verified journal." >> pure (prior,False) else do
+      if hit then do
+        when (liveConstruct inputs /= Nothing) $ logVerbose opts ch "Skipped unchanged construct script."
+        logVerbose opts ch "Reused the verified journal."
+        pure (prior,False)
+      else do
         result <- withSnapshot snapshots (converterRelease (engine inputs)) (copiedInputs inputs) $ \snapshot -> do
           let pin = maybe ["--no-conf"] (\f -> ["--conf",pathText f])
               translate = translateDiagnostic snapshot

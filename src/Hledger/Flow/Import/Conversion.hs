@@ -81,7 +81,7 @@ savedInput opts ch src csvOut = do
       stale <- needsRegeneration src csvOut
       when stale $ ioError $ userError $
         relativeToBase opts (Path.toFilePath src) ++ " is newer than its cached CSV "
-          ++ relativeToBase opts (Path.toFilePath csvOut) ++ ". Restore the preprocess hook to regenerate it,"
+          ++ relativeToBase opts (Path.toFilePath csvOut) ++ ". Restore the preprocess script to regenerate it,"
           ++ " or move the cached CSV aside to use the source directly. Then run hledger-flow import."
       return csvOut
     else return src

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Benchmark plain and rerun-scripts imports on reproducible, rules-only ledgers.
+"""Benchmark plain and run-scripts imports on reproducible, rules-only ledgers.
 
 Run with Python 3, a built hledger-flow, a supported native hledger and a new
 results directory. Pass --rounds N or --shapes archive original one many to
@@ -82,7 +82,7 @@ def records(root):
 
 
 def invoke(command, root, env, incremental, newest, selected, regenerated):
-    args = command + (['--incremental', 'rerun-scripts'] if incremental else []) + (['--start-year', '2026'] if newest else [])
+    args = command + (['--incremental', 'run-scripts'] if incremental else []) + (['--start-year', '2026'] if newest else [])
     start = time.perf_counter_ns()
     run = subprocess.run(args, cwd=root, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=900)
     elapsed = (time.perf_counter_ns() - start) / 1e6
@@ -132,7 +132,7 @@ def benchmark(shape, args, cmd, env, writer, stream):
                         raise RuntimeError(f'{shape}/{case}: unexpected cache changes ({writes} replacements)')
                     if journals(root) != expected['added' if case == 'added' else 'unchanged']:
                         raise RuntimeError(f'{shape}/{case}: journal bytes differ from full import')
-                    key = (shape, '2026' if newest else 'all', case, 'rerun-scripts' if incremental else 'full')
+                    key = (shape, '2026' if newest else 'all', case, 'run-scripts' if incremental else 'full')
                     samples.setdefault(key, []).append(ms)
                     writer.writerow([*key, round_, selected, regenerated, writes, f'{ms:.3f}'])
                     stream.flush()

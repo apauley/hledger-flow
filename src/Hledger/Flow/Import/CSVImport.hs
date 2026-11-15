@@ -87,8 +87,8 @@ importCSVs' opts ch = do
   when (any (any isGlobMetacharacter . Path.toFilePath) inputFiles) $ void (hledgerVersion opts)
   let run tracking = parAwareActions opts (map (extractAndImport tracking opts ch importRoot) inputFiles)
   outcomes <- case importPolicy opts of
-    RerunScripts -> withIncrementalRun opts ch fileCount (run . Just)
-    TrustScripts -> withIncrementalRun opts ch fileCount (run . Just)
+    RunScripts -> withIncrementalRun opts ch fileCount (run . Just)
+    SkipUnchangedScripts -> withIncrementalRun opts ch fileCount (run . Just)
     _ -> run Nothing
   let importedJournals = [(journal, generated) | (journal, generated, _) <- outcomes]
       cached = if or [refresh | (_, _, refresh) <- outcomes] then Nothing else Just inventory

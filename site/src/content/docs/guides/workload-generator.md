@@ -76,7 +76,7 @@ journal and run reports afterwards.
 
 For the timestamp-only check, finish a full import and time
 `hledger-flow import --new-files-only`. To benchmark dependency tracking,
-time the first `hledger-flow import --incremental=rerun-scripts` separately. It
+time the first `hledger-flow import --incremental` separately. It
 creates the records. Run the same command again to measure reuse, then
 add one statement and measure again. Check the regenerated statement
 counts as well as the elapsed time.

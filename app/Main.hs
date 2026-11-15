@@ -16,7 +16,8 @@ import Options.Applicative
     ( auto,
       eitherReader,
       argument,
-      customExecParser,
+      execParserPure,
+      handleParseResult,
       headerDoc,
       helper,
       hsubparser,
@@ -25,6 +26,7 @@ import Options.Applicative
       progDesc,
       footerDoc,
       hidden,
+      internal,
       optional,
       Alternative(many, (<|>)),
       Parser,
@@ -59,6 +61,7 @@ import Hledger.Flow.Import.CSVImport ( importCSVs )
 import qualified Data.Text.IO as T
 import Control.Exception (SomeAsyncException (..), SomeException, catch, displayException, fromException, throwIO)
 import Hledger.Flow.PathHelpers (PathException (..), resolveExistingDir)
+import System.Environment (getArgs)
 import System.Exit (ExitCode (..), exitWith)
 import System.IO (hPutStrLn, hSetEncoding, stderr, stdout, utf8)
 import System.IO.Error (ioeGetErrorString, isUserError)
@@ -126,8 +129,9 @@ fatalMessage e
 runCommand :: IO ()
 runCommand = do
   let description = pretty ("An hledger workflow focusing on automated statement import and classification:\n" <> Text.unpack siteURL)
-  cmd <- customExecParser (prefs mempty)
-    (info (helper <*> baseCommandParser) (headerDoc (Just description) <> footerDoc (Just topExamples)))
+      cli = info (helper <*> baseCommandParser) (headerDoc (Just description) <> footerDoc (Just topExamples))
+  args <- getArgs
+  cmd <- handleParseResult (execParserPure (prefs mempty) cli (joinIncrementalMode args))
   case cmd of
     Version -> do
       sysInfo <- systemInfo
@@ -287,22 +291,41 @@ verboseParser = MainParams
   <*> switch (long "sequential" <> hidden <> help "Disable parallel processing")
 
 subcommandParserImport :: Parser ImportParams
-subcommandParserImport = ImportParams
-  <$> optional (argument str (metavar "DIR" <> help "The directory to import. Use the base directory for a full import or a sub-directory for a partial import. Defaults to the current directory."))
+subcommandParserImport = ImportParams <$> optional (argument str (metavar "DIR" <> help "The directory to import. Use the base directory for a full import or a sub-directory for a partial import. Defaults to the current directory."))
   <*> optional (option startYearReader (long "start-year" <> metavar "YEAR" <> help "Import only from the specified year and onwards, ignoring previous years. By default all available years are imported. Use a 4-digit year or 'current' for the current year"))
-  <*> (flag' RT.TimestampOnly (long "new-files-only" <> help "Skip regenerating output files that are at least as new as their source. This applies to preprocessed files and hledger journal files.")
-       <|> option (eitherReader readPolicy) (long "incremental" <> metavar "rerun-scripts|trust-scripts" <> helpDoc (Just incrementalHelp))
-       <|> pure RT.Full)
-  where
-    incrementalHelp = vsep (map (fillSep . map pretty . words)
-      [ "Reuse journals whose inputs are unchanged.",
-        "rerun-scripts always runs your preprocess and construct scripts.",
-        "trust-scripts can skip a script when its code, input and saved output are unchanged. If it reads other files that may change, use rerun-scripts."
-      ])
-    readPolicy "rerun-scripts" = Right RT.RerunScripts
-    readPolicy "trust-scripts" = Right RT.TrustScripts
-    readPolicy _ = Left "expected rerun-scripts or trust-scripts"
+  <*> filePolicyParser
 
+incrementalModes :: [(String, RT.ImportPolicy)]
+incrementalModes = [("run-scripts", RT.RunScripts), ("skip-unchanged-scripts", RT.SkipUnchangedScripts)]
+
+-- The flag and option parsers handle the bare and =MODE forms. Join only a
+-- recognized adjacent mode, leaving positional paths and other option values alone.
+joinIncrementalMode :: [String] -> [String]
+joinIncrementalMode ("--incremental" : mode : rest)
+  | Just _ <- lookup mode incrementalModes = ("--incremental=" ++ mode) : joinIncrementalMode rest
+joinIncrementalMode args@("--" : _) = args
+joinIncrementalMode (opt : value : rest)
+  | opt `elem` ["--hledger-path", "--hledger-conf", "--batch-size", "--start-year", "--rules-template"]
+    || isHledgerShortOption opt = opt : value : joinIncrementalMode rest
+  where
+    isHledgerShortOption ('-' : flags) = dropWhile (== 'v') flags == "H"
+    isHledgerShortOption _ = False
+joinIncrementalMode (arg : rest) = arg : joinIncrementalMode rest
+joinIncrementalMode [] = []
+
+filePolicyParser :: Parser RT.ImportPolicy
+filePolicyParser =
+  flag' RT.TimestampOnly (long "new-files-only" <> help "Skip regenerating output files that are at least as new as their source. This applies to preprocessed files and hledger journal files.")
+  <|> flag' RT.RunScripts (long "incremental" <> internal)
+  <|> option (eitherReader readPolicy) (long "incremental" <> metavar "[MODE]" <> helpDoc (Just incrementalHelp))
+  <|> pure RT.Full
+  where
+    readPolicy value = maybe (Left "expected run-scripts or skip-unchanged-scripts") Right (lookup value incrementalModes)
+    incrementalHelp = vsep (map (fillSep . map pretty . words)
+      [ "Reuse journals whose inputs are unchanged. Both modes work the same for accounts without scripts.",
+        "run-scripts (default) runs preprocess and construct scripts every time. After preprocessing, reuse the journal if its inputs still match.",
+        "skip-unchanged-scripts can skip a script when its code, input and saved output match. Edits to other files the script reads, such as a lookup table, can be missed."
+      ])
 
 subcommandParserReport :: Parser ReportParams
 subcommandParserReport = ReportParams

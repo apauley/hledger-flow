@@ -166,7 +166,7 @@ for flag in '' '--new-files-only'; do
     if hledger-flow import $flag > failure.log 2>&1; then exit 1; fi
     grep -F "$inbox/march.csv" failure.log > /dev/null
     grep -F "$cached" failure.log > /dev/null
-    grep -F 'Restore the preprocess hook' failure.log > /dev/null
+    grep -F 'Restore the preprocess script' failure.log > /dev/null
     cmp original.journal "$journal"
 done
 rm "$cached"

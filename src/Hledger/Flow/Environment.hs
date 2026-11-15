@@ -75,8 +75,8 @@ importSettings homes info o =
     files = case importPolicy o of
       Full -> setting "Files" "regenerate all" "--new-files-only"
       TimestampOnly -> setting "Files" "only new or changed" "--new-files-only"
-      RerunScripts -> setting "Files" "incremental (rerun-scripts)" "--incremental"
-      TrustScripts -> setting "Files" "incremental (trust-scripts)" "--incremental"
+      RunScripts -> setting "Files" "incremental (run-scripts)" "--incremental"
+      SkipUnchangedScripts -> setting "Files" "incremental (skip-unchanged-scripts)" "--incremental"
     runFrom = case dropTrailingPathSeparator (toFilePath (importRunDir o)) of
       "." -> ". (whole ledger)"
       dir -> T.pack dir

@@ -12,8 +12,8 @@ import time
 import unittest
 
 
-RERUN_SCRIPTS = "--incremental=rerun-scripts"
-TRUSTED = "--incremental=trust-scripts"
+RUN_SCRIPTS = "--incremental=run-scripts"
+SKIP_UNCHANGED = "--incremental=skip-unchanged-scripts"
 NOTICE = "Incremental reuse unavailable"
 LINK = "https://hledger-flow.github.io/go/incremental-import-fallback/"
 FIELDS = "fields date, description, amount\naccount1 assets:bank:checking\n"
@@ -122,7 +122,7 @@ class Ledger(unittest.TestCase):
     def records(self):
         return sorted(p for p in (self.cache / "import").rglob("*") if p.is_file())
 
-    def assert_warm(self, mode=RERUN_SCRIPTS):
+    def assert_warm(self, mode=RUN_SCRIPTS):
         records = self.records()
         self.assertTrue(records)
         for record in records:
@@ -138,16 +138,34 @@ class Ledger(unittest.TestCase):
 
 class Modes(Ledger):
     def test_flags_and_environment(self):
-        for flags in ([RERUN_SCRIPTS, TRUSTED], [TRUSTED, RERUN_SCRIPTS], ["--incremental"],
-                      ["--incremental=quick"], ["--new-files-only", RERUN_SCRIPTS],
-                      [TRUSTED, "--new-files-only"]):
+        for flags in ([RUN_SCRIPTS, SKIP_UNCHANGED], [SKIP_UNCHANGED, RUN_SCRIPTS], ["--incremental", "--incremental"],
+                      ["--incremental=quick"], ["--incremental=checked"], ["--incremental=rerun-scripts"],
+                      ["--incremental=trust-scripts"], ["--incremental="], ["--incremental", "--new-files-only"], ["--new-files-only", RUN_SCRIPTS],
+                      [SKIP_UNCHANGED, "--new-files-only"]):
             self.flow(*flags, ok=False)
         for flags, display in (([], "regenerate all"), (["--new-files-only"], "only new or changed"),
-                               ([RERUN_SCRIPTS], "incremental (rerun-scripts)"), ([TRUSTED], "incremental (trust-scripts)")):
+                               (["--incremental"], "incremental (run-scripts)"),
+                               (["--incremental", "run-scripts"], "incremental (run-scripts)"),
+                               (["--incremental", "skip-unchanged-scripts"], "incremental (skip-unchanged-scripts)"),
+                               ([RUN_SCRIPTS], "incremental (run-scripts)"), ([SKIP_UNCHANGED], "incremental (skip-unchanged-scripts)")):
             result = self.flow(*flags, options=["--show-options"])
             self.assertRegex(result.stdout + result.stderr, r"Files[^\n]*" + re.escape(display))
             if flags in ([], ["--new-files-only"]):
                 self.assertFalse(self.cache.exists())
+
+    def test_bare_option_preserves_directory_scope(self):
+        other = self.account.with_name("skip-unchanged-scripts")
+        write(other / "1-in/2025/other.csv", ROW)
+        for flags in (("--incremental", str(self.account)),
+                      (str(self.account), "--incremental"),
+                      ("--incremental", "--start-year", "2025", str(self.account)),
+                      ("--incremental", "skip-unchanged-scripts", str(self.account))):
+            result = self.flow(*flags)
+            self.assertIn("checking", result.stdout)
+            self.assertFalse((other / "3-journal/2025/other.journal").exists())
+        result = self.flow("--incremental", "--", other.name, cwd=other.parent, options=["--show-options"])
+        self.assertIn("incremental (run-scripts)", result.stdout + result.stderr)
+        self.assertTrue((other / "3-journal/2025/other.journal").is_file())
 
 
 class Rules(Ledger):
@@ -156,63 +174,63 @@ class Rules(Ledger):
         second = self.account.with_name("savings")
         write(prior, ROW)
         write(second / "1-in/2025/january.csv", ROW)
-        self.imports(3, RERUN_SCRIPTS)
+        self.imports(3, RUN_SCRIPTS)
         self.assert_warm()
         for source in (self.csv, self.category):
             old_timestamp(source)
-        self.imports(0, RERUN_SCRIPTS)
+        self.imports(0, RUN_SCRIPTS)
         write(self.csv, ROW.replace("Coffee", "Coffee corrected"))
         old_timestamp(self.csv)
-        self.imports(1, RERUN_SCRIPTS)
+        self.imports(1, RUN_SCRIPTS)
         write(self.journal, "changed on disk\n")
-        self.imports(1, RERUN_SCRIPTS)
+        self.imports(1, RUN_SCRIPTS)
         self.journal.unlink()
-        self.imports(1, RERUN_SCRIPTS)
+        self.imports(1, RUN_SCRIPTS)
         additional = self.csv.with_name("april.csv")
         write(additional, ROW)
-        self.imports(1, RERUN_SCRIPTS)
+        self.imports(1, RUN_SCRIPTS)
 
         write(self.category, "account2 expenses:food\n")
-        self.imports(2, RERUN_SCRIPTS, "--start-year=2025", cwd=self.account)
+        self.imports(2, RUN_SCRIPTS, "--start-year=2025", cwd=self.account)
         self.assertIn(b"expenses:food", self.journal.read_bytes())
-        self.imports(2, RERUN_SCRIPTS)
+        self.imports(2, RUN_SCRIPTS)
         override = self.account / "bank-checking.rules"
         write(override, FIELDS + "account2 expenses:travel\n")
         old_timestamp(override)
-        self.imports(3, RERUN_SCRIPTS)
+        self.imports(3, RUN_SCRIPTS)
         override.unlink()
-        self.imports(3, RERUN_SCRIPTS)
+        self.imports(3, RUN_SCRIPTS)
 
         leaf = self.category.with_name("leaf.rules")
         write(leaf, "")
         write(self.category, "include leaf.rules\n")
-        self.imports(4, RERUN_SCRIPTS)
+        self.imports(4, RUN_SCRIPTS)
         write(leaf, "account2 expenses:lunch\n")
-        self.imports(4, RERUN_SCRIPTS)
+        self.imports(4, RUN_SCRIPTS)
         write(self.category.with_name("other.rules"), "account2 expenses:other\n")
         write(self.category, "include other.rules\n")
-        self.imports(4, RERUN_SCRIPTS)
-        self.full_parity(RERUN_SCRIPTS)
+        self.imports(4, RUN_SCRIPTS)
+        self.full_parity(RUN_SCRIPTS)
 
         additional.unlink()
-        self.imports(0, RERUN_SCRIPTS)
+        self.imports(0, RUN_SCRIPTS)
         self.assertFalse(self.journal.with_name("april.journal").exists())
         write(additional, ROW)
-        self.imports(1, RERUN_SCRIPTS)
+        self.imports(1, RUN_SCRIPTS)
         self.assert_warm()
 
     def test_directives_and_fallback_scope(self):
         directives = self.base / "directives.journal"
         write(directives, "")
-        self.imports(1, RERUN_SCRIPTS)
+        self.imports(1, RUN_SCRIPTS)
         for line in ("account assets:bank:checking  ; type: C", "commodity 1,000.00000000 BTC  ; lots:",
                      "commodity €1,000.00", "P 2000-01-01 EUR €1"):
             write(directives, directives.read_text(encoding="utf-8") + line + "\n")
-            self.imports(1, RERUN_SCRIPTS)
-            self.imports(0, RERUN_SCRIPTS)
+            self.imports(1, RUN_SCRIPTS)
+            self.imports(0, RUN_SCRIPTS)
         write(self.base / "prices-extra.journal", "")
         write(directives, "include prices-*.journal\n")
-        for mode in (RERUN_SCRIPTS, TRUSTED):
+        for mode in (RUN_SCRIPTS, SKIP_UNCHANGED):
             self.imports(1, mode, fallback=True)
             result = self.flow(mode, verbose=False)
             self.assertIn("all selected statements", result.stderr)
@@ -223,35 +241,35 @@ class Rules(Ledger):
         write(safe / "bank-savings.rules", FIELDS + "account2 expenses:test\n")
         outside = self.tmp / "external.rules"
         write(outside, "account2 expenses:external\n")
-        self.imports(2, RERUN_SCRIPTS)
+        self.imports(2, RUN_SCRIPTS)
         for include in (outside.as_posix(), "../../external.rules"):
             write(self.rules, FIELDS + "include " + include + "\n")
-            result = self.imports(1, RERUN_SCRIPTS, fallback=True)
+            result = self.imports(1, RUN_SCRIPTS, fallback=True)
             self.assertIn("1 of 2 selected statements", result.stderr)
-            self.full_parity(RERUN_SCRIPTS)
+            self.full_parity(RUN_SCRIPTS)
 
 
     def test_include_whitespace_and_missing_file(self):
         safe = self.account.with_name("savings")
         write(safe / "1-in/2025/march.csv", ROW)
         write(safe / "bank-savings.rules", FIELDS + "account2 expenses:savings\n")
-        self.imports(2, RERUN_SCRIPTS)
+        self.imports(2, RUN_SCRIPTS)
         write(self.rules, FIELDS + "include nested/categories.rules   \n")
         if os.name != "nt":
             write(self.category.with_name("categories.rules   "), "account2 expenses:with-spaces\n")
         full = self.command("hledger-flow", "import")
-        self.full_parity(RERUN_SCRIPTS, ok=full.returncode == 0)
+        self.full_parity(RUN_SCRIPTS, ok=full.returncode == 0)
         if self.release == "1.99.6":
             self.assertEqual(full.returncode, 0, full.stderr)
             self.assert_warm()
         elif self.release != "1.52.4":
             self.assertEqual(full.returncode, 0, full.stderr)
-            for mode in (RERUN_SCRIPTS, TRUSTED):
+            for mode in (RUN_SCRIPTS, SKIP_UNCHANGED):
                 result = self.imports(1, mode, fallback=True)
                 self.assertIn("1 of 2 selected statements", result.stderr)
                 self.full_parity(mode)
         write(self.rules, FIELDS + "include missing.rules\n")
-        incremental, full = self.full_parity(RERUN_SCRIPTS, ok=False)
+        incremental, full = self.full_parity(RUN_SCRIPTS, ok=False)
         for result in (incremental, full):
             self.assertIn("missing.rules", result.stderr)
 
@@ -263,9 +281,9 @@ class Rules(Ledger):
             # native text reader and the newer reader can select different files.
             write(leaf.with_name("leaf.rules\r"), "account2 expenses:return\n")
         self.category.write_bytes(b"include leaf.rules\r\n")
-        self.full_parity(RERUN_SCRIPTS)
+        self.full_parity(RUN_SCRIPTS)
         if self.release != "1.99.6":
-            self.imports(1, RERUN_SCRIPTS, fallback=True)
+            self.imports(1, RUN_SCRIPTS, fallback=True)
             self.assertEqual(self.records(), [])
         else:
             self.assertIn("expenses:normal", self.journal.read_text())
@@ -273,13 +291,13 @@ class Rules(Ledger):
 
         write(self.category, "include leaf.rules\n")
         write(leaf, "include categories.rules\n")
-        for mode in (RERUN_SCRIPTS, TRUSTED):
+        for mode in (RUN_SCRIPTS, SKIP_UNCHANGED):
             failure = self.command("hledger-flow", "import", mode, timeout=10)
             self.assertNotEqual(failure.returncode, 0)
             self.assertRegex(failure.stderr.lower(), "cycl(?:e|ic)")
             self.assertIn("categories.rules", failure.stderr)
         write(leaf, "account2 expenses:repaired\n")
-        self.imports(1, RERUN_SCRIPTS)
+        self.imports(1, RUN_SCRIPTS)
         self.assert_warm()
 
     def test_fallback_aggregates_different_inputs_once(self):
@@ -290,7 +308,7 @@ class Rules(Ledger):
         outside = self.tmp / "external.rules"
         write(outside, "account2 expenses:external\n")
         write(second / "bank-savings.rules", FIELDS + "include " + outside.as_posix() + "\n")
-        for mode in (RERUN_SCRIPTS, TRUSTED):
+        for mode in (RUN_SCRIPTS, SKIP_UNCHANGED):
             result = self.flow(mode, verbose=False)
             self.assertEqual(result.stderr.count(LINK), 1, result.stderr)
             self.assertIn("all selected statements", result.stderr)
@@ -304,7 +322,7 @@ class Rules(Ledger):
 class Cache(Ledger):
     def test_failures_retries_and_git_ignore(self):
         self.command("git", "init", "-q", check=True)
-        self.imports(1, RERUN_SCRIPTS)
+        self.imports(1, RUN_SCRIPTS)
         record, = self.records()
         ignore = self.cache / ".gitignore"
         self.assertEqual(ignore.read_bytes(), b"*\n")
@@ -315,21 +333,21 @@ class Cache(Ledger):
         self.assertIn("keep", self.command("git", "status", "--porcelain", "-uall").stdout)
         write(ignore, "custom rule\n")
         write(record, "partial")
-        self.imports(1, TRUSTED)
+        self.imports(1, SKIP_UNCHANGED)
         self.assertEqual(ignore.read_bytes(), b"custom rule\n")
         before = record.read_bytes(), self.journal.read_bytes()
         write(self.csv, "invalid date,New statement,-7\n")
-        self.flow(RERUN_SCRIPTS, ok=False)
+        self.flow(RUN_SCRIPTS, ok=False)
         self.assertEqual((record.read_bytes(), self.journal.read_bytes()), before)
         write(self.csv, ROW.replace("-12.34", "-15.67"))
-        self.imports(1, RERUN_SCRIPTS)
+        self.imports(1, RUN_SCRIPTS)
         record.unlink()
         record.mkdir()  # Force a record publication failure even as root.
-        result = self.imports(1, RERUN_SCRIPTS)
+        result = self.imports(1, RUN_SCRIPTS)
         self.assertIn("record", result.stderr.lower())
         self.assertIn("15.67", self.journal.read_text())
         record.rmdir()
-        self.imports(1, RERUN_SCRIPTS)
+        self.imports(1, RUN_SCRIPTS)
         self.assert_warm()
 
 
@@ -373,15 +391,15 @@ class Config(Ledger):
         self.full_parity(mode, ok=accepts_layout)
 
     def test_rules_config_discovery(self):
-        self.config_parity(RERUN_SCRIPTS)
+        self.config_parity(RUN_SCRIPTS)
 
     def test_construct_config_discovery(self):
         self.hook("construct", f"print({CONSTRUCT!r})")
-        self.config_parity(TRUSTED)
+        self.config_parity(SKIP_UNCHANGED)
 
     def test_rebuilds_and_fallbacks(self):
         config = self.base / "hledger.conf"
-        for mode in (RERUN_SCRIPTS, TRUSTED):
+        for mode in (RUN_SCRIPTS, SKIP_UNCHANGED):
             write(config, "[balance]\n--period=thismonth\n")
             self.imports(1, mode)
             self.imports(0, mode)
@@ -409,8 +427,8 @@ class Config(Ledger):
         if self.release == "1.99.6":
             self.assertTrue(accepts_alias)
         if accepts_alias:
-            self.imports(1, RERUN_SCRIPTS, fallback=True)
-        self.full_parity(RERUN_SCRIPTS, ok=accepts_alias)
+            self.imports(1, RUN_SCRIPTS, fallback=True)
+        self.full_parity(RUN_SCRIPTS, ok=accepts_alias)
 
 
 class Diagnostics(Ledger):
@@ -427,7 +445,7 @@ class Diagnostics(Ledger):
         # Match its reported absolute path rather than constructing one.
         expected = location[1]
         for verbose in (False, True):
-            result = self.flow(RERUN_SCRIPTS, verbose=verbose, ok=False)
+            result = self.flow(RUN_SCRIPTS, verbose=verbose, ok=False)
             self.assertEqual(result.returncode, ordinary.returncode)
             output = result.stdout + result.stderr
             self.assertIn(expected, output)
@@ -449,9 +467,9 @@ class Diagnostics(Ledger):
         marker = ".hledger-flow/cache/snapshots/r00000001/t00000002/import/nested/x.rules"
         write(self.csv, ROW.replace("Coffee", marker))
         write(leaf, "account2 expenses:food\n")
-        self.imports(1, RERUN_SCRIPTS)
+        self.imports(1, RUN_SCRIPTS)
         self.assertIn(marker, self.journal.read_text())
-        self.full_parity(RERUN_SCRIPTS)
+        self.full_parity(RUN_SCRIPTS)
 
     def test_existing_output_permissions(self):
         self.imports(1)
@@ -460,7 +478,7 @@ class Diagnostics(Ledger):
         write(self.csv, ROW.replace("-12.34", "-7"))
         full = self.command("hledger-flow", "import")
         expected = self.journal.read_bytes()
-        inc = self.command("hledger-flow", "import", RERUN_SCRIPTS)
+        inc = self.command("hledger-flow", "import", RUN_SCRIPTS)
         self.assertEqual(inc.returncode, full.returncode, inc.stderr)
         self.assertEqual(self.journal.read_bytes(), expected)
         if os.name != "nt":
@@ -477,13 +495,14 @@ class Hooks(Ledger):
         def count():
             return len((self.base / "pre-runs").read_text().splitlines())
         write(self.csv, "download one\n" + ROW)
-        self.imports(1, RERUN_SCRIPTS)
-        self.imports(0, TRUSTED)
+        self.imports(1, "--incremental")
+        skipped = self.imports(0, SKIP_UNCHANGED)
+        self.assertIn("Skipped unchanged preprocess script.", skipped.stdout + skipped.stderr)
         self.assertEqual(count(), 1)
         for file in (self.saved, self.journal):
             old_timestamp(file)
         write(self.csv, "download two\n" + ROW)
-        self.imports(0, RERUN_SCRIPTS)
+        self.imports(0, RUN_SCRIPTS)
         self.assertEqual(count(), 2)
         for file in (self.saved, self.journal):
             self.assertEqual(file.stat().st_mtime, 946684800)
@@ -491,26 +510,26 @@ class Hooks(Ledger):
         self.imports(0, "--new-files-only")
         self.assertEqual(count(), 3)
         write(self.category, "account2 expenses:travel\n")
-        self.imports(1, TRUSTED)
+        self.imports(1, SKIP_UNCHANGED)
         self.assertEqual(count(), 3)
         write(self.saved, "altered\n")
-        self.imports(0, TRUSTED)
+        self.imports(0, SKIP_UNCHANGED)
         self.saved.unlink()
-        self.imports(0, TRUSTED)
+        self.imports(0, SKIP_UNCHANGED)
         self.assertEqual(count(), 5)
-        self.imports(0, TRUSTED, cwd=self.account)
+        self.imports(0, SKIP_UNCHANGED, cwd=self.account)
         self.assertTrue((self.account / "pre-runs").is_file())
         old_timestamp(self.csv)
-        self.imports(0, TRUSTED, cwd=self.account)
+        self.imports(0, SKIP_UNCHANGED, cwd=self.account)
         self.assertEqual((self.account / "pre-runs").read_text().splitlines(), ["run"])
         pre.unlink()
-        self.imports(1, TRUSTED)
+        self.imports(1, SKIP_UNCHANGED)
         write(self.csv, ROW)
         old_timestamp(self.saved)
-        failure = self.flow(TRUSTED, ok=False)
-        self.assertIn("Restore the preprocess hook", failure.stderr)
+        failure = self.flow(SKIP_UNCHANGED, ok=False)
+        self.assertIn("Restore the preprocess script", failure.stderr)
         self.saved.unlink()
-        self.imports(1, TRUSTED)
+        self.imports(1, SKIP_UNCHANGED)
 
     def test_construct_hidden_include_and_cwd(self):
         extra = self.base / "extra.journal"
@@ -520,36 +539,37 @@ class Hooks(Ledger):
                 counter.write("run\\n")
             print("include extra.journal")
         """)
-        self.imports(1, RERUN_SCRIPTS)
-        self.imports(0, TRUSTED)
+        self.imports(1, RUN_SCRIPTS)
+        skipped = self.imports(0, SKIP_UNCHANGED)
+        self.assertIn("Skipped unchanged construct script.", skipped.stdout + skipped.stderr)
         before = self.journal.read_bytes()
         write(extra, CONSTRUCT.replace("Coffee", "Lunch"))
-        self.imports(0, TRUSTED)
+        self.imports(0, SKIP_UNCHANGED)
         self.assertEqual(self.journal.read_bytes(), before)
-        self.imports(1, RERUN_SCRIPTS)
+        self.imports(1, "--incremental")
         self.assertIn("Lunch", self.journal.read_text())
-        self.imports(0, TRUSTED)
+        self.imports(0, SKIP_UNCHANGED)
         write(self.account / "extra.journal", CONSTRUCT.replace("Coffee", "Account directory"))
-        self.imports(1, TRUSTED, cwd=self.account)
+        self.imports(1, SKIP_UNCHANGED, cwd=self.account)
         self.assertIn("Account directory", self.journal.read_text())
-        self.imports(0, TRUSTED, cwd=self.account)
+        self.imports(0, SKIP_UNCHANGED, cwd=self.account)
         self.assertEqual((self.account / "construct-runs").read_text().splitlines(), ["run"])
-        self.full_parity(TRUSTED)
+        self.full_parity(SKIP_UNCHANGED)
 
 
     @unittest.skipIf(os.name == "nt", "POSIX executable bit")
-    def test_execute_permission_required_on_every_trusted_hit(self):
+    def test_execute_permission_required_before_skipping_script(self):
         for name, body in (("preprocess", "Path(sys.argv[2]).write_bytes(source.read_bytes())"),
                            ("construct", f"print({CONSTRUCT!r})")):
             hook = self.hook(name, body)
-            self.imports(1, TRUSTED)
-            self.imports(0, TRUSTED)
+            self.imports(1, SKIP_UNCHANGED)
+            self.imports(0, SKIP_UNCHANGED)
             before = self.journal.read_bytes()
             hook.chmod(0o644)
-            self.full_parity(TRUSTED, ok=False)
+            self.full_parity(SKIP_UNCHANGED, ok=False)
             self.assertEqual(self.journal.read_bytes(), before)
             hook.chmod(0o755)
-            self.imports(0, TRUSTED)
+            self.imports(0, SKIP_UNCHANGED)
 
     def test_hook_edits_rule_and_changes_known_input(self):
         self.hook("preprocess", """
@@ -561,16 +581,16 @@ class Hooks(Ledger):
                 os.utime(source, (946684800, 946684800))
         """)
         write(self.base / "category", "lunch")
-        self.imports(1, RERUN_SCRIPTS)
+        self.imports(1, RUN_SCRIPTS)
         write(self.base / "category", "travel")
-        self.imports(1, RERUN_SCRIPTS)
+        self.imports(1, RUN_SCRIPTS)
         self.assertIn("expenses:travel", self.journal.read_text())
         write(self.base / "touch-source", "")
         write(self.csv, ROW.replace("Coffee", "Tea"))
-        self.imports(1, TRUSTED, fallback=True)
-        result = self.imports(0, TRUSTED)
+        self.imports(1, SKIP_UNCHANGED, fallback=True)
+        result = self.imports(0, SKIP_UNCHANGED)
         self.assertIn("to preprocess ", result.stderr)
-        result = self.imports(0, TRUSTED)
+        result = self.imports(0, SKIP_UNCHANGED)
         self.assertNotIn("to preprocess ", result.stderr)
 
         self.hook("construct", """
@@ -581,9 +601,9 @@ class Hooks(Ledger):
             print("2025-03-01 Coffee\\n    expenses:lunch  4\\n    assets:cash")
         """)
         write(self.base / "touch-construct-input", "")
-        self.imports(1, TRUSTED, fallback=True)
-        self.imports(1, TRUSTED)
-        self.imports(0, TRUSTED)
+        self.imports(1, SKIP_UNCHANGED, fallback=True)
+        self.imports(1, SKIP_UNCHANGED)
+        self.imports(0, SKIP_UNCHANGED)
 
 
 @unittest.skipUnless(os.name == "nt", "native Windows snapshot path limit")
@@ -603,15 +623,15 @@ class WindowsPaths(Ledger):
             self.assertGreaterEqual(pad, 0)
             source = self.csv.with_name("x" * pad + suffix)
             write(source, ROW)
-            result = self.imports(1, RERUN_SCRIPTS, fallback=units == 260)
+            result = self.imports(1, RUN_SCRIPTS, fallback=units == 260)
             self.assertEqual((self.base / "hook-runs").read_text(), "x")
             if units == 259:
-                self.imports(0, TRUSTED)
+                self.imports(0, SKIP_UNCHANGED)
             else:
                 self.assertIn("overlong Windows snapshot path", result.stderr)
-                self.imports(1, TRUSTED, fallback=True)
+                self.imports(1, SKIP_UNCHANGED, fallback=True)
             self.assertEqual((self.base / "hook-runs").read_text(), "x")
-            self.full_parity(RERUN_SCRIPTS)
+            self.full_parity(RUN_SCRIPTS)
             source.unlink()
             (self.base / "hook-runs").unlink()
 
@@ -635,7 +655,7 @@ class Concurrent(Ledger):
 
         def start(gate):
             marker = str(self.tmp / gate)
-            process = subprocess.Popen(["hledger-flow", "import", TRUSTED],
+            process = subprocess.Popen(["hledger-flow", "import", SKIP_UNCHANGED],
                                        cwd=self.base, env=dict(self.env, STATEMENT_TEST_GATE=marker),
                                        stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             def finish():
@@ -662,7 +682,7 @@ class Concurrent(Ledger):
         abandoned.wait(timeout=10)
         self.assertEqual(self.records(), [])
         # Its still-running hook and converter must not retain its lifetime lock.
-        self.imports(1, TRUSTED)
+        self.imports(1, SKIP_UNCHANGED)
         self.assertFalse(first.exists())
         (self.tmp / "first.release").touch()
         abandoned.communicate(timeout=20)
@@ -673,8 +693,8 @@ class Concurrent(Ledger):
         self.assertEqual(live.returncode, 0, output)
         self.assertFalse(live_dir.exists())
         self.assertEqual(self.journal.read_bytes(), expected)
-        self.assert_warm(TRUSTED)
-        self.full_parity(TRUSTED)
+        self.assert_warm(SKIP_UNCHANGED)
+        self.full_parity(SKIP_UNCHANGED)
 
 
 if __name__ == "__main__":
