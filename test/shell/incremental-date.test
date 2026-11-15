@@ -8,9 +8,9 @@ for year in 2020 2040; do
   hledger --no-conf print --today="$year-02-01" --explicit -f "$inbox/march.csv" --rules-file import/bogart.rules > expected
   grep -q '^1970-05-10 Spring fee' expected
 done
-flow import --incremental=checked
+flow import --incremental=rerun-scripts
 cmp "$journal" expected
-flow import --incremental=checked
+flow import --incremental=rerun-scripts
 grep -q '1 already up to date' flow.log
 $ sh -eu
 
@@ -23,14 +23,14 @@ case "$(uname -s)" in MINGW*|MSYS*) exit 0 ;; esac
 printf '%s\n' '2026-05-10T01:00:00+0000,Overnight fee,-5' > "$inbox/march.csv"
 printf '%s\n' 'date-format %Y-%m-%dT%H:%M:%S%z' >> import/bogart.rules
 export TZ=UTC0
-flow import --incremental=checked
+flow import --incremental=rerun-scripts
 grep -q '^2026-05-10 Overnight fee' "$journal"
 export TZ=EST5
-flow import --incremental=checked
+flow import --incremental=rerun-scripts
 grep -q '^2026-05-09 Overnight fee' "$journal"
 cp "$journal" incremental.journal
 flow import
 cmp incremental.journal "$journal"
-flow import --incremental=checked
+flow import --incremental=rerun-scripts
 grep -q '1 already up to date' flow.log
 $ sh -eu

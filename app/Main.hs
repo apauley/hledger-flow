@@ -11,7 +11,7 @@ import Path ( reldir )
 import Prelude hiding (putStrLn)
 
 import qualified Options.Applicative as Opts (command)
-import Options.Applicative.Help.Pretty (Doc, pretty, vsep)
+import Options.Applicative.Help.Pretty (Doc, fillSep, pretty, vsep)
 import Options.Applicative
     ( auto,
       eitherReader,
@@ -30,6 +30,7 @@ import Options.Applicative
       Parser,
       flag',
       help,
+      helpDoc,
       long,
       metavar,
       option,
@@ -290,12 +291,17 @@ subcommandParserImport = ImportParams
   <$> optional (argument str (metavar "DIR" <> help "The directory to import. Use the base directory for a full import or a sub-directory for a partial import. Defaults to the current directory."))
   <*> optional (option startYearReader (long "start-year" <> metavar "YEAR" <> help "Import only from the specified year and onwards, ignoring previous years. By default all available years are imported. Use a 4-digit year or 'current' for the current year"))
   <*> (flag' RT.TimestampOnly (long "new-files-only" <> help "Skip regenerating output files that are at least as new as their source. This applies to preprocessed files and hledger journal files.")
-       <|> option (eitherReader readPolicy) (long "incremental" <> metavar "checked|trust-scripts" <> help "Reuse journals with unchanged dependencies. checked runs hooks; trust-scripts also allows skipping unchanged hooks.")
+       <|> option (eitherReader readPolicy) (long "incremental" <> metavar "rerun-scripts|trust-scripts" <> helpDoc (Just incrementalHelp))
        <|> pure RT.Full)
   where
-    readPolicy "checked" = Right RT.Checked
+    incrementalHelp = vsep (map (fillSep . map pretty . words)
+      [ "Reuse journals whose inputs are unchanged.",
+        "rerun-scripts always runs your preprocess and construct scripts.",
+        "trust-scripts can skip a script when its code, input and saved output are unchanged. If it reads other files that may change, use rerun-scripts."
+      ])
+    readPolicy "rerun-scripts" = Right RT.RerunScripts
     readPolicy "trust-scripts" = Right RT.TrustScripts
-    readPolicy _ = Left "expected checked or trust-scripts"
+    readPolicy _ = Left "expected rerun-scripts or trust-scripts"
 
 
 subcommandParserReport :: Parser ReportParams

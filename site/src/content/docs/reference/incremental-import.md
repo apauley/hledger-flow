@@ -3,7 +3,7 @@ title: Incremental import
 description: Reuse journals when the statement and its conversion inputs have the same content.
 ---
 
-Run `hledger-flow import --incremental=checked` to import new statements and rebuild journals whose inputs have changed. The first run builds a record for each eligible statement. Subsequent runs can reuse those journals.
+Run `hledger-flow import --incremental=rerun-scripts` to import new statements and rebuild journals whose inputs have changed. The first run builds a record for each eligible statement. Subsequent runs can reuse those journals.
 
 Suppose you have twelve monthly statements. Adding April's download for the next year imports one statement. Correcting March rebuilds March, even if the bank preserved the download's timestamp. Touching March's file or downloading the same bytes again permits reuse. Editing a category in an included rules file rebuilds every selected statement that uses it. Adding or deleting an account-specific rules file can also change which rules apply.
 
@@ -13,12 +13,14 @@ Suppose you have twelve monthly statements. Adding April's download for the next
 | --- | --- |
 | `hledger-flow import` | Regenerate all selected statements. |
 | `hledger-flow import --new-files-only` | Compare timestamps at each stage. [Timestamp-only imports](/reference/input-files/#timestamp-only-imports) describes recovery and limitations. |
-| `hledger-flow import --incremental=checked` | Check content and dependencies. Always run selected preprocess and construct hooks. |
-| `hledger-flow import --incremental=trust-scripts` | Also permit skipping hooks when their known inputs and saved outputs match. |
+| `hledger-flow import --incremental=rerun-scripts` | Always run each selected statement’s `preprocess` and `construct` scripts, even when the script and statement are unchanged. |
+| `hledger-flow import --incremental=trust-scripts` | Skip a script when its code, known inputs and saved output still match the previous run. |
 
-Choose one mode per import. The usual directory and `--start-year` selection applies. Under `checked`, if a preprocess hook removes a changing download header and leaves the same CSV bytes, the existing CSV keeps its timestamp. The rules-based journal can then be reused. A construct hook always regenerates its journal in this mode. A later timestamp-only import can rebuild once if the original is newer than the saved CSV.
+For example, if a `preprocess` script reads a separate merchant lookup table, choose `rerun-scripts` so edits to the table take effect. If the script gets everything it needs from the statement and its arguments, `trust-scripts` can save that work. With no scripts, the two modes do the same work.
 
-`trust-scripts` applies to all selected accounts. Run from an account directory to limit its scope. Changing from the ledger root to an account directory can rerun that account's hooks because a script can read its working directory. An edit to an imported Python module, a lookup table, or a journal referenced by `include extra.journal` in construct output can leave a trusted journal stale. Use `checked` when those inputs should be read on every import. Live hook input checks can miss a directory temporarily replaced and restored while a hook runs, or a same-byte rewrite on a filesystem with coarse timestamps.
+Choose one mode per import. The usual directory and `--start-year` selection applies. Under `rerun-scripts`, if a preprocess hook removes a changing download header and leaves the same CSV bytes, the existing CSV keeps its timestamp. The rules-based journal can then be reused. A construct hook always regenerates its journal in this mode. A later timestamp-only import can rebuild once if the original is newer than the saved CSV.
+
+`trust-scripts` applies to all selected accounts. Run from an account directory to limit its scope. Changing from the ledger root to an account directory can rerun that account's hooks because a script can read its working directory. An edit to an imported Python module, a lookup table, or a journal referenced by `include extra.journal` in construct output can leave a trusted journal stale. Use `rerun-scripts` when those inputs should be read on every import. Live hook input checks can miss a directory temporarily replaced and restored while a hook runs, or a same-byte rewrite on a filesystem with coarse timestamps.
 
 ## What gets checked
 

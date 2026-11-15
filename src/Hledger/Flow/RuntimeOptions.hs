@@ -6,7 +6,7 @@ import Hledger.Flow.Internals (SystemInfo)
 import Hledger.Flow.Types (BaseDir, HledgerConf, HledgerInfo (..), RunDir)
 import qualified Hledger.Flow.Types as Types
 
-data ImportPolicy = Full | TimestampOnly | Checked | TrustScripts
+data ImportPolicy = Full | TimestampOnly | RerunScripts | TrustScripts
   deriving (Eq, Show)
 
 onlyNewFiles :: RuntimeOptions -> Bool

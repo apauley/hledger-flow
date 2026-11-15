@@ -20,7 +20,7 @@ testImportLines = TestCase $ do
   let out = renderSettings id (importSettings [] defaultHlInfo opts {importStartYear = Just 2024, batchSize = 20})
       line l = filter ((l <> " ") `T.isPrefixOf`) out
   let files policy = [(sValue row,sFlags row) | row <- importSettings [] defaultHlInfo opts {importPolicy = policy}, sLabel row == "Files"]
-  files Checked @?= [("incremental (checked)", "--incremental")]
+  files RerunScripts @?= [("incremental (rerun-scripts)", "--incremental")]
   files TrustScripts @?= [("incremental (trust-scripts)", "--incremental")]
   assertEqual "one line per setting" 8 (length out)
   assertBool "full hledger path and version" (any ((T.pack (toFilePath [relfile|path/to/hledger|]) <> "  (1.2.3)") `T.isInfixOf`) (line "hledger"))

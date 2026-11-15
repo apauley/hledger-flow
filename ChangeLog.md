@@ -33,7 +33,7 @@ How to keep this ChangeLog
 
 ## Unreleased
 
-- Use `hledger-flow import --incremental=checked` with hledger 1.52.4 or later to reuse journals when their inputs, including nested rules files, still match. Choose `--incremental=trust-scripts` to also reuse the outputs of unchanged hooks. See the [incremental import reference](https://hledger-flow.github.io/reference/incremental-import/).
+- Use `hledger-flow import --incremental=rerun-scripts` with hledger 1.52.4 or later to reuse journals when their inputs, including nested rules files, still match. Choose `--incremental=trust-scripts` to also reuse the outputs of unchanged hooks. See the [incremental import reference](https://hledger-flow.github.io/reference/incremental-import/).
 - On macOS, incremental import checks the hledger executable faster and still detects a replacement build that reports the same version.
 - `hledger-flow import --verbose` and `hledger-flow report --verbose` are
   easier to read. Each statement's lines appear together, files are labelled

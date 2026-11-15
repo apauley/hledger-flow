@@ -75,7 +75,7 @@ importSettings homes info o =
     files = case importPolicy o of
       Full -> setting "Files" "regenerate all" "--new-files-only"
       TimestampOnly -> setting "Files" "only new or changed" "--new-files-only"
-      Checked -> setting "Files" "incremental (checked)" "--incremental"
+      RerunScripts -> setting "Files" "incremental (rerun-scripts)" "--incremental"
       TrustScripts -> setting "Files" "incremental (trust-scripts)" "--incremental"
     runFrom = case dropTrailingPathSeparator (toFilePath (importRunDir o)) of
       "." -> ". (whole ledger)"
