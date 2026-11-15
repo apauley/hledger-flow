@@ -46,6 +46,8 @@ data Release = V1524 | V1996 | OtherSupported deriving (Eq, Show)
 
 data FallbackReason
   = FallbackReason {reasonScope :: T.Text, reasonDetail :: T.Text}
+  | FileReason {reasonScope :: T.Text, reasonFile :: FilePath, reasonDetail :: T.Text}
+  | OrdinaryInputError {reasonScope :: T.Text, reasonDetail :: T.Text}
   | CyclicRules {reasonScope :: T.Text, reasonDetail :: T.Text}
   deriving (Eq, Ord, Show)
 data ReuseDecision a = Reusable a | Fallback FallbackReason deriving (Functor, Eq, Show)
@@ -59,7 +61,7 @@ instance Monad ReuseDecision where
   Fallback r >>= _ = Fallback r
 
 atPath :: T.Text -> FilePath -> T.Text -> ReuseDecision a
-atPath reason path detail = Fallback (FallbackReason (reason <> ": " <> T.pack path) detail)
+atPath reason path detail = Fallback (FileReason reason path detail)
 
 checkedIO :: T.Text -> FilePath -> IO (ReuseDecision a) -> IO (ReuseDecision a)
 checkedIO reason path action = do

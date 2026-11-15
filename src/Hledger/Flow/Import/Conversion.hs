@@ -2,7 +2,7 @@
 {-# LANGUAGE QuasiQuotes #-}
 module Hledger.Flow.Import.Conversion
   ( findHook, preprocess, savedInput, logNewFileSkip, hledgerImport, customConstruct
-  , hookDirArgs, RulesPaths(..), convertRules, constructWith
+  , hookDirArgs, RulesPaths(..), convertRules, constructWith, rulesArguments, constructArguments, pinnedConfig
   ) where
 
 import Control.Concurrent.STM
@@ -97,7 +97,7 @@ hledgerImport opts ch importDirs csvFile journalOut = do
       let directives = directivesFile opts
       exists <- PathIO.doesFileExist directives
       let paths = RulesPaths csvFile rf (if exists then Just directives else Nothing)
-      stdOut <- convertRules opts ch paths paths (hledgerConfArgs opts) pure
+      stdOut <- convertRules opts ch (hledgerExecutable opts) paths paths (hledgerConfArgs opts) pure
       writeGeneratedText (Path.toFilePath journalOut) stdOut
     Nothing ->
       do
@@ -112,24 +112,35 @@ hledgerImport opts ch importDirs csvFile journalOut = do
 
 data RulesPaths = RulesPaths AbsFile AbsFile (Maybe AbsFile)
 
-convertRules :: RuntimeOptions -> TChan FlowTypes.LogMessage -> RulesPaths -> RulesPaths -> [T.Text]
+-- The journal cache uses these same argument builders with stable path labels.
+pinnedConfig :: Maybe T.Text -> [T.Text]
+pinnedConfig = maybe ["--no-conf"] (\path -> ["--conf", path])
+
+rulesArguments :: [T.Text] -> T.Text -> T.Text -> Maybe T.Text -> [T.Text]
+rulesArguments conf input rules directives =
+  conf ++ ["print", "--explicit"] ++ maybe [] (\path -> ["--file", path]) directives
+       ++ ["--file", input, "--rules-file", rules]
+
+constructArguments :: [T.Text] -> T.Text -> [T.Text]
+constructArguments conf out = conf ++ ["print", "--ignore-assertions", "--file", "-", "--output-file", out]
+
+convertRules :: RuntimeOptions -> TChan FlowTypes.LogMessage -> AbsFile -> RulesPaths -> RulesPaths -> [T.Text]
              -> (T.Text -> IO T.Text) -> IO T.Text
-convertRules opts ch original@(RulesPaths csv rules _) actual config translate = do
+convertRules opts ch executable original@(RulesPaths csv rules _) actual config translate = do
   let shown = T.pack . relativeToBase opts . Path.toFilePath
       hledger = T.pack (Path.toFilePath (hledgerExecutable opts))
       args conf (RulesPaths input rf directives) = do
         let paths = input : maybe [] pure directives
         fileArg <- if any (any isGlobMetacharacter . Path.toFilePath) paths
           then hledgerFileArgument <$> hledgerInfo opts else pure T.pack
-        let file p = ["--file", fileArg (Path.toFilePath p)]
-        pure $ conf ++ ["print", "--explicit"] ++ maybe [] file directives ++ file input
-               ++ ["--rules-file", T.pack (Path.toFilePath rf)]
+        pure $ rulesArguments conf (fileArg (Path.toFilePath input)) (T.pack (Path.toFilePath rf))
+                 (fileArg . Path.toFilePath <$> directives)
   command <- args (hledgerConfArgs opts) original
   invocation <- args config actual
   let ext = External "hledger" ("convert " <> shown csv <> " with the rules in " <> shown rules)
               [hledger : command] ["Check the skip, fields and separator lines in " <> shown rules <> ".", "Docs: " <> docURL RulesFiles]
   announceExternal opts ch ext
-  ((status,out,err),duration) <- timeAction $ runProcessCaptured (hledger,invocation,Nothing)
+  ((status,out,err),duration) <- timeAction $ runProcessCaptured (T.pack (Path.toFilePath executable),invocation,Nothing)
   diagnostic <- translate err
   diagnosticOut <- if status == ExitSuccess then pure out else translate out
   checkExternal opts ch ext False duration (status,diagnosticOut,diagnostic)
@@ -141,16 +152,16 @@ hookDirArgs dirs = map (T.concat . importDirLines) [bankDir dirs, accountDir dir
 -- | Pipe the construct script's output through hledger into the staged journal. The command
 -- shown names the final journal instead, so a pasted command writes where hledger-flow does.
 customConstruct :: RuntimeOptions -> TChan FlowTypes.LogMessage -> AbsFile -> ImportDirs Path.Abs -> AbsFile -> AbsFile -> AbsFile -> IO ()
-customConstruct opts ch = constructWith opts ch (hledgerConfArgs opts) pure
+customConstruct opts ch = constructWith opts ch (hledgerExecutable opts) (hledgerConfArgs opts) pure
 
-constructWith :: RuntimeOptions -> TChan FlowTypes.LogMessage -> [T.Text] -> (T.Text -> IO T.Text) -> AbsFile -> ImportDirs Path.Abs -> AbsFile -> AbsFile -> AbsFile -> IO ()
-constructWith opts ch config translate constructScript dirs csvFile journalOut staged = do
+constructWith :: RuntimeOptions -> TChan FlowTypes.LogMessage -> AbsFile -> [T.Text] -> (T.Text -> IO T.Text) -> AbsFile -> ImportDirs Path.Abs -> AbsFile -> AbsFile -> AbsFile -> IO ()
+constructWith opts ch executable config translate constructScript dirs csvFile journalOut staged = do
   let csvSrc = Path.toFilePath csvFile
       relScript = relativeHook opts constructScript
       relSrc = T.pack (relativeToBase opts csvSrc)
       constructArgs = [T.pack csvSrc, "-"] ++ hookDirArgs dirs
       hledger = T.pack (Path.toFilePath (hledgerExecutable opts))
-      hledgerArgs conf out = conf ++ ["print", "--ignore-assertions", "--file", "-", "--output-file", T.pack (Path.toFilePath out)]
+      hledgerArgs conf = constructArguments conf . T.pack . Path.toFilePath
       shown = [T.pack (Path.toFilePath constructScript) : constructArgs, hledger : hledgerArgs (hledgerConfArgs opts) journalOut]
       constructExt = External relScript ("construct a journal from " <> relSrc) shown []
       hledgerExt = External "hledger" ("read the journal " <> relScript <> " constructed from " <> relSrc) shown []
@@ -164,7 +175,7 @@ constructWith opts ch config translate constructScript dirs csvFile journalOut s
     Just stderrPipe <- return errors
     hClose stdinPipe
     (((hledgerStatus, converterOut, converterErr), duration), hookErr) <- concurrently
-      (timeAction (runProcessCaptured (hledger, hledgerArgs config staged, Just stdoutPipe)))
+      (timeAction (runProcessCaptured (T.pack (Path.toFilePath executable), hledgerArgs config staged, Just stdoutPipe)))
       (T.hGetContents stderrPipe)
     mappedErr <- translate converterErr
     let converted = (hledgerStatus, converterOut, mappedErr)

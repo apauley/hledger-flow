@@ -1,4 +1,5 @@
 """Acceptance tests for incremental imports, run with the hledger on PATH."""
+import json
 import os
 from pathlib import Path
 import re
@@ -145,8 +146,6 @@ class Modes(Ledger):
             self.flow(*flags, ok=False)
         for flags, display in (([], "regenerate all"), (["--new-files-only"], "only new or changed"),
                                (["--incremental"], "incremental (run-scripts)"),
-                               (["--incremental", "run-scripts"], "incremental (run-scripts)"),
-                               (["--incremental", "skip-unchanged-scripts"], "incremental (skip-unchanged-scripts)"),
                                ([RUN_SCRIPTS], "incremental (run-scripts)"), ([SKIP_UNCHANGED], "incremental (skip-unchanged-scripts)")):
             result = self.flow(*flags, options=["--show-options"])
             self.assertRegex(result.stdout + result.stderr, r"Files[^\n]*" + re.escape(display))
@@ -159,11 +158,11 @@ class Modes(Ledger):
         for flags in (("--incremental", str(self.account)),
                       (str(self.account), "--incremental"),
                       ("--incremental", "--start-year", "2025", str(self.account)),
-                      ("--incremental", "skip-unchanged-scripts", str(self.account))):
+                      (SKIP_UNCHANGED, str(self.account))):
             result = self.flow(*flags)
             self.assertIn("checking", result.stdout)
             self.assertFalse((other / "3-journal/2025/other.journal").exists())
-        result = self.flow("--incremental", "--", other.name, cwd=other.parent, options=["--show-options"])
+        result = self.flow("--incremental", other.name, cwd=other.parent, options=["--show-options"])
         self.assertIn("incremental (run-scripts)", result.stdout + result.stderr)
         self.assertTrue((other / "3-journal/2025/other.journal").is_file())
 
@@ -306,6 +305,7 @@ class Rules(Ledger):
     def test_fallback_aggregates_different_inputs_once(self):
         self.csv.unlink()
         write(self.csv.with_suffix(".journal"), CONSTRUCT)
+        write(self.csv.with_name("another.journal"), CONSTRUCT)
         second = self.account.with_name("savings")
         write(second / "1-in/2025/may.csv", ROW)
         outside = self.tmp / "external.rules"
@@ -315,7 +315,10 @@ class Rules(Ledger):
             result = self.flow(mode, verbose=False)
             self.assertEqual(result.stderr.count(LINK), 1, result.stderr)
             self.assertIn("all selected statements", result.stderr)
-            self.assertIn("reader", result.stderr)
+            self.assertEqual(result.stderr.count("unsupported input reader"), 1)
+            self.assertNotIn(str(self.csv.with_suffix(".journal")), result.stderr)
+            verbose = self.flow(mode)
+            self.assertIn("unsupported input reader " + str(self.csv.with_suffix(".journal").relative_to(self.base)), verbose.stderr + verbose.stdout)
             self.assertIn("include", result.stderr)
             self.assertFalse(self.snapshots.exists())
             self.assertEqual(self.records(), [])
@@ -323,6 +326,22 @@ class Rules(Ledger):
 
 
 class Cache(Ledger):
+    def test_hledger_arguments_invalidate_journal_records(self):
+        for script in (False, True):
+            if script:
+                self.hook("construct", f"print({CONSTRUCT!r})")
+            self.imports(1, SKIP_UNCHANGED)
+            record, = self.records()
+            saved = json.loads(record.read_bytes())
+            inputs = saved[1]["journalRecord"]["stageInputs"]
+            args = [value for key, value in inputs if key == "hledger argument"]
+            self.assertIn("--conf", args)
+            self.assertIn("--ignore-assertions" if script else "--explicit", args)
+            inputs.remove(["hledger argument", "print"])
+            write(record, json.dumps(saved))
+            self.imports(1, SKIP_UNCHANGED)
+            self.imports(0, SKIP_UNCHANGED)
+
     def test_failures_retries_and_git_ignore(self):
         self.command("git", "init", "-q", check=True)
         self.imports(1, RUN_SCRIPTS)
@@ -417,7 +436,7 @@ class Config(Ledger):
                 for _ in range(2):
                     result = self.imports(1, mode, fallback=True)
                     self.assertIn(f"line {number}: {lines.splitlines()[number-1]}", result.stdout + result.stderr)
-                    self.assertIn(str(config), result.stdout + result.stderr)
+                    self.assertIn("unsupported hledger config: hledger.conf", result.stderr)
             self.assertEqual(self.journal.read_bytes(), default)
             write(config, "[print]\n--invert\n")
             self.imports(1, mode, fallback=True)
@@ -457,6 +476,30 @@ class Diagnostics(Ledger):
                 replay = self.replay(shown[1], cwd)
                 self.assertEqual(replay.returncode, result.returncode, replay.stderr)
                 self.assertIn("bad banana", replay.stderr)
+
+    def test_missing_rules_has_ordinary_diagnostic(self):
+        self.rules.unlink()
+        for mode in (RUN_SCRIPTS, SKIP_UNCHANGED):
+            incremental, _ = self.full_parity(mode, ok=False)
+            self.assertIn("couldn't find an hledger rules file", incremental.stderr)
+            self.assertNotIn(NOTICE, incremental.stderr)
+
+    @unittest.skipIf(os.name == "nt", "creating executable symlinks requires Windows privileges")
+    def test_command_shows_configured_hledger_symlink(self):
+        alias = self.tmp / "hledger-link"
+        alias.symlink_to(shutil.which("hledger"))
+        for script in (False, True):
+            if script:
+                self.hook("construct", f"print({CONSTRUCT!r})")
+            def shown(*flags):
+                result = self.flow(*flags, options=["-H", str(alias)])
+                commands = [line for line in (result.stdout + result.stderr).splitlines()
+                            if line.strip().startswith("$") and " print " in line]
+                self.assertEqual(len(commands), 1)
+                return commands[0]
+            ordinary = shown()
+            self.assertIn(alias.name, ordinary)
+            self.assertEqual(shown(RUN_SCRIPTS), ordinary)
 
     def test_nested_rules_and_pasteable_error(self):
         leaf = self.category.parent / "bad categories.rules"
@@ -588,7 +631,8 @@ class Hooks(Ledger):
             self.imports(0, SKIP_UNCHANGED)
             before = self.journal.read_bytes()
             hook.chmod(0o644)
-            self.full_parity(SKIP_UNCHANGED, ok=False)
+            failed, _ = self.full_parity(SKIP_UNCHANGED, ok=False)
+            self.assertNotIn(NOTICE, failed.stderr)
             self.assertEqual(self.journal.read_bytes(), before)
             hook.chmod(0o755)
             self.imports(0, SKIP_UNCHANGED)
@@ -608,6 +652,8 @@ class Hooks(Ledger):
         self.imports(1, RUN_SCRIPTS)
         self.assertIn("expenses:travel", self.journal.read_text())
         write(self.base / "touch-source", "")
+        self.imports(0, RUN_SCRIPTS)
+        write(self.base / "touch-source", "")
         write(self.csv, ROW.replace("Coffee", "Tea"))
         self.imports(1, SKIP_UNCHANGED, fallback=True)
         result = self.imports(0, SKIP_UNCHANGED)
@@ -617,11 +663,14 @@ class Hooks(Ledger):
 
         self.hook("construct", """
             if Path("touch-construct-input").exists():
+                changed_time = source.stat().st_mtime + 60
                 source.write_bytes(source.read_bytes())
-                os.utime(source, (946684800, 946684800))
+                os.utime(source, (changed_time, changed_time))
                 Path("touch-construct-input").unlink()
             print("2025-03-01 Coffee\\n    expenses:lunch  4\\n    assets:cash")
         """)
+        write(self.base / "touch-construct-input", "")
+        self.imports(1, RUN_SCRIPTS)
         write(self.base / "touch-construct-input", "")
         self.imports(1, SKIP_UNCHANGED, fallback=True)
         self.imports(1, SKIP_UNCHANGED)

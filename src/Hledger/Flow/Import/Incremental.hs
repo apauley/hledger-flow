@@ -13,6 +13,7 @@ import qualified Data.Map.Strict as Map
 import Data.Maybe (maybeToList)
 import qualified Data.Set as Set
 import qualified Data.Text as T
+import Hledger.Flow.BaseDir (relativeToBase)
 import Hledger.Flow.Common (directivesFile, writeStagedText)
 import Hledger.Flow.DocHelpers
 import Hledger.Flow.Import.Cache
@@ -32,22 +33,25 @@ import qualified System.Directory as D
 import System.IO.Error (tryIOError)
 import qualified System.Info as Sys
 
-data IncrementalRun = IncrementalRun SnapshotRun (IO (ReuseDecision Converter)) (IORef (Map.Map AbsFile (Set.Set T.Text)))
+-- Keep one path only when every occurrence of a reason names that file.
+data Notices = Notices !(Set.Set AbsFile) !(Map.Map T.Text (Maybe T.Text))
+data IncrementalRun = IncrementalRun SnapshotRun (IO (ReuseDecision Converter)) (IORef Notices)
 
 withIncrementalRun :: RuntimeOptions -> TChan LogMessage -> Int -> (IncrementalRun -> IO a) -> IO a
 withIncrementalRun opts ch count action = withSnapshotRun (baseDir opts) $ \snapshots -> do
-  reasons <- newIORef Map.empty
+  reasons <- newIORef (Notices Set.empty Map.empty)
   probe <- newConverterProbe opts
   when (count > 0) $ do
     initialized <- tryIOError $ initializeCache (baseDir opts)
     either (channelErrLn ch . ("Could not initialize incremental cache: " <>) . T.pack . show) pure initialized
   finally (action (IncrementalRun snapshots probe reasons)) $ do
-    warnings <- readIORef reasons
+    Notices affected warnings <- readIORef reasons
     unless (Map.null warnings) $ do
-      let scope | Map.size warnings == count = "all selected statements"
-                | otherwise = T.pack (show (Map.size warnings)) <> " of " <> T.pack (show count) <> " selected statements"
+      let scope | Set.size affected == count = "all selected statements"
+                | otherwise = T.pack (show (Set.size affected)) <> " of " <> T.pack (show count) <> " selected statements"
+          describe (why,path) = why <> maybe "" (": " <>) path
       channelErrLn ch $ "Incremental reuse unavailable for " <> scope <> ": "
-        <> T.intercalate ", " (Set.toAscList (Set.unions (Map.elems warnings))) <> ". See " <> docURL IncrementalImportFallback
+        <> T.intercalate ", " (map describe (Map.toAscList warnings)) <> ". See " <> docURL IncrementalImportFallback
 
 data HookInputs = HookInputs AbsFile FileObservation AbsFile FileObservation
   deriving (Eq, Show)
@@ -57,7 +61,7 @@ observeHook script source = checkedIO "could not check script inputs" (P.toFileP
   runnable <- if Sys.os == "mingw32" then pure True else D.executable <$> D.getPermissions (P.toFilePath script)
   if runnable
     then Reusable <$> (HookInputs script <$> observeFile script <*> pure source <*> observeFile source)
-    else pure $ atPath "script is not executable" (P.toFilePath script) ""
+    else pure $ Fallback (OrdinaryInputError "script is not executable" (pathText script))
 
 hookInputsKey :: ImportDirs P.Abs -> FilePath -> T.Text -> HookInputs -> StageInputs
 hookInputsKey dirs cwd stage (HookInputs script s input i) =
@@ -83,17 +87,23 @@ importStatement (IncrementalRun snapshots probe reasons) opts ch dirs source = d
   old <- readRecord record
   intermediate <- generatedOutput [P.reldir|2-preprocessed|] ".csv" source
   let hook name = findHook opts ch name (accountDir dirs P.</> (if name == "preprocess" then [P.relfile|preprocess|] else [P.relfile|construct|]))
+      report OrdinaryInputError{} = pure ()
       report problem = do
         let reason = reasonScope problem
+            path = case problem of
+              FileReason _ file _ -> Just (T.pack (relativeToBase opts file))
+              _ -> Nothing
             detail = reasonDetail problem
-        atomicModifyIORef' reasons $ \m -> (Map.insertWith Set.union source (Set.singleton reason) m,())
-        logVerbose opts ch $ reason <> " " <> detail
+            common a b = if a == b then a else Nothing
+        atomicModifyIORef' reasons $ \(Notices files summaries) ->
+          (Notices (Set.insert source files) (Map.insertWith common reason path summaries), ())
+        logVerbose opts ch $ T.intercalate " " (filter (not . T.null) ([reason] ++ maybeToList path ++ [detail]))
       reuseStage stage inputs target prior = do
         miss <- stageMiss inputs target prior
         case miss of
           Nothing -> pure True
           Just why -> logVerbose opts ch (stage <> ": " <> why) >> pure False
-      changed = FallbackReason "dependency changed during conversion" (pathText source)
+      changed = FileReason "dependency changed during conversion" (P.toFilePath source) ""
       skipScripts = importPolicy opts == SkipUnchangedScripts
   pre <- hook "preprocess"
   (csv,preRecord,preRan) <- case pre of
@@ -119,9 +129,9 @@ importStatement (IncrementalRun snapshots probe reasons) opts ch dirs source = d
         after <- observeHook script source
         selected <- hook "preprocess"
         usable <- case key of
-          Fallback reason -> report reason >> pure Nothing
+          Fallback reason -> when skipScripts (report reason) >> pure Nothing
           Reusable k | selected == pre && after == before -> pure (Just (StageRecord k digest))
-                     | otherwise -> report changed >> pure Nothing
+                     | otherwise -> when skipScripts (report changed) >> pure Nothing
         pure (intermediate,usable,True)
   output <- generatedOutput [P.reldir|3-journal|] ".journal" csv
   let discover = do
@@ -136,19 +146,20 @@ importStatement (IncrementalRun snapshots probe reasons) opts ch dirs source = d
               Reusable conf -> do
                 let common = [("source",pathText source),("effective CSV",pathText csv),("preprocess",maybe "" pathText pre)]
                       ++ map ("converter",) (converterKey converter)
-                    mk inputs files extra construct =
-                      JournalInputs converter inputs (common ++ extra ++ [(pathText p,digestHex d) | (p,d) <- files]) (Map.fromList files) construct
+                    configArgs = pinnedConfig ("<config>" <$ conf)
+                    mk inputs files args extra construct =
+                      JournalInputs converter inputs (common ++ map ("hledger argument",) args ++ extra ++ [(pathText p,digestHex d) | (p,d) <- files]) (Map.fromList files) construct
                 case candidate of
                   Just script -> do
                     observation <- observeHook script csv
                     pure $ (\h -> mk (ConstructInput (fst <$> conf)) (maybeToList conf)
-                                        (hookInputsKey dirs cwd "construct" h) (Just h)) <$> observation
+                                        (constructArguments configArgs "<journal>") (hookInputsKey dirs cwd "construct" h) (Just h)) <$> observation
                   Nothing | not (isSeparatedValues csv) -> pure $ atPath "unsupported input reader" (P.toFilePath csv) ""
                   Nothing -> do
                     rules <- selectRules csv dirs
                     case rules of
                       Fallback r -> pure (Fallback r)
-                      Reusable Nothing -> pure $ atPath "missing rules file" (P.toFilePath csv) ""
+                      Reusable Nothing -> pure $ Fallback (OrdinaryInputError "missing rules file" (pathText csv))
                       Reusable (Just rf) -> do
                         tree <- discoverRules (baseDir opts) (converterRelease converter) rf
                         directives <- discoverDirectives (directivesFile opts)
@@ -157,7 +168,8 @@ importStatement (IncrementalRun snapshots probe reasons) opts ch dirs source = d
                           rulesTree <- tree
                           ds <- directives
                           let files = (csv,digest) : rulesTree ++ maybeToList ds ++ maybeToList conf
-                          pure $ mk (RulesInput csv rf (fst <$> ds) (fst <$> conf)) files [("rules",pathText rf)] Nothing
+                          pure $ mk (RulesInput csv rf (fst <$> ds) (fst <$> conf)) files
+                                   (rulesArguments configArgs "<input>" "<rules>" ("<directives>" <$ ds)) [("rules",pathText rf)] Nothing
       ordinary = do
         script <- hook "construct"
         case script of
@@ -188,16 +200,16 @@ importStatement (IncrementalRun snapshots probe reasons) opts ch dirs source = d
         pure (prior,False)
       else do
         result <- withSnapshot snapshots (converterRelease (engine inputs)) (copiedInputs inputs) $ \snapshot -> do
-          let pin = maybe ["--no-conf"] (\f -> ["--conf",pathText f])
+          let pin conf = pinnedConfig (pathText <$> conf)
               translate = translateDiagnostic snapshot
-              actualOpts = opts {hledgerExecutable = converterExecutable (engine inputs)}
+              executable = converterExecutable (engine inputs)
           outDigest <- case (copiedInputs inputs,snapshotInputs snapshot,liveConstruct inputs) of
             (RulesInput src rf ds _,RulesInput src' rf' ds' conf,_) -> do
-              contents <- convertRules actualOpts ch (RulesPaths src rf ds) (RulesPaths src' rf' ds') (pin conf) translate
+              contents <- convertRules opts ch executable (RulesPaths src rf ds) (RulesPaths src' rf' ds') (pin conf) translate
               target <- D.canonicalizePath (P.toFilePath output) >>= P.parseAbsFile
               installOutput False target (writeStagedText target contents)
             (ConstructInput _,ConstructInput conf,Just (HookInputs s _ _ _)) ->
-              installOutput False output (constructWith actualOpts ch (pin conf) translate s dirs csv output)
+              installOutput False output (constructWith opts ch executable (pin conf) translate s dirs csv output)
             _ -> ioError (userError "Inconsistent incremental conversion inputs")
           again <- discover
           preNow <- hook "preprocess"
@@ -206,7 +218,7 @@ importStatement (IncrementalRun snapshots probe reasons) opts ch dirs source = d
             Just _ -> pure intermediate
           let stable = again == Reusable inputs && snapshotManifest snapshot == copiedDigests inputs && preNow == pre && effective == csv
           if stable then pure $ Just (StageRecord (recordedInputs inputs) outDigest)
-                    else report changed >> pure Nothing
+                    else when (skipScripts || liveConstruct inputs == Nothing) (report changed) >> pure Nothing
         case result of
           Fallback r -> fallback r
           Reusable entry -> pure (entry,True)
