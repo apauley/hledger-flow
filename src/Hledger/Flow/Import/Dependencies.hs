@@ -119,31 +119,35 @@ resolveRuleInclude base parent child = checkedIO "uncertain rules include" raw $
     inside root path = F.splitDirectories (F.dropTrailingPathSeparator root) `isPrefixOf` F.splitDirectories path
 
 discoverRules :: AbsDir -> Release -> AbsFile -> IO (ReuseDecision [(AbsFile,Digest)])
-discoverRules base release = walk Set.empty Set.empty
+discoverRules base release = walk Set.empty
   where
-    walk ancestors lexical path = checkedIO "could not read rules file" (toFilePath path) $ do
+    walk ancestors path = checkedIO "could not read rules file" (toFilePath path) $ do
       canonical <- D.canonicalizePath (toFilePath path)
-      if release == V1524 && Set.member path lexical
+      directory <- D.canonicalizePath (F.takeDirectory (toFilePath path))
+      -- The same rules bytes can resolve includes in different directories.
+      -- In 1.52.4 the first read also decodes line endings differently.
+      let node = (canonical, directory, release == V1524 && Set.null ancestors)
+      if Set.member node ancestors && release == V1524
         then pure $ Fallback (CyclicRules "cyclic rules include" (T.pack (toFilePath path)))
-        else if Set.member canonical ancestors || Set.size ancestors >= 256
-        then pure (atPath "cyclic or excessively deep rules include" (toFilePath path) "")
-        else do
-          bytes <- B.readFile (toFilePath path)
-          let scan = if Set.null ancestors then ruleIncludes else nestedRuleIncludes
-          case scan release path bytes of
-            Fallback r -> pure (Fallback r)
-            Reusable children -> do
-              nested <- descend (Set.insert canonical ancestors) (Set.insert path lexical) path children
-              pure (((path,digestBytes bytes):) <$> nested)
-    descend _ _ _ [] = pure (pure [])
-    descend ancestors lexical path (c:cs) = do
+        else if Set.member node ancestors || Set.size ancestors >= 256
+          then pure (atPath "cyclic or excessively deep rules include" (toFilePath path) "")
+          else do
+            bytes <- B.readFile (toFilePath path)
+            let scan = if Set.null ancestors then ruleIncludes else nestedRuleIncludes
+            case scan release path bytes of
+              Fallback r -> pure (Fallback r)
+              Reusable children -> do
+                nested <- descend (Set.insert node ancestors) path children
+                pure (((path,digestBytes bytes):) <$> nested)
+    descend _ _ [] = pure (pure [])
+    descend ancestors path (c:cs) = do
       selected <- resolveRuleInclude base path c
       tree <- case selected of
         Fallback r -> pure (Fallback r)
-        Reusable file -> walk ancestors lexical file
+        Reusable file -> walk ancestors file
       case tree of
         Fallback r -> pure (Fallback r)
-        Reusable files -> fmap (files ++) <$> descend ancestors lexical path cs
+        Reusable files -> fmap (files ++) <$> descend ancestors path cs
 
 selectRules :: AbsFile -> ImportDirs Abs -> IO (ReuseDecision (Maybe AbsFile))
 selectRules csv dirs = checkedIO "could not select rules file" (toFilePath csv) $ do

@@ -46,6 +46,14 @@ tests = TestList
       ruleIncludes V1996 root "include   a  \r\n include b\ninclude\tc\n" @?= Reusable ["a"]
       fallback (nestedRuleIncludes V1524 mid "include final.rules\r\n")
       nestedRuleIncludes V1996 mid "include final.rules\r\n" @?= Reusable ["final.rules"]
+      write root "include middle.rules\r\n"
+      write mid "include main.rules\n"
+      native <- discoverRules base V1524 root
+      case native of
+        Fallback CyclicRules{} -> assertFailure "top-level and native reads have different include targets"
+        Fallback _ -> pure ()
+        _ -> assertFailure "expected ordinary conversion for native line endings"
+      write root mainBytes
       write mid "include missing.rules"
       discoverRules base V1996 root >>= fallback
       write mid "include main.rules"
@@ -57,6 +65,13 @@ tests = TestList
       D.createFileLink (toFilePath leaf) (toFilePath mid)
       tree <- discoverRules base V1996 root
       tree @?= Reusable [(root,digestBytes mainBytes),(mid,digestBytes ""),(leaf,digestBytes "")]
+      D.removeFile (toFilePath mid)
+      D.createFileLink (toFilePath root) (toFilePath mid)
+      write root "include middle.rules"
+      cycleResult <- discoverRules base V1524 root
+      case cycleResult of
+        Fallback CyclicRules{} -> pure ()
+        _ -> assertFailure "a nested symlink resolving the same relative include repeats the cycle"
 #endif
       let imports = base </> [reldir|import|]
           csv = imports </> [relfile|alice/bank/acct/1-in/2026/01_rfo-special.csv|]
