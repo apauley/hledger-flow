@@ -22,7 +22,9 @@ Choose one mode per import. The usual directory and `--start-year` selection app
 
 ## What gets checked
 
-Both modes verify the generated output and the effective CSV, TSV or SSV. Rules-based conversion follows nested rules includes. It fingerprints the selected hledger executable, effective config and applicable `directives.journal`. A replacement executable can invalidate records even if its version is unchanged. The supported releases are **1.52.4** and **1.99.6**, including package-manager and locally compiled builds.
+Both modes verify the generated output and the effective CSV, TSV or SSV. Rules-based conversion follows nested rules includes and checks the effective config and applicable `directives.journal`.
+
+Each incremental import hashes the hledger executable once while it remains unchanged. On macOS it uses the system SHA-256 implementation. Replacing hledger with different bytes triggers a rebuild even if the version, file size and modification time stay the same. For a small selection, a full import can still finish sooner. The supported releases are **1.52.4** and **1.99.6**, including package-manager and locally compiled builds.
 
 A missing, empty or comment-only config permits reuse. Settings in recognized sections for other commands such as `[balance]` also permit reuse. The whole config is hashed, so editing one of those sections triggers one rebuild. In general settings and `[print]`, the supported exception is this setting on 1.99.6.
 

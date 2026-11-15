@@ -90,6 +90,7 @@ library
   if os(darwin)
     c-sources:
         cbits/private_directory_darwin.c
+        cbits/sha256_darwin.c
   if os(windows)
     c-sources:
         cbits/private_directory_windows.c

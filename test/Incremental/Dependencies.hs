@@ -122,7 +122,7 @@ tests = TestList
       let real = base </> [relfile|actual|]
           second = base </> [relfile|other|]
           native = B.pack [127,69,76,70]
-      B.writeFile (toFilePath real) native
+      B.writeFile (toFilePath real) (native <> "build A")
       B.writeFile (toFilePath second) native
 #ifndef mingw32_HOST_OS
       let link = base </> [relfile|hledger|]
@@ -140,9 +140,20 @@ tests = TestList
         Fallback why -> assertFailure (show why)
       probe >>= (@?= first)
       readIORef probes >>= (@?= 1)
-      B.appendFile (toFilePath real) "replacement"
-      replaced <- probe
-      assertBool "same version different binary" (replaced /= first)
+      let replacement = toFilePath (base </> [relfile|replacement|])
+      previousTime <- D.getModificationTime (toFilePath real)
+      B.writeFile replacement (native <> "build B")
+      D.setModificationTime replacement previousTime
+      D.renameFile replacement (toFilePath real)
+      -- Compare the key persisted between imports, which excludes file stamps.
+      -- Both executables have the same path, version, length and mtime.
+      let checkReplacement result = case (first, result) of
+            (Reusable old, Reusable new) ->
+              assertBool "replacement changes saved converter key" (converterKey old /= converterKey new)
+            _ -> assertFailure ("expected two eligible builds: " ++ show (first, result))
+      probe >>= checkReplacement
+      freshProbe <- converterProbeWith executable version
+      freshProbe >>= checkReplacement
 #ifndef mingw32_HOST_OS
       D.removeFile (toFilePath link)
       D.createFileLink (toFilePath second) (toFilePath link)

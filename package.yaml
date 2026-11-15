@@ -53,7 +53,9 @@ library:
     - ansi-terminal >= 1.1.5 && < 1.2
   when:
     - condition: os(darwin)
-      c-sources: cbits/private_directory_darwin.c
+      c-sources:
+        - cbits/private_directory_darwin.c
+        - cbits/sha256_darwin.c
     - condition: os(windows)
       then:
         dependencies:

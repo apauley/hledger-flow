@@ -27,6 +27,17 @@ import System.IO (hClose)
 import qualified System.Posix.Files as Posix
 import qualified System.Posix.IO as Posix
 #endif
+#ifdef darwin_HOST_OS
+import Foreign.C.Error (throwErrnoPathIfMinus1_)
+import Foreign.C.Types (CInt(..))
+import Foreign.Marshal.Alloc (allocaBytes)
+import Foreign.Ptr (Ptr, castPtr)
+import Data.Word (Word8)
+import System.Posix.Types (Fd(..))
+
+foreign import ccall safe "hf_sha256_fd"
+  sha256Fd :: Fd -> Ptr Word8 -> IO CInt
+#endif
 
 -- | Only the content digest is persisted across invocations.
 newtype Digest = Digest {digestHex :: Text}
@@ -73,21 +84,22 @@ digestHandle consume handle = loop SHA.init
 
 -- | Reject an observation if the open file changed while it was being hashed.
 observeFile :: AbsFile -> IO FileObservation
-observeFile path = withStampedHandle path $ \handle readStamp -> do
+observeFile path = withOpenFile path $ \readDigest readStamp -> do
   before <- readStamp
-  digest <- digestHandle (const (pure ())) handle
+  digest <- readDigest
   after <- readStamp
   if before == after
     then pure (FileObservation after digest)
     else ioError (userError ("File changed while hashing " ++ toFilePath path))
 
 statFile :: AbsFile -> IO FileStamp
-statFile path = withStampedHandle path $ \_ readStamp -> readStamp
+statFile path = withOpenFile path $ \_ readStamp -> readStamp
 
-withStampedHandle :: AbsFile -> (Handle -> IO FileStamp -> IO a) -> IO a
+-- Both actions operate on one open file even if its path is replaced.
+withOpenFile :: AbsFile -> (IO Digest -> IO FileStamp -> IO a) -> IO a
 #ifdef mingw32_HOST_OS
-withStampedHandle path action =
-  withBinaryFile (toFilePath path) ReadMode $ \handle -> action handle $
+withOpenFile path action =
+  withBinaryFile (toFilePath path) ReadMode $ \handle -> action (digestHandle (const (pure ())) handle) $
     withHandleToHANDLE handle $ \native -> do
       info <- Win.getFileInformationByHandle native
       let FILETIME ticks = Win.bhfiLastWriteTime info
@@ -98,8 +110,8 @@ withStampedHandle path action =
           stampChanged = Nothing
         }
 #else
-withStampedHandle path action = bracket acquire (hClose . snd) $ \(fd, handle) ->
-  action handle $ do
+withOpenFile path action = bracket acquire (hClose . snd) $ \opened@(fd, _) ->
+  action (readDigest opened) $ do
     info <- Posix.getFdStatus fd
     pure FileStamp
       { stampIdentity = (toInteger (Posix.deviceID info), toInteger (Posix.fileID info)),
@@ -108,6 +120,13 @@ withStampedHandle path action = bracket acquire (hClose . snd) $ \(fd, handle) -
         stampChanged = Just (toRational (Posix.statusChangeTimeHiRes info))
       }
   where
+#ifdef darwin_HOST_OS
+    readDigest (fd, _) = allocaBytes 32 $ \out -> do
+      throwErrnoPathIfMinus1_ "hash open file" (toFilePath path) (sha256Fd fd out)
+      hexDigest <$> BS.packCStringLen (castPtr out, 32)
+#else
+    readDigest (_, handle) = digestHandle (const (pure ())) handle
+#endif
     -- fdToHandle transfers ownership. Keep the borrowed fd for fstat until hClose.
     acquire = bracketOnError
       (Posix.openFd (toFilePath path) Posix.ReadOnly Posix.defaultFileFlags {Posix.cloexec = True})
