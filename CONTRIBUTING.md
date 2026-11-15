@@ -110,9 +110,9 @@ on Windows). It runs HUnit, builds this checkout and shelltestrunner, runs all
 CLI scenarios supported by the platform, runs the offline release checks,
 and installs hledger-flow only after everything passes. It also builds the
 [project site](#work-on-the-project-site) and checks its links. Put Stack,
-hledger 1.99.6 (the CI pin in `site/scripts/tutorial/hledger-version`) or
-1.52.4, Git, jq, a working Python 3 command named `python3`, and Node.js with
-`npm` on `PATH` first.
+hledger 1.52.4 or later, Git, jq, a working Python 3 command named `python3`,
+and Node.js with `npm` on `PATH` first. CI uses the version pinned in
+`site/scripts/tutorial/hledger-version`.
 The release checks use temporary repositories and fake services; they do not
 publish anything or need credentials.
 

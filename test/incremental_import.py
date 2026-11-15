@@ -39,9 +39,9 @@ class Ledger(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         version = subprocess.check_output(["hledger", "--no-conf", "--version"], text=True)
-        release = re.search(r"^hledger (1\.52\.4|1\.99\.6)(?:[-,\s]|$)", version)
-        if not release:
-            raise RuntimeError(f"Incremental CLI tests require hledger 1.52.4 or 1.99.6, found {version.strip()}")
+        release = re.search(r"^hledger (\d+(?:\.\d+)*)(?:[-,\s]|$)", version)
+        if not release or tuple(map(int, release[1].split("."))) < (1, 52, 4):
+            raise RuntimeError(f"Incremental CLI tests require hledger >= 1.52.4, found {version.strip()}")
         cls.release = release[1]
 
     def setUp(self):
@@ -232,13 +232,24 @@ class Rules(Ledger):
 
 
     def test_include_whitespace_and_missing_file(self):
+        safe = self.account.with_name("savings")
+        write(safe / "1-in/2025/march.csv", ROW)
+        write(safe / "bank-savings.rules", FIELDS + "account2 expenses:savings\n")
+        self.imports(2, CHECKED)
         write(self.rules, FIELDS + "include nested/categories.rules   \n")
-        # Windows may normalize trailing spaces. Follow the native full import.
+        if os.name != "nt":
+            write(self.category.with_name("categories.rules   "), "account2 expenses:with-spaces\n")
         full = self.command("hledger-flow", "import")
         self.full_parity(CHECKED, ok=full.returncode == 0)
         if self.release == "1.99.6":
             self.assertEqual(full.returncode, 0, full.stderr)
             self.assert_warm()
+        elif self.release != "1.52.4":
+            self.assertEqual(full.returncode, 0, full.stderr)
+            for mode in (CHECKED, TRUSTED):
+                result = self.imports(1, mode, fallback=True)
+                self.assertIn("1 of 2 selected statements", result.stderr)
+                self.full_parity(mode)
         write(self.rules, FIELDS + "include missing.rules\n")
         incremental, full = self.full_parity(CHECKED, ok=False)
         for result in (incremental, full):
@@ -253,7 +264,7 @@ class Rules(Ledger):
             write(leaf.with_name("leaf.rules\r"), "account2 expenses:return\n")
         self.category.write_bytes(b"include leaf.rules\r\n")
         self.full_parity(CHECKED)
-        if self.release == "1.52.4":
+        if self.release != "1.99.6":
             self.imports(1, CHECKED, fallback=True)
             self.assertEqual(self.records(), [])
         else:
@@ -339,12 +350,15 @@ class Config(Ledger):
         self.imports(1, mode)
         self.full_parity(mode)
         self.assert_warm(mode)
-        modern = self.release == "1.99.6"
         write(home, inactive + layout)
-        incremental, full = self.full_parity(mode, ok=modern)
-        if modern:
+        accepts_layout = self.command("hledger-flow", "import").returncode == 0
+        if self.release in ("1.52.4", "1.99.6"):
+            self.assertEqual(accepts_layout, self.release == "1.99.6")
+        incremental, full = self.full_parity(mode, ok=accepts_layout)
+        if accepts_layout:
             self.assertNotIn(NOTICE, incremental.stderr)
-            self.assertNotEqual(self.journal.read_bytes(), default)
+            if self.release == "1.99.6":
+                self.assertNotEqual(self.journal.read_bytes(), default)
             self.assert_warm(mode)
         else:
             for result in (incremental, full):
@@ -356,7 +370,7 @@ class Config(Ledger):
         self.full_parity(mode)
         self.assert_warm(mode)
         nearer.unlink()
-        self.full_parity(mode, ok=modern)
+        self.full_parity(mode, ok=accepts_layout)
 
     def test_rules_config_discovery(self):
         self.config_parity(CHECKED)
@@ -390,10 +404,13 @@ class Config(Ledger):
             self.full_parity(mode)
             write(config, "[print]\n--invalid-incremental-test-option\n")
             self.full_parity(mode, ok=False)
+        write(config, "[alias]\nmyaccounts = accounts\n")
+        accepts_alias = self.command("hledger-flow", "import").returncode == 0
         if self.release == "1.99.6":
-            write(config, "[alias]\nmyaccounts = accounts\n")
+            self.assertTrue(accepts_alias)
+        if accepts_alias:
             self.imports(1, CHECKED, fallback=True)
-            self.full_parity(CHECKED)
+        self.full_parity(CHECKED, ok=accepts_alias)
 
 
 class Diagnostics(Ledger):

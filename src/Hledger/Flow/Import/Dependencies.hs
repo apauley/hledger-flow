@@ -14,9 +14,11 @@ import Control.Monad (ap, foldM)
 import qualified Data.ByteString as B
 import Data.Char (isAlpha, isAlphaNum, isAscii, isControl, isDigit, isSpace, toLower, GeneralCategory(CurrencySymbol), generalCategory)
 import Data.List (isPrefixOf)
+import Data.Maybe (mapMaybe)
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
+import qualified Data.Text.Read as TR
 import Data.Time (getCurrentTimeZone, timeZoneMinutes)
 import GHC.IO.Encoding (getLocaleEncoding, getFileSystemEncoding, getForeignEncoding)
 import Hledger.Flow.Common (firstConfirmedFile, lookupHledgerConf, probeHledgerVersion, hledgerVersionNumber)
@@ -38,7 +40,9 @@ import System.Win32.Console (getConsoleCP, getConsoleOutputCP)
 import System.Win32.NLS (getACP)
 #endif
 
-data Release = V1524 | V1996 deriving (Eq, Show)
+-- Exact releases have known reader quirks. Other eligible versions use syntax
+-- shared by both readers, leaving ambiguous inputs to the ordinary converter.
+data Release = V1524 | V1996 | OtherSupported deriving (Eq, Show)
 
 data FallbackReason
   = FallbackReason {reasonScope :: T.Text, reasonDetail :: T.Text}
@@ -72,24 +76,32 @@ physicalLines path bytes = case TE.decodeUtf8' bytes of
 ruleIncludes :: Release -> AbsFile -> B.ByteString -> ReuseDecision [FilePath]
 ruleIncludes release path bytes = do
   ls <- physicalLines path (dropUtf8Bom bytes)
-  let paths = [(n,clean s) | (n,l) <- zip [1 :: Int ..] ls, Just s <- [T.stripPrefix "include " l]]
-      clean = if release == V1524 then T.stripStart else T.strip
-      check (n,s)
-        | T.null s || T.any isControl s = atPath "uncertain rules include" (toFilePath path) ("line " <> T.pack (show n))
-        | otherwise = pure (T.unpack s)
-  traverse check paths
+  sequence (mapMaybe include (zip [1 :: Int ..] ls))
+  where
+    include (n,line)
+      | Just raw <- T.stripPrefix "include " line = Just (checkPath n raw)
+      | release == OtherSupported && looksLikeInclude line = Just (uncertain n)
+      | otherwise = Nothing
+    looksLikeInclude line = case T.words line of
+      word:_ -> T.toCaseFold word == "include"
+      [] -> False
+    checkPath n raw
+      | T.null name || T.any isControl name = uncertain n
+      | release == OtherSupported && name /= T.stripEnd name = uncertain n
+      | otherwise = pure (T.unpack name)
+      where name = if release == V1996 then T.strip raw else T.stripStart raw
+    uncertain n = atPath "uncertain rules include" (toFilePath path) ("line " <> T.pack (show n))
 
--- 1.52.4 reads nested rules through the native text handle. On POSIX a CR
--- at the end of an include line may be part of the filename. Defer that case
--- to the converter instead of mirroring a different file.
+-- Older readers open nested rules through the native text handle. On POSIX a
+-- CR at the end of an include line may be part of the filename.
 nestedRuleIncludes :: Release -> AbsFile -> B.ByteString -> ReuseDecision [FilePath]
-nestedRuleIncludes V1524 path bytes
-  | any ambiguous (B.split 10 bytes) =
+nestedRuleIncludes release path bytes
+  | release /= V1996, any ambiguous (B.split 10 bytes) =
       atPath "uncertain nested rules include" (toFilePath path) "native line ending or byte-order mark"
+  | otherwise = ruleIncludes release path bytes
   where
     ambiguous line = "include " `B.isPrefixOf` dropUtf8Bom line &&
                      (B.elem 13 line || dropUtf8Bom line /= line)
-nestedRuleIncludes release path bytes = ruleIncludes release path bytes
 
 dropUtf8Bom :: B.ByteString -> B.ByteString
 dropUtf8Bom b = maybe b id (B.stripPrefix (B.pack [0xef,0xbb,0xbf]) b)
@@ -126,8 +138,8 @@ discoverRules base release = walk Set.empty
       directory <- D.canonicalizePath (F.takeDirectory (toFilePath path))
       -- The same rules bytes can resolve includes in different directories.
       -- In 1.52.4 the first read also decodes line endings differently.
-      let node = (canonical, directory, release == V1524 && Set.null ancestors)
-      if Set.member node ancestors && release == V1524
+      let node = (canonical, directory, release /= V1996 && Set.null ancestors)
+      if Set.member node ancestors && release /= V1996
         then pure $ Fallback (CyclicRules "cyclic rules include" (T.pack (toFilePath path)))
         else if Set.member node ancestors || Set.size ancestors >= 256
           then pure (atPath "cyclic or excessively deep rules include" (toFilePath path) "")
@@ -206,9 +218,10 @@ checkConfig release path bytes = do
       case release of
         V1524 -> "commands demo test"
         V1996 -> "get holdings transactions"
+        OtherSupported -> ""
     line section (n,raw)
       | T.null body || "#" `T.isPrefixOf` body = pure section
-      | release == V1524, "[" `T.isPrefixOf` body, T.stripStart raw /= raw = unsupported n
+      | release /= V1996, "[" `T.isPrefixOf` body, T.stripStart raw /= raw = unsupported n
       | Just start <- T.stripPrefix "[" body = case T.breakOn "]" start of
           (s,end) | not (T.null end), not ("#" `T.isInfixOf` s), let name = T.strip s,
                     name `elem` ("general":"print":inactive) -> option n name (T.drop 1 end)
@@ -218,7 +231,7 @@ checkConfig release path bytes = do
     option n section arg
       | section `elem` inactive = pure section
       | T.null setting = pure section
-      | section == "print" && release == V1996 && setting == "--layout=hledger1" = pure section
+      | section == "print" && release /= V1524 && setting == "--layout=hledger1" = pure section
       | otherwise = unsupported n
       where setting = T.strip (T.takeWhile (/= '#') arg)
     unsupported n = atPath "unsupported hledger config" (toFilePath path) ("line " <> T.pack (show n))
@@ -316,10 +329,17 @@ conversionContext = do
     else Fallback (FallbackReason ("unsupported conversion encoding " <> T.pack locale) "")
 
 supportedRelease :: T.Text -> Maybe Release
-supportedRelease text = case T.takeWhile (/= '-') (hledgerVersionNumber text) of
-  "1.52.4" -> Just V1524
-  "1.99.6" -> Just V1996
-  _ -> Nothing
+supportedRelease text = do
+  let number = T.takeWhile (/= '-') (hledgerVersionNumber text)
+      component part = case TR.decimal part of
+        Right (n, rest) | T.null rest -> Just (n :: Integer)
+        _ -> Nothing
+  version <- traverse component (T.splitOn "." number)
+  case version of
+    [1,52,4] -> Just V1524
+    [1,99,6] -> Just V1996
+    _ | version >= [1,52,4] -> Just OtherSupported
+      | otherwise -> Nothing
 
 launcher :: FilePath -> FilePath -> IO Bool
 launcher original target

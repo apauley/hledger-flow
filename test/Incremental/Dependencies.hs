@@ -39,13 +39,18 @@ tests = TestList
       write root mainBytes
       write mid midBytes
       write leaf ""
-      forM_ [V1524,V1996] $ \release -> do
+      forM_ [V1524,V1996,OtherSupported] $ \release -> do
         tree <- discoverRules base release root
         tree @?= Reusable [(root,digestBytes mainBytes),(mid,digestBytes midBytes),(leaf,digestBytes ""),(leaf,digestBytes "")]
       ruleIncludes V1524 root "include   a  \r\n include b\ninclude\tc\n" @?= Reusable ["a  "]
       ruleIncludes V1996 root "include   a  \r\n include b\ninclude\tc\n" @?= Reusable ["a"]
       fallback (nestedRuleIncludes V1524 mid "include final.rules\r\n")
       nestedRuleIncludes V1996 mid "include final.rules\r\n" @?= Reusable ["final.rules"]
+      forM_ ["include filename.rules  ", " include file.rules", "include\tfile.rules", "Include file.rules"] $
+        fallback . ruleIncludes OtherSupported root
+      fallback (nestedRuleIncludes OtherSupported mid "include final.rules\r\n")
+      fallback (nestedRuleIncludes OtherSupported mid (B.pack [0xef,0xbb,0xbf] <> "include final.rules"))
+      ruleIncludes OtherSupported root "include  shopping categories.rules\r\n" @?= Reusable ["shopping categories.rules"]
       write root "include middle.rules\r\n"
       write mid "include main.rules\n"
       native <- discoverRules base V1524 root
@@ -90,10 +95,14 @@ tests = TestList
       let file = base </> [relfile|hledger.conf|]
           ok release s = checkConfig release file s @?= Reusable ()
           no release s = fallback (checkConfig release file s)
-      forM_ [V1524,V1996] $ \release -> do
+      forM_ [V1524,V1996,OtherSupported] $ \release -> do
         ok release "# comment\n[balance] --period=thismonth\n[register]\n@file\n[general]\n[print]\n"
         forM_ ["--period=thismonth", "[general] --debug", "[print]\n@indirect", "[txns]", "[bal]", "[b]", "[alias]", "[missing", "[general", "[balance]\n[print] --period=thismonth"] (no release)
       ok V1996 "[print] --layout=hledger1 # layout\n"
+      ok OtherSupported "[print] --layout=hledger1 # layout\n"
+      no OtherSupported "[print]\n [balance]\n--empty"
+      no OtherSupported "[holdings]"
+      no OtherSupported "[demo]"
       no V1524 "[print]\n--layout=hledger1"
       no V1996 "[general]\n--layout=hledger1"
       ok V1996 "[holdings]"
@@ -166,7 +175,11 @@ tests = TestList
         B.writeFile (toFilePath path) (if name == "wrapped" then "#!/bin/sh\n" else if name == "unknown" then "hledger" else native)
         if name == "scoop.exe" then B.writeFile (toFilePath (base </> [relfile|scoop.shim|])) "path = hidden" else pure ()
         converterProbeWith path version >>= (>>= fallback)
-      converterProbeWith real (const (pure (ExitSuccess,"hledger 1.52.40"))) >>= (>>= fallback)
+      let identify v = converterProbeWith real (const (pure (ExitSuccess,"hledger " <> v))) >>= id
+      forM_ [("1.52.4",V1524),("1.99.6",V1996),("1.52.40",OtherSupported),
+             ("1.99-g01a4b4866-20261113, mac-aarch64",OtherSupported),("1.100",OtherSupported),("2.0",OtherSupported)] $ \(v, expected) ->
+        (fmap converterRelease <$> identify v) >>= (@?= Reusable expected)
+      forM_ ["1.52.3","1.52","1.9.40","1.99.x","1.99.","1..99","unknown"] $ \v -> identify v >>= fallback
       setLocaleEncoding latin1
       converterProbeWith real version >>= (>>= fallback)))
   ]
