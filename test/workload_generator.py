@@ -1,4 +1,5 @@
 import csv
+from decimal import Decimal
 import io
 import os
 from pathlib import Path
@@ -212,6 +213,82 @@ class GeneratorCliTests(Workspace):
         self.assertTrue(partial.is_dir())
         retry = subprocess.run([sys.executable, self.script, "mixed", partial], capture_output=True)
         self.assertNotEqual(retry.returncode, 0)
+
+class ImportTests(Workspace):
+    def check_postings(self, expected, rows):
+        transactions = {}
+        for row in rows:
+            transactions.setdefault(row["txnidx"], []).append(row)
+        codes = set()
+        for postings in transactions.values():
+            code = postings[0]["code"]
+            self.assertNotIn(code, codes, f"duplicate transaction code {code}")
+            codes.add(code)
+            self.assertIn(code, expected)
+            self.assertEqual({row["code"] for row in postings}, {code})
+            actual = [(r["date"], r["description"], r["account"], Decimal(r["amount"]), r["commodity"])
+                      for r in postings]
+            self.assertCountEqual(actual, expected[code], msg=code)
+        self.assertEqual(codes, set(expected))
+
+    def test_postings_comparison_detects_corruption(self):
+        expected = {"T1": [("2024-01-01", "City Rail", account, Decimal(amount), "USD")
+                           for account, amount in (("assets:bank", "-1"), ("expenses:transport", "1"))]}
+        good = [dict(txnidx="1", code="T1", date=day, description=memo, account=acct,
+                     amount=str(amount), commodity=currency)
+                for day, memo, acct, amount, currency in expected["T1"]]
+        self.check_postings(expected, good)
+        for corrupt in ([], good + [dict(r, txnidx="2") for r in good],
+                        [dict(r, amount=str(-Decimal(r["amount"]))) for r in good]):
+            with self.assertRaises(AssertionError):
+                self.check_postings(expected, corrupt)
+
+    def test_real_imports_and_report(self):
+        script = self.root / "download.py"
+        shutil.copyfile(SCRIPT, script)
+        for mode in ("mixed", "separate"):
+            run(sys.executable, script, mode, self.root / mode,
+                "--statements", "1", "--transactions", "6")
+        script.unlink()
+        config = self.root / "hledger.conf"
+        config.touch()
+        moved = self.root / "moved workloads"
+        moved.mkdir()
+        for mode in ("mixed", "separate"):
+            (self.root / mode).rename(moved / mode)
+        for kind in (*KINDS, "mixed"):
+            with self.subTest(kind=kind):
+                base = moved / "mixed" if kind == "mixed" else moved / "separate" / kind
+                kinds = KINDS if kind == "mixed" else [kind]
+                expected = {}
+                journals = set()
+                normalized = set()
+                for i, account_kind in enumerate(kinds, 1):
+                    name = f"account-{i:04}"
+                    account = base / "import/sample/examplebank" / name
+                    source = account / "1-in/2024/statement-0001.csv"
+                    with source.open(encoding="utf-8", newline="") as stream:
+                        for row in csv.DictReader(stream):
+                            amount = Decimal(row["amount"])
+                            code = row["reference"]
+                            self.assertNotIn(code, expected)
+                            expected[code] = [
+                                (row["date"], row["description"], f"assets:examplebank:{name}", amount, "USD"),
+                                (row["date"], row["description"], "expenses:" + row["category"], -amount, "USD"),
+                            ]
+                    journals.add(account / "3-journal/2024/statement-0001.journal")
+                    if account_kind in ("preprocess", "combined"):
+                        normalized.add(account / "2-preprocessed/2024/statement-0001.csv")
+                self.assertEqual(len(expected), 6 * len(kinds))
+                run("hledger-flow", "--hledger-conf", config, "import", cwd=base)
+                self.assertEqual(set(base.glob("import/*/*/*/3-journal/*/*")), journals)
+                self.assertEqual(set(base.glob("import/*/*/*/2-preprocessed/*/*")), normalized)
+                run("hledger", "--no-conf", "-f", "all-years.journal", "check", cwd=base)
+                printed = run("hledger", "--no-conf", "-f", "all-years.journal", "print", "-O", "csv", cwd=base)
+                self.check_postings(expected, csv.DictReader(io.StringIO(printed)))
+                if kind == "mixed":
+                    run("hledger-flow", "--hledger-conf", config, "report", cwd=base)
+                    self.assertGreater((base / "reports/all/2024/income-expenses.txt").stat().st_size, 0)
 
 if __name__ == "__main__":
     unittest.main()
