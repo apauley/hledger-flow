@@ -109,10 +109,8 @@ tests:
       - text >= 2.1.3 && < 2.2
       - time (>= 1.12.2 && < 1.13) || (>= 1.14 && < 1.15)
       - stm >= 2.5.3.1 && < 2.6
+      - process >= 1.6.26.1 && < 1.7
     when:
-      - condition: os(windows) || os(darwin)
-        dependencies:
-          - process >= 1.6.26.1 && < 1.7
       - condition: "!os(windows)"
         dependencies:
           - unix >= 2.8 && < 2.9
