@@ -75,7 +75,12 @@ tests = TestLabel "Incremental platform primitives" $ TestList
       let run = root </> [reldir|run|]
 #ifdef mingw32_HOST_OS
       withAclPaths root run $ do
-        powershell "$acl = Get-Acl $env:HF_ACL_PARENT; $everyone = [System.Security.Principal.SecurityIdentifier]'S-1-1-0'; $acl.AddAccessRule([System.Security.AccessControl.FileSystemAccessRule]::new($everyone,'ReadAndExecute','ContainerInherit,ObjectInherit','None','Allow')); Set-Acl $env:HF_ACL_PARENT $acl"
+        powershell $ unlines
+          [ "$acl = [IO.Directory]::GetAccessControl($env:HF_ACL_PARENT)"
+          , "$everyone = [System.Security.Principal.SecurityIdentifier]'S-1-1-0'"
+          , "$acl.AddAccessRule([System.Security.AccessControl.FileSystemAccessRule]::new($everyone,'ReadAndExecute','ContainerInherit,ObjectInherit','None','Allow'))"
+          , "[IO.Directory]::SetAccessControl($env:HF_ACL_PARENT, $acl)"
+          ]
         createPrivateDirectory run
         let nested = run </> [reldir|nested|]
             copied = nested </> [relfile|statement|]
@@ -85,9 +90,10 @@ tests = TestLabel "Incremental platform primitives" $ TestList
         _ <- copyDigest source copied
         powershell $ unlines
           [ "$sid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value"
-          , "$dir = Get-Acl $env:HF_ACL_RUN"
+          , "$dir = [IO.Directory]::GetAccessControl($env:HF_ACL_RUN)"
           , "if (-not $dir.AreAccessRulesProtected) { throw 'inheriting cache parent DACL' }"
-          , "foreach ($acl in @($dir, (Get-Acl (Join-Path $env:HF_ACL_RUN 'nested/statement')))) {"
+          , "$file = [IO.File]::GetAccessControl([IO.Path]::Combine($env:HF_ACL_RUN, 'nested/statement'))"
+          , "foreach ($acl in @($dir, $file)) {"
           , "  $rules = $acl.GetAccessRules($true,$true,[System.Security.Principal.SecurityIdentifier])"
           , "  if ($rules.Count -ne 1 -or $rules[0].IdentityReference.Value -ne $sid -or $rules[0].AccessControlType -ne 'Allow' -or $rules[0].FileSystemRights -ne 'FullControl') { throw 'expected only current user with full access' }"
           , "  if ($acl -ne $dir -and -not $rules[0].IsInherited) { throw 'file lacks inherited access' }"
