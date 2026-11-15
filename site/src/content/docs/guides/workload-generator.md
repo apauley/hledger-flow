@@ -29,20 +29,26 @@ reference, a signed USD amount, a merchant description and a bank category.
 | `combined` | The preprocess hook classifies the merchant. The construct hook reads its CSV and writes the postings. |
 
 Run import on any child directory. For example, to check and report on the
-plain workload after the import above:
+plain workload after the import above, run the report with `LEDGER_FILE` unset.
+This selects the generated journal even if your shell normally points at a
+personal ledger:
 
 ```sh
 cd comparison/plain
-hledger -f all-years.journal check
-hledger-flow report
+hledger --no-conf -f all-years.journal check
+env -u LEDGER_FILE hledger-flow report
 ```
+
+In native PowerShell, open a benchmark shell and run
+`Remove-Item Env:LEDGER_FILE -ErrorAction SilentlyContinue` once. Then use
+`hledger-flow report` or `hledger-flow report household` in the examples.
 
 ## Generate a mix in one directory
 
 ```sh
 python3 generate-workload.py mixed household --plain 4 --advanced 2 --preprocess 2 --construct 1 --combined 1 --statements 12 --transactions 100 --seed 42
 hledger-flow import household
-hledger-flow report household
+env -u LEDGER_FILE hledger-flow report household
 ```
 
 This also creates 10 accounts, 120 statements and 12,000 transactions, all
@@ -64,10 +70,15 @@ execution settings.
 Keep the generator revision and seed with the benchmark results. To compare
 `master` with a feature branch, generate once and give each binary a fresh
 copy of the base. Preserve executable permissions when copying hooks.
-Use the same machine, hledger executable, Python interpreter and import
+Use the same machine, hledger executable, hledger configuration, Python interpreter and import
 concurrency (for example, `--batch-size 4`). Time only the import. Check the
 journal and run reports afterwards. For an incremental benchmark, first finish
 a full import on each copy, then time `hledger-flow import --new-files-only`.
+
+To isolate a comparison from personal hledger settings, create an empty
+`benchmark.conf` next to the generated base directories. Pass the same file
+to both builds, for example `hledger-flow --hledger-conf benchmark.conf import comparison/plain`.
+Use the same option for reports.
 
 These shapes each produce 120,000 transactions per base:
 
