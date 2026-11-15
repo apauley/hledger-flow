@@ -110,7 +110,8 @@ on Windows). It runs HUnit, builds this checkout and shelltestrunner, runs all
 CLI scenarios supported by the platform, runs the offline release checks,
 and installs hledger-flow only after everything passes. It also builds the
 [project site](#work-on-the-project-site) and checks its links. Put Stack,
-hledger, Git, jq, a working Python 3 command named `python3`, and Node.js with
+hledger 1.99.6 (the CI pin in `site/scripts/tutorial/hledger-version`) or
+1.52.4, Git, jq, a working Python 3 command named `python3`, and Node.js with
 `npm` on `PATH` first.
 The release checks use temporary repositories and fake services; they do not
 publish anything or need credentials.
@@ -123,7 +124,7 @@ the test rather than hanging the suite.
 
 The shelltest suite exercises imports and reports with real `hledger` and
 `hledger-flow` executables. Each scenario creates its own temporary finance
-directory. From the repository root on macOS or Linux, with `hledger` on
+directory. From the repository root on Linux or macOS, with `hledger` on
 your `PATH`, run:
 
 ``` bash
@@ -131,7 +132,7 @@ stack build hledger-flow shelltestrunner
 stack exec -- shelltest --timeout=120 test/shell
 ```
 
-On Windows, install the [latest upstream hledger release](https://hledger.org/get-hledger-installed.html) and put `hledger.exe`
+On Windows, install the [hledger 1.99.6 release](https://github.com/hledgerorg/hledger/releases/tag/1.99.6) and put `hledger.exe`
 on your `PATH`. From Git Bash at the repository root, build `hledger-flow.exe`
 from this checkout and run the same scenarios as Windows CI:
 
