@@ -36,7 +36,7 @@ import System.Exit (ExitCode (..), exitWith)
 import System.IO (hClose)
 import qualified System.Info as Sys
 import qualified System.Process as Process
-import System.IO.Error (tryIOError)
+import System.IO.Error (isDoesNotExistError, tryIOError)
 import System.FilePath ((<.>))
 import Prelude hiding (putStrLn, readFile, writeFile)
 
@@ -142,19 +142,42 @@ hledgerConfArgs opts =
 -- by itself, like possibleConfFiles in hledger's Hledger.Cli.Conf: hledger.conf in the current
 -- directory or a parent, ~/.hledger.conf, or hledger.conf in the XDG config directory.
 findHledgerConf :: Maybe FilePath -> IO (Maybe HledgerConf)
-findHledgerConf (Just given) = return (Just (GivenConf given))
+findHledgerConf (Just given) = pure (Just (GivenConf given))
 findHledgerConf Nothing = do
-  found <- tryIOError $ do
-    here <- Directory.getCurrentDirectory
-    home <- Directory.getHomeDirectory
-    xdg <- Directory.getXdgDirectory Directory.XdgConfig "hledger"
-    let file d = d FilePath.</> if d == home then ".hledger.conf" else "hledger.conf"
-    filterM Directory.doesFileExist (map file (List.nub (upToRoot here ++ [home, xdg])))
-  return $ case found of
+  result <- tryIOError (hledgerConfCandidates >>= filterM Directory.doesFileExist)
+  pure $ case result of
     Right (f : _) -> Just (FoundConf f)
     _ -> Nothing
+
+-- | Fresh lookup for callers that need to distinguish absence from failed discovery.
+lookupHledgerConf :: Maybe FilePath -> IO (Maybe HledgerConf)
+lookupHledgerConf (Just given) = return (Just (GivenConf given))
+lookupHledgerConf Nothing = fmap FoundConf <$> (hledgerConfCandidates >>= firstConfirmedFile)
+
+hledgerConfCandidates :: IO [FilePath]
+hledgerConfCandidates = do
+  here <- Directory.getCurrentDirectory
+  home <- Directory.getHomeDirectory
+  xdg <- Directory.getXdgDirectory Directory.XdgConfig "hledger"
+  let file d = d FilePath.</> if d == home then ".hledger.conf" else "hledger.conf"
+  pure (map file (List.nub (upToRoot here ++ [home, xdg])))
   where
     upToRoot d = let up = FilePath.takeDirectory d in d : if up == d then [] else upToRoot up
+
+-- doesFileExist also returns False on permission errors. Verify a negative result
+-- before advancing to the next candidate so an uncertain selection cannot be cached.
+firstConfirmedFile :: [FilePath] -> IO (Maybe FilePath)
+firstConfirmedFile [] = pure Nothing
+firstConfirmedFile (file : rest) = do
+  exists <- Directory.doesFileExist file
+  if exists then pure (Just file) else do
+    status <- tryIOError (Directory.getPermissions file)
+    case status of
+      Left e | isDoesNotExistError e -> firstConfirmedFile rest
+             | otherwise -> ioError e
+      Right _ -> do
+        dir <- Directory.doesDirectoryExist file
+        if dir then firstConfirmedFile rest else ioError (userError ("Could not determine the file type of " ++ file))
 
 showCmdArgs :: [T.Text] -> T.Text
 showCmdArgs args = T.intercalate " " (map escapeArg args)
