@@ -303,10 +303,12 @@ translateDiagnostic snap diagnostic = T.intercalate "\n" <$> mapM translate (T.s
           Nothing -> False
     splitHeader line =
       let (spaces, rest) = T.span (== ' ') line
-          prefixes = ["Warning: ", "hledger: Warning: ", "hledger: Error: ", "hledger: error: ", "hledger: ", "Error: ", "error: ", "in "]
-      in case [(spaces <> p, s) | p <- prefixes, Just s <- [T.stripPrefix p rest]] of
-           (parts:_) -> parts
-           [] -> (spaces, rest)
+          (program, message) = splitPrefix ["hledger: ", "hledger.exe: "] rest
+          (label, body) = splitPrefix ["Warning: ", "Error: ", "error: ", "in "] message
+      in (spaces <> program <> label, body)
+    splitPrefix prefixes value = case [(p,s) | p <- prefixes, Just s <- [T.stripPrefix p value]] of
+      (parts:_) -> parts
+      [] -> ("",value)
     firstKnown _ original [] = pure original
     firstKnown prefix original ((token, suffix):more) = do
       mapped <- lookupPath token

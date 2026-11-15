@@ -1,3 +1,4 @@
+{-# LANGUAGE CApiFFI #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes #-}
@@ -83,6 +84,9 @@ tests = TestLabel "Private input snapshots" $ TestList
         assertBool "separate private copy" (config /= copied)
         assertEqual "config path" (T.pack (toFilePath config) <> ":6:3:")
            =<< translateDiagnostic snapshot (T.pack (toFilePath copied) <> ":6:3:")
+        let windowsError p = "hledger.exe: Error: " <> T.pack (toFilePath p) <> ":6:3:"
+        assertEqual "Windows hledger diagnostic" (windowsError config)
+           =<< translateDiagnostic snapshot (windowsError copied)
         BS.readFile (toFilePath copied) >>= assertEqual "whole-file content" "[balance]\n--period=thismonth\n"
       case result of
         Reusable () -> pure ()
@@ -233,6 +237,6 @@ runWorker ["--snapshot-test-worker", baseName] = do
 runWorker _ = pure False
 
 #ifdef mingw32_HOST_OS
-foreign import stdcall unsafe "GetShortPathNameW"
+foreign import capi unsafe "windows.h GetShortPathNameW"
   getShortPath :: CWString -> CWString -> Word32 -> IO Word32
 #endif

@@ -211,15 +211,18 @@ withEnv name value action = bracket (lookupEnv name) (maybe (unsetEnv name) (set
 
 -- Paths come out resolved (macOS /private/var, symlinked homes), so match both spellings of HOME.
 testHomeDirs :: Test
-testHomeDirs = TestLabel "home folder spellings" $ TestCase $ unless (Sys.os == "mingw32") $ withTestDir $ \base -> do
+testHomeDirs = TestLabel "home folder spellings" $ TestCase $ withTestDir $ \base -> do
   let root = Path.toFilePath base
-  Directory.createDirectory (root </> "real")
-  Directory.createDirectoryLink (root </> "real") (root </> "link")
-  real <- Directory.canonicalizePath (root </> "real")
-  forM_ ([root </> "link", root </> "link/", real ++ "/"] :: [FilePath]) $ \home -> withEnv "HOME" home $ do
-    homes <- homeDirs
-    assertEqual ("resolved path with HOME=" ++ home) ("~" </> "fin") (tildePath homes (real </> "fin"))
-    assertEqual ("HOME's spelling with HOME=" ++ home) ("~" </> "fin") (tildePath homes (home </> "fin"))
+  if Sys.os == "mingw32"
+    then withEnv "USERPROFILE" root $ homeDirs >>= assertEqual "keep native profile paths absolute" []
+    else do
+      Directory.createDirectory (root </> "real")
+      Directory.createDirectoryLink (root </> "real") (root </> "link")
+      real <- Directory.canonicalizePath (root </> "real")
+      forM_ ([root </> "link", root </> "link/", real ++ "/"] :: [FilePath]) $ \home -> withEnv "HOME" home $ do
+        homes <- homeDirs
+        assertEqual ("resolved path with HOME=" ++ home) ("~" </> "fin") (tildePath homes (real </> "fin"))
+        assertEqual ("HOME's spelling with HOME=" ++ home) ("~" </> "fin") (tildePath homes (home </> "fin"))
 
 testWriteGeneratedText :: Test
 testWriteGeneratedText = TestLabel "write generated text" $ TestCase $ withTestDir $ \base -> do

@@ -74,6 +74,10 @@ diagnostics before it exits, even if a pipe consumer reads slowly. To save
 the failure message for inspection, capture standard error, for example
 with `hledger-flow import 2>import-errors.log`.
 
+On Windows, you can paste the displayed command into PowerShell at the ledger
+root. If `USERPROFILE` differs from the Windows profile directory, the
+command uses absolute paths for files outside the ledger so they still resolve.
+
 `1-in` is the source of truth. Both `2-preprocessed` and `3-journal`
 contain generated output; user-supplied files in those stages are not
 supported. Use [manually managed journals](/reference/manual-journals/)

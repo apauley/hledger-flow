@@ -45,7 +45,7 @@ A notice on standard error names the reason and the affected scope. Use `--verbo
 
 Common reasons include an unsupported hledger version or input reader, an unrecognized config heading or active setting, a multiline or unknown directive, an unresolved rules include, and an absolute rules include or one outside the ledger. Use `--hledger-path` to select the real hledger executable if the configured path is a launcher. An unrecognized native executable that forwards to another program can hide changes to its target. Keep the installed converter stable during an import. Temporarily replacing its parent directory and restoring it during conversion can escape the executable identity checks.
 
-An eligible rebuild uses private copies so the record describes the bytes hledger read. Reuse can also be unavailable if private staging fails, a planned Windows snapshot path reaches 260 UTF-16 code units, or inputs change during conversion. A warm rules-based hit creates no snapshot.
+An eligible rebuild uses private copies so the record describes the bytes hledger read. If hledger reports an error in a copied file, the diagnostic names the original file so you can open it at the reported line. Reuse can also be unavailable if private staging fails, a planned Windows snapshot path reaches 260 UTF-16 code units, or inputs change during conversion. A warm rules-based hit creates no snapshot.
 
 ## Clear the cache
 

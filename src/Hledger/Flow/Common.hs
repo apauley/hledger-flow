@@ -187,8 +187,14 @@ showCmdArgs args = T.intercalate " " (map escapeArg args)
 homeDirs :: IO [FilePath]
 homeDirs = either (const []) id <$> tryIOError (do
   home <- Directory.getHomeDirectory
-  real <- Directory.canonicalizePath home
-  return (List.nub [home, real]))
+  -- PowerShell expands $HOME from USERPROFILE. The Windows profile API can
+  -- still return the original profile after USERPROFILE has been overridden.
+  shellHome <- if nativeShell == PowerShell then lookupEnv "USERPROFILE" else pure (Just home)
+  case shellHome of
+    Just value | FilePath.equalFilePath value home -> do
+      real <- Directory.canonicalizePath home
+      pure (List.nub [home, real])
+    _ -> pure [])
 
 -- | The path's components below the home folder; @Just []@ for the home folder itself.
 belowHome :: [FilePath] -> FilePath -> Maybe [FilePath]
