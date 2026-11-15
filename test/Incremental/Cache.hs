@@ -6,6 +6,7 @@ module Incremental.Cache (tests) where
 import Control.Exception (IOException, try)
 import Data.Maybe (isJust)
 import qualified Data.Text.IO as T
+import Hledger.Flow.Cache (initializeCache)
 import Hledger.Flow.Import.Cache
 import Hledger.Flow.Import.Fingerprint
 import qualified Path as P

@@ -5,7 +5,7 @@
 
 module Hledger.Flow.Import.Cache
   ( StageRecord (..), StatementRecord (..), StageInputs
-  , initializeCache, recordPath, readRecord, saveRecord
+  , recordPath, readRecord, saveRecord
   , stageMiss, installOutput, digestIfPresent
   ) where
 
@@ -16,12 +16,11 @@ import qualified Data.ByteString.Lazy as BL
 import Data.Text (Text)
 import qualified Data.Text as T
 import GHC.Generics (Generic)
-import GHC.IO.Handle.Lock (LockMode (ExclusiveLock), hLock)
+import Hledger.Flow.Cache (cacheDir)
 import Hledger.Flow.Import.Fingerprint
 import Hledger.Flow.PathHelpers
 import qualified Path as P
 import qualified Path.IO as P
-import System.IO (IOMode (AppendMode), withBinaryFile)
 import System.IO.Error (isDoesNotExistError, tryIOError)
 
 type StageInputs = [(Text, Text)]
@@ -45,23 +44,8 @@ recordPath base source = do
   let year = P.parent source
       account = P.parent (P.parent year)
   group <- P.stripProperPrefix (base P.</> [P.reldir|import|]) account
-  pure $ base P.</> [P.reldir|.hledger-flow/cache/import|] P.</> group
+  pure $ cacheDir base P.</> [P.reldir|import|] P.</> group
               P.</> P.dirname year P.</> P.filename source
-
-initializeCache :: AbsDir -> IO ()
-initializeCache base = do
-  let cache = base P.</> [P.reldir|.hledger-flow/cache|]
-      ignore = cache P.</> [P.relfile|.gitignore|]
-      lock = cache P.</> [P.relfile|initialize.lock|]
-  exists <- P.doesFileExist ignore
-  unless exists $ do
-    P.createDirIfMissing True cache
-    -- Serialize first use across imports. Closing the handle releases the lock.
-    withBinaryFile (P.toFilePath lock) AppendMode $ \handle -> do
-      hLock handle ExclusiveLock
-      initialized <- P.doesFileExist ignore
-      unless initialized $ withStagedOutput ignore $ \stage ->
-        BS.writeFile (P.toFilePath stage) "*\n"
 
 readRecord :: AbsFile -> IO (Maybe StatementRecord)
 readRecord path = do

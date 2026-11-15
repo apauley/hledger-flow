@@ -326,6 +326,19 @@ class Rules(Ledger):
 
 
 class Cache(Ledger):
+    def test_incremental_reuses_release_cache_directory(self):
+        ignore = self.cache / ".gitignore"
+        release = self.cache / "release-check.json"
+        write(ignore, "*\n")
+        write(release, '{"lastFailure":"2026-11-16T00:00:00Z","lastSuccess":null}')
+        for path in (ignore, release):
+            old_timestamp(path)
+        before = [(p.read_bytes(), p.stat().st_mtime_ns) for p in (ignore, release)]
+        self.imports(1, RUN_SCRIPTS)
+        self.assertEqual(len(self.records()), 1)
+        self.assertEqual([(p.read_bytes(), p.stat().st_mtime_ns) for p in (ignore, release)], before)
+        self.assertFalse((self.cache / "initialize.lock").exists())
+
     def test_hledger_arguments_invalidate_journal_records(self):
         for script in (False, True):
             if script:

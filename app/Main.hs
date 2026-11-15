@@ -47,7 +47,7 @@ import Options.Applicative
 import Options.Applicative.Builder.Internal (noGlobal)
 import System.Environment (getArgs)
 
-import Hledger.Flow.Types (HledgerInfo (..))
+import Hledger.Flow.Types (BaseDir, RunDir, HledgerInfo (..))
 import Hledger.Flow.Common ( deferredHledgerVersion, findHledgerConf, hledgerPathFromOption, hledgerInfoFromPath )
 import Hledger.Flow.Status ( Situation (..) )
 import Hledger.Flow.Status.Gather ( classifyDir )
@@ -62,7 +62,7 @@ import Data.Maybe (fromMaybe)
 import Hledger.Flow.Internals (availableCores, versionInfo, systemInfo)
 import Hledger.Flow.BaseDir ( determineBaseDir, findBaseDir )
 import qualified Hledger.Flow.RuntimeOptions as RT
-import Hledger.Flow.ReleaseNotice ( withReleaseNotice )
+import Hledger.Flow.ReleaseNotice ( withReleaseNotice, withCachedReleaseNotice )
 import Hledger.Flow.Reports ( generateReports )
 import Hledger.Flow.Import.CSVImport ( importCSVs )
 
@@ -149,10 +149,12 @@ runCommand = do
     Version -> do
       sysInfo <- systemInfo
       T.putStrLn $ versionInfo sysInfo 
-    Command mainParams' (Just (Import subParams)) ->
-      withReleaseNotice $ (toRuntimeOptionsImport mainParams' subParams >>= importCSVs) `catch` reportFatal
-    Command mainParams' (Just (Report subParams)) ->
-      withReleaseNotice $ (toRuntimeOptionsReport mainParams' subParams >>= generateReports) `catch` reportFatal
+    Command mainParams' (Just (Import subParams)) -> do
+      (base, runDir) <- determineBaseDir (maybeImportBaseDir subParams)
+      withReleaseNotice base $ (toRuntimeOptionsImport base runDir mainParams' subParams >>= importCSVs) `catch` reportFatal
+    Command mainParams' (Just (Report subParams)) -> do
+      (base, _) <- determineBaseDir (maybeReportBaseDir subParams)
+      withReleaseNotice base $ (toRuntimeOptionsReport base mainParams' subParams >>= generateReports) `catch` reportFatal
     Command mainParams' (Just (Status subParams)) -> runStatus mainParams' subParams
     Command mainParams' (Just (Init subParams)) -> do
       cwd <- getCurrentDir
@@ -187,15 +189,19 @@ runStatus mainParams' params = do
   base <- findBaseDir dir >>= maybe (throwIO (MissingBaseDir dir)) return
   case statusRulesTemplate params of
     Just account -> rulesTemplateFor base (Text.pack account) >>= either (ioError . userError . Text.unpack) T.putStr
-    Nothing -> printStatus (hledgerPathOpt mainParams') (hledgerConfOpt mainParams') (statusJson params) base
+    Nothing | statusJson params -> printStatus (hledgerPathOpt mainParams') (hledgerConfOpt mainParams') True base
+            | otherwise -> printInteractiveStatus mainParams' base
+
+printInteractiveStatus :: MainParams -> BaseDir -> IO ()
+printInteractiveStatus params base = withCachedReleaseNotice base $
+  printStatus (hledgerPathOpt params) (hledgerConfOpt params) False base
 
 -- | Running hledger-flow with no command: say where we are and what to do.
 runBare :: MainParams -> IO ()
 runBare mainParams' = do
   situation <- getCurrentDir >>= classifyDir
   case situation of
-    InLedger base ->
-      printStatus (hledgerPathOpt mainParams') (hledgerConfOpt mainParams') False base
+    InLedger base -> printInteractiveStatus mainParams' base
     EmptyDir -> T.putStrLn "This folder is empty. Run `hledger-flow init` to start your ledger here."
     Elsewhere ->
       T.putStr $
@@ -203,11 +209,9 @@ runBare mainParams' = do
           <> "\nNo hledger-flow ledger here or in any parent folder.\n"
           <> "Run `hledger-flow init` in an empty folder to start one.\n"
 
-toRuntimeOptionsImport :: MainParams -> ImportParams -> IO RT.RuntimeOptions
-toRuntimeOptionsImport mainParams' subParams' = do
+toRuntimeOptionsImport :: BaseDir -> RunDir -> MainParams -> ImportParams -> IO RT.RuntimeOptions
+toRuntimeOptionsImport bd runDir mainParams' subParams' = do
   startYear <- traverse resolveStartYear (importStartYear subParams')
-  let maybeBD = maybeImportBaseDir subParams' :: Maybe FilePath
-  (bd, runDir) <- determineBaseDir maybeBD
   hlp <- hledgerPathFromOption $ hledgerPathOpt mainParams'
   version <- deferredHledgerVersion hlp
   conf <- findHledgerConf $ hledgerConfOpt mainParams'
@@ -228,10 +232,8 @@ toRuntimeOptionsImport mainParams' subParams' = do
                            , RT.prettyReports = True
                            }
 
-toRuntimeOptionsReport :: MainParams -> ReportParams -> IO RT.RuntimeOptions
-toRuntimeOptionsReport mainParams' subParams' = do
-  let maybeBD = maybeReportBaseDir subParams' :: Maybe FilePath
-  (bd, _) <- determineBaseDir maybeBD
+toRuntimeOptionsReport :: BaseDir -> MainParams -> ReportParams -> IO RT.RuntimeOptions
+toRuntimeOptionsReport bd mainParams' subParams' = do
   HledgerInfo hlp version <- hledgerInfoFromPath $ hledgerPathOpt mainParams'
   conf <- findHledgerConf $ hledgerConfOpt mainParams'
   sysInfo <- systemInfo

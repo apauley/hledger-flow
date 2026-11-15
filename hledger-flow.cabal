@@ -33,6 +33,7 @@ source-repository head
 library
   exposed-modules:
       Hledger.Flow.BaseDir
+      Hledger.Flow.Cache
       Hledger.Flow.Common
       Hledger.Flow.DateTime
       Hledger.Flow.DocHelpers

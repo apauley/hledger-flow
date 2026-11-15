@@ -16,6 +16,7 @@ import qualified Data.Text as T
 import Hledger.Flow.BaseDir (relativeToBase)
 import Hledger.Flow.Common (directivesFile, writeStagedText)
 import Hledger.Flow.DocHelpers
+import Hledger.Flow.Cache (initializeCache)
 import Hledger.Flow.Import.Cache
 import Hledger.Flow.Import.Conversion
 import Hledger.Flow.Import.Dependencies
