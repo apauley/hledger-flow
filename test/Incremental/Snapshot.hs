@@ -107,7 +107,7 @@ tests = TestLabel "Private input snapshots" $ TestList
         ConstructInput (Just copied) <- pure (snapshotInputs snap)
         canonical <- D.canonicalizePath (toFilePath copied)
         assertBool "release canonicalized the ancestor" (canonical /= toFilePath copied)
-        let ruleLine path = "the date rule is:   %1                   (" <> T.pack path <> ":7)"
+        let ruleLine fileName = "the date rule is:   %1                   (" <> T.pack fileName <> ":7)"
         assertEqual "diagnostic location" (ruleLine (toFilePath config))
           =<< translateDiagnostic snap (ruleLine canonical)
       assertEqual "converted" (Reusable ()) result
