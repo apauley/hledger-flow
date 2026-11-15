@@ -10,6 +10,7 @@ import qualified Common.Integration
 import qualified Common.Unit
 import qualified Environment.Unit
 import qualified ImportHelpers.Integration
+import qualified Incremental.Platform
 import qualified Init.Integration
 import qualified PathHelpers.Unit
 import qualified ReleaseNotice.Unit
@@ -32,6 +33,7 @@ tests =
       CSVImport.Integration.tests,
       Status.Unit.tests,
       Status.Integration.tests,
+      Incremental.Platform.tests,
       Init.Integration.tests,
       ReleaseNotice.Unit.tests,
       RulesTemplate.Unit.tests,
