@@ -31,7 +31,7 @@ How to keep this ChangeLog
   existing destination belongs in release-procedure.md.
 -->
 
-## Unreleased
+## 0.20.1
 
 - Use `hledger-flow import --incremental` with hledger 1.52.4 or later to reuse journals when their inputs, including nested rules files, still match. Choose `--incremental=skip-unchanged-scripts` to also reuse the outputs of unchanged scripts. See the [incremental import reference](https://hledger-flow.github.io/reference/incremental-import/).
 - Interactive `import` and `report` share a [release check](https://hledger-flow.github.io/reference/release-notices/) for 24 hours. `status` can show a previously discovered upgrade while offline.
