@@ -44,6 +44,8 @@ tests = TestList
         tree @?= Reusable [(root,digestBytes mainBytes),(mid,digestBytes midBytes),(leaf,digestBytes ""),(leaf,digestBytes "")]
       ruleIncludes V1524 root "include   a  \r\n include b\ninclude\tc\n" @?= Reusable ["a  "]
       ruleIncludes V1996 root "include   a  \r\n include b\ninclude\tc\n" @?= Reusable ["a"]
+      fallback (nestedRuleIncludes V1524 mid "include final.rules\r\n")
+      nestedRuleIncludes V1996 mid "include final.rules\r\n" @?= Reusable ["final.rules"]
       write mid "include missing.rules"
       discoverRules base V1996 root >>= fallback
       write mid "include main.rules"
@@ -80,6 +82,7 @@ tests = TestList
       no V1524 "[print]\n--layout=hledger1"
       no V1996 "[general]\n--layout=hledger1"
       ok V1996 "[holdings]"
+      no V1524 "[print]\n [balance]\n--empty"
       no V1524 "[holdings]"
       ok V1524 "[demo]"
       no V1996 "[demo]"

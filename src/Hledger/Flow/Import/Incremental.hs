@@ -30,6 +30,7 @@ import qualified Path as P
 import qualified Path.IO as P
 import qualified System.Directory as D
 import System.IO.Error (tryIOError)
+import qualified System.Info as Sys
 
 data IncrementalRun = IncrementalRun SnapshotRun (IO (ReuseDecision Converter)) (IORef (Map.Map AbsFile (Set.Set T.Text)))
 
@@ -53,8 +54,10 @@ data HookInputs = HookInputs AbsFile FileObservation AbsFile FileObservation
 
 observeHook :: AbsFile -> AbsFile -> IO (ReuseDecision HookInputs)
 observeHook script source = checkedIO "could not observe hook inputs" (P.toFilePath script) $ do
-  inputs <- HookInputs script <$> observeFile script <*> pure source <*> observeFile source
-  pure (Reusable inputs)
+  runnable <- if Sys.os == "mingw32" then pure True else D.executable <$> D.getPermissions (P.toFilePath script)
+  if runnable
+    then Reusable <$> (HookInputs script <$> observeFile script <*> pure source <*> observeFile source)
+    else pure $ atPath "hook is not executable" (P.toFilePath script) ""
 
 hookInputsKey :: ImportDirs P.Abs -> FilePath -> T.Text -> HookInputs -> StageInputs
 hookInputsKey dirs cwd stage (HookInputs script s input i) =
@@ -80,7 +83,9 @@ importStatement (IncrementalRun snapshots probe reasons) opts ch dirs source = d
   old <- readRecord record
   intermediate <- generatedOutput [P.reldir|2-preprocessed|] ".csv" source
   let hook name = findHook opts ch name (accountDir dirs P.</> (if name == "preprocess" then [P.relfile|preprocess|] else [P.relfile|construct|]))
-      report (FallbackReason reason detail) = do
+      report problem = do
+        let reason = reasonScope problem
+            detail = reasonDetail problem
         atomicModifyIORef' reasons $ \m -> (Map.insertWith Set.union source (Set.singleton reason) m,())
         logVerbose opts ch $ reason <> " " <> detail
       changed = FallbackReason "dependency changed during conversion" (pathText source)
@@ -149,7 +154,11 @@ importStatement (IncrementalRun snapshots probe reasons) opts ch dirs source = d
           Nothing -> hledgerImport opts ch dirs csv output
           Just s -> withStagedOutput output (customConstruct opts ch s dirs csv output)
       prior = old >>= journalRecord
-      fallback reason = report reason >> ordinary >> pure (Nothing,True)
+      fallback reason = do
+        report reason
+        case reason of
+          CyclicRules _ file -> ioError $ userError ("Cyclic CSV rules include at " ++ T.unpack file)
+          _ -> ordinary >> pure (Nothing,True)
   rawDecision <- discover
   let agrees inputs = case preRecord of
         Nothing -> True

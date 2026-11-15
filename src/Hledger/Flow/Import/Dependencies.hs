@@ -4,7 +4,7 @@
 
 module Hledger.Flow.Import.Dependencies
   ( Release (..), FallbackReason (..), ReuseDecision (..), Converter (..),
-    ruleIncludes, resolveRuleInclude, discoverRules, selectRules, isSeparatedValues,
+    ruleIncludes, nestedRuleIncludes, resolveRuleInclude, discoverRules, selectRules, isSeparatedValues,
     checkedIO, atPath, checkArguments, discoverConfig, discoverDirectives, checkConfig, checkDirectives,
     newConverterProbe, converterProbeWith
   ) where
@@ -40,7 +40,10 @@ import System.Win32.NLS (getACP)
 
 data Release = V1524 | V1996 deriving (Eq, Show)
 
-data FallbackReason = FallbackReason {reasonScope :: T.Text, reasonDetail :: T.Text} deriving (Eq, Ord, Show)
+data FallbackReason
+  = FallbackReason {reasonScope :: T.Text, reasonDetail :: T.Text}
+  | CyclicRules {reasonScope :: T.Text, reasonDetail :: T.Text}
+  deriving (Eq, Ord, Show)
 data ReuseDecision a = Reusable a | Fallback FallbackReason deriving (Functor, Eq, Show)
 
 instance Applicative ReuseDecision where
@@ -76,6 +79,18 @@ ruleIncludes release path bytes = do
         | otherwise = pure (T.unpack s)
   traverse check paths
 
+-- 1.52.4 reads nested rules through the native text handle. On POSIX a CR
+-- at the end of an include line may be part of the filename. Defer that case
+-- to the converter instead of mirroring a different file.
+nestedRuleIncludes :: Release -> AbsFile -> B.ByteString -> ReuseDecision [FilePath]
+nestedRuleIncludes V1524 path bytes
+  | any ambiguous (B.split 10 bytes) =
+      atPath "uncertain nested rules include" (toFilePath path) "native line ending or byte-order mark"
+  where
+    ambiguous line = "include " `B.isPrefixOf` dropUtf8Bom line &&
+                     (B.elem 13 line || dropUtf8Bom line /= line)
+nestedRuleIncludes release path bytes = ruleIncludes release path bytes
+
 dropUtf8Bom :: B.ByteString -> B.ByteString
 dropUtf8Bom b = maybe b id (B.stripPrefix (B.pack [0xef,0xbb,0xbf]) b)
 
@@ -104,28 +119,31 @@ resolveRuleInclude base parent child = checkedIO "uncertain rules include" raw $
     inside root path = F.splitDirectories (F.dropTrailingPathSeparator root) `isPrefixOf` F.splitDirectories path
 
 discoverRules :: AbsDir -> Release -> AbsFile -> IO (ReuseDecision [(AbsFile,Digest)])
-discoverRules base release = walk Set.empty
+discoverRules base release = walk Set.empty Set.empty
   where
-    walk ancestors path = checkedIO "could not read rules file" (toFilePath path) $ do
+    walk ancestors lexical path = checkedIO "could not read rules file" (toFilePath path) $ do
       canonical <- D.canonicalizePath (toFilePath path)
-      if Set.member canonical ancestors || Set.size ancestors >= 256
+      if release == V1524 && Set.member path lexical
+        then pure $ Fallback (CyclicRules "cyclic rules include" (T.pack (toFilePath path)))
+        else if Set.member canonical ancestors || Set.size ancestors >= 256
         then pure (atPath "cyclic or excessively deep rules include" (toFilePath path) "")
         else do
           bytes <- B.readFile (toFilePath path)
-          case ruleIncludes release path bytes of
+          let scan = if Set.null ancestors then ruleIncludes else nestedRuleIncludes
+          case scan release path bytes of
             Fallback r -> pure (Fallback r)
             Reusable children -> do
-              nested <- descend (Set.insert canonical ancestors) path children
+              nested <- descend (Set.insert canonical ancestors) (Set.insert path lexical) path children
               pure (((path,digestBytes bytes):) <$> nested)
-    descend _ _ [] = pure (pure [])
-    descend ancestors path (c:cs) = do
+    descend _ _ _ [] = pure (pure [])
+    descend ancestors lexical path (c:cs) = do
       selected <- resolveRuleInclude base path c
       tree <- case selected of
         Fallback r -> pure (Fallback r)
-        Reusable file -> walk ancestors file
+        Reusable file -> walk ancestors lexical file
       case tree of
         Fallback r -> pure (Fallback r)
-        Reusable files -> fmap (files ++) <$> descend ancestors path cs
+        Reusable files -> fmap (files ++) <$> descend ancestors lexical path cs
 
 selectRules :: AbsFile -> ImportDirs Abs -> IO (ReuseDecision (Maybe AbsFile))
 selectRules csv dirs = checkedIO "could not select rules file" (toFilePath csv) $ do
@@ -186,6 +204,7 @@ checkConfig release path bytes = do
         V1996 -> "get holdings transactions"
     line section (n,raw)
       | T.null body || "#" `T.isPrefixOf` body = pure section
+      | release == V1524, "[" `T.isPrefixOf` body, T.stripStart raw /= raw = unsupported n
       | Just start <- T.stripPrefix "[" body = case T.breakOn "]" start of
           (s,end) | not (T.null end), not ("#" `T.isInfixOf` s), let name = T.strip s,
                     name `elem` ("general":"print":inactive) -> option n name (T.drop 1 end)
@@ -235,6 +254,7 @@ checkDirectives _ path bytes = do
 data Converter = Converter
   { converterRelease :: Release
   , converterExecutable :: AbsFile
+  , converterStamp :: FileStamp
   , converterKey :: [T.Text]
   } deriving (Eq, Show)
 
@@ -269,7 +289,7 @@ converterProbeWith executable getVersion = do
                              atPath "hledger executable changed" original ""
                          | status /= ExitSuccess = atPath "could not identify hledger version" original ""
                          | otherwise = case supportedRelease version of
-                             Just release -> Reusable (Converter release resolved key)
+                             Just release -> Reusable (Converter release resolved stamp key)
                              Nothing -> Fallback (FallbackReason ("unsupported hledger version " <> version) (T.pack original))
               pure (Just (resolved,stamp,result),result)
   where original = toFilePath executable

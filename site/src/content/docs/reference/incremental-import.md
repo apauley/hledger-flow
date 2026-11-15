@@ -43,7 +43,7 @@ P 2000-01-01 EUR €1
 
 A notice on standard error names the reason and the affected scope. Use `--verbose` for statement, stage and file details. Full conversion still runs. A conversion error has the usual exit status and diagnostics.
 
-Common reasons include an unsupported hledger version or input reader, an unrecognized config heading or active setting, a multiline or unknown directive, an unresolved rules include, and an absolute rules include or one outside the ledger. Use `--hledger-path` to select the real hledger executable if the configured path is a launcher. An unrecognized native executable that forwards to another program can hide changes to its target.
+Common reasons include an unsupported hledger version or input reader, an unrecognized config heading or active setting, a multiline or unknown directive, an unresolved rules include, and an absolute rules include or one outside the ledger. Use `--hledger-path` to select the real hledger executable if the configured path is a launcher. An unrecognized native executable that forwards to another program can hide changes to its target. Keep the installed converter stable during an import. Temporarily replacing its parent directory and restoring it during conversion can escape the executable identity checks.
 
 An eligible rebuild uses private copies so the record describes the bytes hledger read. Reuse can also be unavailable if private staging fails, a planned Windows snapshot path reaches 260 UTF-16 code units, or inputs change during conversion. A warm rules-based hit creates no snapshot.
 

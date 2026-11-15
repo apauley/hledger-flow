@@ -14,7 +14,7 @@ import Data.Either
 import Data.Maybe (fromMaybe)
 import Data.Time.Clock (NominalDiffTime)
 import Text.Printf (printf)
-import qualified Data.List as List (isPrefixOf, isSuffixOf, nub)
+import qualified Data.List as List (take, isPrefixOf, isSuffixOf, nub)
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
@@ -160,7 +160,7 @@ hledgerConfCandidates = do
   home <- Directory.getHomeDirectory
   xdg <- Directory.getXdgDirectory Directory.XdgConfig "hledger"
   let file d = d FilePath.</> if d == home then ".hledger.conf" else "hledger.conf"
-  pure (map file (List.nub (upToRoot here ++ [home, xdg])))
+  pure (map file (List.nub (List.take 100 (upToRoot here) ++ [home, xdg])))
   where
     upToRoot d = let up = FilePath.takeDirectory d in d : if up == d then [] else upToRoot up
 

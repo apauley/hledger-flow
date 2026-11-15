@@ -108,6 +108,10 @@ tests = TestLabel "Private input snapshots" $ TestList
         canonical <- D.canonicalizePath (toFilePath copied)
         assertBool "release canonicalized the ancestor" (canonical /= toFilePath copied)
         let ruleLine fileName = "the date rule is:   %1                   (" <> T.pack fileName <> ":7)"
+        let err name = "hledger: Error: " <> T.dropEnd 1 (T.pack (show name)) <> ":2:2:"
+            warning name = "Warning: " <> T.pack name <> ": replaced delimiter"
+        assertEqual "quoted config diagnostic" (err (toFilePath config)) =<< translateDiagnostic snap (err canonical)
+        assertEqual "CSV warning" (warning (toFilePath config)) =<< translateDiagnostic snap (warning canonical)
         assertEqual "diagnostic location" (ruleLine (toFilePath config))
           =<< translateDiagnostic snap (ruleLine canonical)
       assertEqual "converted" (Reusable ()) result

@@ -32,6 +32,10 @@ import qualified Path.IO as P
 import qualified System.Directory as D
 import qualified System.FilePath as FP
 import System.IO
+#ifndef mingw32_HOST_OS
+import qualified System.Posix.IO as Posix
+#endif
+import Text.Read (readMaybe)
 import System.IO.Error
 
 data SnapshotInput
@@ -75,8 +79,17 @@ withRegistration :: AbsDir -> IO a -> IO a
 withRegistration area action = bracket open hClose $ \handle -> hLock handle ExclusiveLock >> action
   where
     file = toFilePath (area </> [relfile|registration.lock|])
-    open = catchIOError (openBinaryFile file ReadWriteMode) $ \e ->
+    open = catchIOError (openLockFile file) $ \e ->
       if isAlreadyInUseError e then threadDelay 1000 >> open else ioError e
+
+-- A surviving hook must not retain its killed parent's lifetime lock.
+openLockFile :: FilePath -> IO Handle
+#ifdef mingw32_HOST_OS
+openLockFile file = openBinaryFile file ReadWriteMode
+#else
+openLockFile file = bracketOnError (Posix.openFd file Posix.ReadWrite flags) Posix.closeFd Posix.fdToHandle
+  where flags = Posix.defaultFileFlags {Posix.creat = Just 0o666, Posix.cloexec = True}
+#endif
 
 shortName :: Char -> Word32 -> String
 shortName prefix n = prefix : replicate (8 - length digits) '0' ++ digits
@@ -108,7 +121,7 @@ acquireTree run = do
         Left e | isAlreadyExistsError e && n < maxBound -> createRun (n + 1)
         Left e -> ioError e
         Right () -> flip onException (P.removeDirRecur dir) $
-          bracketOnError (openBinaryFile (lockFile dir) ReadWriteMode) hClose $ \handle -> do
+          bracketOnError (openLockFile (lockFile dir)) hClose $ \handle -> do
             hLock handle ExclusiveLock
             pure (dir, handle)
 
@@ -140,7 +153,7 @@ reap area = do
       when exists $ do
         link <- D.pathIsSymbolicLink marker
         unless link $ do
-          claimed <- withBinaryFile marker ReadWriteMode $ \handle -> do
+          claimed <- bracket (openLockFile marker) hClose $ \handle -> do
             mine <- hTryLock handle ExclusiveLock
             when mine (clearRun dir)
             pure mine
@@ -219,7 +232,8 @@ copyInputs base tree version input = do
         done <- Set.member source <$> readIORef completed
         unless done $ do
           bytes <- copyBytes source target
-          includes <- fromDecision (ruleIncludes version source bytes)
+          let scan = if Set.null ancestors then ruleIncludes else nestedRuleIncludes
+          includes <- fromDecision (scan version source bytes)
           forM_ includes $ \spelling -> do
             child <- resolveRuleInclude base source spelling >>= fromDecision
             void $ copyRule (Set.insert identity ancestors) child
@@ -252,12 +266,25 @@ translateDiagnostic snap diagnostic = T.intercalate "\n" <$> mapM translate (T.s
   where
     translate line = do
       let (prefix, body) = splitHeader line
-          candidates = [ (T.take i body, T.drop i body)
-                       | (i, ':') <- zip [0..] (T.unpack body)
-                       , let next = T.take 1 (T.drop (i+1) body)
+          candidates value = [ (T.take i value, T.drop i value)
+                       | (i, ':') <- zip [0..] (T.unpack value)
+                       , let next = T.take 1 (T.drop (i+1) value)
                        , T.null next || next == " " || T.all isDigit next ]
       if FP.isAbsolute (T.unpack body)
-        then firstKnown prefix line candidates else translateRulePosition line
+        then firstKnown prefix line (candidates body)
+        else case T.stripPrefix "\"" body of
+          Just quoted -> quotedPath prefix line (candidates quoted)
+          Nothing -> translateRulePosition line
+    -- Some config errors quote the entire location with Haskell string escaping.
+    quotedPath _ line [] = pure line
+    quotedPath prefix line ((token,suffix):rest) =
+      case readMaybe (T.unpack ("\"" <> token <> "\"")) of
+        Just name | FP.isAbsolute name -> do
+          mapped <- lookupPath (T.pack name)
+          case mapped of
+            Just p -> pure (prefix <> T.dropEnd 1 (T.pack (show (toFilePath p))) <> suffix)
+            Nothing -> quotedPath prefix line rest
+        _ -> quotedPath prefix line rest
     -- 1.99.6 appends a second location to a field-assignment diagnostic.
     -- Keep arbitrary template/record text ahead of the final location intact.
     translateRulePosition line
@@ -276,7 +303,7 @@ translateDiagnostic snap diagnostic = T.intercalate "\n" <$> mapM translate (T.s
           Nothing -> False
     splitHeader line =
       let (spaces, rest) = T.span (== ' ') line
-          prefixes = ["hledger: Error: ", "hledger: error: ", "hledger: ", "Error: ", "error: ", "in "]
+          prefixes = ["Warning: ", "hledger: Warning: ", "hledger: Error: ", "hledger: error: ", "hledger: ", "Error: ", "error: ", "in "]
       in case [(spaces <> p, s) | p <- prefixes, Just s <- [T.stripPrefix p rest]] of
            (parts:_) -> parts
            [] -> (spaces, rest)
