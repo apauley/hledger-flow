@@ -88,6 +88,11 @@ importStatement (IncrementalRun snapshots probe reasons) opts ch dirs source = d
             detail = reasonDetail problem
         atomicModifyIORef' reasons $ \m -> (Map.insertWith Set.union source (Set.singleton reason) m,())
         logVerbose opts ch $ reason <> " " <> detail
+      reuseStage stage inputs target prior = do
+        miss <- stageMiss inputs target prior
+        case miss of
+          Nothing -> pure True
+          Just why -> logVerbose opts ch (stage <> ": " <> why) >> pure False
       changed = FallbackReason "dependency changed during conversion" (pathText source)
       skipScripts = importPolicy opts == SkipUnchangedScripts
   pre <- hook "preprocess"
@@ -100,8 +105,10 @@ importStatement (IncrementalRun snapshots probe reasons) opts ch dirs source = d
       let key = hookInputsKey dirs cwd "preprocess" <$> before
           prior = old >>= preprocessRecord
       hit <- case key of
-        Reusable k | skipScripts -> stageMatches k intermediate prior
-        _ -> pure False
+        Reusable k | skipScripts -> reuseStage "Preprocess" k intermediate prior
+        _ -> do
+          unless skipScripts $ logVerbose opts ch "Running preprocess script in run-scripts mode."
+          pure False
       if hit then do
         logVerbose opts ch "Skipped unchanged preprocess script."
         pure (intermediate,prior,False)
@@ -173,7 +180,8 @@ importStatement (IncrementalRun snapshots probe reasons) opts ch dirs source = d
     Fallback r -> fallback r
     Reusable inputs -> do
       hit <- if skipScripts || liveConstruct inputs == Nothing
-               then stageMatches (recordedInputs inputs) output prior else pure False
+               then reuseStage "Journal" (recordedInputs inputs) output prior
+               else logVerbose opts ch "Running construct script in run-scripts mode." >> pure False
       if hit then do
         when (liveConstruct inputs /= Nothing) $ logVerbose opts ch "Skipped unchanged construct script."
         logVerbose opts ch "Reused the verified journal."

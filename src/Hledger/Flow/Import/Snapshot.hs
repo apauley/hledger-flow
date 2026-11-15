@@ -5,7 +5,7 @@
 
 module Hledger.Flow.Import.Snapshot
   ( SnapshotRun, SnapshotInput (..), PreparedSnapshot, snapshotInputs, snapshotManifest,
-    withSnapshotRun, withSnapshotRunUsing, withSnapshot, manifestMatches,
+    withSnapshotRun, withSnapshotRunUsing, withSnapshot,
     translateDiagnostic, windowsSnapshotPathFits
   ) where
 
@@ -202,12 +202,19 @@ copyInputs base tree version input = do
   let mirror file = case stripProperPrefix base file of
         Nothing -> reject "snapshot input outside ledger" (T.pack (toFilePath file))
         Just rel -> pure (tree </> [reldir|l|] </> rel)
-      destination target = do
+      destination source target = do
 #ifdef mingw32_HOST_OS
         unless (windowsSnapshotPathFits (toFilePath target)) $
           reject "overlong Windows snapshot path" (T.pack (toFilePath target))
 #endif
         P.createDirIfMissing True (parent target)
+        -- Source and cache directories can have different case or Unicode
+        -- equivalence rules. Never overwrite a copy made for another spelling.
+        previous <- Map.lookup target <$> readIORef paths
+        collision <- case previous of
+          Just original -> pure (toFilePath original /= toFilePath source)
+          Nothing -> D.doesPathExist (toFilePath target)
+        when collision $ reject "snapshot filenames collide" (T.pack (toFilePath source))
       record source target digest = do
         previous <- Map.lookup source <$> readIORef manifest
         when (maybe False (/= digest) previous) $
@@ -215,7 +222,7 @@ copyInputs base tree version input = do
         modifyIORef' manifest (Map.insert source digest)
         modifyIORef' paths (Map.insert target source)
       copyBytes source target = do
-        destination target
+        destination source target
         bytes <- BS.readFile (toFilePath source)
         BS.writeFile (toFilePath target) bytes
         record source target (digestBytes bytes)
@@ -229,7 +236,7 @@ copyInputs base tree version input = do
         target <- mirror source
         identity <- D.canonicalizePath (toFilePath source)
         when (Set.member identity ancestors || Set.size ancestors >= 256) $ reject "cyclic or excessively deep rules include" (T.pack (toFilePath source))
-        done <- Set.member source <$> readIORef completed
+        done <- Set.member (toFilePath source) <$> readIORef completed
         unless done $ do
           bytes <- copyBytes source target
           let scan = if Set.null ancestors then ruleIncludes else nestedRuleIncludes
@@ -237,26 +244,18 @@ copyInputs base tree version input = do
           forM_ includes $ \spelling -> do
             child <- resolveRuleInclude base source spelling >>= fromDecision
             void $ copyRule (Set.insert identity ancestors) child
-          modifyIORef' completed (Set.insert source)
+          modifyIORef' completed (Set.insert (toFilePath source))
         pure target
   copied <- case input of
     ConstructInput conf -> ConstructInput <$> traverse copyConfig conf
     RulesInput csv rules directives conf -> do
       dataCopy <- mirror csv
-      destination dataCopy
+      destination csv dataCopy
       copyDigest csv dataCopy >>= record csv dataCopy
       rulesCopy <- copyRule Set.empty rules
       directivesCopy <- traverse (\source -> mirror source >>= validated checkDirectives source) directives
       RulesInput dataCopy rulesCopy directivesCopy <$> traverse copyConfig conf
   PreparedSnapshot copied <$> readIORef manifest <*> readIORef paths
-
-manifestMatches :: Map.Map AbsFile Digest -> IO Bool
-manifestMatches files = catchIOError (check (Map.toList files)) (const (pure False))
-  where
-    check [] = pure True
-    check ((file, expected):rest) = do
-      actual <- digestFile file
-      if actual == expected then check rest else pure False
 
 -- hledger emits locations as "FILE:line:column:" (also "FILE:line:" and
 -- "FILE: explanation"). Restrict replacement to its location fields.

@@ -31,8 +31,10 @@ or `--sequential` to run one at a time.
 
 Run `hledger-flow import --verbose` to see where import looks for each
 statement's scripts, rules file and include files, and the exact commands it
-runs. Paths in the base directory start with `./`, so you can paste a command
-into a shell there. Each statement's lines appear together once
+runs. You can paste a command into a shell at the ledger root. If you started
+import elsewhere, the command first changes to that working directory so scripts
+can resolve relative paths and hledger can find the same config. Paths below the
+working directory start with `./`. Each statement's lines appear together once
 it's done. With `--sequential`, they appear as import works.
 
 ## More About Input Files

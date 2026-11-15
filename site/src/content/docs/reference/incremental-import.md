@@ -45,13 +45,17 @@ P 2000-01-01 EUR €1
 
 ## When reuse is unavailable
 
-A notice on standard error names the reason and the affected scope. Use `--verbose` for statement, stage and file details. Full conversion still runs. A conversion error has the usual exit status and diagnostics.
+A notice on standard error names the reason and the affected scope. Use `--verbose` to see why a stage ran, including a changed rules file, a missing journal, or the line and setting that prevented reuse. Full conversion still runs. A conversion error has the usual exit status and diagnostics.
 
 For example, hledger versions differ in how they read trailing spaces in an `include` filename. With 1.52.4 and 1.99.6, hledger-flow follows the known behavior. On other eligible versions, a statement with that ambiguity goes through ordinary conversion each time. Statements using other, unambiguous rules can still reuse their journals. A shared ambiguous input affects every statement that uses it.
 
 Common reasons include a hledger version below 1.52.4, an unreadable version, an unsupported input reader, an unrecognized config heading or active setting, a multiline or unknown directive, an unresolved rules include, and an absolute rules include or one outside the ledger. Use `--hledger-path` to select the real hledger executable if the configured path is a launcher. An unrecognized native executable that forwards to another program can hide changes to its target. Keep the installed converter stable during an import. Temporarily replacing its parent directory and restoring it during conversion can escape the executable identity checks.
 
 An eligible rebuild uses private copies so the record describes the bytes hledger read. If hledger reports an error in a copied file, the diagnostic names the original file so you can open it at the reported line. Reuse can also be unavailable if private staging fails, a planned Windows snapshot path reaches 260 UTF-16 code units, or inputs change during conversion. A warm rules-based hit creates no snapshot.
+
+If two include filenames map to the same snapshot file (for example, `A.rules` and `a.rules` in a case-insensitive cache), hledger-flow converts that statement using the originals.
+
+On a shared ledger, other users can have read access to the ledger root while the temporary statement copies remain private. Give permission to rename or replace directories along the cache path only to people you trust with the statements. A user with that permission could redirect writes while an import is running.
 
 ## Clear the cache
 

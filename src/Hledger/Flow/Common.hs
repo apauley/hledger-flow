@@ -281,7 +281,7 @@ data External = External
     extHints :: [T.Text]
   }
 
--- | A command line to paste into this platform's shell from the base directory: paths below it
+-- | A command line to paste into this platform's shell from the given directory: paths below it
 -- start with @./@, and other paths under the home folder with @~@ or @$HOME@.
 pasteCommand :: Shell -> FilePath -> [FilePath] -> [[T.Text]] -> T.Text
 pasteCommand shell base homes = T.intercalate " | " . map command
@@ -301,14 +301,29 @@ pasteCommand shell base homes = T.intercalate " | " . map command
       Just rel -> shellArgument PowerShell rel
       Nothing -> fromMaybe (shellArgument PowerShell a) (homeShellPath PowerShell homes (T.unpack a))
 
+-- hledger discovers config files from its working directory, and scripts can read
+-- relative paths. Preserve that directory when replaying a command at the ledger root.
+externalCommand :: HasBaseDir o => o -> External -> IO T.Text
+externalCommand opts ext = do
+  homes <- homeDirs
+  cwd <- Directory.getCurrentDirectory
+  let command = pasteCommand nativeShell cwd homes (extCommand ext)
+      location = fromMaybe (shellArgument nativeShell (T.pack cwd)) (homeShellPath nativeShell homes cwd)
+  pure $ if FilePath.equalFilePath cwd (toFilePath (baseDir opts))
+    then command
+    else case nativeShell of
+      Posix -> "(cd " <> location <> " && " <> command <> ")"
+      PowerShell -> "& { Push-Location -LiteralPath " <> location <> " -ErrorAction Stop; try { "
+                    <> command <> " } finally { Pop-Location } }"
+
 -- | In verbose mode, say which program is about to run and show its command line.
 announceExternal :: (HasVerbosity o, HasBaseDir o) => o -> TChan LogMessage -> External -> IO ()
 announceExternal opts ch ext = when (verbose opts) $ do
-  homes <- homeDirs
+  command <- externalCommand opts ext
   color <- useColor H.stderr
   logToChannel ch $
     "Running " <> extName ext <> " to " <> extPurpose ext <> ":\n"
-      <> "  " <> dim color "$" <> " " <> cyan color (pasteCommand nativeShell (toFilePath (baseDir opts)) homes (extCommand ext))
+      <> "  " <> dim color "$" <> " " <> cyan color command
 
 -- | Run an external program, show what it printed, and stop with its exit code when it fails.
 -- Returns its standard output, which goes to the console only when 'showStdout' is set.
@@ -332,14 +347,16 @@ checkExternal opts ch ext showStdout duration (status, out, err) = do
       passOn (channelErr ch) errColor "Messages" err
     ExitFailure code -> do
       when showStdout $ passOn (channelOut ch) outColor "Output" out
-      homes <- homeDirs
+      commandLines <- if verbose opts then pure [] else do
+        command <- externalCommand opts ext
+        pure ["Command:", "  " <> command]
       let section label txt = outputSection errColor (verbose opts) (label <> " from " <> extName ext) txt
       errExit code ch $ T.intercalate "\n" $
         [ red errColor (bold errColor (extName ext <> " failed with exit code " <> T.pack (show code)))
             <> " while trying to " <> extPurpose ext <> "."
         ]
           -- Verbose output showed the command just before it ran.
-          ++ (if verbose opts then [] else ["Command:", "  " <> pasteCommand nativeShell (toFilePath (baseDir opts)) homes (extCommand ext)])
+          ++ commandLines
           ++ (if showStdout then [] else section "Output" out)
           ++ section "Error output" err
           ++ extHints ext

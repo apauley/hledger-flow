@@ -4,6 +4,7 @@
 module Incremental.Cache (tests) where
 
 import Control.Exception (IOException, try)
+import Data.Maybe (isJust)
 import qualified Data.Text.IO as T
 import Hledger.Flow.Import.Cache
 import Hledger.Flow.Import.Fingerprint
@@ -33,20 +34,22 @@ tests = TestLabel "incremental records" $ TestCase $ P.withSystemTempDir "record
       entry = StatementRecord Nothing (Just stage)
   saveRecord record entry
   assertEqual "read published record" (Just entry) =<< readRecord record
-  assertBool "verified output" =<< stageMatches (stageInputs stage) out (Just stage)
+  assertEqual "verified output" Nothing =<< stageMiss (stageInputs stage) out (Just stage)
   before <- P.getModificationTime out
   _ <- installOutput True out $ \staged -> T.writeFile (P.toFilePath staged) bytes
   assertEqual "preserve identical intermediate" before =<< P.getModificationTime out
   _ <- try (installOutput False out $ \_ -> ioError (userError "conversion failed")) :: IO (Either IOException Digest)
   assertEqual "failed conversion leaves installed output" digest =<< digestFile out
   T.writeFile (P.toFilePath out) "another importer"
-  assertBool "intervening writer invalidates record" . not =<< stageMatches (stageInputs stage) out (Just stage)
+  assertBool "intervening writer invalidates record" . isJust =<< stageMiss (stageInputs stage) out (Just stage)
   digestB <- installOutput False out $ \staged -> T.writeFile (P.toFilePath staged) "output from writer B"
   let stageB = StageRecord [("source", "B")] digestB
   saveRecord record (StatementRecord Nothing (Just stageB))
   -- Writer A, paused after installing A, saves its record after B installs B.
   saveRecord record entry
   late <- readRecord record
-  assertBool "late publication must miss on B's output" . not =<< stageMatches (stageInputs stage) out (late >>= journalRecord)
+  assertBool "late publication must miss on B's output" . isJust =<< stageMiss (stageInputs stage) out (late >>= journalRecord)
+  T.writeFile (P.toFilePath record) "[1,{\"preprocessRecord\":null,\"journalRecord\":null}]"
+  assertEqual "discard records predating the snapshot collision check" Nothing =<< readRecord record
   T.writeFile (P.toFilePath record) "{}"
   assertEqual "invalid record" Nothing =<< readRecord record

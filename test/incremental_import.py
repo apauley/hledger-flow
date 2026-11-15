@@ -185,7 +185,8 @@ class Rules(Ledger):
         write(self.journal, "changed on disk\n")
         self.imports(1, RUN_SCRIPTS)
         self.journal.unlink()
-        self.imports(1, RUN_SCRIPTS)
+        result = self.imports(1, RUN_SCRIPTS)
+        self.assertIn(f"missing output: {self.journal}", result.stdout + result.stderr)
         additional = self.csv.with_name("april.csv")
         write(additional, ROW)
         self.imports(1, RUN_SCRIPTS)
@@ -206,7 +207,8 @@ class Rules(Ledger):
         write(self.category, "include leaf.rules\n")
         self.imports(4, RUN_SCRIPTS)
         write(leaf, "account2 expenses:lunch\n")
-        self.imports(4, RUN_SCRIPTS)
+        result = self.imports(4, RUN_SCRIPTS)
+        self.assertIn(f"changed input: {leaf}", result.stdout + result.stderr)
         write(self.category.with_name("other.rules"), "account2 expenses:other\n")
         write(self.category, "include other.rules\n")
         self.imports(4, RUN_SCRIPTS)
@@ -231,7 +233,8 @@ class Rules(Ledger):
         write(self.base / "prices-extra.journal", "")
         write(directives, "include prices-*.journal\n")
         for mode in (RUN_SCRIPTS, SKIP_UNCHANGED):
-            self.imports(1, mode, fallback=True)
+            verbose = self.imports(1, mode, fallback=True)
+            self.assertIn("line 1: include prices-*.journal", verbose.stdout + verbose.stderr)
             result = self.flow(mode, verbose=False)
             self.assertIn("all selected statements", result.stderr)
             self.assertEqual(result.stderr.count(LINK), 1)
@@ -413,7 +416,7 @@ class Config(Ledger):
                 write(config, lines)
                 for _ in range(2):
                     result = self.imports(1, mode, fallback=True)
-                    self.assertIn(f"line {number}", result.stdout + result.stderr)
+                    self.assertIn(f"line {number}: {lines.splitlines()[number-1]}", result.stdout + result.stderr)
                     self.assertIn(str(config), result.stdout + result.stderr)
             self.assertEqual(self.journal.read_bytes(), default)
             write(config, "[print]\n--invert\n")
@@ -432,6 +435,29 @@ class Config(Ledger):
 
 
 class Diagnostics(Ledger):
+    def replay(self, command, cwd=None):
+        if os.name == "nt":
+            return self.command("powershell.exe", "-NoProfile", "-NonInteractive",
+                                "-Command", command + "; exit $LASTEXITCODE", cwd=cwd)
+        return self.command("sh", "-c", command, cwd=cwd)
+
+    def test_paste_command_from_account(self):
+        write(self.category, "bad banana\n")
+        # The config is relative to the import's working directory. Automatic
+        # discovery from the ledger root would also find the wrong config.
+        write(self.account / "account.conf", "")
+        write(self.account / "hledger.conf", "")
+        write(self.base / "hledger.conf", "[print]\n--invalid-test-option\n")
+        for options in ([], ["--hledger-conf", "account.conf"]):
+            result = self.flow(RUN_SCRIPTS, options=options, cwd=self.account, verbose=False, ok=False)
+            self.assertIn("bad banana", result.stderr)
+            shown = re.search(r"Command:\s*\n\s*(.*--rules-file[^\n]*)", result.stderr)
+            self.assertIsNotNone(shown, result.stderr)
+            for cwd in (self.base, self.account):
+                replay = self.replay(shown[1], cwd)
+                self.assertEqual(replay.returncode, result.returncode, replay.stderr)
+                self.assertIn("bad banana", replay.stderr)
+
     def test_nested_rules_and_pasteable_error(self):
         leaf = self.category.parent / "bad categories.rules"
         write(self.category, "include " + leaf.name + "\n")
@@ -456,11 +482,7 @@ class Diagnostics(Ledger):
             shown = re.search(pattern, output, re.MULTILINE)
             self.assertIsNotNone(shown, output)
             command = shown[1]
-            if os.name == "nt":
-                replay = self.command("powershell.exe", "-NoProfile", "-NonInteractive",
-                                      "-Command", command + "; exit $LASTEXITCODE")
-            else:
-                replay = self.command("sh", "-c", command)
+            replay = self.replay(command)
             self.assertEqual(replay.returncode, ordinary.returncode, replay.stderr)
             self.assertIn(Path(expected).name, replay.stderr)
             self.assertIn("bad banana", replay.stderr)

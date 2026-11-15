@@ -221,27 +221,27 @@ checkConfig release path bytes = do
         OtherSupported -> ""
     line section (n,raw)
       | T.null body || "#" `T.isPrefixOf` body = pure section
-      | release /= V1996, "[" `T.isPrefixOf` body, T.stripStart raw /= raw = unsupported n
+      | release /= V1996, "[" `T.isPrefixOf` body, T.stripStart raw /= raw = unsupported n body
       | Just start <- T.stripPrefix "[" body = case T.breakOn "]" start of
           (s,end) | not (T.null end), not ("#" `T.isInfixOf` s), let name = T.strip s,
                     name `elem` ("general":"print":inactive) -> option n name (T.drop 1 end)
-          _ -> unsupported n
+          _ -> unsupported n body
       | otherwise = option n section body
       where body = T.strip raw
     option n section arg
       | section `elem` inactive = pure section
       | T.null setting = pure section
       | section == "print" && release /= V1524 && setting == "--layout=hledger1" = pure section
-      | otherwise = unsupported n
+      | otherwise = unsupported n setting
       where setting = T.strip (T.takeWhile (/= '#') arg)
-    unsupported n = atPath "unsupported hledger config" (toFilePath path) ("line " <> T.pack (show n))
+    unsupported n value = atPath "unsupported hledger config" (toFilePath path) ("line " <> T.pack (show n) <> ": " <> value)
 
 checkDirectives :: Release -> AbsFile -> B.ByteString -> ReuseDecision ()
 checkDirectives _ path bytes = do
   ls <- physicalLines path (dropUtf8Bom bytes)
-  case [n | (n,l) <- zip [1 :: Int ..] ls, not (allowed l)] of
+  case [(n,T.strip l) | (n,l) <- zip [1 :: Int ..] ls, not (allowed l)] of
     [] -> pure ()
-    n:_ -> atPath "unsupported journal directive" (toFilePath path) ("line " <> T.pack (show n))
+    (n,value):_ -> atPath "unsupported journal directive" (toFilePath path) ("line " <> T.pack (show n) <> ": " <> value)
   where
     allowed raw
       | T.null stripped || T.isPrefixOf ";" stripped || T.isPrefixOf "#" stripped || T.isPrefixOf "*" stripped = True

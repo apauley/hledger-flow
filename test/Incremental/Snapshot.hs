@@ -6,15 +6,23 @@
 module Incremental.Snapshot (tests, runWorker) where
 
 import Control.Concurrent
-import Control.Exception (try, IOException, throwIO)
+import Control.Concurrent.STM (newTChanIO)
+import Control.Exception (bracket, try, IOException, throwIO)
+import Control.Monad (unless)
 import GHC.Conc (threadStatus, ThreadStatus(..))
+import GHC.IO.Encoding (getLocaleEncoding, setLocaleEncoding, utf8)
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as B8
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
+import Hledger.Flow.Import.Cache
 import Hledger.Flow.Import.Dependencies
 import Hledger.Flow.Import.Fingerprint
+import Hledger.Flow.Import.ImportHelpers (extractImportDirs)
+import Hledger.Flow.Import.Incremental
 import Hledger.Flow.Import.PrivateDirectory
 import Hledger.Flow.Import.Snapshot
+import Hledger.Flow.RuntimeOptions
 import Path
 import qualified Path.IO as P
 import qualified System.Directory as D
@@ -30,20 +38,19 @@ import System.IO (hFlush, hGetLine, stdout)
 import System.Process
 import System.Timeout (timeout)
 import Test.HUnit
-import TestHelpers (withTestDir)
+import TestHelpers (defaultOpts, withTestDir)
 
 tests :: Test
 tests = TestLabel "Private input snapshots" $ TestList
   [ TestLabel "no snapshot area for a hit" $ TestCase $ withTestDir $ \base -> do
       withSnapshotRun base $ \_ -> pure ()
       P.doesDirExist (base </> [reldir|.hledger-flow/cache/snapshots|]) >>= assertBool "created lazily" . not
-  , TestLabel "copy selected bytes and recheck original identities" $ TestCase $ withTestDir $ \base -> do
+  , TestLabel "copy selected bytes and translate locations" $ TestCase $ withTestDir $ \base -> do
       let statement = base </> [relfile|account/2026/input.csv|]
           rules = base </> [relfile|account/bank.rules|]
           category = base </> [relfile|shared/coffee.rules|]
           directives = base </> [relfile|directives.journal|]
           a = "account2 expenses:cafe\n"
-          b = "account2 expenses:travel\n"
       P.createDirIfMissing True (parent statement)
       P.createDir (parent category)
       BS.writeFile (toFilePath statement) "2026-01-01,Coffee,3\n"
@@ -61,21 +68,12 @@ tests = TestLabel "Private input snapshots" $ TestList
             excerpt = "1 | " <> T.pack (toFilePath rulesCopy) <> "\n"
         assertEqual "maps location, preserves excerpt" ("hledger: Error: " <> T.pack (toFilePath rules) <> location <> excerpt)
            =<< translateDiagnostic snapshot ("hledger: Error: " <> T.pack canonicalCopy <> location <> excerpt)
-        let renamed = base </> [reldir|held|]
-        D.renameDirectory (toFilePath (parent category)) (toFilePath renamed)
-        P.createDir (parent category)
-        BS.writeFile (toFilePath category) b
-        -- The converter opens paths through the copied rules, while live rules name B.
         let leafCopy = parent (parent rulesCopy) </> [relfile|shared/coffee.rules|]
-        BS.readFile (toFilePath leafCopy) >>= assertEqual "converter sees A" a
-        manifestMatches deps >>= assertBool "reject B" . not
-        P.removeDirRecur (parent category)
-        D.renameDirectory (toFilePath renamed) (toFilePath (parent category))
-        manifestMatches deps >>= assertBool "publish A after restore"
         pure [dataCopy, rulesCopy, leafCopy, directivesCopy]
       case result of
         Reusable files -> mapM_ (\p -> P.doesFileExist p >>= assertBool "copy released" . not) files
         Fallback reason -> assertFailure (show reason)
+  , TestLabel "publish only when converted snapshot matches live inputs" $ TestCase snapshotPublication
   , TestLabel "construct pins an external config" $ TestCase $ withTestDir $ \base -> withTestDir $ \home -> do
       let config = home </> [relfile|hledger.conf|]
       BS.writeFile (toFilePath config) "[balance]\n--period=thismonth\n"
@@ -214,10 +212,66 @@ tests = TestLabel "Private input snapshots" $ TestList
           P.doesFileExist keep >>= assertBool "unknown directory preserved"
           BS.readFile (toFilePath live) >>= assertEqual "other run untouched" "# private config\n"
       assertEqual "live run completes" (Reusable ()) result
+  , TestLabel "different include spellings cannot overwrite a snapshot file" $ TestCase $ withTestDir $ \base -> do
+      let csv = base </> [relfile|input.csv|]
+          rules = base </> [relfile|bank.rules|]
+          upper = [relfile|A.rules|]
+          lower = [relfile|a.rules|]
+      BS.writeFile (toFilePath csv) "2026-01-01,Coffee,3\n"
+      BS.writeFile (toFilePath rules) "include A.rules\ninclude a.rules\n"
+      BS.writeFile (toFilePath (base </> upper)) "account1 assets:bank\n"
+      sameFile <- P.doesFileExist (base </> lower)
+      BS.writeFile (toFilePath (base </> lower)) "account2 expenses:cafe\n"
+      result <- withSnapshotRun base $ \run -> withSnapshot run V1996 (RulesInput csv rules Nothing Nothing) $ \snap -> do
+        RulesInput _ staged _ _ <- pure (snapshotInputs snap)
+        mapM (BS.readFile . toFilePath . (parent staged </>)) [upper,lower]
+      case result of
+        Fallback reason -> assertEqual "fallback reason" "snapshot filenames collide" (reasonScope reason)
+        Reusable contents -> do
+          assertBool "aliased destinations must fall back" (not sameFile)
+          assertEqual "distinct copies preserve each set of rules" ["account1 assets:bank\n","account2 expenses:cafe\n"] contents
   , TestLabel "Windows uses UTF-16 units without the NUL" $ TestCase $ do
       assertBool "259" (windowsSnapshotPathFits (replicate 257 'a' ++ "😀"))
       assertBool "260" (not (windowsSnapshotPathFits (replicate 258 'a' ++ "😀")))
   ]
+
+-- Run the real importer with this native test executable as its converter.
+-- Its print command changes the live include while consuming the supplied rules.
+snapshotPublication :: IO ()
+snapshotPublication = withTestDir $ \base -> P.withCurrentDir base $
+  bracket getLocaleEncoding setLocaleEncoding $ \_ -> do
+    setLocaleEncoding utf8
+    exe <- getExecutablePath >>= parseAbsFile
+    let opts = (defaultOpts base) {hledgerExecutable = exe, importPolicy = RunScripts}
+        root = base </> [reldir|import|]
+        source = root </> [relfile|o/b/a/1-in/2026/in.csv|]
+        leaf = root </> [relfile|shared/category.rules|]
+        a = "account2 expenses:cafe\n"
+    P.createDirIfMissing True (parent source)
+    P.createDir (parent leaf)
+    BS.writeFile (toFilePath source) "2026-01-01,Coffee,3\n"
+    BS.writeFile (toFilePath (root </> [relfile|b.rules|])) "include shared/category.rules\n"
+    BS.writeFile (toFilePath leaf) a
+    BS.writeFile "hledger.conf" ""
+    dirs <- either (assertFailure . T.unpack) pure (extractImportDirs root source)
+    ch <- newTChanIO
+    let run = withIncrementalRun opts ch 1 $ \ctx -> importStatement ctx opts ch dirs source
+        journal = "2026-01-01 Coffee\n    expenses:cafe  3\n    assets:bank\n"
+    record <- recordPath base source
+    BS.writeFile "snapshot-converter-test" "restore"
+    (out,_,_) <- run
+    readFile (toFilePath out) >>= assertEqual "journal built from copied rule A" journal
+    entry <- readRecord record >>= maybe (assertFailure "missing journal record") pure . (>>= journalRecord)
+    lookup (T.pack (toFilePath leaf)) (stageInputs entry) @?= Just (digestHex (digestBytes a))
+    digestFile out >>= assertEqual "record identifies installed journal bytes" (stageOutput entry)
+    -- Force a rebuild with an existing record. Leaving B in place must also
+    -- discard the old A record, even though the snapshot produced A again.
+    P.removeFile out
+    BS.writeFile "snapshot-converter-test" "keep"
+    _ <- run
+    readFile (toFilePath out) >>= assertEqual "kept journal still built from A" journal
+    BS.readFile (toFilePath leaf) >>= assertEqual "live include remains B" "account2 expenses:travel\n"
+    readRecord record >>= assertEqual "invalidated journal record" Nothing . (>>= journalRecord)
 
 -- The real test executable owns the lifetime lock. Its parent terminates it
 -- abruptly, so no in-process finalizer can remove the abandoned tree.
@@ -234,7 +288,24 @@ runWorker ["--snapshot-test-worker", baseName] = do
   case result of
     Fallback reason -> ioError (userError (show reason))
     Reusable () -> pure True
-runWorker _ = pure False
+runWorker args = do
+  fixture <- D.doesFileExist "snapshot-converter-test"
+  if fixture then fixtureConverter args >> pure True else pure False
+
+fixtureConverter :: [String] -> IO ()
+fixtureConverter ["--version"] = putStrLn "hledger 1.99.6"
+fixtureConverter ["--conf",_,"print","--explicit","--file",_,"--rules-file",rules] = do
+  D.renameDirectory "import/shared" "import/held"
+  D.createDirectory "import/shared"
+  BS.writeFile "import/shared/category.rules" "account2 expenses:travel\n"
+  ["include",relative] <- words . B8.unpack <$> BS.readFile rules
+  ["account2",account] <- words . B8.unpack <$> BS.readFile (FP.takeDirectory rules FP.</> relative)
+  keep <- (== "keep") <$> BS.readFile "snapshot-converter-test"
+  unless keep $ do
+    D.removeDirectoryRecursive "import/shared"
+    D.renameDirectory "import/held" "import/shared"
+  putStr $ "2026-01-01 Coffee\n    " ++ account ++ "  3\n    assets:bank\n"
+fixtureConverter args = ioError (userError ("Unexpected converter arguments: " ++ show args))
 
 #ifdef mingw32_HOST_OS
 foreign import capi unsafe "windows.h GetShortPathNameW"
