@@ -5,7 +5,7 @@
 #
 #   deps [RESOLVER]  Update stack.yaml (default: latest LTS) and cabal bounds, test, commit
 #   precheck         Local checks; show '## Unreleased' next to the commits; list next versions
-#   bump LEVEL|VER   LEVEL is major, minor or patch. Rename '## Unreleased', set version, commit
+#   bump LEVEL|VER   Set the version, regenerate the tutorial and commit (major, minor, patch or version)
 #   ci               Push master and wait for its CI run
 #   changelog        Verify ChangeLog.md is up to date for the package.yaml version
 #   changelog-section VERSION  Print just the release's section from ChangeLog.md
@@ -40,9 +40,9 @@ sdist_tarball() { echo "dist-newstyle/sdist/hledger-flow-$(version).tar.gz"; }
 # hledger-flow.cabal is generated from package.yaml and committed with it. hpack
 # refuses to overwrite one it thinks was edited (e.g. written by another hpack
 # version), so always start fresh; git shows any real difference.
-regen_cabal() { rm -f hledger-flow.cabal; stack build --only-configure; }
+regen_cabal() { rm -f hledger-flow.cabal; stack build "$@"; }
 cabal_in_sync() {
-  regen_cabal
+  regen_cabal --only-configure
   git diff --quiet -- hledger-flow.cabal \
     || die "hledger-flow.cabal does not match package.yaml: commit the regenerated file"
 }
@@ -219,7 +219,7 @@ cmd_deps() {
     upper=$(awk -F. '{print $1 "." $2 + 1}' <<<"$ver")
     perl -pi -e "s/^(\s*- \Q$pkg\E) >= \S+ && < \S+\$/\$1 >= $ver && < $upper/" package.yaml
   done
-  regen_cabal
+  regen_cabal --only-configure
   bin/build-and-test
   cabal check
   if git diff --quiet -- stack.yaml stack.yaml.lock package.yaml hledger-flow.cabal; then
@@ -256,12 +256,15 @@ cmd_bump() {
     || die "$new is not greater than $old"
   tag_exists "v$new" && die "tag v$new already exists"
   unreleased_ok
+  site/scripts/tutorial/update.sh --check-tools
   perl -pi -e "s/^version: .*/version: $new/" package.yaml
   perl -pi -e "s/^version: .*/version: '$new'/" snap/snapcraft.yaml
   perl -pi -e "s/^## Unreleased\$/## $new/" ChangeLog.md
   regen_cabal
+  # The release examples must come from this checkout's newly built executable.
+  HLEDGER_FLOW='' site/scripts/tutorial/update.sh
   cmd_changelog
-  git commit -m "Bump version to $new" -- package.yaml hledger-flow.cabal ChangeLog.md snap/snapcraft.yaml
+  git commit -m "Bump version to $new" -- package.yaml hledger-flow.cabal ChangeLog.md snap/snapcraft.yaml site/src/content/docs/tutorial/
 }
 
 cmd_ci() {

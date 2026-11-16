@@ -3,6 +3,7 @@
 #
 #   site/scripts/tutorial/update.sh           update the pages
 #   site/scripts/tutorial/update.sh --check   fail if they're out of date
+#   site/scripts/tutorial/update.sh --check-tools   check prerequisites before a release bump
 #
 # HLEDGER_FLOW defaults to this checkout's `stack build`. HLEDGER defaults to
 # the hledger on PATH, and must be the version in hledger-version.
@@ -10,11 +11,9 @@ set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd -P)
 repo=$(cd "$here/../../.." && pwd -P)
 
-hledger_flow=${HLEDGER_FLOW:-$(cd "$repo" && stack path --local-install-root)/bin/hledger-flow}
 hledger=${HLEDGER:-$(command -v hledger || echo hledger)}
 want=$(tr -d '[:space:]' < "$here/hledger-version")
 
-[ -x "$hledger_flow" ] || { echo "error: no hledger-flow at $hledger_flow. Run stack build, or set HLEDGER_FLOW." >&2; exit 1; }
 got=$("$hledger" --version 2>/dev/null || true)
 case "$got" in
   "hledger $want,"* | "hledger $want-"*) ;;
@@ -23,6 +22,11 @@ case "$got" in
      exit 1 ;;
 esac
 command -v tree >/dev/null || { echo "error: the tutorial runs tree. Install it first." >&2; exit 1; }
+command -v python3 >/dev/null || { echo "error: install Python 3 to update the tutorial." >&2; exit 1; }
+if [[ ${1:-} == --check-tools ]]; then exit 0; fi
+
+hledger_flow=${HLEDGER_FLOW:-$(cd "$repo" && stack path --local-install-root)/bin/hledger-flow}
+[ -x "$hledger_flow" ] || { echo "error: no hledger-flow at $hledger_flow. Run stack build, or set HLEDGER_FLOW." >&2; exit 1; }
 
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT

@@ -78,7 +78,7 @@ To publish the current `master` between releases, run the workflow by hand:
 bin/release deps              # optional: latest Stackage LTS + cabal bounds
 bin/release precheck          # show "## Unreleased" next to the commits, list next versions
 #   Review: the ChangeLog entries and the version number
-bin/release bump major        # major|minor|patch|<version>: ChangeLog, package.yaml, snapcraft.yaml
+bin/release bump major        # major|minor|patch|<version>: update the version and tutorial together
 bin/release ci                # push master, wait for green CI
 bin/release tag               # all checks, then create the signed tag locally
 #   Review: the tagged commit and its release notes
@@ -153,14 +153,25 @@ a generated journal, include file, or report is still `major`.
 **Review**: settle the ChangeLog wording and the version number before bumping.
 They become the release notes and the tag.
 
+Install `tree` and use the hledger version in `site/scripts/tutorial/hledger-version`.
+If that version is already on `PATH`, run the bump directly. Otherwise, point
+`HLEDGER` at the pinned executable, for example
+`HLEDGER=/path/to/hledger bin/release bump minor`.
+
 ``` bash
 bin/release bump major        # or minor, patch, or an explicit version like 0.17.0
 ```
 
-This checks the new version is greater than the current one and not yet tagged,
-renames `## Unreleased` in `ChangeLog.md` to `## <version>`, sets `version:` in
-`package.yaml` and `snap/snapcraft.yaml`, regenerates `hledger-flow.cabal`, runs the ChangeLog check from
-step 5, and commits all four files as `Bump version to <version>`.
+Before editing files, `bump` checks the version, the tutorial's hledger,
+`tree` and Python 3. It renames `## Unreleased` to `## <version>`, updates
+`package.yaml` and `snap/snapcraft.yaml`, regenerates `hledger-flow.cabal`
+and builds the new executable. It runs the tutorial with that build and
+commits the regenerated pages and version files together after the ChangeLog
+check passes. CI checks those pages against a fresh run.
+
+If the build or tutorial fails after the version edits, inspect `git diff`.
+To retry, restore the bump's edits to the version files and tutorial pages,
+fix the reported cause, and rerun the same command from a clean tree.
 
 The Snap recipe uses its version to select the Linux x64 archive from the
 matching GitHub tag. CI checks that the Snap and package versions agree and
