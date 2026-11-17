@@ -222,6 +222,9 @@ Income Statement 2016-05, valued at posting date
 └───────────────────────╨───────────┘
 ```
 
+Gawie typed two rates by hand. For daily rates over many months,
+[fetch them with pricehist](/reference/price-files/#fetch-prices-with-pricehist).
+
 The tips pay for nearly half of the month’s mopane worms. Gawie is ready for a quiet
 season.
 
