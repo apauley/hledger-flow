@@ -10,7 +10,7 @@ import Control.Exception (finally)
 import Control.Monad (unless, when)
 import Data.IORef
 import qualified Data.Map.Strict as Map
-import Data.Maybe (maybeToList)
+import Data.Maybe (listToMaybe, maybeToList)
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import Hledger.Flow.BaseDir (relativeToBase)
@@ -167,9 +167,10 @@ importStatement (IncrementalRun snapshots probe reasons) opts ch dirs source = d
                         digest <- digestFile csv
                         pure $ do
                           rulesTree <- tree
-                          ds <- directives
-                          let files = (csv,digest) : rulesTree ++ maybeToList ds ++ maybeToList conf
-                          pure $ mk (RulesInput csv rf (fst <$> ds) (fst <$> conf)) files
+                          journals <- directives
+                          let ds = fst <$> listToMaybe journals
+                              files = (csv,digest) : rulesTree ++ journals ++ maybeToList conf
+                          pure $ mk (RulesInput csv rf ds (fst <$> conf)) files
                                    (rulesArguments configArgs "<input>" "<rules>" ("<directives>" <$ ds)) [("rules",pathText rf)] Nothing
       ordinary = do
         script <- hook "construct"

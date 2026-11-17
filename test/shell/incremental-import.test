@@ -2,7 +2,7 @@
 $ python3 test/incremental_import.py Modes Rules
 >2 /OK/
 
-# Real hledger config discovery, explicit snapshot config and layout.
+# Config discovery for rules-based imports and construct scripts.
 $ python3 test/incremental_import.py Config.test_rules_config_discovery Config.test_construct_config_discovery
 >2 /OK/
 

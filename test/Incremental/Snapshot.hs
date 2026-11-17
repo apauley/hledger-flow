@@ -50,18 +50,23 @@ tests = TestLabel "Private input snapshots" $ TestList
           rules = base </> [relfile|account/bank.rules|]
           category = base </> [relfile|shared/coffee.rules|]
           directives = base </> [relfile|directives.journal|]
+          accounts = base </> [relfile|shared/accounts.journal|]
           a = "account2 expenses:cafe\n"
       P.createDirIfMissing True (parent statement)
       P.createDir (parent category)
       BS.writeFile (toFilePath statement) "2026-01-01,Coffee,3\n"
       BS.writeFile (toFilePath rules) "include ../shared/coffee.rules\n"
       BS.writeFile (toFilePath category) a
-      BS.writeFile (toFilePath directives) "account expenses:cafe\n"
+      BS.writeFile (toFilePath directives) "include shared/accounts.journal\n"
+      BS.writeFile (toFilePath accounts) "account expenses:cafe\n"
       result <- withSnapshotRun base $ \run -> withSnapshot run V1524 (RulesInput statement rules (Just directives) Nothing) $ \snapshot -> do
         RulesInput dataCopy rulesCopy (Just directivesCopy) Nothing <- pure (snapshotInputs snapshot)
         let deps = snapshotManifest snapshot
         assertEqual "manifest includes nested rule" (Just (digestBytes a)) (Map.lookup category deps)
-        assertEqual "all four files" 4 (Map.size deps)
+        assertEqual "manifest includes account declarations" (Just (digestBytes "account expenses:cafe\n")) (Map.lookup accounts deps)
+        BS.writeFile (toFilePath accounts) "account expenses:food\n"
+        BS.readFile (toFilePath (parent directivesCopy </> [relfile|shared/accounts.journal|]))
+          >>= assertEqual "private copy retains original declarations" "account expenses:cafe\n"
         assertEqual "CSV basename" (filename statement) (filename dataCopy)
         canonicalCopy <- D.canonicalizePath (toFilePath rulesCopy)
         let location = ":1:2:\n"

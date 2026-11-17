@@ -4,8 +4,8 @@
 
 module Hledger.Flow.Import.Dependencies
   ( Release (..), FallbackReason (..), ReuseDecision (..), Converter (..),
-    ruleIncludes, nestedRuleIncludes, resolveRuleInclude, discoverRules, selectRules, isSeparatedValues,
-    checkedIO, atPath, checkArguments, discoverConfig, discoverDirectives, checkConfig, checkDirectives,
+    IncludeFile (..), scanIncludes, resolveInclude, ruleIncludes, nestedRuleIncludes, discoverRules, selectRules, isSeparatedValues,
+    checkedIO, atPath, checkArguments, discoverConfig, discoverDirectives, checkConfig, journalIncludes,
     newConverterProbe, converterProbeWith
   ) where
 
@@ -14,7 +14,7 @@ import Control.Monad (ap, foldM)
 import qualified Data.ByteString as B
 import Data.Char (isAlpha, isAlphaNum, isAscii, isControl, isDigit, isSpace, toLower, GeneralCategory(CurrencySymbol), generalCategory)
 import Data.List (isPrefixOf)
-import Data.Maybe (mapMaybe)
+import Data.Maybe (fromMaybe, mapMaybe)
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
@@ -28,7 +28,7 @@ import Hledger.Flow.Import.Types (ImportDirs)
 import Hledger.Flow.PathHelpers (AbsDir, AbsFile)
 import qualified Hledger.Flow.RuntimeOptions as RT
 import Hledger.Flow.Types (HledgerConf(..), hledgerConfPath)
-import Path (Abs, parseAbsFile, toFilePath)
+import Path (Abs, parent, parseAbsFile, toFilePath)
 import qualified System.Directory as D
 import qualified System.FilePath as F
 import System.Exit (ExitCode(..))
@@ -108,54 +108,81 @@ nestedRuleIncludes release path bytes
 dropUtf8Bom :: B.ByteString -> B.ByteString
 dropUtf8Bom b = maybe b id (B.stripPrefix (B.pack [0xef,0xbb,0xbf]) b)
 
+data IncludeFile = CsvRules Release | JournalDirectives
+  deriving (Eq, Show)
+
+scanIncludes :: IncludeFile -> Bool -> AbsFile -> B.ByteString -> ReuseDecision [FilePath]
+scanIncludes (CsvRules release) isRoot = if isRoot then ruleIncludes release else nestedRuleIncludes release
+scanIncludes JournalDirectives _ = journalIncludes
+
+fileKind :: IncludeFile -> T.Text
+fileKind (CsvRules _) = "rules"
+fileKind JournalDirectives = "journal"
+
 -- Walk leading .. components relative to the including file's spelled path.
 -- Verify the result against the filesystem's resolution, which can differ when a
 -- symlink precedes .. . An internal symlink is mirrored under its original name.
-resolveRuleInclude :: AbsDir -> AbsFile -> FilePath -> IO (ReuseDecision AbsFile)
-resolveRuleInclude base parent child = checkedIO "uncertain rules include" raw $
+resolveInclude :: IncludeFile -> AbsDir -> AbsFile -> FilePath -> IO (ReuseDecision AbsFile)
+resolveInclude kind base including child = checkedIO ("uncertain " <> label) raw $
   if F.hasDrive child || not (F.isRelative child) || any F.isPathSeparator (take 1 child)
-    then pure (atPath "absolute rules include" child (T.pack (toFilePath parent)))
+    then pure (atPath ("absolute " <> label) child (T.pack (toFilePath including)))
     else do
       let (ups, rest) = span (== "..") (filter (/= ".") (F.splitDirectories child))
-          lexical = foldr (const F.takeDirectory) (F.takeDirectory (toFilePath parent)) ups F.</> F.joinPath rest
+          lexical = foldr (const F.takeDirectory) directory ups F.</> F.joinPath rest
       if ".." `elem` rest || null rest || not (inside (toFilePath base) lexical)
         then pure outside
         else do
           actual <- D.canonicalizePath raw
           mirror <- D.canonicalizePath lexical
           root <- D.canonicalizePath (toFilePath base)
-          if F.equalFilePath actual mirror && inside root actual
+          -- hledger resolves journal includes from the canonical including file.
+          -- The snapshot preserves its spelled directory and journal reader.
+          compatible <- case kind of
+            CsvRules _ -> pure True
+            JournalDirectives -> do
+              source <- D.canonicalizePath (toFilePath including)
+              dir <- D.canonicalizePath directory
+              pure (F.equalFilePath dir (F.takeDirectory source) &&
+                    F.equalFilePath actual (root F.</> F.makeRelative (toFilePath base) lexical))
+          if compatible && F.equalFilePath actual mirror && inside root actual
             then pure (maybe outside Reusable (parseAbsFile lexical))
             else pure outside
   where
-    raw = F.takeDirectory (toFilePath parent) F.</> child
-    outside = atPath "rules include escapes the ledger or cannot be mirrored" raw (T.pack (toFilePath parent))
+    directory = F.takeDirectory (toFilePath including)
+    raw = directory F.</> child
+    label = fileKind kind <> " include"
+    outside = atPath (label <> " escapes the ledger or cannot be mirrored") raw (T.pack (toFilePath including))
     inside root path = F.splitDirectories (F.dropTrailingPathSeparator root) `isPrefixOf` F.splitDirectories path
 
 discoverRules :: AbsDir -> Release -> AbsFile -> IO (ReuseDecision [(AbsFile,Digest)])
-discoverRules base release = walk Set.empty
+discoverRules base release = discoverTree base (CsvRules release)
+
+discoverTree :: AbsDir -> IncludeFile -> AbsFile -> IO (ReuseDecision [(AbsFile,Digest)])
+discoverTree base kind = walk Set.empty
   where
-    walk ancestors path = checkedIO "could not read rules file" (toFilePath path) $ do
+    nativeRules = case kind of
+      CsvRules release -> release /= V1996
+      JournalDirectives -> False
+    walk ancestors path = checkedIO ("could not read " <> fileKind kind <> " file") (toFilePath path) $ do
       canonical <- D.canonicalizePath (toFilePath path)
       directory <- D.canonicalizePath (F.takeDirectory (toFilePath path))
       -- The same rules bytes can resolve includes in different directories.
       -- In 1.52.4 the first read also decodes line endings differently.
-      let node = (canonical, directory, release /= V1996 && Set.null ancestors)
-      if Set.member node ancestors && release /= V1996
+      let node = (canonical, directory, nativeRules && Set.null ancestors)
+      if Set.member node ancestors && nativeRules
         then pure $ Fallback (CyclicRules "cyclic rules include" (T.pack (toFilePath path)))
         else if Set.member node ancestors || Set.size ancestors >= 256
-          then pure (atPath "cyclic or excessively deep rules include" (toFilePath path) "")
+          then pure (atPath ("cyclic or excessively deep " <> fileKind kind <> " include") (toFilePath path) "")
           else do
             bytes <- B.readFile (toFilePath path)
-            let scan = if Set.null ancestors then ruleIncludes else nestedRuleIncludes
-            case scan release path bytes of
+            case scanIncludes kind (Set.null ancestors) path bytes of
               Fallback r -> pure (Fallback r)
               Reusable children -> do
                 nested <- descend (Set.insert node ancestors) path children
                 pure (((path,digestBytes bytes):) <$> nested)
     descend _ _ [] = pure (pure [])
     descend ancestors path (c:cs) = do
-      selected <- resolveRuleInclude base path c
+      selected <- resolveInclude kind base path c
       tree <- case selected of
         Fallback r -> pure (Fallback r)
         Reusable file -> walk ancestors file
@@ -196,12 +223,12 @@ discoverConfig release configured = checkedIO "could not discover hledger config
             Nothing -> pure (atPath "uncertain config path" path "")
             Just absPath -> fmap Just <$> readDependency (checkConfig release) absPath
 
-discoverDirectives :: AbsFile -> IO (ReuseDecision (Maybe (AbsFile,Digest)))
+discoverDirectives :: AbsFile -> IO (ReuseDecision [(AbsFile,Digest)])
 discoverDirectives file = checkedIO "could not discover directives" (toFilePath file) $ do
   exists <- firstConfirmedFile [toFilePath file]
   case exists of
-    Nothing -> pure (pure Nothing)
-    Just _ -> fmap Just <$> readDependency (checkDirectives V1996) file
+    Nothing -> pure (pure [])
+    Just _ -> discoverTree (parent file) JournalDirectives file
 
 readDependency :: (AbsFile -> B.ByteString -> ReuseDecision ()) -> AbsFile -> IO (ReuseDecision (AbsFile,Digest))
 readDependency check path = checkedIO "could not read dependency" (toFilePath path) $ do
@@ -232,19 +259,49 @@ checkConfig release path bytes = do
       where body = T.strip raw
     option n section arg
       | section `elem` inactive = pure section
-      | T.null setting = pure section
-      | section == "print" && release /= V1524 && setting == "--layout=hledger1" = pure section
+      | trackedPrintOptions (T.words setting) = pure section
       | otherwise = unsupported n setting
       where setting = T.strip (T.takeWhile (/= '#') arg)
     unsupported n value = atPath "unsupported hledger config" (toFilePath path) ("line " <> T.pack (show n) <> ": " <> value)
 
-checkDirectives :: Release -> AbsFile -> B.ByteString -> ReuseDecision ()
-checkDirectives _ path bytes = do
-  ls <- physicalLines path (dropUtf8Bom bytes)
-  case [(n,T.strip l) | (n,l) <- zip [1 :: Int ..] ls, not (allowed l)] of
-    [] -> pure ()
-    (n,value):_ -> atPath "unsupported journal directive" (toFilePath path) ("line " <> T.pack (show n) <> ": " <> value)
+-- These options only change how print renders the tracked inputs. hledger
+-- validates literal values on conversion. Unknown tokens require an ordinary run.
+trackedPrintOptions :: [T.Text] -> Bool
+trackedPrintOptions [] = True
+trackedPrintOptions (flag:rest)
+  | flag `elem` ["--explicit", "-x", "--invert"] = trackedPrintOptions rest
+  | name `elem` ["--round", "--layout"] = case T.stripPrefix "=" suffix of
+      Just value -> literal value && trackedPrintOptions rest
+      Nothing -> case rest of
+        value:more -> literal value && trackedPrintOptions more
+        [] -> False
+  | otherwise = False
   where
+    (name,suffix) = T.breakOn "=" flag
+    literal value = not (T.null value) && T.all (\c -> isAscii c && isAlphaNum c) value
+
+journalIncludes :: AbsFile -> B.ByteString -> ReuseDecision [FilePath]
+journalIncludes path bytes = do
+  ls <- physicalLines path (dropUtf8Bom bytes)
+  sequence (mapMaybe classify (zip [1 :: Int ..] ls))
+  where
+    classify (n,raw)
+      | allowed raw = Nothing
+      | ("include",rest) <- T.break horizontalSpace raw,
+        let target = T.dropAround horizontalSpace (T.takeWhile (/= ';') rest)
+            journalPath = T.stripPrefix "journal:" target
+            name = fromMaybe target journalPath,
+        not (T.null name),
+        T.all (\c -> isAlphaNum c || c `elem` (" ./_-" :: String)) name =
+          Just $ if journalPath == Nothing && map toLower (F.takeExtension (T.unpack name)) `elem` nonJournalExtensions
+            then atPath "unsupported journal include reader" (toFilePath path) (lineDetail n raw)
+            else pure (T.unpack name)
+      | otherwise = Just (atPath "unsupported journal directive" (toFilePath path)
+                          (lineDetail n raw))
+    -- hledger defaults to the journal reader for unrecognized extensions.
+    nonJournalExtensions = [".csv", ".tsv", ".ssv", ".rules", ".timeclock", ".timedot"]
+    lineDetail n raw = "line " <> T.pack (show n) <> ": " <> T.strip raw
+    horizontalSpace c = c == ' ' || c == '\t'
     allowed raw
       | T.null stripped || T.isPrefixOf ";" stripped || T.isPrefixOf "#" stripped || T.isPrefixOf "*" stripped = True
       | Just (c,_) <- T.uncons raw, isSpace c = False

@@ -30,20 +30,24 @@ Both modes verify the generated output, the effective CSV, TSV or SSV, and the h
 
 Each incremental import hashes the hledger executable once while it remains unchanged. On macOS it uses the system SHA-256 implementation. Replacing hledger with different bytes triggers a rebuild even if the version, file size and modification time stay the same. For a small selection, a full import can still finish sooner. Incremental import supports **hledger 1.52.4 or later**, including development builds such as `1.99-g01a4b4866`. Package-manager and locally compiled builds use the same checks.
 
-A missing, empty or comment-only config permits reuse. Settings in recognized sections for other commands such as `[balance]` also permit reuse. The whole config is hashed, so editing one of those sections triggers one rebuild. In general settings and `[print]`, the following fixed layout permits reuse on versions that accept it.
+Incremental import hashes the whole active hledger config file. Editing it triggers a rebuild even when the changed setting applies to another command. Run `hledger-flow status` from the same directory to [find the active config](/reference/status/#hledger-config-file).
 
-```ini
-[print]
---layout=hledger1
-```
+An empty or comment-only config permits reuse, as do settings in recognized sections for other commands such as `[balance]`. In general settings and `[print]`, incremental import recognizes options for explicit amounts, sign inversion, rounding and posting layout. hledger validates their values during conversion. Options that read additional files, depend on today's date, write another output, or have unknown effects trigger ordinary conversion.
 
-For `directives.journal`, the supported forms are single-line literal account declarations, commodity formats and prices with full numeric dates. Blank lines, comments, inline tags and commodity precisions are supported. For example:
+In `directives.journal` you can use single-line literal account declarations, commodity formats, prices with full numeric dates, and relative includes such as the ones below. Blank lines, comments, inline tags and commodity precisions are supported.
 
 ```journal
 account assets:bank:current  ; type: C
 commodity 1,000.00000000 BTC
 P 2000-01-01 EUR €1
+include accounts.journal
 ```
+
+Paths are relative to the file containing the `include`. Incremental import checks the contents of each included file, including nested includes. Editing one rebuilds the selected statements that use it.
+
+Use literal paths inside the ledger, with letters, numbers, spaces, dots, hyphens, underscores and forward slashes. Journal filenames can have a custom extension or no extension at all. A name such as `vat.csv` selects hledger's CSV reader and triggers ordinary conversion. If the file contains journal syntax, `include journal:vat.csv` selects the journal reader and permits reuse.
+
+Globs, absolute paths, paths outside the ledger, and symlinks that redirect an include trigger ordinary conversion. If an included file has an unsupported directive, run `hledger-flow --verbose import --incremental` to see the file and line.
 
 ## When reuse is unavailable
 

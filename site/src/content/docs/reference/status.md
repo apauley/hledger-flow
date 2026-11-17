@@ -15,8 +15,8 @@ hledger 1.40 and later read default options from a config file: the one you
 give with `--hledger-conf`, or else the first it finds of `hledger.conf` in
 the current directory or a parent, `~/.hledger.conf`, and `hledger.conf` in
 your XDG config directory. hledger-flow runs hledger from the directory you
-run it in, so that file applies to import and reports too. Options in it can
-change the journals import generates, such as `--layout` under `[print]`.
+run it in, so that file applies to import and reports too. Import runs
+`hledger print`, so options under `[print]` apply to journal generation.
 
 The `hledger.conf` line in the Environment section at the end of status names
 the file, marked `(found by hledger)` when you didn't give it.

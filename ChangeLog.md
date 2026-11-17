@@ -33,6 +33,9 @@ How to keep this ChangeLog
 
 ## Unreleased
 
+- With formatting options such as `--invert` or `--round=soft` in `hledger.conf`, `import --incremental` can now skip rerunning hledger for unchanged statements.
+- Incremental import now follows literal journal includes in `directives.journal`, including nested files and files with custom extensions or no extension. Editing an included file rebuilds the statements that use it. See the [supported directives](https://hledger-flow.github.io/reference/incremental-import/#what-gets-checked).
+
 ## 0.20.1
 
 - Use `hledger-flow import --incremental` with hledger 1.52.4 or later to reuse journals when their inputs, including nested rules files, still match. Choose `--incremental=skip-unchanged-scripts` to also reuse the outputs of unchanged scripts. See the [incremental import reference](https://hledger-flow.github.io/reference/incremental-import/).

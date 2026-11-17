@@ -198,7 +198,6 @@ copyInputs :: AbsDir -> AbsDir -> Release -> SnapshotInput -> IO PreparedSnapsho
 copyInputs base tree version input = do
   manifest <- newIORef Map.empty
   paths <- newIORef Map.empty
-  completed <- newIORef Set.empty
   let mirror file = case stripProperPrefix base file of
         Nothing -> reject "snapshot input outside ledger" (T.pack (toFilePath file))
         Just rel -> pure (tree </> [reldir|l|] </> rel)
@@ -232,18 +231,20 @@ copyInputs base tree version input = do
         () <- fromDecision (check version source bytes)
         pure target
       copyConfig source = validated checkConfig source (tree </> [reldir|c|] </> filename source)
-      copyRule ancestors source = do
+      copyTree kind root = do
+        completed <- newIORef Set.empty
+        copyIncluded kind completed Set.empty root
+      copyIncluded kind completed ancestors source = do
         target <- mirror source
         identity <- D.canonicalizePath (toFilePath source)
-        when (Set.member identity ancestors || Set.size ancestors >= 256) $ reject "cyclic or excessively deep rules include" (T.pack (toFilePath source))
+        when (Set.member identity ancestors || Set.size ancestors >= 256) $ reject "cyclic or excessively deep include" (T.pack (toFilePath source))
         done <- Set.member (toFilePath source) <$> readIORef completed
         unless done $ do
           bytes <- copyBytes source target
-          let scan = if Set.null ancestors then ruleIncludes else nestedRuleIncludes
-          includes <- fromDecision (scan version source bytes)
+          includes <- fromDecision (scanIncludes kind (Set.null ancestors) source bytes)
           forM_ includes $ \spelling -> do
-            child <- resolveRuleInclude base source spelling >>= fromDecision
-            void $ copyRule (Set.insert identity ancestors) child
+            child <- resolveInclude kind base source spelling >>= fromDecision
+            void $ copyIncluded kind completed (Set.insert identity ancestors) child
           modifyIORef' completed (Set.insert (toFilePath source))
         pure target
   copied <- case input of
@@ -252,8 +253,8 @@ copyInputs base tree version input = do
       dataCopy <- mirror csv
       destination csv dataCopy
       copyDigest csv dataCopy >>= record csv dataCopy
-      rulesCopy <- copyRule Set.empty rules
-      directivesCopy <- traverse (\source -> mirror source >>= validated checkDirectives source) directives
+      rulesCopy <- copyTree (CsvRules version) rules
+      directivesCopy <- traverse (copyTree JournalDirectives) directives
       RulesInput dataCopy rulesCopy directivesCopy <$> traverse copyConfig conf
   PreparedSnapshot copied <$> readIORef manifest <*> readIORef paths
 

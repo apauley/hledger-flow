@@ -220,6 +220,29 @@ class Rules(Ledger):
         self.imports(1, RUN_SCRIPTS)
         self.assert_warm()
 
+    def test_literal_journal_includes(self):
+        write(self.base / "directives.journal",
+              "commodity €1,000.00\ncommodity 1,000.00 EUR\nP 2000-01-01 EUR €1\n\n"
+              "include accounts.journal\ninclude vat-codes\n")
+        write(self.base / "accounts.journal", "include journal:tax/accounts.CSV\n")
+        write(self.base / "tax/accounts.CSV", "account assets:bank:checking\n")
+        write(self.base / "vat-codes", "include tax/vat.custom\n")
+        leaf = self.base / "tax/vat.custom"
+        write(leaf, "account expenses:vat\n")
+        self.imports(1, RUN_SCRIPTS)
+        self.assert_warm()
+        write(leaf, "account expenses:vat:reduced\n")
+        old_timestamp(leaf)
+        rebuilt = self.imports(1, SKIP_UNCHANGED)
+        self.assertIn(f"changed input: {leaf}", rebuilt.stdout + rebuilt.stderr)
+        self.assert_warm(SKIP_UNCHANGED)
+        self.full_parity(RUN_SCRIPTS)
+        write(leaf, "alias expenses:coffee = expenses:cafe\n")
+        fallback = self.imports(1, RUN_SCRIPTS, fallback=True)
+        self.assertIn(leaf.name, fallback.stderr)
+        leaf.unlink()
+        self.full_parity(RUN_SCRIPTS, ok=False)
+
     def test_directives_and_fallback_scope(self):
         directives = self.base / "directives.journal"
         write(directives, "")
@@ -398,24 +421,13 @@ class Config(Ledger):
         home = (Path(self.env["XDG_CONFIG_HOME"]) / "hledger/hledger.conf"
                 if os.name == "nt" else self.home / ".hledger.conf")
         inactive = "[balance]\n--period=thismonth\n"
-        layout = "[print]\n--layout=hledger1\n"
         write(home, inactive)
         self.imports(1, mode)
         self.full_parity(mode)
         self.assert_warm(mode)
-        write(home, inactive + layout)
-        accepts_layout = self.command("hledger-flow", "import").returncode == 0
-        if self.release in ("1.52.4", "1.99.6"):
-            self.assertEqual(accepts_layout, self.release == "1.99.6")
-        incremental, full = self.full_parity(mode, ok=accepts_layout)
-        if accepts_layout:
-            self.assertNotIn(NOTICE, incremental.stderr)
-            if self.release == "1.99.6":
-                self.assertNotEqual(self.journal.read_bytes(), default)
-            self.assert_warm(mode)
-        else:
-            for result in (incremental, full):
-                self.assertIn("--layout", result.stderr)
+        write(home, inactive + "[print]\n--invert\n")
+        self.full_parity(mode)
+        self.assertNotEqual(self.journal.read_bytes(), default)
         nearer = self.base / "hledger.conf"
         write(nearer, inactive)
         self.imports(1, mode)
@@ -423,7 +435,8 @@ class Config(Ledger):
         self.full_parity(mode)
         self.assert_warm(mode)
         nearer.unlink()
-        self.full_parity(mode, ok=accepts_layout)
+        self.full_parity(mode)
+        self.assertNotEqual(self.journal.read_bytes(), default)
 
     def test_rules_config_discovery(self):
         self.config_parity(RUN_SCRIPTS)
@@ -452,8 +465,12 @@ class Config(Ledger):
                     self.assertIn("unsupported hledger config: hledger.conf", result.stderr)
             self.assertEqual(self.journal.read_bytes(), default)
             write(config, "[print]\n--invert\n")
-            self.imports(1, mode, fallback=True)
+            self.imports(1, mode)
             self.assertNotEqual(self.journal.read_bytes(), default)
+            self.assert_warm(mode)
+            write(config, "[print]\n--round=soft\n")
+            self.imports(1, mode)
+            self.assert_warm(mode)
             self.full_parity(mode)
             write(config, "[print]\n--invalid-incremental-test-option\n")
             self.full_parity(mode, ok=False)

@@ -97,14 +97,14 @@ tests = TestList
           no release s = fallback (checkConfig release file s)
       forM_ [V1524,V1996,OtherSupported] $ \release -> do
         ok release "# comment\n[balance] --period=thismonth\n[register]\n@file\n[general]\n[print]\n"
+        ok release "--invert\n[print] -x --round soft --layout=55 # literal values\n"
+        forM_ ["--file=extra.journal", "--output-file saved.txt", "--new", "--locations",
+               "--invert --file=extra.journal", "--round @value", "--round", "--unknown"] $
+          no release . ("[print]\n" <>)
         forM_ ["--period=thismonth", "[general] --debug", "[print]\n@indirect", "[txns]", "[bal]", "[b]", "[alias]", "[missing", "[general", "[balance]\n[print] --period=thismonth"] (no release)
-      ok V1996 "[print] --layout=hledger1 # layout\n"
-      ok OtherSupported "[print] --layout=hledger1 # layout\n"
       no OtherSupported "[print]\n [balance]\n--empty"
       no OtherSupported "[holdings]"
       no OtherSupported "[demo]"
-      no V1524 "[print]\n--layout=hledger1"
-      no V1996 "[general]\n--layout=hledger1"
       ok V1996 "[holdings]"
       no V1524 "[print]\n [balance]\n--empty"
       no V1524 "[holdings]"
@@ -123,9 +123,35 @@ tests = TestList
       )
   , "directives eligibility" ~: withTestDir (\base -> do
       let file = base </> [relfile|directives.journal|]
-          check = checkDirectives V1996 file . T.encodeUtf8
-      forM_ ["account assets:bank:current  ; type: C","commodity 1,000.00000000 BTC  ; lots:","commodity €1,000.00","P 2000-01-01 EUR €1","P 2000/01/01 BTC 12.30 EUR","; tags\n# prices\n* prices\n\n"] $ \s -> check s @?= Reusable ()
+          check = journalIncludes file . T.encodeUtf8
+      forM_ ["account assets:bank:current  ; type: C","commodity 1,000.00000000 BTC  ; lots:","commodity €1,000.00","P 2000-01-01 EUR €1","P 2000/01/01 BTC 12.30 EUR","; tags\n# prices\n* prices\n\n"] $ \s -> check s @?= Reusable []
+      check "include accounts.journal  ; declarations\ninclude\ttax/vat codes.journal" @?= Reusable ["accounts.journal","tax/vat codes.journal"]
+      check "include vat-codes\ninclude vat.CUSTOM\ninclude journal:vat.CSV" @?= Reusable ["vat-codes","vat.CUSTOM","vat.CSV"]
+      forM_ ["", "journal:", "vat.CsV", "vat.tsv", "vat.ssv", "vat.rules", "vat.timedot", "vat.timeclock"] $
+        fallback . check . ("include " <>)
       forM_ ["account assets:any\n    note", "comment\ncommodity €1\nend comment","include *.journal","P today EUR €1","P 2000-01-01 EUR €1 trailing","commodity 1,234 ABC extra", "2025/01/01 A"] (fallback . check))
+  , "unmirrorable journal includes" ~: withTestDir (\tmp -> do
+      let base = tmp </> [reldir|ledger|]
+          root = base </> [relfile|directives.journal|]
+          nested = base </> [relfile|sub/accounts.journal|]
+          write path = B.writeFile (toFilePath path)
+      P.createDirIfMissing True (parent nested)
+      write root "include sub/accounts.journal\n"
+      write nested "include ../directives.journal\n"
+      discoverDirectives root >>= fallback
+      write nested "include ../../outside.journal\n"
+      write (tmp </> [relfile|outside.journal|]) "account expenses:cafe\n"
+      discoverDirectives root >>= fallback
+#ifndef mingw32_HOST_OS
+      let link = base </> [relfile|alias.journal|]
+      D.createFileLink (toFilePath nested) (toFilePath link)
+      write root "include alias.journal\n"
+      write nested "include prices.journal\n"
+      write (base </> [relfile|prices.journal|]) "; different directory\n"
+      write (parent nested </> [relfile|prices.journal|]) "; canonical directory\n"
+      discoverDirectives root >>= fallback
+#endif
+      )
   , "converter identity" ~: bracket getLocaleEncoding setLocaleEncoding (\_ -> withTestDir (\base -> do
       setLocaleEncoding utf8
       let real = base </> [relfile|actual|]
