@@ -26,10 +26,33 @@ reports.
 
 ## Commodity names
 
-A price only applies to amounts that use the same commodity name. If your
-statements write US dollars as `$`, a price quoted in `USD` does not value
-them. Name the commodities in your price files the way your journals do, or
-add one price that links the two names:
+A price only applies to amounts that use the same commodity name. Price tools
+such as pricehist and hledger’s `getprices` write ISO codes like `USD`. If your
+statements write US dollars as `$`, declare `$` as an
+[alias](https://hledger.org/dev/hledger.html#commodity-aliases) of `USD` in
+the year’s price file:
+
+```hledger title="prices/2025/prices.journal"
+commodity USD  ; alias: $
+```
+
+hledger then reads amounts written as `$` as `USD`, so prices quoted in `USD`
+value them, and reports show `USD`.
+
+:::note
+Commodity aliases are only supported from hledger 1.99.5 onwards. hledger
+1.99.3 introduced them, but amounts written with an alias are converted to
+the commodity only from 1.99.5. hledger 1.52 and earlier don’t have them. Use
+the [linking price](#link-names-with-a-price) instead.
+:::
+
+Declare the alias in every year’s price file. An alias only converts amounts
+in the files read together with it, and a year’s include file, such as
+`import/2025-include.journal`, doesn’t include `directives.journal`.
+
+### Link names with a price
+
+With hledger older than 1.99.5, add a price that links the two names instead:
 
 ```hledger
 P 2000-01-01 USD $1
@@ -59,14 +82,12 @@ Each line looks like this:
 P 2025-12-19 EUR 1.1712 USD
 ```
 
-Use `--fmt-base` and `--fmt-quote` to rename the commodities so they match your
-journals, and `--fmt-symbol left` to put a symbol before the number. Yahoo
-Finance names exchange rates like `GBPUSD=X`. This prices pounds in US dollars
-written as `$`:
+Yahoo Finance names exchange rates like `GBPUSD=X`. Use `--fmt-base` to name
+the commodity being priced:
 
 ```bash
 pricehist fetch yahoo GBPUSD=X -s 2025-01-01 -e 2025-12-31 -o ledger --fmt-time '' \
-  --fmt-base GBP --fmt-quote '$' --fmt-symbol left >> prices/2025/prices.journal
+  --fmt-base GBP >> prices/2025/prices.journal
 ```
 
 To add only prices newer than those already saved, use `-sx` with the date of
@@ -86,21 +107,28 @@ curl -o prices/getprices https://raw.githubusercontent.com/hledgerorg/hledger/ma
 chmod +x prices/getprices
 ```
 
-This writes the 2025 prices for every commodity used in 2025. It replaces that
-year’s price file only if it fetched something:
+This fetches the 2025 prices for every commodity used in 2025. It replaces the
+`P` lines in that year’s price file, keeps its other lines, such as a
+[commodity alias](#commodity-names), and changes nothing if it fetched no
+prices:
 
 ```bash
 year=2025
 mkdir -p prices/$year
-for c in $(hledger -f import/$year-include.journal commodities --used); do
-  prices/getprices USD "$c" $year-01-01 $year-12-31
-done > prices/$year/prices.new
-[ -s prices/$year/prices.new ] && mv prices/$year/prices.new prices/$year/prices.journal
+{
+  grep -v '^P ' prices/$year/prices.journal 2>/dev/null
+  for c in $(hledger -f import/$year-include.journal commodities --used); do
+    prices/getprices USD "$c" $year-01-01 $year-12-31
+  done
+} > prices/$year/prices.new
+grep -q '^P ' prices/$year/prices.new && mv prices/$year/prices.new prices/$year/prices.journal
 ```
 
 Replace `USD` with your base currency. `hledger stats` shows the one hledger
 guesses from your journal. `getprices` skips the base currency and expects ISO
-codes such as `EUR` and `GBP`. For the current year, use today’s date as the
+codes such as `EUR` and `GBP`. If your statements use symbols, declare them as
+[aliases](#commodity-names) first, so hledger lists the ISO codes. For the
+current year, use today’s date as the
 end date.
 
 The loop only finds commodities that appear in the year’s transactions. A
