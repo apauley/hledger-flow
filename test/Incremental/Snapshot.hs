@@ -13,7 +13,6 @@ import GHC.Conc (threadStatus, ThreadStatus(..))
 import GHC.IO.Encoding (getLocaleEncoding, setLocaleEncoding, utf8)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
-import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import Hledger.Flow.Import.Cache
 import Hledger.Flow.Import.Dependencies
@@ -61,9 +60,10 @@ tests = TestLabel "Private input snapshots" $ TestList
       BS.writeFile (toFilePath accounts) "account expenses:cafe\n"
       result <- withSnapshotRun base $ \run -> withSnapshot run V1524 (RulesInput statement rules (Just directives) Nothing) $ \snapshot -> do
         RulesInput dataCopy rulesCopy (Just directivesCopy) Nothing <- pure (snapshotInputs snapshot)
-        let deps = snapshotManifest snapshot
-        assertEqual "manifest includes nested rule" (Just (digestBytes a)) (Map.lookup category deps)
-        assertEqual "manifest includes account declarations" (Just (digestBytes "account expenses:cafe\n")) (Map.lookup accounts deps)
+        let expected = [statement, rules, category, directives, accounts]
+        digests <- mapM digestFile expected
+        assertEqual "manifest follows the order of conversion inputs"
+          (zip expected digests) (snapshotManifest snapshot)
         BS.writeFile (toFilePath accounts) "account expenses:food\n"
         BS.readFile (toFilePath (parent directivesCopy </> [relfile|shared/accounts.journal|]))
           >>= assertEqual "private copy retains original declarations" "account expenses:cafe\n"

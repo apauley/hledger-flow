@@ -28,6 +28,8 @@ The selected mode applies to every account in the import. Run from an account di
 
 Both modes verify the generated output, the effective CSV, TSV or SSV, and the hledger arguments used for conversion. An upgrade that changes those arguments rebuilds the affected journals. Rules-based conversion follows nested rules includes and checks the effective config and applicable `directives.journal`.
 
+A CSV rules file can include shared rules outside the ledger with a relative path such as `../../shared/categories.rules`. Paths are relative to the file containing the include. Paths such as `nested/../categories.rules` and paths through symbolic links also permit reuse when hledger-flow can reproduce their layout in its private copy. Editing a shared file rebuilds each selected statement that uses it.
+
 Each incremental import hashes the hledger executable once while it remains unchanged. On macOS it uses the system SHA-256 implementation. Replacing hledger with different bytes triggers a rebuild even if the version, file size and modification time stay the same. For a small selection, a full import can still finish sooner. Incremental import supports **hledger 1.52.4 or later**, including development builds such as `1.99-g01a4b4866`. Package-manager and locally compiled builds use the same checks.
 
 Incremental import hashes the whole active hledger config file. Editing it triggers a rebuild even when the changed setting applies to another command. Run `hledger-flow status` from the same directory to [find the active config](/reference/status/#hledger-config-file).
@@ -57,7 +59,7 @@ Paths are relative to the file containing the `include`. Incremental import chec
 
 Use literal paths inside the ledger, with letters, numbers, spaces, dots, hyphens, underscores and forward slashes. Journal filenames can have a custom extension or no extension at all. A name such as `vat.csv` selects hledger's CSV reader and triggers ordinary conversion. If the file contains journal syntax, `include journal:vat.csv` selects the journal reader and permits reuse.
 
-Globs, absolute paths, paths outside the ledger, and symlinks that redirect an include trigger ordinary conversion. If an included file has an unsupported directive, run `hledger-flow --verbose import --incremental` to see the file and line.
+For journal includes, globs, absolute paths, paths outside the ledger, and symlinks that redirect an include trigger ordinary conversion. If an included file has an unsupported directive, run `hledger-flow --verbose import --incremental` to see the file and line.
 
 ## When reuse is unavailable
 
@@ -65,7 +67,7 @@ A notice on standard error lists each reason once and counts the affected statem
 
 For example, hledger versions differ in how they read trailing spaces in an `include` filename. With 1.52.4 and 1.99.6, hledger-flow follows the known behavior. On other eligible versions, a statement with that ambiguity goes through ordinary conversion each time. Statements using other, unambiguous rules can still reuse their journals. A shared ambiguous input affects every statement that uses it.
 
-Common reasons include a hledger version below 1.52.4, an unreadable version, an unsupported input reader, a config setting with a known dependency outside the tracked inputs, a multiline or unknown directive, an unresolved rules include, and an absolute rules include or one outside the ledger. Use `--hledger-path` to select the real hledger executable if the configured path is a launcher. An unrecognized native executable that forwards to another program can hide changes to its target. Keep the installed converter stable during an import. Temporarily replacing its parent directory and restoring it during conversion can escape the executable identity checks.
+Common reasons include a hledger version below 1.52.4, an unreadable version, an unsupported input reader, a config setting with a known dependency outside the tracked inputs, a multiline or unknown directive, an unresolved rules include, and an absolute rules include. Use `--hledger-path` to select the real hledger executable if the configured path is a launcher. An unrecognized native executable that forwards to another program can hide changes to its target. Keep the installed converter stable during an import. Temporarily replacing its parent directory and restoring it during conversion can escape the executable identity checks.
 
 An eligible rebuild uses private copies so the record describes the bytes hledger read. If hledger reports an error in a copied file, the diagnostic names the original file so you can open it at the reported line. Reuse can also be unavailable if private staging fails, a planned Windows snapshot path reaches 260 UTF-16 code units, or inputs change during conversion. A warm rules-based hit creates no snapshot.
 

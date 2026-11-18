@@ -267,12 +267,68 @@ class Rules(Ledger):
         outside = self.tmp / "external.rules"
         write(outside, "account2 expenses:external\n")
         self.imports(2, RUN_SCRIPTS)
-        for include in (outside.as_posix(), "../../external.rules"):
-            write(self.rules, FIELDS + "include " + include + "\n")
-            result = self.imports(1, RUN_SCRIPTS, fallback=True)
-            self.assertIn("1 of 2 selected statements", result.stderr)
-            self.full_parity(RUN_SCRIPTS)
+        write(self.rules, FIELDS + "include " + outside.as_posix() + "\n")
+        result = self.imports(1, RUN_SCRIPTS, fallback=True)
+        self.assertIn("1 of 2 selected statements", result.stderr)
+        self.full_parity(RUN_SCRIPTS)
 
+    def check_relative_rules(self, include, leaf):
+        write(self.rules, FIELDS + "include " + include + "\n")
+        write(leaf, "account2 expenses:first\n")
+        self.imports(1, RUN_SCRIPTS)
+        self.assertIn("expenses:first", self.journal.read_text())
+        self.full_parity(RUN_SCRIPTS)
+        self.assert_warm()
+        write(leaf, "account2 expenses:edited\n")
+        self.imports(1, RUN_SCRIPTS)
+        self.assertIn("expenses:edited", self.journal.read_text())
+        self.assert_warm()
+
+    def test_relative_external_rules(self):
+        shared = self.tmp / "shared"
+        write(shared / "top.rules", "include nested/leaf.rules\n")
+        self.check_relative_rules("../../shared/top.rules", shared / "nested/leaf.rules")
+
+    def test_rules_with_directory_before_parent(self):
+        self.check_relative_rules("nested/../local.rules", self.rules.parent / "local.rules")
+        self.category.unlink()
+        self.category.parent.rmdir()
+        # Some platforms resolve parent components before opening the path.
+        full = self.command("hledger-flow", "import")
+        self.full_parity(RUN_SCRIPTS, ok=full.returncode == 0)
+
+    def link_rules_input(self, link, target):
+        try:
+            link.symlink_to(target, target_is_directory=target.is_dir())
+        except OSError as error:
+            if getattr(error, "winerror", None) == 1314:
+                self.skipTest("This Windows user cannot create symbolic links")
+            raise
+
+    def test_external_rules_symlink(self):
+        external = self.tmp / "elsewhere/top.rules"
+        write(external, "include leaf.rules\n")
+        self.link_rules_input(self.rules.parent / "linked.rules", external)
+        write(external.parent / "leaf.rules", "account2 expenses:decoy\n")
+        self.check_relative_rules("linked.rules", self.rules.parent / "leaf.rules")
+
+    def test_directory_symlink_before_parent(self):
+        nested = self.tmp / "shared/nested"
+        nested.mkdir(parents=True)
+        self.link_rules_input(self.rules.parent / "linked-dir", nested)
+        local = self.rules.parent / "top.rules"
+        external = nested.parent / "top.rules"
+        write(local, "account2 expenses:local\n")
+        write(external, "account2 expenses:external\n")
+        include = "linked-dir/../top.rules"
+        # Windows normally simplifies dir/.. before opening the directory link.
+        uses_external = (self.rules.parent / include).samefile(external)
+        self.check_relative_rules(include, external if uses_external else local)
+
+        # Fall back if the two includes need different files at one snapshot path.
+        write(self.rules, FIELDS + "include " + include + "\ninclude top.rules\n")
+        self.imports(1, RUN_SCRIPTS, fallback=uses_external)
+        self.full_parity(RUN_SCRIPTS)
 
     def test_include_whitespace_and_missing_file(self):
         safe = self.account.with_name("savings")

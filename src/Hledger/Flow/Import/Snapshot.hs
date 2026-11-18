@@ -45,7 +45,7 @@ data SnapshotInput
 
 data PreparedSnapshot = PreparedSnapshot
   { snapshotInputs :: SnapshotInput,
-    snapshotManifest :: Map.Map AbsFile Digest,
+    snapshotManifest :: [(AbsFile, Digest)],
     originalPaths :: Map.Map AbsFile AbsFile
   }
 
@@ -196,7 +196,7 @@ windowsSnapshotPathFits = (< 260) . sum . map units
 
 copyInputs :: AbsDir -> AbsDir -> Release -> SnapshotInput -> IO PreparedSnapshot
 copyInputs base tree version input = do
-  manifest <- newIORef Map.empty
+  manifest <- newIORef []
   paths <- newIORef Map.empty
   let mirror file = case stripProperPrefix base file of
         Nothing -> reject "snapshot input outside ledger" (T.pack (toFilePath file))
@@ -211,15 +211,16 @@ copyInputs base tree version input = do
         -- equivalence rules. Never overwrite a copy made for another spelling.
         previous <- Map.lookup target <$> readIORef paths
         collision <- case previous of
-          Just original -> pure (toFilePath original /= toFilePath source)
+          Just (original, _) -> pure (toFilePath original /= toFilePath source)
           Nothing -> D.doesPathExist (toFilePath target)
         when collision $ reject "snapshot filenames collide" (T.pack (toFilePath source))
       record source target digest = do
-        previous <- Map.lookup source <$> readIORef manifest
-        when (maybe False (/= digest) previous) $
+        previous <- Map.lookup target <$> readIORef paths
+        when (maybe False ((/= digest) . snd) previous) $
           reject "dependency changed during snapshot" (T.pack (toFilePath source))
-        modifyIORef' manifest (Map.insert source digest)
-        modifyIORef' paths (Map.insert target source)
+        -- Include order matters if a directory link changes during copying.
+        modifyIORef' manifest ((source, digest) :)
+        modifyIORef' paths (Map.insert target (source, digest))
       copyBytes source target = do
         destination source target
         bytes <- BS.readFile (toFilePath source)
@@ -232,21 +233,27 @@ copyInputs base tree version input = do
         pure target
       copyConfig source = validated checkConfig source (tree </> [reldir|c|] </> filename source)
       copyTree kind root = do
-        completed <- newIORef Set.empty
-        copyIncluded kind completed Set.empty root
-      copyIncluded kind completed ancestors source = do
-        target <- mirror source
-        identity <- D.canonicalizePath (toFilePath source)
-        when (Set.member identity ancestors || Set.size ancestors >= 256) $ reject "cyclic or excessively deep include" (T.pack (toFilePath source))
-        done <- Set.member (toFilePath source) <$> readIORef completed
-        unless done $ do
-          bytes <- copyBytes source target
-          includes <- fromDecision (scanIncludes kind (Set.null ancestors) source bytes)
-          forM_ includes $ \spelling -> do
-            child <- resolveInclude kind base source spelling >>= fromDecision
-            void $ copyIncluded kind completed (Set.insert identity ancestors) child
-          modifyIORef' completed (Set.insert (toFilePath source))
-        pure target
+        nodes <- readIncludeTree base kind root >>= fromDecision
+        let detours = Set.fromList (concatMap includeDirectories nodes)
+            common = foldl' containing base (map (parent . includePosition) nodes ++ Set.toList detours)
+            -- Keep ordinary layout short; use a separate tree when a rules
+            -- include needs a sibling of the ledger or a different ancestor.
+            folder = tree </> if common == base then [reldir|l|] else [reldir|r|]
+            staged path = (folder </>) <$> stripProperPrefix common path
+        forM_ detours $ \dir -> do
+          target <- if dir == common then pure folder else staged dir
+          P.createDirIfMissing True target
+        forM_ nodes $ \node -> do
+          let source = includeSource node
+              bytes = includeBytes node
+          target <- staged (includePosition node)
+          destination source target
+          BS.writeFile (toFilePath target) bytes
+          record source target (digestBytes bytes)
+        staged root
+      containing dir path
+        | dir == path || isProperPrefixOf dir path || dir == parent dir = dir
+        | otherwise = containing (parent dir) path
   copied <- case input of
     ConstructInput conf -> ConstructInput <$> traverse copyConfig conf
     RulesInput csv rules directives conf -> do
@@ -256,7 +263,7 @@ copyInputs base tree version input = do
       rulesCopy <- copyTree (CsvRules version) rules
       directivesCopy <- traverse (copyTree JournalDirectives) directives
       RulesInput dataCopy rulesCopy directivesCopy <$> traverse copyConfig conf
-  PreparedSnapshot copied <$> readIORef manifest <*> readIORef paths
+  PreparedSnapshot copied <$> (reverse <$> readIORef manifest) <*> (Map.map fst <$> readIORef paths)
 
 -- hledger emits locations as "FILE:line:column:" (also "FILE:line:" and
 -- "FILE: explanation"). Restrict replacement to its location fields.

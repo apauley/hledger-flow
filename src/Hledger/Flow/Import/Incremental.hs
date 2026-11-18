@@ -77,7 +77,7 @@ data JournalInputs = JournalInputs
   { engine :: Converter
   , copiedInputs :: SnapshotInput
   , recordedInputs :: StageInputs
-  , copiedDigests :: Map.Map AbsFile Digest
+  , copiedDigests :: [(AbsFile, Digest)]
   , liveConstruct :: Maybe HookInputs
   } deriving (Eq, Show)
 
@@ -154,7 +154,7 @@ importStatement (IncrementalRun snapshots probe reasons) opts ch dirs source = d
                       ++ map ("converter",) (converterKey converter)
                     configArgs = pinnedConfig ("<config>" <$ conf)
                     mk inputs files args extra construct =
-                      JournalInputs converter inputs (common ++ map ("hledger argument",) args ++ extra ++ [(pathText p,digestHex d) | (p,d) <- files]) (Map.fromList files) construct
+                      JournalInputs converter inputs (common ++ map ("hledger argument",) args ++ extra ++ [(pathText p,digestHex d) | (p,d) <- files]) files construct
                 case candidate of
                   Just script -> do
                     observation <- observeHook script csv
@@ -192,7 +192,7 @@ importStatement (IncrementalRun snapshots probe reasons) opts ch dirs source = d
   let agrees inputs = case preRecord of
         Nothing -> True
         Just entry -> Just (stageOutput entry) == case liveConstruct inputs of
-          Nothing -> Map.lookup csv (copiedDigests inputs)
+          Nothing -> lookup csv (copiedDigests inputs)
           Just (HookInputs _ _ _ observed) -> Just (observationDigest observed)
       decision = rawDecision >>= \inputs -> if agrees inputs then pure inputs else Fallback changed
   (journal,generated) <- case decision of
@@ -223,6 +223,8 @@ importStatement (IncrementalRun snapshots probe reasons) opts ch dirs source = d
           effective <- case preNow of
             Nothing -> P.doesFileExist intermediate >>= \exists -> pure (if exists then intermediate else source)
             Just _ -> pure intermediate
+          -- Order-sensitive: copyInputs must copy in the order discovery
+          -- lists inputs, or no rebuild ever counts as stable.
           let stable = again == Reusable inputs && snapshotManifest snapshot == copiedDigests inputs && preNow == pre && effective == csv
           if stable then pure $ Just (StageRecord (recordedInputs inputs) outDigest)
                     else when (skipScripts || liveConstruct inputs == Nothing) (report changed) >> pure Nothing

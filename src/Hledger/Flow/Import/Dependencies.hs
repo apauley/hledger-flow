@@ -4,7 +4,8 @@
 
 module Hledger.Flow.Import.Dependencies
   ( Release (..), FallbackReason (..), ReuseDecision (..), Converter (..),
-    IncludeFile (..), scanIncludes, resolveInclude, ruleIncludes, nestedRuleIncludes, discoverRules, selectRules, isSeparatedValues,
+    IncludeFile (..), IncludeNode (..), readIncludeTree, scanIncludes, resolveInclude,
+    ruleIncludes, nestedRuleIncludes, discoverRules, selectRules, isSeparatedValues,
     checkedIO, atPath, checkArguments, discoverConfig, discoverDirectives, checkConfig, journalIncludes,
     newConverterProbe, converterProbeWith
   ) where
@@ -28,7 +29,7 @@ import Hledger.Flow.Import.Types (ImportDirs)
 import Hledger.Flow.PathHelpers (AbsDir, AbsFile)
 import qualified Hledger.Flow.RuntimeOptions as RT
 import Hledger.Flow.Types (HledgerConf(..), hledgerConfPath)
-import Path (Abs, parent, parseAbsFile, toFilePath)
+import Path (Abs, parent, parseAbsFile, parseRelDir, parseRelFile, toFilePath, (</>))
 import qualified System.Directory as D
 import qualified System.FilePath as F
 import System.Exit (ExitCode(..))
@@ -121,14 +122,28 @@ fileKind :: IncludeFile -> T.Text
 fileKind (CsvRules _) = "rules"
 fileKind JournalDirectives = "journal"
 
--- Walk leading .. components relative to the including file's spelled path.
--- Verify the result against the filesystem's resolution, which can differ when a
--- symlink precedes .. . An internal symlink is mirrored under its original name.
 resolveInclude :: IncludeFile -> AbsDir -> AbsFile -> FilePath -> IO (ReuseDecision AbsFile)
 resolveInclude kind base including child = checkedIO ("uncertain " <> label) raw $
   if F.hasDrive child || not (F.isRelative child) || any F.isPathSeparator (take 1 child)
     then pure (atPath ("absolute " <> label) child (T.pack (toFilePath including)))
-    else do
+    else case kind of
+      CsvRules _ -> resolveRules
+      JournalDirectives -> resolveJournal
+  where
+    -- Keep the filename as opened: a file symlink's nested includes are
+    -- relative to its containing directory. A path without ".." is kept as
+    -- spelled. Otherwise the OS resolves the parent, so a directory link
+    -- before ".." leads where hledger's open would.
+    resolveRules = case parseAbsFile raw of
+      Just file -> pure (Reusable file)
+      Nothing -> do
+        exists <- D.doesFileExist raw
+        if exists
+          then do
+            dir <- D.canonicalizePath (F.takeDirectory raw)
+            pure (maybe outside Reusable (parseAbsFile (dir F.</> F.takeFileName raw)))
+          else pure (atPath "could not read rules file" raw (T.pack (toFilePath including)))
+    resolveJournal = do
       let (ups, rest) = span (== "..") (filter (/= ".") (F.splitDirectories child))
           lexical = foldr (const F.takeDirectory) directory ups F.</> F.joinPath rest
       if ".." `elem` rest || null rest || not (inside (toFilePath base) lexical)
@@ -139,17 +154,13 @@ resolveInclude kind base including child = checkedIO ("uncertain " <> label) raw
           root <- D.canonicalizePath (toFilePath base)
           -- hledger resolves journal includes from the canonical including file.
           -- The snapshot preserves its spelled directory and journal reader.
-          compatible <- case kind of
-            CsvRules _ -> pure True
-            JournalDirectives -> do
-              source <- D.canonicalizePath (toFilePath including)
-              dir <- D.canonicalizePath directory
-              pure (F.equalFilePath dir (F.takeDirectory source) &&
-                    F.equalFilePath actual (root F.</> F.makeRelative (toFilePath base) lexical))
+          source <- D.canonicalizePath (toFilePath including)
+          dir <- D.canonicalizePath directory
+          let compatible = F.equalFilePath dir (F.takeDirectory source) &&
+                F.equalFilePath actual (root F.</> F.makeRelative (toFilePath base) lexical)
           if compatible && F.equalFilePath actual mirror && inside root actual
             then pure (maybe outside Reusable (parseAbsFile lexical))
             else pure outside
-  where
     directory = F.takeDirectory (toFilePath including)
     raw = directory F.</> child
     label = fileKind kind <> " include"
@@ -160,12 +171,41 @@ discoverRules :: AbsDir -> Release -> AbsFile -> IO (ReuseDecision [(AbsFile,Dig
 discoverRules base release = discoverTree base (CsvRules release)
 
 discoverTree :: AbsDir -> IncludeFile -> AbsFile -> IO (ReuseDecision [(AbsFile,Digest)])
-discoverTree base kind = walk Set.empty
+discoverTree base kind root = fmap (map dependency) <$> readIncludeTree base kind root
+  where dependency node = (includeSource node, digestBytes (includeBytes node))
+
+-- A rules file can be read through a directory link followed by "..". Its
+-- source and its position in a link-free copy can then be different.
+data IncludeNode = IncludeNode
+  { includeSource :: AbsFile
+  , includePosition :: AbsFile
+  , includeDirectories :: [AbsDir]
+  , includeBytes :: B.ByteString
+  }
+
+-- Walk the spelling that hledger will traverse in the private copy. Retain
+-- directories visited before "..", even when no included file lives there.
+rulesPosition :: AbsFile -> FilePath -> Maybe (AbsFile, [AbsDir])
+rulesPosition including spelling = do
+  name <- parseRelFile (F.takeFileName spelling)
+  (dir, visited) <- foldM step (parent including, []) (F.splitDirectories (F.takeDirectory spelling))
+  pure (dir </> name, visited)
+  where
+    step acc "." = Just acc
+    step (dir, visited) ".."
+      | parent dir /= dir = Just (parent dir, dir : parent dir : visited)
+      | otherwise = Nothing
+    step (dir, visited) component = do
+      child <- parseRelDir component
+      pure (dir </> child, visited)
+
+readIncludeTree :: AbsDir -> IncludeFile -> AbsFile -> IO (ReuseDecision [IncludeNode])
+readIncludeTree base kind root = walk Set.empty root [] root
   where
     nativeRules = case kind of
       CsvRules release -> release /= V1996
       JournalDirectives -> False
-    walk ancestors path = checkedIO ("could not read " <> fileKind kind <> " file") (toFilePath path) $ do
+    walk ancestors position dirs path = checkedIO ("could not read " <> fileKind kind <> " file") (toFilePath path) $ do
       canonical <- D.canonicalizePath (toFilePath path)
       directory <- D.canonicalizePath (F.takeDirectory (toFilePath path))
       -- The same rules bytes can resolve includes in different directories.
@@ -180,17 +220,21 @@ discoverTree base kind = walk Set.empty
             case scanIncludes kind (Set.null ancestors) path bytes of
               Fallback r -> pure (Fallback r)
               Reusable children -> do
-                nested <- descend (Set.insert node ancestors) path children
-                pure (((path,digestBytes bytes):) <$> nested)
-    descend _ _ [] = pure (pure [])
-    descend ancestors path (c:cs) = do
+                nested <- descend (Set.insert node ancestors) path position children
+                pure ((IncludeNode path position dirs bytes :) <$> nested)
+    descend _ _ _ [] = pure (pure [])
+    descend ancestors path position (c:cs) = do
       selected <- resolveInclude kind base path c
       tree <- case selected of
         Fallback r -> pure (Fallback r)
-        Reusable file -> walk ancestors file
+        Reusable file -> case kind of
+          JournalDirectives -> walk ancestors file [] file
+          CsvRules _ -> case rulesPosition position c of
+            Just (child, dirs) -> walk ancestors child dirs file
+            Nothing -> pure (atPath "rules include cannot be mirrored" c (T.pack (toFilePath path)))
       case tree of
         Fallback r -> pure (Fallback r)
-        Reusable files -> fmap (files ++) <$> descend ancestors path cs
+        Reusable files -> fmap (files ++) <$> descend ancestors path position cs
 
 selectRules :: AbsFile -> ImportDirs Abs -> IO (ReuseDecision (Maybe AbsFile))
 selectRules csv dirs = checkedIO "could not select rules file" (toFilePath csv) $ do
