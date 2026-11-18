@@ -96,7 +96,8 @@ testFirstExistingFile = TestCase $ withTestDir $ \base -> do
   assertEqual "no existing files" Nothing absent
 
 testVerboseTestFile :: Test
-testVerboseTestFile = TestCase $ withTestDir $ \base -> do
+-- Pin colour off: stderr is a terminal when the suite runs interactively.
+testVerboseTestFile = TestCase $ withEnv "NO_COLOR" "1" $ withTestDir $ \base -> do
   let opts = (defaultOpts base) {RT.verbose = True}
       file = base Path.</> [Path.relfile|statement.csv|]
   ch <- newTChanIO
