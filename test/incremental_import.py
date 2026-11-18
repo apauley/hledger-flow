@@ -491,10 +491,12 @@ class Config(Ledger):
             self.imports(1, RUN_SCRIPTS)
             self.imports(0, RUN_SCRIPTS)
         self.full_parity(RUN_SCRIPTS, ok=accepts_alias)
-        config.unlink()
-        write(self.home / ".hledger.conf", "[print]\ndate:today\n")
-        result = self.imports(1, RUN_SCRIPTS, fallback=True)
-        self.assertIn(f"non-deterministic hledger config entry: ~{os.sep}.hledger.conf, line 2: date:today", result.stderr)
+        # Windows finds the home config through the native profile, not HOME.
+        if os.name != "nt":
+            config.unlink()
+            write(self.home / ".hledger.conf", "[print]\ndate:today\n")
+            result = self.imports(1, RUN_SCRIPTS, fallback=True)
+            self.assertIn("non-deterministic hledger config entry: ~/.hledger.conf, line 2: date:today", result.stderr)
 
 
 class Diagnostics(Ledger):
