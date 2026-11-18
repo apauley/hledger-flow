@@ -7,5 +7,6 @@
   "preprocess-script": "/reference/preprocess/",
   "set-ledger-file": "/quickstart/#import-your-first-statement",
   "status": "/reference/status/",
-  "reports": "/tutorial/part-2/#reports"
+  "reports": "/tutorial/part-2/#reports",
+  "sample-ledger": "/guides/sample-ledger/"
 }

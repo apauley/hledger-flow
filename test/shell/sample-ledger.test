@@ -1,7 +1,7 @@
 # Exercise the downloadable generator and all five conversion paths.
-$ python3 test/workload_generator.py RawStatementTests ConversionTests GeneratorCliTests
+$ python3 test/sample_ledger.py RawStatementTests ConversionTests GeneratorCliTests
 >2 /OK/
 
 # Import relocated bases and compare every posting to the raw CSV.
-$ python3 test/workload_generator.py ImportTests
+$ python3 test/sample_ledger.py ImportTests
 >2 /OK/

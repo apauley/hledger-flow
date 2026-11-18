@@ -13,7 +13,8 @@ export default defineConfig({
   site: 'https://hledger-flow.github.io',
   trailingSlash: 'always',
   compressHTML: false,
-  redirects,
+  // Pages that moved keep their old URL.
+  redirects: { ...redirects, '/guides/workload-generator': '/guides/sample-ledger/' },
   integrations: [
     starlight({
       title: 'hledger-flow',
@@ -47,7 +48,7 @@ export default defineConfig({
             'reference/release-notices',
           ],
         },
-        { label: 'Guides', items: ['guides/transfers', 'guides/ledger', 'guides/workload-generator'] },
+        { label: 'Guides', items: ['guides/transfers', 'guides/ledger', 'guides/sample-ledger'] },
       ],
     }),
   ],

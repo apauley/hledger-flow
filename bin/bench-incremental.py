@@ -21,7 +21,7 @@ import sys
 import time
 
 
-GENERATOR = Path(__file__).resolve().with_name('generate-workload.py')
+GENERATOR = Path(__file__).resolve().with_name('generate-sample-ledger.py')
 SHAPES = {'archive': (3, 1, 31), 'original': (4, 0, 31),
           'one': (1, 0, 1000), 'many': (100, 0, 10)}
 
