@@ -21,17 +21,18 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import Data.Time.Clock (UTCTime)
 import Hledger.Flow.BaseDir (findBaseDir, relativeToBase')
-import Hledger.Flow.Common (configuredLedgerFile, firstExistingFile, groupValuesBy)
+import Hledger.Flow.Common (configuredLedgerFile, firstExistingFile, groupValuesBy, hledgerFileArgument, runProcessCaptured)
 import Hledger.Flow.Import.ImportHelpers (defaultRulesCandidates, extractImportDirs, rulesFileCandidates)
 import Hledger.Flow.Import.IncludeFiles (includesNeedUpdate)
 import Hledger.Flow.Import.Inventory (classifyGeneratedOutputs, findImportFiles, generatedOutput, isManualJournal, managedIncludeFiles, stageFiles)
 import Hledger.Flow.Import.Types (ImportDirs (..))
 import Hledger.Flow.PathHelpers (AbsDir, AbsFile, RelFile)
 import Hledger.Flow.Status
-import Hledger.Flow.Types (BaseDir, HledgerInfo)
+import Hledger.Flow.Types (BaseDir, HledgerInfo (..))
 import Path
 import qualified Path.IO as PathIO
 import qualified System.Directory as Directory
+import System.Exit (ExitCode (..))
 import qualified System.FilePath as FilePath
 import qualified System.Info as Sys
 import System.IO.Error (tryIOError)
@@ -56,12 +57,16 @@ gatherStatus hledger base = do
   accounts <- forM groups (uncurry (accountStatus base))
   configured <- configuredLedgerFile
   ledgerFile <- forM configured $ \(value, path) -> LedgerFile value <$> Directory.doesFileExist path
-  allYears <- PathIO.doesFileExist (base </> [relfile|all-years.journal|])
+  let journal = base </> [relfile|all-years.journal|]
+  allYears <- PathIO.doesFileExist journal
   (orphans, journals) <- classifyGeneratedOutputs root files statements
   -- A newly initialised, empty ledger has no indexes to reconcile yet.
   reconciliation <- if allYears && null orphans
     then includesNeedUpdate base root files journals
     else return (not (null orphans) || not (null (managedIncludeFiles root files)))
+  needsPrices <- case hledger of
+    Just info | allYears && not reconciliation -> journalNeedsPrices info journal
+    _ -> return False
   return
     LedgerStatus
       { lsBaseDir = base,
@@ -71,8 +76,26 @@ gatherStatus hledger base = do
         lsMisplaced = List.sortOn mpPath (misplacedFiles root files),
         lsManualJournals = length (filter (isManualJournal root) files),
         lsAllYearsExists = allYears,
-        lsNeedsReconciliation = reconciliation
+        lsNeedsReconciliation = reconciliation,
+        lsNeedsPrices = needsPrices
       }
+
+-- Ask hledger to resolve includes and parse the journal. If it cannot read
+-- the journal, status can still report what it found in the import tree.
+journalNeedsPrices :: HledgerInfo -> AbsFile -> IO Bool
+journalNeedsPrices info journal = do
+  commodities <- query ["commodities", "--used"]
+  case T.lines <$> commodities of
+    Just (_ : _ : _) -> (== Just "") . fmap T.strip <$> query ["prices"]
+    _ -> return False
+  where
+    query args = do
+      let executable = T.pack (toFilePath (hlPath info))
+          fileArgs = ["--no-conf", "--file", hledgerFileArgument info (toFilePath journal)]
+      result <- tryIOError (runProcessCaptured (executable, args ++ fileArgs, Nothing))
+      return $ case result of
+        Right (ExitSuccess, output, _) -> Just output
+        _ -> Nothing
 
 accountName :: AbsDir -> AbsFile -> T.Text
 accountName root file = case stripProperPrefix root file of

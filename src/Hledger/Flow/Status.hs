@@ -59,7 +59,8 @@ data LedgerStatus = LedgerStatus
     lsMisplaced :: [Misplaced],
     lsManualJournals :: Int,
     lsAllYearsExists :: Bool,
-    lsNeedsReconciliation :: Bool
+    lsNeedsReconciliation :: Bool,
+    lsNeedsPrices :: Bool
   }
   deriving (Show)
 
@@ -139,6 +140,12 @@ nextStep year shell homes cwd s
       NextStep "Run import to create all-years.journal" (Just importCommand) [] Nothing
   | lsNeedsReconciliation s =
       NextStep "Run import to reconcile generated files and journal includes" (Just importCommand) [] Nothing
+  | lsNeedsPrices s =
+      NextStep
+        "Add market prices for your commodities"
+        Nothing
+        ["Save them in prices/<year>/prices.journal, then run " <> importCommand <> "."]
+        (Just (docURL PriceFiles))
   | maybe True (not . lfExists) (lsLedgerFile s) =
       NextStep
         "Point LEDGER_FILE at this ledger so hledger finds it"

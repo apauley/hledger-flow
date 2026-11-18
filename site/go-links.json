@@ -4,6 +4,7 @@
   "input-files": "/reference/input-files/",
   "incremental-import-fallback": "/reference/incremental-import/#when-reuse-is-unavailable",
   "rules-files": "/reference/rules-files/",
+  "price-files": "/reference/price-files/",
   "preprocess-script": "/reference/preprocess/",
   "set-ledger-file": "/quickstart/#import-your-first-statement",
   "status": "/reference/status/",

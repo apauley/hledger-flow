@@ -21,6 +21,7 @@ data DocLink
   | IncrementalImportFallback
   | InputFiles
   | RulesFiles
+  | PriceFiles
   | PreprocessScript
   | SetLedgerFile
   | StatusCommand
@@ -33,6 +34,7 @@ docSlug GettingStarted = "getting-started"
 docSlug IncrementalImportFallback = "incremental-import-fallback"
 docSlug InputFiles = "input-files"
 docSlug RulesFiles = "rules-files"
+docSlug PriceFiles = "price-files"
 docSlug PreprocessScript = "preprocess-script"
 docSlug SetLedgerFile = "set-ledger-file"
 docSlug StatusCommand = "status"

@@ -26,7 +26,8 @@ blank =
       lsMisplaced = [],
       lsManualJournals = 0,
       lsAllYearsExists = True,
-      lsNeedsReconciliation = False
+      lsNeedsReconciliation = False,
+      lsNeedsPrices = False
     }
 
 acct :: AccountStatus

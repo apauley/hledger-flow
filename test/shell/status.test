@@ -42,6 +42,27 @@ if grep -q "$(printf '\033')" ../out.$$; then exit 1; fi
 rm ../out.$$
 $ sh -eu
 
+# Suggest prices for a multi-commodity ledger until it has a market price.
+<
+. ./test/shell/status-commands.sh
+cd "$(mktemp -d "${TMPDIR:-/tmp}/hledger-flow.XXXXXXXX")"
+mkdir -p import/me/_manual_/2026 prices/2026
+journal=import/me/_manual_/2026/pre-import.journal
+prices=prices/2026/prices.journal
+printf '2026-01-01 Opening\n    assets:checking  10 EUR\n    equity:opening balances\n' > "$journal"
+printf '; Prices go here\n' > "$prices"
+export LEDGER_FILE="$(native_pwd)/all-years.journal"
+hledger-flow import > /dev/null
+hledger-flow status | grep -q '^Next: Generate reports'
+printf '\n2026-01-02 Opening\n    assets:savings  10 USD\n    equity:opening balances\n' >> "$journal"
+unset LEDGER_FILE
+hledger-flow status --json | jq -e '.next.docs == "https://hledger-flow.github.io/go/price-files/"' > /dev/null
+hledger-flow status | grep -q '^Next: Add market prices'
+printf 'P 2026-01-01 USD 0.90 EUR\n' >> "$prices"
+export LEDGER_FILE="$(native_pwd)/all-years.journal"
+hledger-flow status | grep -q '^Next: Generate reports'
+$ sh -eu
+
 # Status works from deep inside an account and in a folder with spaces.
 <
 . ./test/shell/status-commands.sh

@@ -6,6 +6,9 @@ description: See where your ledger stands, what to do next, and the JSON status 
 To see where you stand at any time, run `hledger-flow status` (or just
 `hledger-flow`) anywhere in your ledger. It lists your accounts, flags
 statements in the wrong place, and suggests what to do next.
+Once the import is up to date, status suggests adding
+[market prices](/reference/price-files/) if the imported journal uses more
+than one commodity and has no market price directives.
 Interactive status also shows a [cached upgrade notice](/reference/release-notices/) when a previous import or report found a newer release.
 `hledger-flow init` starts a new ledger.
 
