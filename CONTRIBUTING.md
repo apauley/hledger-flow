@@ -124,12 +124,14 @@ the test rather than hanging the suite.
 
 The shelltest suite exercises imports and reports with real `hledger` and
 `hledger-flow` executables. Each scenario creates its own temporary finance
-directory. From the repository root on Linux or macOS, with `hledger` on
-your `PATH`, run:
+directory. Your own hledger config would change the results, so the
+scenarios run with an empty home folder. From the repository root on Linux or
+macOS, with `hledger` on your `PATH`, run:
 
 ``` bash
 stack build hledger-flow shelltestrunner
-stack exec -- shelltest --timeout=120 test/shell
+test_home=$(mktemp -d)
+stack exec -- env HOME="$test_home" XDG_CONFIG_HOME="$test_home/.config" shelltest --timeout=120 test/shell
 ```
 
 On Windows, install the [hledger 1.99.6 release](https://github.com/hledgerorg/hledger/releases/tag/1.99.6) and put `hledger.exe`

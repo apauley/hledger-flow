@@ -12,9 +12,14 @@ hledger --version
 stack test --interleaved-output
 (cd site && npm ci --no-audit --no-fund && npm run check)
 stack build hledger-flow shelltestrunner
+# Keep the developer's own hledger config out of the CLI scenarios. Only the
+# tests get the empty home: stack needs the real one to find its compiler.
+test_home=$(mktemp -d)
+trap 'rm -rf "$test_home"' EXIT
+isolated=(env HOME="$test_home" XDG_CONFIG_HOME="$test_home/.config")
 case "$(uname -s)" in
-    MINGW*|MSYS*) stack exec -- shelltest --timeout=120 --shell=sh --exclude=posix-preprocess.test test/shell test/windows ;;
-    *) stack exec -- shelltest --timeout=120 test/shell ;;
+    MINGW*|MSYS*) stack exec -- "${isolated[@]}" shelltest --timeout=120 --shell=sh --exclude=posix-preprocess.test test/shell test/windows ;;
+    *) stack exec -- "${isolated[@]}" shelltest --timeout=120 test/shell ;;
 esac
 bash test/release/hackage.sh
 bash test/release/snap.sh
