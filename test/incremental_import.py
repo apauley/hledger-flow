@@ -445,6 +445,15 @@ class Config(Ledger):
         self.hook("construct", f"print({CONSTRUCT!r})")
         self.config_parity(SKIP_UNCHANGED)
 
+    def test_static_queries_reuse_and_rebuild(self):
+        config = self.base / "hledger.conf"
+        for mode in (RUN_SCRIPTS, SKIP_UNCHANGED):
+            for setting in ("not:archive", "not:coffee", "--begin=2025-01-01", "--period=2025"):
+                write(config, "[print]\n" + setting + "\n")
+                self.imports(1, mode)
+                self.imports(0, mode)
+                self.full_parity(mode)
+
     def test_rebuilds_and_fallbacks(self):
         config = self.base / "hledger.conf"
         for mode in (RUN_SCRIPTS, SKIP_UNCHANGED):
@@ -457,12 +466,12 @@ class Config(Ledger):
             default = self.journal.read_bytes()
             for lines, number in (("[balance]\n--period=thisyear\n[print]\n--period=thismonth\n", 4),
                                   ("--period=thismonth\n", 1), ("[general]\n--period=thismonth\n", 2),
-                                  ("[txns]\n--invert\n", 1)):
+                                  ("[print]\ndate:thismonth\n", 2), ("[print]\n--forecast\n", 2)):
                 write(config, lines)
                 for _ in range(2):
                     result = self.imports(1, mode, fallback=True)
-                    self.assertIn(f"line {number}: {lines.splitlines()[number-1]}", result.stdout + result.stderr)
-                    self.assertIn("unsupported hledger config: hledger.conf", result.stderr)
+                    self.assertIn("non-deterministic hledger config entry: hledger.conf, "
+                                  f"line {number}: {lines.splitlines()[number-1]}", result.stderr)
             self.assertEqual(self.journal.read_bytes(), default)
             write(config, "[print]\n--invert\n")
             self.imports(1, mode)
@@ -479,8 +488,13 @@ class Config(Ledger):
         if self.release == "1.99.6":
             self.assertTrue(accepts_alias)
         if accepts_alias:
-            self.imports(1, RUN_SCRIPTS, fallback=True)
+            self.imports(1, RUN_SCRIPTS)
+            self.imports(0, RUN_SCRIPTS)
         self.full_parity(RUN_SCRIPTS, ok=accepts_alias)
+        config.unlink()
+        write(self.home / ".hledger.conf", "[print]\ndate:today\n")
+        result = self.imports(1, RUN_SCRIPTS, fallback=True)
+        self.assertIn(f"non-deterministic hledger config entry: ~{os.sep}.hledger.conf, line 2: date:today", result.stderr)
 
 
 class Diagnostics(Ledger):

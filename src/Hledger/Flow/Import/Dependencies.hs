@@ -14,7 +14,7 @@ import Control.Monad (ap, foldM)
 import qualified Data.ByteString as B
 import Data.Char (isAlpha, isAlphaNum, isAscii, isControl, isDigit, isSpace, toLower, GeneralCategory(CurrencySymbol), generalCategory)
 import Data.List (isPrefixOf)
-import Data.Maybe (fromMaybe, mapMaybe)
+import Data.Maybe (fromMaybe, mapMaybe, maybeToList)
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
@@ -47,6 +47,8 @@ data Release = V1524 | V1996 | OtherSupported deriving (Eq, Show)
 data FallbackReason
   = FallbackReason {reasonScope :: T.Text, reasonDetail :: T.Text}
   | FileReason {reasonScope :: T.Text, reasonFile :: FilePath, reasonDetail :: T.Text}
+  -- The notice quotes the entry, so people see exactly what to change.
+  | ConfigEntry {reasonScope :: T.Text, reasonFile :: FilePath, reasonDetail :: T.Text}
   | OrdinaryInputError {reasonScope :: T.Text, reasonDetail :: T.Text}
   | CyclicRules {reasonScope :: T.Text, reasonDetail :: T.Text}
   deriving (Eq, Ord, Show)
@@ -237,48 +239,100 @@ readDependency check path = checkedIO "could not read dependency" (toFilePath pa
 
 checkConfig :: Release -> AbsFile -> B.ByteString -> ReuseDecision ()
 checkConfig release path bytes = do
-  ls <- physicalLines path bytes
-  () <$ foldM line "general" (zip [1 :: Int ..] ls)
+  ls <- physicalLines path (dropUtf8Bom bytes)
+  (_, settings) <- foldM line ("general", []) (zip [1 :: Int ..] ls)
+  case configDependency (concat (reverse settings)) of
+    Nothing -> pure ()
+    Just n -> Fallback $ ConfigEntry "non-deterministic hledger config entry" (toFilePath path)
+      ("line " <> T.pack (show n) <> ": " <> T.strip (ls !! (n - 1)))
   where
-    -- Only canonical built-ins other than print have an inert section. Addons,
-    -- aliases, abbreviations and names introduced in another release can have
-    -- different scope and must be passed through to the ordinary converter.
-    inactive = T.words $ "accounts activity add aregister balance balancesheet balancesheetequity cashflow check close codes commodities descriptions diff files help import incomestatement notes payees prices register repl rewrite roi run setup stats tags " <>
-      case release of
-        V1524 -> "commands demo test"
-        V1996 -> "get holdings transactions"
-        OtherSupported -> ""
-    line section (n,raw)
-      | T.null body || "#" `T.isPrefixOf` body = pure section
-      | release /= V1996, "[" `T.isPrefixOf` body, T.stripStart raw /= raw = unsupported n body
-      | Just start <- T.stripPrefix "[" body = case T.breakOn "]" start of
-          (s,end) | not (T.null end), not ("#" `T.isInfixOf` s), let name = T.strip s,
-                    name `elem` ("general":"print":inactive) -> option n name (T.drop 1 end)
-          _ -> unsupported n body
-      | otherwise = option n section body
+    line (section, settings) (n,raw)
+      | T.null body || "#" `T.isPrefixOf` body = pure (section, settings)
+      | release == V1996 || T.stripStart raw == raw,
+        Just start <- T.stripPrefix "[" body,
+        (name,end) <- T.breakOn "]" start, not (T.null end) =
+          pure (option n (T.strip name) (T.drop 1 end) settings)
+      | otherwise = pure (option n section body settings)
       where body = T.strip raw
-    option n section arg
-      | section `elem` inactive = pure section
-      | trackedPrintOptions (T.words setting) = pure section
-      | otherwise = unsupported n setting
-      where setting = T.strip (T.takeWhile (/= '#') arg)
-    unsupported n value = atPath "unsupported hledger config" (toFilePath path) ("line " <> T.pack (show n) <> ": " <> value)
+    option n section arg settings = (section,
+      if section `elem` ["general", "print"]
+        then map (\word -> (n,word)) (configWords arg) : settings
+        else settings)
 
--- These options only change how print renders the tracked inputs. hledger
--- validates literal values on conversion. Unknown tokens require an ordinary run.
-trackedPrintOptions :: [T.Text] -> Bool
-trackedPrintOptions [] = True
-trackedPrintOptions (flag:rest)
-  | flag `elem` ["--explicit", "-x", "--invert"] = trackedPrintOptions rest
-  | name `elem` ["--round", "--layout"] = case T.stripPrefix "=" suffix of
-      Just value -> literal value && trackedPrintOptions rest
-      Nothing -> case rest of
-        value:more -> literal value && trackedPrintOptions more
-        [] -> False
-  | otherwise = False
+-- A denylist, not a config validator: hledger validates unfamiliar syntax and
+-- options on conversion. Add only known dependencies outside the cache inputs.
+configDependency :: [(Int,T.Text)] -> Maybe Int
+configDependency settings = go settings
   where
-    (name,suffix) = T.breakOn "=" flag
-    literal value = not (T.null value) && T.all (\c -> isAscii c && isAlphaNum c) value
+    -- A fixed --today pins relative dates and valuation, but hledger ignores
+    -- it for forecasting.
+    pinned = or (zipWith fixedToday (map snd settings) (drop 1 (map snd settings) ++ [""]))
+    fixedToday arg next = case T.stripPrefix "--today" arg of
+      Just "" -> fixedDate next
+      Just v | Just date <- T.stripPrefix "=" v -> fixedDate date
+      _ -> False
+    fixedDate date = not (T.null date || relativeDate date)
+    go [] = Nothing
+    go ((n,arg):rest)
+      -- Untracked files, saved import state, extra output and temporary paths.
+      | "@" `T.isPrefixOf` arg || flag ["--file", "--rules", "--rules-file", "--conf"] ["-f"] = found
+      | flag ["--new", "--output-file", "--location", "--locations"] ["-o"] = found
+      -- The rest depend on today's date.
+      | flag ["--forecast"] [], T.null suffix || relativeDate value || openForecast value = found
+      | pinned = go rest
+      -- Without a report end date, hledger values amounts at today's prices.
+      | flag ["--exchange"] ["-X", "-V"] = found
+      | flag ["--value"] [], T.toLower (T.takeWhile (/= ',') value) `elem` ["end", "now"] = found
+      | flag ["--begin", "--end", "--period", "--today"] ["-b", "-e", "-p"], relativeDate value = found
+      | any relativeDate (queryDates arg) = found
+      | otherwise = go rest
+      where
+        found = Just n
+        (name,suffix) = T.breakOn "=" arg
+        short = [s | s <- ["-f", "-o", "-X", "-b", "-e", "-p"], s `T.isPrefixOf` arg]
+        flag longs shorts = name `elem` longs || any (`T.isPrefixOf` arg) shorts
+        value | not (T.null suffix) = T.drop 1 suffix
+              | s:_ <- short, T.length arg > T.length s = T.drop (T.length s) arg
+              | (_,v):_ <- rest = v
+              | otherwise = ""
+    openForecast period = ".." `T.isSuffixOf` period
+      || any (`T.isPrefixOf` period) ["from", "since"] && not ("to" `T.isInfixOf` period || ".." `T.isInfixOf` period)
+    -- Dates in date: and date2: queries, including those inside expr:.
+    queryDates token = case T.stripPrefix "expr:" (stripNot token) of
+      Just expr -> mapMaybe queryDate (T.words (T.map (\c -> if c `elem` ("()" :: String) then ' ' else c) expr))
+      Nothing -> maybeToList (queryDate token)
+    queryDate token = case T.breakOn ":" (stripNot token) of
+      (prefix,date) | prefix `elem` ["date", "date2"] -> Just (T.drop 1 date)
+      _ -> Nothing
+    stripNot token = maybe token stripNot (T.stripPrefix "not:" token)
+
+-- Recognize relative words and dates with an implicit year. Unfamiliar date
+-- syntax stays eligible, like unfamiliar options; this list can grow over time.
+relativeDate :: T.Text -> Bool
+relativeDate value = any relative parts
+  where
+    parts = T.words lowered ++ T.words (T.replace ".." " " (T.replace "to" " " lowered))
+    lowered = T.toLower value
+    relative part = any (`T.isPrefixOf` part) ["today", "tomorrow", "yesterday", "this", "last", "next"]
+      || part `elem` ["ago", "ahead", "day", "days", "week", "weeks", "month", "months", "quarter", "quarters", "year", "years",
+                     "jan", "january", "feb", "february", "mar", "march", "apr", "april", "may",
+                     "jun", "june", "jul", "july", "aug", "august", "sep", "september",
+                     "oct", "october", "nov", "november", "dec", "december", "q1", "q2", "q3", "q4"]
+      || let digits = T.takeWhile isDigit (T.dropWhile (`elem` ("+-" :: String)) part) in not (T.null digits) && T.length digits < 4
+
+-- Config arguments can quote spaces or a #; neither quotes nor comments are
+-- arguments. Leave malformed quoting for hledger to diagnose.
+configWords :: T.Text -> [T.Text]
+configWords = map T.pack . wordsOutside Nothing "" . T.unpack
+  where
+    wordsOutside _ word [] = [reverse word | not (null word)]
+    wordsOutside quote word (c:cs)
+      | Just c == quote = wordsOutside Nothing word cs
+      | quote == Nothing, c `elem` ['\'', '"'] = wordsOutside (Just c) word cs
+      | quote == Nothing, c == '#' = [reverse word | not (null word)]
+      | quote == Nothing, isSpace c =
+          [reverse word | not (null word)] ++ wordsOutside Nothing "" cs
+      | otherwise = wordsOutside quote (c:word) cs
 
 journalIncludes :: AbsFile -> B.ByteString -> ReuseDecision [FilePath]
 journalIncludes path bytes = do

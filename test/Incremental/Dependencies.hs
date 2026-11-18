@@ -98,18 +98,27 @@ tests = TestList
       forM_ [V1524,V1996,OtherSupported] $ \release -> do
         ok release "# comment\n[balance] --period=thismonth\n[register]\n@file\n[general]\n[print]\n"
         ok release "--invert\n[print] -x --round soft --layout=55 # literal values\n"
-        forM_ ["--file=extra.journal", "--output-file saved.txt", "--new", "--locations",
-               "--invert --file=extra.journal", "--round @value", "--round", "--unknown"] $
+        forM_ ["not:archive", "--layout=hledger1 not:archive", "--unknown", "--round",
+               "--alias /old/=new", "--begin=2025-01-01", "--period=2025", "date:2025..2026",
+               "--forecast=2025", "--forecast=2025..2026", "--value=then", "--value=2025-06-30,EUR",
+               "--today=2026-06-30\ndate:thismonth", "--today 2026-06-30 -V", "-B", "desc:\"in 30 days\"",
+               "desc:today", "acct:next", "--period=\"monthly in 2025\"", "desc:\"a # b\"", "--round=soft # date:today"] $
+          ok release . ("[print]\n" <>)
+        forM_ ["[general] --debug", "[txns]", "[bal]", "[b]", "[alias]", "[missing", "[general",
+               "[future-command] --period=thismonth", "[balance] date:today"] (ok release)
+        forM_ ["--period=thismonth", "--begin\ntoday", "-p 'this month'", "-pthismonth", "--begin today", "-etomorrow",
+               "date:today", "not:date:thisyear", "date2:'last month'", "--period=1/1..4/1",
+               "--forecast", "--forecast=thismonth", "--forecast=2025..", "--value=now", "--exchange=EUR,now", "-XEUR,now",
+               "-V", "-X USD", "--value=end", "--value=end,EUR", "date:'-7 days..'", "-b '2 weeks ago'",
+               "expr:'tag:recurring and date:thismonth'", "expr:'not:(date:thisyear)'", "--today=2026-01-01\n--forecast"] $ \setting ->
+          case checkConfig release file ("[print]\n" <> setting) of
+            Fallback reason -> reasonScope reason @?= "non-deterministic hledger config entry"
+            _ -> assertFailure ("expected clock dependency: " ++ show setting)
+        forM_ ["--file=extra.journal", "-fextra.journal", "--rules-file extra.rules", "@indirect",
+               "--new", "--output-file saved.txt", "-osaved.txt", "--locations"] $
           no release . ("[print]\n" <>)
-        forM_ ["--period=thismonth", "[general] --debug", "[print]\n@indirect", "[txns]", "[bal]", "[b]", "[alias]", "[missing", "[general", "[balance]\n[print] --period=thismonth"] (no release)
-      no OtherSupported "[print]\n [balance]\n--empty"
-      no OtherSupported "[holdings]"
-      no OtherSupported "[demo]"
-      ok V1996 "[holdings]"
-      no V1524 "[print]\n [balance]\n--empty"
-      no V1524 "[holdings]"
-      ok V1524 "[demo]"
-      no V1996 "[demo]"
+      ok V1996 "[print]\n [balance]\n--period=thismonth"
+      no V1524 "[print]\n [balance]\n--period=thismonth"
       forM_ ["[balance]\n--period=thismonth", "[balance]\n--period=thisyear"] $ \bytes -> do
         B.writeFile (toFilePath file) bytes
         discoverConfig V1996 (Just (GivenConf (toFilePath file))) >>= (@?= Reusable (Just (file,digestBytes bytes)))

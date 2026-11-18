@@ -33,7 +33,7 @@ How to keep this ChangeLog
 
 ## Unreleased
 
-- With formatting options such as `--invert` or `--round=soft` in `hledger.conf`, `import --incremental` can now skip rerunning hledger for unchanged statements.
+- `import --incremental` now reuses journals whatever your `hledger.conf` contains, unless an entry is known to be non-deterministic, for example because it depends on today's date or reads untracked files. The notice quotes that entry and its line instead of reporting an unsupported config. See [config handling](https://hledger-flow.github.io/reference/incremental-import/#what-gets-checked).
 - Incremental import now follows literal journal includes in `directives.journal`, including nested files and files with custom extensions or no extension. Editing an included file rebuilds the statements that use it. See the [supported directives](https://hledger-flow.github.io/reference/incremental-import/#what-gets-checked).
 
 ## 0.20.1

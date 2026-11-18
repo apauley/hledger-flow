@@ -32,7 +32,17 @@ Each incremental import hashes the hledger executable once while it remains unch
 
 Incremental import hashes the whole active hledger config file. Editing it triggers a rebuild even when the changed setting applies to another command. Run `hledger-flow status` from the same directory to [find the active config](/reference/status/#hledger-config-file).
 
-An empty or comment-only config permits reuse, as do settings in recognized sections for other commands such as `[balance]`. In general settings and `[print]`, incremental import recognizes options for explicit amounts, sign inversion, rounding and posting layout. hledger validates their values during conversion. Options that read additional files, depend on today's date, write another output, or have unknown effects trigger ordinary conversion.
+Config settings permit reuse by default, including static queries, formatting options, and unfamiliar options. hledger still validates the config during conversion. Settings under `[print]` also apply when hledger-flow converts statements, because conversion uses `hledger print`.
+
+Only entries known to be non-deterministic prevent reuse in general settings and `[print]`, because their output can change while the tracked inputs stay the same:
+
+- Relative dates in periods, `--begin`/`--end` and `date:` queries (also inside `expr:`), dates without a year, forecasts without a fixed end date, and valuation with `-V`, `-X`, `--value=end` or `--value=now` depend on today's date. Fixed dates and `--value=then` permit reuse. Setting `--today` to a fixed date also permits reuse, except with forecasts, because hledger ignores `--today` there.
+- `--file`/`-f`, `--rules`, `--rules-file`, `--conf`, and `@FILE` can read files whose contents are not tracked.
+- `--new` depends on saved import state.
+- `--output-file`/`-o` writes a separate output that reusing a journal would not recreate.
+- `--location`/`--locations` exposes paths to temporary input copies.
+
+Settings in other command sections do not prevent reuse. The list above can grow as more dependencies are identified; unknown settings are assumed deterministic. If a setting depends on changing inputs that are not tracked, use an ordinary import to force conversion.
 
 In `directives.journal` you can use single-line literal account declarations, commodity formats, prices with full numeric dates, and relative includes such as the ones below. Blank lines, comments, inline tags and commodity precisions are supported.
 
@@ -51,11 +61,11 @@ Globs, absolute paths, paths outside the ledger, and symlinks that redirect an i
 
 ## When reuse is unavailable
 
-A notice on standard error lists each reason once and counts the affected statements. When a reason points to one file, the notice names it. Use `--verbose` for individual paths. Verbose output also identifies a changed rules file, a missing journal, or the line and setting that prevented reuse. Full conversion still runs. Missing rules and non-executable scripts produce the ordinary import error. The displayed command uses the configured hledger path, including when it is a symlink.
+A notice on standard error lists each reason once and counts the affected statements. When a reason points to one file, the notice names it. Use `--verbose` for individual paths. For a non-deterministic config entry, the notice quotes the config file, line and entry. Verbose output also identifies a changed rules file, a missing journal, or the line and setting that prevented reuse. Full conversion still runs. Missing rules and non-executable scripts produce the ordinary import error. The displayed command uses the configured hledger path, including when it is a symlink.
 
 For example, hledger versions differ in how they read trailing spaces in an `include` filename. With 1.52.4 and 1.99.6, hledger-flow follows the known behavior. On other eligible versions, a statement with that ambiguity goes through ordinary conversion each time. Statements using other, unambiguous rules can still reuse their journals. A shared ambiguous input affects every statement that uses it.
 
-Common reasons include a hledger version below 1.52.4, an unreadable version, an unsupported input reader, an unrecognized config heading or active setting, a multiline or unknown directive, an unresolved rules include, and an absolute rules include or one outside the ledger. Use `--hledger-path` to select the real hledger executable if the configured path is a launcher. An unrecognized native executable that forwards to another program can hide changes to its target. Keep the installed converter stable during an import. Temporarily replacing its parent directory and restoring it during conversion can escape the executable identity checks.
+Common reasons include a hledger version below 1.52.4, an unreadable version, an unsupported input reader, a config setting with a known dependency outside the tracked inputs, a multiline or unknown directive, an unresolved rules include, and an absolute rules include or one outside the ledger. Use `--hledger-path` to select the real hledger executable if the configured path is a launcher. An unrecognized native executable that forwards to another program can hide changes to its target. Keep the installed converter stable during an import. Temporarily replacing its parent directory and restoring it during conversion can escape the executable identity checks.
 
 An eligible rebuild uses private copies so the record describes the bytes hledger read. If hledger reports an error in a copied file, the diagnostic names the original file so you can open it at the reported line. Reuse can also be unavailable if private staging fails, a planned Windows snapshot path reaches 260 UTF-16 code units, or inputs change during conversion. A warm rules-based hit creates no snapshot.
 

@@ -14,7 +14,7 @@ import Data.Maybe (listToMaybe, maybeToList)
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import Hledger.Flow.BaseDir (relativeToBase)
-import Hledger.Flow.Common (directivesFile, writeStagedText)
+import Hledger.Flow.Common (directivesFile, homeDirs, tildePath, writeStagedText)
 import Hledger.Flow.DocHelpers
 import Hledger.Flow.Cache (initializeCache)
 import Hledger.Flow.Import.Cache
@@ -90,11 +90,16 @@ importStatement (IncrementalRun snapshots probe reasons) opts ch dirs source = d
   let hook name = findHook opts ch name (accountDir dirs P.</> (if name == "preprocess" then [P.relfile|preprocess|] else [P.relfile|construct|]))
       report OrdinaryInputError{} = pure ()
       report problem = do
+        homes <- homeDirs
         let reason = reasonScope problem
+            located file = T.pack (tildePath homes (relativeToBase opts file))
             path = case problem of
-              FileReason _ file _ -> Just (T.pack (relativeToBase opts file))
+              FileReason _ file _ -> Just (located file)
+              ConfigEntry _ file entry -> Just (located file <> ", " <> entry)
               _ -> Nothing
-            detail = reasonDetail problem
+            detail = case problem of
+              ConfigEntry{} -> ""
+              _ -> reasonDetail problem
             common a b = if a == b then a else Nothing
         atomicModifyIORef' reasons $ \(Notices files summaries) ->
           (Notices (Set.insert source files) (Map.insertWith common reason path summaries), ())

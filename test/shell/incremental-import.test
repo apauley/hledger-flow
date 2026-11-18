@@ -7,7 +7,7 @@ $ python3 test/incremental_import.py Config.test_rules_config_discovery Config.t
 >2 /OK/
 
 # Config regions that rebuild once or require ordinary conversion every time.
-$ python3 test/incremental_import.py Config.test_rebuilds_and_fallbacks
+$ python3 test/incremental_import.py Config.test_rebuilds_and_fallbacks Config.test_static_queries_reuse_and_rebuild
 >2 /OK/
 
 # Reproduce the ordinary converter's errors after snapshot cleanup.
