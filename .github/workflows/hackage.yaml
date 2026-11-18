@@ -19,7 +19,8 @@ concurrency:
 
 jobs:
   upload:
-    runs-on: ubuntu-latest
+    # Same GHC as the build; it cannot link on ubuntu-latest (26.04).
+    runs-on: ubuntu-24.04
     steps:
       - name: Require a release tag
         env:

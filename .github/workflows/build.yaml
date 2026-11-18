@@ -20,7 +20,9 @@ jobs:
     strategy:
       matrix:
         os:
-          - ubuntu-latest     # x64
+          # ubuntu-latest moved to 26.04, where GHC 9.10.3 cannot link
+          # (collect2: cannot find 'ld'). Move on when the GHC version does.
+          - ubuntu-24.04      # x64
           - ubuntu-24.04-arm  # arm64
           - macos-15-intel    # Intel
           - macos-latest      # arm64
@@ -91,7 +93,7 @@ jobs:
         run: stack setup --interleaved-output
 
       - name: Test Hackage, Homebrew and Snap release steps offline
-        if: matrix.os == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu-24.04'
         run: |
           bash test/release/hackage.sh
           bash test/release/snap.sh
@@ -126,13 +128,13 @@ jobs:
 
       - name: Check the tutorial's output against a real run
         # Runs every tutorial command with the hledger version the tutorial uses.
-        if: matrix.os == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu-24.04'
         run: |
           command -v tree >/dev/null || { sudo apt-get update && sudo apt-get install -y tree; }
           HLEDGER_FLOW="$HOME/.local/bin/hledger-flow" bash site/scripts/tutorial/update.sh --check
 
       - name: Verify a release bump regenerates the tutorial
-        if: matrix.os == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu-24.04'
         run: bash test/release/bump.sh
 
       - name: Gather binaries
