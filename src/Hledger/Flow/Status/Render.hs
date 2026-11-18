@@ -22,11 +22,12 @@ import Hledger.Flow.Common (findHledger, findHledgerConf, homeDirs, nativeShell,
 import Hledger.Flow.DateTime (currentYear)
 import Hledger.Flow.Environment (coresSetting, environmentJSON, environmentSettings, renderSettings)
 import Hledger.Flow.Internals (SystemInfo, systemInfo)
-import Hledger.Flow.Status.Gather (gatherStatus)
+import Hledger.Flow.Status.Gather (gatherStatus, gatherStatusWithConfig)
 import Hledger.Flow.Types (BaseDir)
 import Path.IO (getCurrentDir)
 import qualified Data.Text as T
 import Hledger.Flow.Status
+import Hledger.Flow.LedgerSelection (Coverage (..))
 import Hledger.Flow.Types (HledgerConf, HledgerInfo (..))
 import Path (toFilePath)
 import Hledger.Flow.Logging (bold, green, red, useColor, yellow)
@@ -39,7 +40,7 @@ baseText = FilePath.dropTrailingPathSeparator . toFilePath . lsBaseDir
 
 renderStatus :: Bool -> [FilePath] -> LedgerStatus -> NextStep -> T.Text
 renderStatus color homes s next =
-  T.unlines (header : accountBlock ++ misplacedBlock) <> renderNext color next
+  T.unlines (header : accountBlock ++ misplacedBlock ++ noteBlock) <> renderNext color next
   where
     header = bold color "Ledger: " <> T.pack (tildePath homes (baseText s)) <> "   (" <> hledgerText <> ")"
     hledgerText = case lsHledger s of
@@ -69,6 +70,9 @@ renderStatus color homes s next =
                   ++ [tshow outdated <> " outdated" | outdated > 0]
               txt = T.intercalate ", " parts
            in if missing + outdated > 0 then yellow color ("• " <> txt) else green color ("✓ " <> txt)
+    noteBlock = case T.lines <$> ledgerFileNote nativeShell homes s of
+      Just (first : rest) -> "" : ("  Note: " <> first) : map ("        " <>) rest
+      _ -> []
     misplacedBlock = case length (lsMisplaced s) of
       0 -> []
       n -> ["", "  " <> yellow color ("⚠ " <> plural n "file" <> " not where hledger-flow looks")]
@@ -90,7 +94,9 @@ statusJSON sys conf s next =
       "environment" .= environmentJSON sys conf,
       "baseDir" .= baseText s,
       "hledger" .= fmap hledgerJSON (lsHledger s),
-      "ledgerFile" .= fmap (\lf -> object ["value" .= lfValue lf, "exists" .= lfExists lf]) (lsLedgerFile s),
+      "ledgerFile" .= fmap (\lf -> object ["value" .= lfValue lf, "exists" .= lfExists lf, "coversLedger" .= (lfCoverage lf == CoversLedger)]) (lsLedgerFile s),
+      "aggregateJournal" .= fmap toFilePath (lsAggregateJournal s),
+      "ledgerFileNote" .= ledgerFileNote nativeShell [] s,
       "accounts" .= map accountJSON (lsAccounts s),
       "misplaced" .= [object ["path" .= mpPath m, "suggestion" .= mpSuggestion m] | m <- lsMisplaced s],
       "manualJournals" .= lsManualJournals s,
@@ -137,7 +143,7 @@ printStatus :: Maybe FilePath -> Maybe FilePath -> Bool -> BaseDir -> IO ()
 printStatus hledgerPath confOpt json base = do
   hledger <- findHledger hledgerPath
   conf <- findHledgerConf confOpt
-  status <- gatherStatus hledger base
+  status <- gatherStatusWithConfig hledger conf base
   sys <- systemInfo
   if json
     then do

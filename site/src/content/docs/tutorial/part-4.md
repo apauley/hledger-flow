@@ -206,6 +206,7 @@ cat reports/all/2016/transfer-balance.txt
 ```
 
 ```text
+Reporting on ~/my-finances/all-years.journal (from LEDGER_FILE).
 Generated 16 reports in reports/. Skipped 2 empty reports.
 Each report starts with the hledger command that made it. Copy that line to tailor the report.
 hledger --file all-years.journal --period 2016 balance --pretty-tables --quarterly --flat --no-total transfer

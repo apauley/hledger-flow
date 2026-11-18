@@ -123,6 +123,7 @@ tree reports
 ```
 
 ```text
+Reporting on ~/my-finances/all-years.journal (from LEDGER_FILE).
 Generated 9 reports in reports/.
 Each report starts with the hledger command that made it. Copy that line to tailor the report.
 reports

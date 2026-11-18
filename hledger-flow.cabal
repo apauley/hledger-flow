@@ -52,7 +52,9 @@ library
       Hledger.Flow.Import.Snapshot
       Hledger.Flow.Import.Types
       Hledger.Flow.Init
+      Hledger.Flow.InputSnapshot
       Hledger.Flow.Internals
+      Hledger.Flow.LedgerSelection
       Hledger.Flow.Logging
       Hledger.Flow.PathHelpers
       Hledger.Flow.ReleaseNotice
@@ -144,6 +146,7 @@ test-suite hledger-flow-test
       Incremental.Platform
       Incremental.Snapshot
       Init.Integration
+      LedgerSelection.Unit
       PathHelpers.Unit
       ReleaseNotice.Unit
       RulesTemplate.Unit

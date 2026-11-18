@@ -34,7 +34,7 @@ case "$(uname -s)" in
     MINGW*|MSYS*) prefix='$env:LEDGER_FILE = ' ;;
     *) prefix='export LEDGER_FILE=' ;;
 esac
-hledger-flow status --json | jq -e --arg prefix "$prefix" '.next.command | startswith($prefix)' > /dev/null
+hledger-flow status --json | jq -e --arg prefix "$prefix" '(.next.command == "hledger-flow report") and (.ledgerFileNote | contains($prefix))' > /dev/null
 export LEDGER_FILE="$(native_pwd)/all-years.journal"
 hledger-flow status > ../out.$$
 grep -q 'Run: hledger-flow report' ../out.$$
@@ -137,7 +137,7 @@ run_suggestion "$(next_command "../$target")" > "../$account/bank-checking.rules
 grep -q '^fields date, description, amount' "../$account/bank-checking.rules"
 (cd "../$target/reports" && run_suggestion "$(next_command)") > import-output
 test -s "../$account/3-journal/2026/jan.journal"
-set_ledger=$(next_command "../$target")
+set_ledger=$(hledger-flow status "../$target" | sed -n 's/^ *For hledger, run: //p' | tr -d '\r')
 run_suggestion "$set_ledger; hledger-flow status --json" | jq -e '.ledgerFile.exists' > /dev/null
 export LEDGER_FILE="$(cd "../$target" && native_pwd)/all-years.journal"
 run_suggestion "$(next_command "../$target")" > report-output
@@ -165,7 +165,7 @@ hledger-flow import > /dev/null
 hledger-flow status > ../status-output
 grep -q '^Ledger: ~/my finances ' ../status-output
 if grep -q '^  Ledger ' ../status-output; then exit 1; fi
-set_ledger=$(sed -n 's/^ *Run: //p' ../status-output)
+set_ledger=$(sed -n 's/^ *For hledger, run: //p' ../status-output)
 test "$set_ledger" = 'export LEDGER_FILE="$HOME/my finances/all-years.journal"'
 run_suggestion "$set_ledger; hledger-flow status --json" | jq -e '.ledgerFile.exists and (.baseDir | startswith("/"))' > /dev/null
 cd "$HOME"
@@ -173,4 +173,72 @@ hledger-flow init 'cost $5' > output
 change=$(sed -n 's/^Change to it first: //p' output)
 case "$change" in *HOME*) exit 1 ;; esac
 run_suggestion "$change; hledger-flow status --json" | jq -e '.baseDir | endswith("cost $5")' > /dev/null
+$ sh -eu
+
+# Pasted actions keep the explicit config when invoked from another ledger.
+<
+. ./test/shell/status-commands.sh
+cd "$(mktemp -d "${TMPDIR:-/tmp}/hledger-flow.XXXXXXXX")"
+unset LEDGER_FILE
+mkdir -p "ledger space/import/me/bank/checking/1-in/2016" caller/import
+printf '2016-03-01,Fee,-5\n' > "ledger space/import/me/bank/checking/1-in/2016/march.csv"
+printf 'fields date, description, amount\naccount1 assets:bank\naccount2 expenses:fees\n' > "ledger space/import/bank.rules"
+cd caller
+printf '2016-01-01 Other\n    assets:unrelated  999\n    equity:opening\n' > other.journal
+printf '[general]\n--file other.journal\n' > hledger.conf
+printf '[balance]\n--flat\n' > "clean config.conf"
+for action in import report; do
+    hint=$(hledger-flow --hledger-conf "clean config.conf" status "../ledger space" --json | jq -er .next.command | tr -d '\r')
+    printf '%s\n' "$hint" | grep -q -- '--hledger-conf'
+    run_suggestion "$hint" > "$action.log"
+done
+test -s "../ledger space/reports/all/2016/balance-sheet.txt"
+if grep -R -q assets:unrelated "../ledger space/import/me" "../ledger space/reports"; then exit 1; fi
+hledger-flow --hledger-conf "clean config.conf" status "../ledger space" > status.out
+balance=$(sed -n 's/^ *Or try: //p' status.out | tr -d '\r')
+printf '%s\n' "$balance" | grep -q -- '--conf'
+run_suggestion "$balance" > balance.out
+grep -q assets:bank balance.out
+if grep -q assets:unrelated balance.out; then exit 1; fi
+$ sh -eu
+
+# Cache unrelated wrappers and invalidate after changes to a glob, file, link or selection.
+<
+. ./test/shell/setup.sh
+case "$(uname -s)" in MINGW*|MSYS*) exit 0 ;; esac
+flow import
+mkdir ext
+printf '; external one\n' > ext/a.journal
+printf '; alternate\n' > alternate
+printf '; initial target\n' > initial
+ln -s initial link.journal
+printf 'include ext/*.journal\ninclude link.journal\n' > wrapper.journal
+printf '; second wrapper\n' > second.journal
+cat > counting-hledger <<'SH'
+#!/bin/sh
+if [ "$1" = --no-conf ] && [ "$2" = files ]; then printf 'files\n' >> calls; fi
+exec hledger "$@"
+SH
+chmod +x counting-hledger
+export LEDGER_FILE=wrapper.journal
+check_status() {
+    hledger-flow -H "$(pwd -P)/counting-hledger" status --json |
+        jq -e '.ledgerFile.coversLedger == false' > /dev/null
+}
+check_status
+check_status
+test "$(wc -l < calls | tr -d ' ')" -eq 1
+printf '; changed\n' >> ext/a.journal
+check_status
+test "$(wc -l < calls | tr -d ' ')" -eq 2
+printf '; new\n' > ext/b.journal
+check_status
+test "$(wc -l < calls | tr -d ' ')" -eq 3
+unlink link.journal
+ln -s alternate link.journal
+check_status
+test "$(wc -l < calls | tr -d ' ')" -eq 4
+export LEDGER_FILE=second.journal
+check_status
+test "$(wc -l < calls | tr -d ' ')" -eq 5
 $ sh -eu

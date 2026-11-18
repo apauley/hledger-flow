@@ -13,6 +13,9 @@ module Hledger.Flow.Status
     suggestPlacement,
     misplacedFiles,
     nextStep,
+    flowCommand,
+    ledgerFileNote,
+    balanceHint,
     hledgerVersionNumber,
     plural,
   )
@@ -22,17 +25,16 @@ import Data.Char (isDigit, toLower)
 import Data.Maybe (fromMaybe, mapMaybe)
 import qualified Data.Set as Set
 import qualified Data.Text as T
-import Hledger.Flow.Common (Shell (..), hledgerVersionNumber, homeShellPath, posixLiteral, powerShellLiteral, shellArgument, tildePath)
+import Hledger.Flow.Common (Shell (..), hledgerFileArgument, hledgerVersionNumber, homeShellPath, posixLiteral, powerShellLiteral, shellArgument, tildePath)
 import Hledger.Flow.DocHelpers (DocLink (..), docURL)
 import Hledger.Flow.Import.Inventory (stageFiles)
+import Hledger.Flow.LedgerSelection (Coverage (..), LedgerFile (..), ledgerFileProblem)
 import Hledger.Flow.PathHelpers (AbsDir, AbsFile)
-import Hledger.Flow.Types (BaseDir, HledgerInfo)
+import Hledger.Flow.Types (BaseDir, HledgerConf (..), HledgerInfo)
 import Path (reldir, relfile, stripProperPrefix, toFilePath, (</>))
 import qualified System.FilePath as FilePath
 
 data Situation = InLedger BaseDir | EmptyDir | Elsewhere deriving (Eq, Show)
-
-data LedgerFile = LedgerFile {lfValue :: FilePath, lfExists :: Bool} deriving (Eq, Show)
 
 data AccountStatus = AccountStatus
   { asAccount :: T.Text,
@@ -55,6 +57,8 @@ data LedgerStatus = LedgerStatus
   { lsBaseDir :: BaseDir,
     lsHledger :: Maybe HledgerInfo,
     lsLedgerFile :: Maybe LedgerFile,
+    lsAggregateJournal :: Maybe AbsFile,
+    lsHledgerConf :: Maybe HledgerConf,
     lsAccounts :: [AccountStatus],
     lsMisplaced :: [Misplaced],
     lsManualJournals :: Int,
@@ -131,12 +135,12 @@ nextStep year shell homes cwd s
   | a : _ <- filter needsRules (lsAccounts s) =
       NextStep
         ("Create " <> T.pack (tildePath homes (firstCandidate a)) <> " (rules for " <> asAccount a <> ")")
-        (Just (command "status" <> " --rules-template " <> shellArgument shell (asAccount a)))
+        (Just (commandArgs "status" ["--rules-template", asAccount a]))
         ["Save its output as that file, then edit it."]
         (Just (docURL RulesFiles))
   | toImport > 0 =
       NextStep ("Import " <> plural toImport "new or changed statement") (Just importCommand) [] Nothing
-  | not (lsAllYearsExists s) =
+  | Nothing <- lsAggregateJournal s, not (lsAllYearsExists s), not missingConfigured =
       NextStep "Run import to create all-years.journal" (Just importCommand) [] Nothing
   | lsNeedsReconciliation s =
       NextStep "Run import to reconcile generated files and journal includes" (Just importCommand) [] Nothing
@@ -146,22 +150,19 @@ nextStep year shell homes cwd s
         Nothing
         ["Save them in prices/<year>/prices.journal, then run " <> importCommand <> "."]
         (Just (docURL PriceFiles))
-  | maybe True (not . lfExists) (lsLedgerFile s) =
+  | Just lf <- lsLedgerFile s, not (lfExists lf) =
       NextStep
         "Point LEDGER_FILE at this ledger so hledger finds it"
-        (Just exportLine)
-        [ "LEDGER_FILE is set to " <> T.pack (lfValue lf) <> ", which doesn't exist."
-          | Just lf <- [lsLedgerFile s]
-        ]
+        (Just (setLedgerFileCommand shell homes s))
+        [ledgerFileProblem lf]
         (Just (docURL SetLedgerFile))
   | otherwise =
-      NextStep "Generate reports, or explore with hledger" (Just (command "report")) ["Or try: hledger balance"] Nothing
+      NextStep "Generate reports, or explore with hledger" (Just (command "report"))
+        ["Or try: " <> hint | Nothing <- [ledgerFileNote shell homes s], Just hint <- [balanceHint shell homes s]] Nothing
   where
-    command subcommand = "hledger-flow " <> subcommand <> baseArgument
-    baseArgument
-      | cwd == lsBaseDir s = ""
-      | otherwise = " " <> pasteable (shellArgument shell) (FilePath.dropTrailingPathSeparator (toFilePath (lsBaseDir s)))
-    pasteable literal path = fromMaybe (literal (T.pack path)) (homeShellPath shell homes path)
+    commandArgs = flowCommand shell homes cwd (lsBaseDir s) (lsHledgerConf s)
+    command subcommand = commandArgs subcommand []
+    missingConfigured = maybe False (not . lfExists) (lsLedgerFile s)
     importCommand = command "import"
     statements = sum (map asStatements (lsAccounts s))
     toImport = sum [asJournalsMissing a + asJournalsOutdated a | a <- lsAccounts s]
@@ -170,7 +171,44 @@ nextStep year shell homes cwd s
       c : _ | cwd /= lsBaseDir s -> toFilePath (lsBaseDir s) FilePath.</> c
             | otherwise -> c
       [] -> "a rules file"
-    allYears = toFilePath (lsBaseDir s </> [relfile|all-years.journal|])
-    exportLine = case shell of
-      Posix -> "export LEDGER_FILE=" <> pasteable posixLiteral allYears
-      PowerShell -> "$env:LEDGER_FILE = " <> pasteable powerShellLiteral allYears
+flowCommand :: Shell -> [FilePath] -> AbsDir -> BaseDir -> Maybe HledgerConf -> T.Text -> [T.Text] -> T.Text
+flowCommand shell homes cwd base conf subcommand arguments =
+  T.unwords (["hledger-flow"] ++ config ++ [subcommand] ++ map (shellArgument shell) arguments ++ directory)
+  where
+    config = case conf of
+      Just (GivenConf file) | subcommand `elem` ["import", "report"] ->
+        ["--hledger-conf", shellPath shell homes file]
+      _ -> []
+    directory = [shellPath shell homes (FilePath.dropTrailingPathSeparator (toFilePath base)) | cwd /= base]
+
+shellPath :: Shell -> [FilePath] -> FilePath -> T.Text
+shellPath shell homes file =
+  fromMaybe (shellArgument shell (T.pack file)) (homeShellPath shell homes file)
+
+setLedgerFileCommand :: Shell -> [FilePath] -> LedgerStatus -> T.Text
+setLedgerFileCommand shell homes s = case shell of
+  Posix -> "export LEDGER_FILE=" <> setting posixLiteral
+  PowerShell -> "$env:LEDGER_FILE = " <> setting powerShellLiteral
+  where
+    path = toFilePath (lsBaseDir s </> [relfile|all-years.journal|])
+    setting literal = fromMaybe (literal (T.pack path)) (homeShellPath shell homes path)
+
+balanceHint :: Shell -> [FilePath] -> LedgerStatus -> Maybe T.Text
+balanceHint shell homes s = do
+  info <- lsHledger s
+  journal <- lsAggregateJournal s
+  let config = case lsHledgerConf s of
+        Just (GivenConf configPath) -> ["--conf", shellPath shell homes configPath]
+        _ -> []
+      path = T.unpack (hledgerFileArgument info (toFilePath journal))
+  return (T.unwords (["hledger"] ++ config ++ ["-f", shellPath shell homes path, "balance"]))
+
+ledgerFileNote :: Shell -> [FilePath] -> LedgerStatus -> Maybe T.Text
+ledgerFileNote shell homes s = do
+  _ <- lsAggregateJournal s
+  message <- case lsLedgerFile s of
+    Nothing -> Just "LEDGER_FILE isn't set, so hledger won't find this ledger by default."
+    Just file | lfExists file && lfCoverage file /= CoversLedger -> Just (ledgerFileProblem file)
+    _ -> Nothing
+  return (T.intercalate "\n" ([message, "hledger-flow report uses all-years.journal.", "For hledger, run: " <> setLedgerFileCommand shell homes s]
+      ++ ["Or try: " <> hint | Just hint <- [balanceHint shell homes s]]))

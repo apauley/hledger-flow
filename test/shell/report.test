@@ -237,3 +237,36 @@ test ! -d reports/nextyear
 report_row reports/gawie/2016/income-expenses.txt expenses:bank-fees
 $ sh -eu
 expenses:bank-fees || 5
+
+# An unrelated LEDGER_FILE cannot replace the current ledger's aggregate.
+<
+. ./test/shell/setup.sh
+flow import
+printf '2016-01-01 Other\n    assets:unrelated  999\n    equity:opening\n' > other.journal
+export LEDGER_FILE=other.journal
+flow report --ascii-reports
+grep -q 'does not include this ledger' flow.log
+for owner in all gawie; do
+  report_row "reports/$owner/2016/balance-sheet.txt" assets:bank | grep -Fx 'assets:bank || -5'
+  if grep -q assets:unrelated "reports/$owner/2016/balance-sheet.txt"; then exit 1; fi
+done
+hledger-flow status --json | jq -e '.ledgerFile.exists and (.ledgerFile.coversLedger == false) and (.ledgerFileNote != null) and (.next.command | contains("report"))' > /dev/null
+$ sh -eu
+assets:bank || -5
+assets:bank || -5
+
+# The literal bracketed wrapper includes the renamed root.
+<
+. ./test/shell/setup.sh
+flow import
+mv all-years.journal 'selected ledger.journal'
+printf 'include selected ledger.journal\n' > '[ledger].journal'
+printf '2016-01-01 Other\n    assets:unrelated  999\n    equity:opening\n' > l.journal
+export LEDGER_FILE='[ledger].journal'
+hledger-flow status --json | jq -e '.ledgerFile.coversLedger and (.allYearsJournalExists == false) and (.next.command == "hledger-flow report")' > /dev/null
+flow report --ascii-reports
+report_row reports/all/2016/balance-sheet.txt assets:bank
+cp "$inbox/march.csv" "$inbox/april.csv"
+hledger-flow status --json | jq -e '.next.command == "hledger-flow import"' > /dev/null
+$ sh -eu
+assets:bank || -5

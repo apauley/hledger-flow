@@ -9,6 +9,7 @@ import qualified Data.Aeson.KeyMap as KeyMap
 import Data.List (sort)
 import qualified Data.Text as T
 import Hledger.Flow.Common (Shell (..))
+import Hledger.Flow.LedgerSelection (Coverage (..))
 import Hledger.Flow.Status.Render (renderStatus, statusJSON)
 import Hledger.Flow.Status
 import Path
@@ -21,7 +22,9 @@ blank =
   LedgerStatus
     { lsBaseDir = testRoot </> [reldir|fin|],
       lsHledger = Just defaultHlInfo,
-      lsLedgerFile = Just (LedgerFile "/x" True),
+      lsLedgerFile = Just (LedgerFile "/x" True CoversLedger),
+      lsAggregateJournal = Just (testRoot </> [relfile|fin/all-years.journal|]),
+      lsHledgerConf = Nothing,
       lsAccounts = [],
       lsMisplaced = [],
       lsManualJournals = 0,
@@ -80,9 +83,6 @@ summaryOf = nsSummary . atRoot
 commandOf :: LedgerStatus -> Maybe T.Text
 commandOf = nsCommand . atRoot
 
-allYears :: T.Text
-allYears = T.pack (toFilePath (lsBaseDir blank </> [relfile|all-years.journal|]))
-
 testRules :: Test
 testRules =
   TestList
@@ -90,7 +90,7 @@ testRules =
       "2 empty ledger" ~: summaryOf blank ~?= "Put your first statement in import/<owner>/<bank>/<account>/1-in/<year>/",
       "2 example uses current year" ~: nsDetail (atRoot blank) ~?= ["For example: import/me/mybank/checking/1-in/2026/statement.csv", "Then check with: hledger-flow status"],
       "2 skipped for manual-only ledger" ~: summaryOf blank {lsManualJournals = 1} ~?= "Generate reports, or explore with hledger",
-      "5 import when all-years.journal is missing" ~: commandOf blank {lsManualJournals = 1, lsAllYearsExists = False} ~?= Just "hledger-flow import",
+      "5 import when all-years.journal is missing" ~: commandOf blank {lsManualJournals = 1, lsAllYearsExists = False, lsAggregateJournal = Nothing} ~?= Just "hledger-flow import",
       "3 misplaced" ~: summaryOf blank {lsMisplaced = [Misplaced "import/a.csv" "x"]} ~?= "Move 1 file to where hledger-flow looks",
       "3 misplaced plural" ~: summaryOf blank {lsMisplaced = [Misplaced "import/a.csv" "x", Misplaced "import/b.csv" "y"]} ~?= "Move 2 files to where hledger-flow looks",
       "3 detail" ~: nsDetail (atRoot blank {lsMisplaced = [Misplaced "import/a.csv" "x"]}) ~?= ["import/a.csv → x"],
@@ -102,9 +102,8 @@ testRules =
       "4 skipped with construct" ~: commandOf blank {lsAccounts = [acct {asWithoutRules = 1, asConstruct = True}]} ~?= Just "hledger-flow report",
       "5 import" ~: summaryOf blank {lsAccounts = [acct {asJournalsMissing = 1, asJournalsOutdated = 1}]} ~?= "Import 2 new or changed statements",
       "5 import singular" ~: summaryOf blank {lsAccounts = [acct {asJournalsMissing = 1}]} ~?= "Import 1 new or changed statement",
-      "6 posix" ~: commandOf blank {lsAccounts = [acct], lsLedgerFile = Nothing} ~?= Just ("export LEDGER_FILE='" <> allYears <> "'"),
-      "6 windows" ~: nsCommand (nextStep 2026 PowerShell [] (lsBaseDir blank) blank {lsAccounts = [acct], lsLedgerFile = Nothing}) ~?= Just ("$env:LEDGER_FILE = '" <> allYears <> "'"),
-      "6 set but missing" ~: nsDetail (atRoot blank {lsAccounts = [acct], lsLedgerFile = Just (LedgerFile "/nope.journal" False)}) ~?= ["LEDGER_FILE is set to /nope.journal, which doesn't exist."],
+      "6 unset" ~: commandOf blank {lsAccounts = [acct], lsLedgerFile = Nothing} ~?= Just "hledger-flow report",
+      "6 set but missing" ~: nsDetail (atRoot blank {lsAccounts = [acct], lsLedgerFile = Just (LedgerFile "/nope.journal" False UnrelatedLedger)}) ~?= ["LEDGER_FILE is set to /nope.journal, which doesn't exist."],
       "7 done" ~: commandOf blank {lsAccounts = [acct]} ~?= Just "hledger-flow report"
     ]
 
@@ -117,13 +116,18 @@ testHome =
       unset = blank {lsAccounts = [acct], lsLedgerFile = Nothing}
       quoted parts = "\"" <> T.pack (FilePath.joinPath ("$HOME" : parts)) <> "\""
       dollarInPath = unset {lsBaseDir = testRoot </> [reldir|fin$|]}
+      setting shell s = do
+        note <- ledgerFileNote shell homes s
+        case filter ("For hledger, run: " `T.isPrefixOf`) (T.lines note) of
+          [line] -> T.stripPrefix "For hledger, run: " line
+          _ -> Nothing
    in TestList
-        [ "posix export" ~: nsCommand (next Posix (lsBaseDir blank) unset) ~?= Just ("export LEDGER_FILE=" <> quoted ["fin", "all-years.journal"]),
-          "powershell export" ~: nsCommand (next PowerShell (lsBaseDir blank) unset) ~?= Just ("$env:LEDGER_FILE = " <> quoted ["fin", "all-years.journal"]),
+        [ "posix export" ~: setting Posix unset ~?= Just ("export LEDGER_FILE=" <> quoted ["fin", "all-years.journal"]),
+          "powershell export" ~: setting PowerShell unset ~?= Just ("$env:LEDGER_FILE = " <> quoted ["fin", "all-years.journal"]),
           "ledger argument" ~: nsCommand (next Posix elsewhere blank {lsAccounts = [acct]}) ~?= Just ("hledger-flow report " <> quoted ["fin"]),
           "summary" ~: nsSummary (next Posix elsewhere blank {lsAccounts = [acct {asWithoutRules = 1, asRulesFile = Nothing}]})
             ~?= T.pack ("Create " <> FilePath.joinPath ["~", "fin", "import", "me", "mybank", "checking", "mybank-checking.rules"]) <> " (rules for me/mybank/checking)",
-          "special character falls back to the absolute path" ~: nsCommand (next Posix (lsBaseDir dollarInPath) dollarInPath)
+          "special character falls back to the absolute path" ~: setting Posix dollarInPath
             ~?= Just ("export LEDGER_FILE='" <> T.pack (toFilePath (lsBaseDir dollarInPath </> [relfile|all-years.journal|])) <> "'")
         ]
 
@@ -154,7 +158,7 @@ testJSONShape :: Test
 testJSONShape = TestCase $ case statusJSON testSystemInfo Nothing blank (atRoot blank) of
   Object o ->
     sort (map Key.toText (KeyMap.keys o))
-      @?= ["accounts", "allYearsJournalExists", "baseDir", "environment", "hledger", "ledgerFile", "manualJournals", "misplaced", "next", "schemaVersion"]
+      @?= ["accounts", "aggregateJournal", "allYearsJournalExists", "baseDir", "environment", "hledger", "ledgerFile", "ledgerFileNote", "manualJournals", "misplaced", "next", "schemaVersion"]
   _ -> assertFailure "status JSON is an object"
 
 tests = TestList [testSuggest, testMisplacedUpperCase, testRules, testHome, testVersion, testRenderNoColour, testRenderPending, testJSONShape]

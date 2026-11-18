@@ -130,8 +130,9 @@ hledger-flow status
    `hledger-flow status --rules-template me/mybank/checking` prints a starter
    to save as that file and edit.
 3. Run `hledger-flow import`. It creates `all-years.journal`.
-4. Point `LEDGER_FILE` at that journal with the line `status` prints, then run
-   `hledger-flow report`. Reports go under `reports/`.
+4. Run `hledger-flow report`. Reports go under `reports/`. If you also want
+   hledger commands such as `hledger balance` to open this ledger by default,
+   use the optional `LEDGER_FILE` command from `hledger-flow status`.
 
 Running `hledger-flow` with no command does the same as `status` inside a
 ledger. Scripts and AI agents can use `hledger-flow status --json`; see

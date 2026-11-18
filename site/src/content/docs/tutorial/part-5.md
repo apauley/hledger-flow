@@ -46,7 +46,7 @@ Next: Create import/gawie/goggatjie/tips/goggatjie-tips.rules (rules for gawie/g
       Docs: https://hledger-flow.github.io/go/rules-files/
 
 Environment:
-  hledger-flow  0.20.1 (d6febfa), ghc 9.10, darwin aarch64
+  hledger-flow  0.20.1 (68c4ac5), ghc 9.10, darwin aarch64
   hledger       ~/bin/hledger  (1.99.6-gc3a608c2b-20261101)   --hledger-path
   hledger.conf  none                                          --hledger-conf
   Cores         18, using 18
@@ -242,10 +242,10 @@ Ledger: ~/my-finances   (hledger 1.99.6-gc3a608c2b-20261101 found)
 
 Next: Generate reports, or explore with hledger
       Run: hledger-flow report
-      Or try: hledger balance
+      Or try: hledger -f "$HOME/my-finances/all-years.journal" balance
 
 Environment:
-  hledger-flow  0.20.1 (d6febfa), ghc 9.10, darwin aarch64
+  hledger-flow  0.20.1 (68c4ac5), ghc 9.10, darwin aarch64
   hledger       ~/bin/hledger  (1.99.6-gc3a608c2b-20261101)   --hledger-path
   hledger.conf  none                                          --hledger-conf
   Cores         18, using 18

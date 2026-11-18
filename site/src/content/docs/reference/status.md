@@ -12,6 +12,19 @@ than one commodity and has no market price directives.
 Interactive status also shows a [cached upgrade notice](/reference/release-notices/) when a previous import or report found a newer release.
 `hledger-flow init` starts a new ledger.
 
+## Journal used for reports
+
+`report` reads the ledger's `all-years.journal` by default. An existing
+`LEDGER_FILE` can select a journal that includes this ledger's generated
+`import/all-years.journal` and its `directives.journal` when present. This also
+works with a renamed root journal. Owner reports still use their own indexes.
+
+If the configured journal is unrelated or cannot be read, reports use the
+local root and explain why. A path that names a missing file needs to be fixed
+or unset before reporting. An unset or unrelated `LEDGER_FILE` appears as a
+note in status so you can keep following `Next:`. Use the optional setup or
+explicit balance command in the note to explore with hledger itself.
+
 ## hledger config file
 
 hledger 1.40 and later read default options from a config file: the one you
@@ -42,7 +55,10 @@ path with `--hledger-path` even when `PATH` is unset.
   or read its version. Pressing Ctrl-C during the version check cancels
   `status`. In JSON mode the command exits unsuccessfully without emitting
   a JSON object.
-- `ledgerFile`: `{"value", "exists"}` for `LEDGER_FILE`, or `null` when unset.
+- `ledgerFile`: `{"value", "exists", "coversLedger"}` for `LEDGER_FILE` or
+  `null` when unset.
+- `aggregateJournal`: the selected report journal's absolute path, or `null`.
+- `ledgerFileNote`: optional guidance about `LEDGER_FILE`, or `null`.
 - `accounts`: one object per `owner/bank/account` with statements:
   `account`, `statements`, `years`, `rulesFile` (the account's default rules
   file, or `null`), `rulesCandidates`, `statementsWithoutRules`,

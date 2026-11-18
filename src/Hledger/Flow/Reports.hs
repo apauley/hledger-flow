@@ -7,7 +7,7 @@ module Hledger.Flow.Reports
 where
 
 import Control.Concurrent.STM
-import Control.Monad (filterM, unless, when)
+import Control.Monad (filterM, when)
 import Data.Char (toLower)
 import Data.Either
 import qualified Data.List as List
@@ -17,6 +17,7 @@ import Hledger.Flow.DateTime (timeAction)
 import Hledger.Flow.Environment (renderSettings, reportSettings)
 import Hledger.Flow.BaseDir (relativeToBase)
 import Hledger.Flow.Common
+import Hledger.Flow.LedgerSelection
 import Hledger.Flow.Logging
 import Hledger.Flow.PathHelpers (AbsDir, AbsFile, RelDir, RelFile)
 import Hledger.Flow.RuntimeOptions
@@ -24,7 +25,6 @@ import Hledger.Flow.Status (plural)
 import qualified Hledger.Flow.Types as FlowTypes
 import Path ((</>), parent, reldir, relfile, parseRelDir, toFilePath)
 import qualified Path.IO as PathIO
-import qualified System.Directory as Directory
 import Prelude hiding (putStrLn, readFile, writeFile)
 
 data ReportParams = ReportParams
@@ -52,14 +52,19 @@ generateReports opts = withConsoleLogging $ \ch -> do
 generateReports' :: RuntimeOptions -> TChan FlowTypes.LogMessage -> IO [Either AbsFile AbsFile]
 generateReports' opts ch = do
   owners <- listOwners opts
-  configured <- configuredLedgerFile
-  let hledgerJournal = maybe (toFilePath (baseDir opts </> [relfile|all-years.journal|])) snd configured
-  hledgerJournalExists <- Directory.doesFileExist hledgerJournal
+  info <- hledgerInfo opts
+  selection <- selectLedger (Just info) (baseDir opts)
+  journal <- case (aggregateJournal selection, selectionError selection) of
+    (Just file, _) -> return file
+    (_, Just problem) -> ioError (userError (T.unpack problem))
+    _ -> ioError (userError "No journal selected for reporting.")
+  let hledgerJournal = toFilePath journal
   homes <- homeDirs
-  unless hledgerJournalExists $ ioError $ userError $ case configured of
-    Just (v, _) -> "LEDGER_FILE is set to " ++ v ++ ", which doesn't exist. Point it at "
-      ++ tildePath homes (toFilePath (baseDir opts </> [relfile|all-years.journal|])) ++ ", or unset it."
-    Nothing -> "No all-years.journal in " ++ tildePath homes (toFilePath (baseDir opts)) ++ " yet. Run `hledger-flow import` first."
+  case selectedLedgerFile selection of
+    Just file | lfCoverage file == CoversLedger ->
+      channelOutLn ch ("Reporting on " <> T.pack (tildePath homes hledgerJournal) <> " (from LEDGER_FILE).")
+    Just file -> channelOutLn ch (ledgerFileProblem file <> " Reporting on all-years.journal.")
+    Nothing -> return ()
   let journalWithYears = baseDir opts </> [relfile|import/all-years.journal|]
   let aggregateReportDir
         | any ((== toFilePath [reldir|all|]) . map toLower . toFilePath) owners = baseDir opts </> [reldir|reports/_all_|]

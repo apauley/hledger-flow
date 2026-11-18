@@ -84,10 +84,10 @@ writeIncludesFromInventory opts ch stopAt inventory journals = do
   return roots
 
 -- | Check the same contents import would write, including obsolete generated indexes.
-includesNeedUpdate :: BaseDir -> AbsDir -> [AbsFile] -> [AbsFile] -> IO Bool
-includesNeedUpdate base root inventory journals = do
+includesNeedUpdate :: BaseDir -> AbsDir -> [AbsFile] -> [AbsFile] -> Bool -> IO Bool
+includesNeedUpdate base root inventory journals compareRoot = do
   (includes, _) <- expectedIncludes base (const (return ())) root inventory journals
-  top <- toplevelAllYearsInclude base
+  top <- if compareRoot then toplevelAllYearsInclude base else return Map.empty
   anyChanged (Map.toList (Map.union top includes))
   where
     anyChanged [] = return False

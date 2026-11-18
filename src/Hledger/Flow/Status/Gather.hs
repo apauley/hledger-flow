@@ -5,6 +5,7 @@
 module Hledger.Flow.Status.Gather
   ( classifyDir,
     gatherStatus,
+    gatherStatusWithConfig,
     accountName,
     cachedStatement,
     hookExists,
@@ -21,14 +22,15 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import Data.Time.Clock (UTCTime)
 import Hledger.Flow.BaseDir (findBaseDir, relativeToBase')
-import Hledger.Flow.Common (configuredLedgerFile, firstExistingFile, groupValuesBy, hledgerFileArgument, runProcessCaptured)
+import Hledger.Flow.Common (firstExistingFile, groupValuesBy, hledgerFileArgument, runProcessCaptured)
 import Hledger.Flow.Import.ImportHelpers (defaultRulesCandidates, extractImportDirs, rulesFileCandidates)
 import Hledger.Flow.Import.IncludeFiles (includesNeedUpdate)
 import Hledger.Flow.Import.Inventory (classifyGeneratedOutputs, findImportFiles, generatedOutput, isManualJournal, managedIncludeFiles, stageFiles)
 import Hledger.Flow.Import.Types (ImportDirs (..))
+import Hledger.Flow.LedgerSelection
 import Hledger.Flow.PathHelpers (AbsDir, AbsFile, RelFile)
 import Hledger.Flow.Status
-import Hledger.Flow.Types (BaseDir, HledgerInfo (..))
+import Hledger.Flow.Types (BaseDir, HledgerConf, HledgerInfo (..))
 import Path
 import qualified Path.IO as PathIO
 import qualified System.Directory as Directory
@@ -49,29 +51,34 @@ classifyDir dir = do
       return (if all ("." `List.isPrefixOf`) names then EmptyDir else Elsewhere)
 
 gatherStatus :: Maybe HledgerInfo -> BaseDir -> IO LedgerStatus
-gatherStatus hledger base = do
+gatherStatus hledger = gatherStatusWithConfig hledger Nothing
+
+gatherStatusWithConfig :: Maybe HledgerInfo -> Maybe HledgerConf -> BaseDir -> IO LedgerStatus
+gatherStatusWithConfig hledger conf base = do
   let root = base </> [reldir|import|]
   files <- findImportFiles root
   let statements = stageFiles root [reldir|1-in|] files
       groups = Map.toAscList (groupValuesBy (accountName root) statements)
   accounts <- forM groups (uncurry (accountStatus base))
-  configured <- configuredLedgerFile
-  ledgerFile <- forM configured $ \(value, path) -> LedgerFile value <$> Directory.doesFileExist path
-  let journal = base </> [relfile|all-years.journal|]
-  allYears <- PathIO.doesFileExist journal
+  selection <- selectLedger hledger base
+  let defaultJournal = base </> [relfile|all-years.journal|]
+  allYears <- PathIO.doesFileExist defaultJournal
+  let selected = aggregateJournal selection
   (orphans, journals) <- classifyGeneratedOutputs root files statements
   -- A newly initialised, empty ledger has no indexes to reconcile yet.
-  reconciliation <- if allYears && null orphans
-    then includesNeedUpdate base root files journals
+  reconciliation <- if (allYears || isJust selected) && null orphans
+    then includesNeedUpdate base root files journals allYears
     else return (not (null orphans) || not (null (managedIncludeFiles root files)))
-  needsPrices <- case hledger of
-    Just info | allYears && not reconciliation -> journalNeedsPrices info journal
+  needsPrices <- case (hledger, selected) of
+    (Just info, Just journal) | not reconciliation -> journalNeedsPrices info journal
     _ -> return False
   return
     LedgerStatus
       { lsBaseDir = base,
         lsHledger = hledger,
-        lsLedgerFile = ledgerFile,
+        lsLedgerFile = selectedLedgerFile selection,
+        lsAggregateJournal = selected,
+        lsHledgerConf = conf,
         lsAccounts = accounts,
         lsMisplaced = List.sortOn mpPath (misplacedFiles root files),
         lsManualJournals = length (filter (isManualJournal root) files),
