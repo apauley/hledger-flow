@@ -42,7 +42,7 @@ import csv
 from decimal import Decimal
 import sys
 
-mode, source, destination, bank, account, owner = sys.argv[1:]
+mode, currency, source, destination, bank, account, owner = sys.argv[1:]
 with open(source, encoding="utf-8", newline="") as statement:
     rows = csv.DictReader(statement)
     if mode == "preprocess":
@@ -60,48 +60,48 @@ with open(source, encoding="utf-8", newline="") as statement:
                 counter = "expenses:" + CATEGORIES.get(row["description"], "unknown")
             amount = Decimal(row["amount"])
             print(f"{row['date']} ({row['reference']}) {row['description']}")
-            print(f"    assets:{bank}:{account}  {amount} USD")
-            print(f"    {counter}  {-amount} USD")
+            print(f"    assets:{bank}:{account}  {amount} {currency}")
+            print(f"    {counter}  {-amount} {currency}")
             print()
 '''
 
 
-def write_launcher(account_dir, name, mode):
+def write_launcher(account_dir, name, mode, currency):
     if os.name == "nt":
         launcher = account_dir / (name + ".ps1")
         launcher.write_text(
             "$ErrorActionPreference = 'Stop'\n"
             "$helper = Join-Path $PSScriptRoot '../../../../workload-hook.py'\n"
             "if (Get-Command py -ErrorAction SilentlyContinue) {\n"
-            f"    & py -3 $helper {mode} @args\n"
+            f"    & py -3 $helper {mode} {currency} @args\n"
             "} else {\n"
-            f"    & python $helper {mode} @args\n"
+            f"    & python $helper {mode} {currency} @args\n"
             "}\nexit $LASTEXITCODE\n", encoding="utf-8")
     else:
         launcher = account_dir / name
         launcher.write_text(
             '#!/bin/sh\n'
-            f'exec python3 "$(dirname "$0")/../../../../workload-hook.py" {mode} "$@"\n',
+            f'exec python3 "$(dirname "$0")/../../../../workload-hook.py" {mode} {currency} "$@"\n',
             encoding="utf-8")
         launcher.chmod(0o755)
 
 
-def write_conversion(base, account_dir, kind):
+def write_conversion(base, account_dir, kind, currency="USD"):
     if kind in ("preprocess", "construct", "combined"):
         helper = base / "workload-hook.py"
         if not helper.exists():
             categories = {name: cat for cat, names in MERCHANTS.items() for name in names}
             helper.write_text(f"CATEGORIES = {categories!r}\n" + HOOK_BODY, encoding="utf-8")
         if kind in ("preprocess", "combined"):
-            write_launcher(account_dir, "preprocess", "preprocess")
+            write_launcher(account_dir, "preprocess", "preprocess", currency)
         if kind in ("construct", "combined"):
-            write_launcher(account_dir, "construct", kind)
+            write_launcher(account_dir, "construct", kind, currency)
             return
 
     last_field = "counteraccount" if kind == "preprocess" else "category"
     rules = ("skip 1\n"
              f"fields date, code, description, amount, {last_field}\n"
-             "currency USD\n"
+             f"currency {currency}\n"
              f"account1 assets:examplebank:{account_dir.name}\n")
     if kind == "advanced":
         shared = account_dir.parent.parent / "merchants.rules"
@@ -120,14 +120,30 @@ def write_conversion(base, account_dir, kind):
 KINDS = ("plain", "advanced", "preprocess", "construct", "combined")
 
 
-def generate_base(base, counts, statements, transactions, seed):
+def write_prices(base, seed):
+    prices = base / "prices" / "2024"
+    prices.mkdir(parents=True)
+    # Daily EUR rates between 1.0500 and 1.1499 USD.
+    lines = [f"P {day} EUR 1.{500 + (seed + i * 7919) % 1000:04} USD\n" for i, day in enumerate(DATES)]
+    (prices / "prices.journal").write_text("".join(lines), encoding="utf-8")
+
+
+DIRECTIVES = "commodity 1,000.00 USD\ncommodity 1,000.00 EUR\n"
+
+
+def generate_base(base, counts, statements, transactions, seed, eur_every, prices, directives):
     index = 0
     for kind, count in counts.items():
         for _ in range(count):
             account = base / "import/sample/examplebank" / f"account-{index + 1:04}"
             write_statements(account, index * statements * transactions, statements, transactions, seed)
-            write_conversion(base, account, kind)
+            currency = "EUR" if eur_every and (index + 1) % eur_every == 0 else "USD"
+            write_conversion(base, account, kind, currency)
             index += 1
+    if prices:
+        write_prices(base, seed)
+    if directives:
+        (base / "directives.journal").write_text(DIRECTIVES, encoding="utf-8")
     totals = ((index, "account"), (index * statements, "statement"),
               (index * statements * transactions, "transaction"))
     summary = ", ".join(f"{n} {label}{'s' if n != 1 else ''}" for n, label in totals)
@@ -144,12 +160,20 @@ def main(argv):
         command.add_argument("--statements", type=int, default=2, help="statements per account (default 2)")
         command.add_argument("--transactions", type=int, default=10, help="rows per statement (default 10)")
         command.add_argument("--seed", type=int, default=1, help="reproducible data seed (default 1)")
+        command.add_argument("--eur-every", type=int, default=0, metavar="N",
+                             help="make every Nth account a EUR account (default 0: all USD)")
+        command.add_argument("--prices", action="store_true",
+                             help="write daily EUR prices in USD to prices/2024/prices.journal")
+        command.add_argument("--directives", action="store_true",
+                             help="write USD and EUR commodity directives to directives.journal")
     separate.add_argument("--accounts", type=int, default=1, help="accounts per base (default 1)")
     for kind in KINDS:
         mixed.add_argument("--" + kind, type=int, help=f"number of {kind} accounts")
     args = parser.parse_args(argv)
     if args.statements < 1 or args.transactions < 1:
         parser.error("--statements and --transactions must be positive")
+    if args.eur_every < 0:
+        parser.error("--eur-every must not be negative")
     dest = args.destination
     if args.mode == "separate":
         if args.accounts < 1:
@@ -170,7 +194,8 @@ def main(argv):
         return 1
     try:
         for base, counts in layouts:
-            generate_base(base, counts, args.statements, args.transactions, args.seed)
+            generate_base(base, counts, args.statements, args.transactions, args.seed,
+                          args.eur_every, args.prices, args.directives)
     except OSError as error:
         print(f"Partial workload at {dest}: {error}", file=sys.stderr)
         return 1

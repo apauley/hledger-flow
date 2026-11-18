@@ -103,7 +103,7 @@ class ConversionTests(Workspace):
                 self.assertEqual({p.name for p in account.iterdir()}, files)
                 source = raw
                 if preprocess:
-                    run(sys.executable, helper, "preprocess", raw, normalized, *hook_args)
+                    run(sys.executable, helper, "preprocess", "USD", raw, normalized, *hook_args)
                     with normalized.open(encoding="utf-8", newline="") as stream:
                         reader = csv.DictReader(stream)
                         self.assertEqual(reader.fieldnames[-1], "counteraccount")
@@ -114,7 +114,7 @@ class ConversionTests(Workspace):
                     normalized.write_text(normalized.read_text().replace(
                         "expenses:transport", "expenses:custom"), encoding="utf-8")
                 if construct:
-                    journal = run(sys.executable, helper, kind, source, "-", *hook_args)
+                    journal = run(sys.executable, helper, kind, "USD", source, "-", *hook_args)
                     output = run("hledger", "--no-conf", "print", "-f", "-", "-O", "csv", input=journal)
                 else:
                     output = run("hledger", "--no-conf", "print", "--explicit", "-f", source,
@@ -246,9 +246,10 @@ class ImportTests(Workspace):
     def test_real_imports_and_report(self):
         script = self.root / "download.py"
         shutil.copyfile(SCRIPT, script)
-        for mode in ("mixed", "separate"):
+        for mode, extra in (("mixed", ("--eur-every", "2", "--prices", "--directives")),
+                            ("separate", ())):
             run(sys.executable, script, mode, self.root / mode,
-                "--statements", "1", "--transactions", "6")
+                "--statements", "1", "--transactions", "6", *extra)
         script.unlink()
         config = self.root / "hledger.conf"
         config.touch()
@@ -265,6 +266,7 @@ class ImportTests(Workspace):
                 normalized = set()
                 for i, account_kind in enumerate(kinds, 1):
                     name = f"account-{i:04}"
+                    currency = "EUR" if kind == "mixed" and i % 2 == 0 else "USD"
                     account = base / "import/sample/examplebank" / name
                     source = account / "1-in/2024/statement-0001.csv"
                     with source.open(encoding="utf-8", newline="") as stream:
@@ -273,8 +275,8 @@ class ImportTests(Workspace):
                             code = row["reference"]
                             self.assertNotIn(code, expected)
                             expected[code] = [
-                                (row["date"], row["description"], f"assets:examplebank:{name}", amount, "USD"),
-                                (row["date"], row["description"], "expenses:" + row["category"], -amount, "USD"),
+                                (row["date"], row["description"], f"assets:examplebank:{name}", amount, currency),
+                                (row["date"], row["description"], "expenses:" + row["category"], -amount, currency),
                             ]
                     journals.add(account / "3-journal/2024/statement-0001.journal")
                     if account_kind in ("preprocess", "combined"):
@@ -287,6 +289,14 @@ class ImportTests(Workspace):
                 printed = run("hledger", "--no-conf", "-f", "all-years.journal", "print", "-O", "csv", cwd=base)
                 self.check_postings(expected, csv.DictReader(io.StringIO(printed)))
                 if kind == "mixed":
+                    self.assertIn("include ../prices/2024/prices.journal",
+                                  (base / "import/2024-include.journal").read_text())
+                    self.assertIn("include directives.journal", (base / "all-years.journal").read_text())
+                    for flags, commodities in (((), {"EUR", "USD"}), (("-X", "USD"), {"USD"})):
+                        balances = run("hledger", "--no-conf", "-f", "import/2024-include.journal",
+                                       "balance", "assets", "-O", "csv", "--layout", "tidy", *flags, cwd=base)
+                        self.assertEqual({r["commodity"] for r in csv.DictReader(io.StringIO(balances))},
+                                         commodities)
                     run("hledger-flow", "--hledger-conf", config, "report", cwd=base)
                     self.assertGreater((base / "reports/all/2024/income-expenses.txt").stat().st_size, 0)
 

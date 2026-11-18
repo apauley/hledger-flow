@@ -58,6 +58,27 @@ For example, `mixed construct-only --construct 2` creates just two construct
 accounts. In `separate` mode, the default is one account per base. Both modes
 default to two statements per account, ten transactions per statement and seed 1.
 
+## Add EUR accounts and prices
+
+```sh
+python3 generate-workload.py mixed currencies --eur-every 2 --prices --directives
+hledger-flow import currencies
+cd currencies
+hledger --no-conf -f all-years.journal balance assets -X USD
+```
+
+`--eur-every 2` makes every second account in each base a EUR account, so
+here `account-0002` and `account-0004` post in EUR and the rest in USD. The
+raw CSV is the same either way; the rules or hooks assign the currency.
+`--prices` writes a daily EUR price in USD for 2024 to
+`prices/2024/prices.journal`, so reports can value everything in USD. See
+[Price files](/reference/price-files/). `--directives` writes USD and EUR
+commodity formats to `directives.journal`, which hledger-flow passes to every
+conversion. See [hledger directives](/reference/directives/). All three
+options work in both modes.
+
+## Platforms
+
 Generate on the platform that will import the data. On Linux and macOS,
 generated hooks use `python3`. On native Windows they use PowerShell and
 invoke `py -3` or `python` on PATH. Python is needed during import for the
