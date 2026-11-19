@@ -91,6 +91,56 @@ grep -q 'is already a hledger-flow ledger' ../err.$$
 rm ../err.$$
 $ sh -eu
 
+# Init supplies common commodities, units and account types.
+<
+cd "$(mktemp -d "${TMPDIR:-/tmp}/hledger-flow.XXXXXXXX")"
+unset LEDGER_FILE
+hledger-flow init >/dev/null
+head -n 1 directives.journal | tr -d '\r' | grep -Fxq '; Ledger-wide directives go here. https://hledger.org/dev/hledger.html#directives'
+grep -Eq '^commodity .* USD +; alias: ' directives.journal
+grep -Eq '^commodity .* BTC +; alias: 100000000 SAT' directives.journal
+grep -Eq '^commodity .* SAT$' directives.journal
+if grep -q 'assets:mybank:checking' directives.journal; then exit 1; fi
+hledger --no-conf -f directives.journal accounts --types | tr -d '\r' | awk '{ print $1, $4 }'
+$ sh -eu
+assets A
+assets:bank C
+assets:cash C
+liabilities L
+equity E
+equity:conversion V
+equity:unrealised-gain U
+revenues R
+revenues:gain G
+expenses X
+
+# The yearly price index includes separate files for both starter pairs.
+<
+cd "$(mktemp -d "${TMPDIR:-/tmp}/hledger-flow.XXXXXXXX")"
+unset LEDGER_FILE
+year=$(date +%Y)
+price_dir="prices/$year"
+hledger-flow init >/dev/null
+tr -d '\r' < "$price_dir/prices.journal"
+hledger-flow import >/dev/null
+hledger --no-conf -f all-years.journal prices > loaded-prices
+test ! -s loaded-prices
+grep -Fxq "; P $year-01-01 EUR 1.10 USD" "$price_dir/EUR-USD.prices"
+grep -Fxq "; P $year-01-01 BTC 99000.00 USD" "$price_dir/BTC-USD.prices"
+for pair in EUR-USD BTC-USD; do
+    file="$price_dir/$pair.prices"
+    test -s "$file"
+    sed 's/^; P /P /' "$file" > updated-prices
+    mv updated-prices "$file"
+done
+hledger --no-conf -f all-years.journal prices > loaded-prices
+awk '{ print $1, $3, $NF }' loaded-prices | LC_ALL=C sort
+$ sh -eu
+include EUR-USD.prices
+include BTC-USD.prices
+P BTC USD
+P EUR USD
+
 # The rules template, saved as suggested, imports the statement.
 <
 cd "$(mktemp -d "${TMPDIR:-/tmp}/hledger-flow.XXXXXXXX")"
@@ -393,8 +443,10 @@ year=$(date +%Y)
 mkdir -p "prices/$year"
 printf '; Existing directives\n' > directives.journal
 printf '; Existing prices\n' > "prices/$year/prices.journal"
+printf '; Existing EUR-USD prices\n' > "prices/$year/EUR-USD.prices"
 cp directives.journal original-directives
 cp "prices/$year/prices.journal" original-prices
+cp "prices/$year/EUR-USD.prices" original-pair
 acct=import/me/mybank/checking
 rules="$acct/mybank-checking.rules"
 sample="$acct/1-in/$year/hledger-flow-example.csv"
@@ -405,6 +457,7 @@ grep -q 'Kept existing .*directives.journal' init.out
 grep -q 'Kept existing .*prices.journal' init.out
 cmp directives.journal original-directives
 cmp "prices/$year/prices.journal" original-prices
+cmp "prices/$year/EUR-USD.prices" original-pair
 test -s "$sample"
 test -s "$rules"
 test -s "$manual"
@@ -457,10 +510,10 @@ test ! -e import/me
 test ! -e reports/me
 grep -R -q assets:manual reports/all
 if grep -R -q hledger-flow-example import; then exit 1; fi
-if grep -q 'reports.*me.*unknown-transactions' .hledger-flow/reports.json; then exit 1; fi
+if grep -q 'reports.*me.*unknown-transactions' .hledger-flow/cache/reports.json; then exit 1; fi
 $ sh -eu
 
-# After sample deletion, comment-only starter journals leave first-statement guidance.
+# After sample deletion, the starter declarations and comment-only manual journals leave first-statement guidance.
 <
 cd "$(mktemp -d "${TMPDIR:-/tmp}/hledger-flow.XXXXXXXX")"
 unset LEDGER_FILE

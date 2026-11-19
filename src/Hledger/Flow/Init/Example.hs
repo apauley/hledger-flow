@@ -6,7 +6,7 @@ module Hledger.Flow.Init.Example
     exampleBaseFiles,
     sampleAccountDir,
     untouchedExample,
-    directivesAreComments,
+    directivesAreStarter,
     journalIsCommentsOnly,
   )
 where
@@ -71,10 +71,48 @@ exampleImportFiles year =
       ]
 
 exampleBaseFiles :: Integer -> [(RelFile, T.Text)]
-exampleBaseFiles year = paths
-  [ ("directives.journal", "; Ledger-wide directives go here.\n; commodity 1,000.00 USD\n; account assets:mybank:checking\n"),
-    ("prices" F.</> show year F.</> "prices.journal",
-      "; Add market prices here.\n; P " <> T.pack (show year) <> "-01-01 EUR 1.10 USD\n")
+exampleBaseFiles year = paths $
+  [("directives.journal", starterDirectives)]
+    ++ [ (priceDir F.</> name, T.unlines ["; Add market prices here.", "; P " <> date <> " " <> quote])
+         | (name, quote) <- pairs
+       ]
+    ++ [(priceDir F.</> "prices.journal", T.unlines ["include " <> T.pack name | (name, _) <- pairs])]
+  where
+    priceDir = "prices" F.</> show year
+    date = T.pack (show year) <> "-01-01"
+    pairs = [("EUR-USD.prices", "EUR 1.10 USD"), ("BTC-USD.prices", "BTC 99000.00 USD")]
+
+starterDirectives :: T.Text
+starterDirectives = T.unlines
+  [ "; Ledger-wide directives go here. https://hledger.org/dev/hledger.html#directives",
+    "",
+    "; Common commodities. https://hledger.org/dev/hledger.html#commodity-aliases",
+    "commodity 1,000.00 USD  ; alias: US$",
+    "commodity 1,000.00 EUR  ; alias: €",
+    "commodity 1,000.00 GBP  ; alias: £",
+    "commodity 1,000.00 CAD  ; alias: CA$",
+    "commodity 1,000.00 AUD  ; alias: A$",
+    "commodity 1,000. JPY    ; alias: JP¥",
+    "commodity 1,000.00 CNY  ; alias: CN¥, alias: RMB",
+    "commodity 1,000.00 INR  ; alias: ₹",
+    "",
+    "; Bitcoin and satoshis. https://hledger.org/dev/hledger.html#commodity-units",
+    "commodity 1.00000000 BTC  ; alias: 100000000 SAT, alias: ₿",
+    "commodity 1. SAT",
+    "",
+    "; Account types. https://hledger.org/dev/hledger.html#account-types",
+    "account assets                  ; type: A",
+    "account liabilities             ; type: L",
+    "account equity                  ; type: E",
+    "account revenues                ; type: R",
+    "account expenses                ; type: X",
+    "",
+    "account assets:bank             ; type: C",
+    "account assets:cash             ; type: C",
+    "",
+    "account equity:conversion       ; type: V",
+    "account equity:unrealised-gain  ; type: U",
+    "account revenues:gain           ; type: G"
   ]
 
 paths :: [(FilePath, a)] -> [(RelFile, a)]
@@ -123,20 +161,25 @@ importRoot base = base </> [reldir|import|]
 sampleAccountDir :: BaseDir -> AbsDir
 sampleAccountDir base = importRoot base </> exampleAccount
 
--- Owner reports read directives too. Any real directive or included journal
--- means the ledger holds more than the example.
-directivesAreComments :: BaseDir -> IO Bool
-directivesAreComments base = do
+-- Starter declarations and comments do not add transactions to the ledger.
+directivesAreStarter :: BaseDir -> IO Bool
+directivesAreStarter base = do
   let file = base </> [relfile|directives.journal|]
   exists <- pathOccupied file
-  if exists then journalIsCommentsOnly file else pure True
+  if exists
+    then elem <$> readJournalBody file <*> pure [Just [], Just (journalBody starterDirectives)]
+    else pure True
 
 journalIsCommentsOnly :: AbsFile -> IO Bool
-journalIsCommentsOnly file = do
+journalIsCommentsOnly file = (== Just []) <$> readJournalBody file
+
+readJournalBody :: AbsFile -> IO (Maybe [T.Text])
+readJournalBody file = do
   regular <- regularFile file
-  if regular then all comment . T.lines <$> TIO.readFile (toFilePath file) else pure False
-  where
-    comment line = let text = T.strip line in T.null text || ";" `T.isPrefixOf` text
+  if regular then Just . journalBody <$> TIO.readFile (toFilePath file) else pure Nothing
+
+journalBody :: T.Text -> [T.Text]
+journalBody = filter (\line -> not (T.null line || T.isPrefixOf ";" line)) . map T.strip . T.lines
 
 plainDir :: AbsDir -> IO Bool
 plainDir dir = do

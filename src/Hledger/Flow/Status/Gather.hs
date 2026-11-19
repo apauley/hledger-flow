@@ -30,7 +30,7 @@ import Hledger.Flow.Import.ImportHelpers (defaultRulesCandidates, extractImportD
 import Hledger.Flow.Import.IncludeFiles (includesNeedUpdate)
 import Hledger.Flow.Import.Inventory (classifyGeneratedOutputs, findImportFiles, generatedOutput, isManualJournal, managedIncludeFiles, stageFiles)
 import Hledger.Flow.Import.Types (ImportDirs (..))
-import Hledger.Flow.Init.Example (directivesAreComments, journalIsCommentsOnly, sampleAccountDir, untouchedExample)
+import Hledger.Flow.Init.Example (directivesAreStarter, journalIsCommentsOnly, sampleAccountDir, untouchedExample)
 import Hledger.Flow.LedgerSelection
 import Hledger.Flow.PathHelpers (AbsDir, AbsFile, RelFile, pathOccupied)
 import Hledger.Flow.ReportReview (loadReportReview, reviewItems)
@@ -89,7 +89,7 @@ gatherStatusWithConfig hledger conf base = do
     [] -> pure False
     -- A wrapper can contribute journal entries of its own.
     _ | not (null statements) || maybe False (/= defaultJournal) selected -> pure True
-    _ -> either (const True) not <$> tryIOError (onlyJournalComments base manualJournals)
+    _ -> either (const True) not <$> tryIOError (onlyStarterJournals base manualJournals)
   misplaced <- traverse (inspectMisplaced base) (List.sortOn mpPath (misplacedFiles root files))
   return
     LedgerStatus
@@ -111,13 +111,12 @@ gatherStatusWithConfig hledger conf base = do
         lsUntouchedExample = example
       }
 
--- The starter manual journals are comments. Directives or unreadable
--- journals still need the ordinary import/report guidance.
-onlyJournalComments :: BaseDir -> [AbsFile] -> IO Bool
-onlyJournalComments base [] = directivesAreComments base
-onlyJournalComments base (file : rest) = do
+-- The starter ledger contains declarations and comments only.
+onlyStarterJournals :: BaseDir -> [AbsFile] -> IO Bool
+onlyStarterJournals base [] = directivesAreStarter base
+onlyStarterJournals base (file : rest) = do
   commentOnly <- journalIsCommentsOnly file
-  if commentOnly then onlyJournalComments base rest else return False
+  if commentOnly then onlyStarterJournals base rest else return False
 
 inspectMisplaced :: BaseDir -> Misplaced -> IO Misplaced
 inspectMisplaced base item = do

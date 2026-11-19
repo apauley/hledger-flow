@@ -33,6 +33,7 @@ import qualified Data.Text.IO as T
 import Data.Time.Clock (UTCTime)
 import GHC.Generics (Generic)
 import Hledger.Flow.InputSnapshot (InputSnapshot, inputsUnchanged, snapshotInputs)
+import Hledger.Flow.Cache (cacheDir, initializeCache)
 import Hledger.Flow.LedgerSelection (journalInputs)
 import Hledger.Flow.PathHelpers (AbsFile, RelFile, withStagedOutput, writeTimestampMarker)
 import Hledger.Flow.Types (BaseDir, HledgerConf, HledgerInfo, hledgerConfPath)
@@ -79,7 +80,7 @@ data Manifest = Manifest ReportInputs [ReviewFile]
   deriving (Generic, FromJSON, ToJSON)
 
 manifestFile :: BaseDir -> AbsFile
-manifestFile base = base </> [relfile|.hledger-flow/reports.json|]
+manifestFile base = cacheDir base </> [relfile|reports.json|]
 
 invalidateReportReview :: BaseDir -> IO ()
 invalidateReportReview base =
@@ -88,8 +89,9 @@ invalidateReportReview base =
 
 startReportRun :: BaseDir -> IO UTCTime
 startReportRun base = do
+  initializeCache base
   invalidateReportReview base
-  writeTimestampMarker (base </> [relfile|.hledger-flow/report-started|])
+  writeTimestampMarker (cacheDir base </> [relfile|report-started|])
 
 configPath :: Maybe HledgerConf -> IO (Maybe AbsFile)
 configPath = traverse ((>>= parseAbsFile) . D.canonicalizePath . hledgerConfPath)

@@ -14,11 +14,13 @@ Once the import is up to date, status suggests adding
 than one commodity and has no market price directives.
 Interactive status also shows a [cached upgrade notice](/reference/release-notices/) when a previous import or report found a newer release.
 `hledger-flow init` starts a ledger with a working example statement and
-rules, plus starter journals for manual entries, directives and prices. Run
-the suggested import and report to try it. When the example account is
+rules, plus starter journals for manual entries, directives and prices.
+The generated `directives.journal` defines common currencies, BTC and satoshis,
+and standard account types. It links to the hledger manual for each section.
+Commodity aliases take effect in hledger versions that support them.
+Run the suggested import and report to try it. When the example account is
 untouched, status says you can delete `import/me` and `reports/me`, then
-add your first real statement. With only comment-only
-starter journals left, status guides you to your first statement. While
+add your first real statement. While
 `import/me/mybank/checking` exists, the suggested first-statement directory
 uses `personal` as the owner to keep real statements separate. When a real account needs rules, run the suggested
 `hledger-flow rules` command to create a starter.
@@ -35,8 +37,15 @@ local root and explain why. A path that names a missing file needs to be fixed
 or unset before reporting. An unset or unrelated `LEDGER_FILE` appears as a
 note in status so you can keep following `Next:`. Use the optional setup or
 explicit balance command in the note to explore with hledger itself.
-If an included file changes during the coverage check, the next command
-checks coverage again.
+For a custom journal, hledger-flow caches the include list in
+`.hledger-flow/cache/ledger-coverage.json` so later runs can skip asking
+hledger to parse the journal again. If an included file changes during the
+coverage check, the next command checks coverage again. The same cache
+directory holds the last report run's input and review-file list in
+`reports.json`. These local files contain absolute journal paths and
+modification times. The generated `.gitignore` ignores the directory's
+contents. Deleting the files forces a new coverage check and clears the
+review summary until the next report.
 
 ## hledger config file
 

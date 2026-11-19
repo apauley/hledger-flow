@@ -60,6 +60,8 @@ hledger-flow init
 Started a ledger in ~/my-finances
 Created an example account (import/me/mybank/checking) and starter journals in import/_manual_/.
 Created directives.journal
+Created prices/2026/EUR-USD.prices
+Created prices/2026/BTC-USD.prices
 Created prices/2026/prices.journal
 
 Next: Import 1 new or changed statement
@@ -287,8 +289,8 @@ hledger balance
 ```
 
 ```text
-            R1745.60  expenses:unknown
            R-1745.60  liabilities:kudu:creditcard
+            R1745.60  expenses:unknown
 --------------------
                    0  
 ```

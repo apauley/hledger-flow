@@ -25,8 +25,8 @@ hledger balance
 ```
 
 ```text
-            R2674.40  expenses:unknown
            R-2674.40  liabilities:kudu:creditcard
+            R2674.40  expenses:unknown
 --------------------
                    0  
 ```
@@ -97,13 +97,13 @@ hledger balance
 ```text
 Imported 3 statements for gawie/kudu/creditcard.
           R-43000.00  assets:transfers:creditcard
+           R-2674.40  liabilities:kudu:creditcard
             R9055.00  expenses:car
             R6197.00  expenses:groceries
             R6839.00  expenses:household
            R19135.00  expenses:mopane-worms
              R750.00  expenses:phone
             R3698.40  expenses:unknown
-           R-2674.40  liabilities:kudu:creditcard
 --------------------
                    0  
 ```

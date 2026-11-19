@@ -255,10 +255,11 @@ $ sh -eu
 assets:bank || -5
 assets:bank || -5
 
-# A coverage scan is not cached when an included journal changes at its start time.
+# A coverage scan uses a temporary filesystem timestamp and only caches stable inputs.
 <
 . ./test/shell/setup.sh
 case "$(uname -s)" in MINGW*|MSYS*) exit 0 ;; esac
+git init -q
 flow import
 printf 'include nested.journal\n' > wrapper.journal
 printf '; Unrelated at the start of the scan\n' > nested.journal
@@ -275,8 +276,10 @@ import os
 from pathlib import Path
 import time
 
-marker = Path(".hledger-flow/ledger-coverage-started")
-# Emulate a coarse timestamp when running against a build without a marker.
+state = Path(".hledger-flow")
+markers = list(state.glob("cache/.ledger-coverage-*/started"))
+# Emulate a coarse timestamp even when run against the previous implementation.
+marker = markers[0] if markers else state / "ledger-coverage-started"
 changed_at = marker.stat().st_mtime_ns if marker.exists() else time.time_ns() - 2_000_000_000
 os.utime("nested.journal", ns=(changed_at, changed_at))
 PY
@@ -289,17 +292,24 @@ WRAPPER
 chmod +x scan-hledger
 coverage() { hledger-flow --hledger-path "$finance/scan-hledger" status --json; }
 coverage | jq -e '.ledgerFile.coversLedger == false' > /dev/null
-test -f .hledger-flow/ledger-coverage-started
-test ! -e .hledger-flow/ledger-coverage.json
+test ! -e .hledger-flow/ledger-coverage-started
+test -z "$(find .hledger-flow -name '.ledger-coverage-*' -print)"
+test ! -e .hledger-flow/cache/ledger-coverage.json
 coverage | jq -e '.ledgerFile.coversLedger' > /dev/null
 test "$(wc -l < scans)" -eq 2
 # Stable inputs older than the marker can still use the cache.
 find import -type f -name '*.journal' -exec touch -t 200001010000 {} +
 touch -t 200001010000 wrapper.journal nested.journal
 coverage | jq -e '.ledgerFile.coversLedger' > /dev/null
-test -s .hledger-flow/ledger-coverage.json
+test -s .hledger-flow/cache/ledger-coverage.json
+git check-ignore --quiet .hledger-flow/cache/ledger-coverage.json
+test -z "$(find .hledger-flow -name '.ledger-coverage-*' -print)"
 coverage | jq -e '.ledgerFile.coversLedger' > /dev/null
 test "$(wc -l < scans)" -eq 3
+flow report
+test -s .hledger-flow/cache/reports.json
+git check-ignore --quiet .hledger-flow/cache/reports.json
+git check-ignore --quiet .hledger-flow/cache/report-started
 $ sh -eu
 
 # The literal bracketed wrapper includes the renamed root.
@@ -419,7 +429,7 @@ touch -t 201001010000 older.conf
 flow import
 stale() { hledger-flow "$@" status --json | jq -e '.reportsCurrent == false and .review == null' > /dev/null; }
 flow report --ascii-reports
-if grep -q 'unrelated-inventory.journal' .hledger-flow/reports.json; then exit 1; fi
+if grep -q 'unrelated-inventory.journal' .hledger-flow/cache/reports.json; then exit 1; fi
 stale --hledger-conf older.conf
 for path in dirs-placeholder deps/one.journal directives.journal import/gawie/_manual_/2016/post-import.journal hledger.conf; do
     if [ "$path" = dirs-placeholder ]; then
@@ -433,7 +443,7 @@ done
 python3 - <<'PY'
 import os
 from pathlib import Path
-marker = Path(".hledger-flow/report-started").stat().st_mtime_ns
+marker = Path(".hledger-flow/cache/report-started").stat().st_mtime_ns
 os.utime("deps/one.journal", ns=(marker,marker))
 PY
 stale
@@ -448,7 +458,7 @@ $ sh -eu
 case "$(uname -s)" in MINGW*|MSYS*) exit 0 ;; esac
 flow import
 flow report --ascii-reports
-test -s .hledger-flow/reports.json
+test -s .hledger-flow/cache/reports.json
 cat > fail-later <<'SH'
 #!/bin/sh
 for arg do
@@ -458,7 +468,7 @@ exec hledger "$@"
 SH
 chmod +x fail-later
 if hledger-flow -H "$(pwd -P)/fail-later" --sequential report >out 2>err; then exit 1; fi
-test ! -e .hledger-flow/reports.json
+test ! -e .hledger-flow/cache/reports.json
 hledger-flow status --json | jq -e '.reportsCurrent == false and .review == null and .next.command == "hledger-flow report"' > /dev/null
 $ sh -eu
 

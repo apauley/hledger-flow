@@ -17,14 +17,17 @@ where
 import Control.Exception (IOException, try)
 import Control.Monad (when)
 import Data.Aeson (FromJSON, ToJSON, decodeFileStrict', encodeFile)
+import qualified Data.ByteString as B
 import qualified Data.Text as T
 import Data.Time.Clock (UTCTime)
 import GHC.Generics (Generic)
+import Hledger.Flow.Cache (cacheDir, initializeCache)
 import Hledger.Flow.Common (configuredLedgerFile, hledgerFileArgument, runProcessCaptured)
 import Hledger.Flow.InputSnapshot
-import Hledger.Flow.PathHelpers (AbsFile, withStagedOutput, writeTimestampMarker)
+import Hledger.Flow.PathHelpers (AbsFile, withStagedOutput)
 import Hledger.Flow.Types (BaseDir, HledgerInfo (..))
 import Path
+import qualified Path.IO as PathIO
 import qualified System.Directory as Directory
 import System.Exit (ExitCode (..))
 import qualified System.FilePath as F
@@ -125,8 +128,7 @@ resolveLedgerPath path = do
 
 discoverCoverage :: HledgerInfo -> BaseDir -> AbsFile -> IO Coverage
 discoverCoverage info base journal = do
-  let cache = base </> [relfile|.hledger-flow/ledger-coverage.json|]
-      marker = base </> [relfile|.hledger-flow/ledger-coverage-started|]
+  let cache = cacheDir base </> [relfile|ledger-coverage.json|]
       path = toFilePath journal
       executable = toFilePath (hlPath info)
       version = hlVersion info
@@ -141,8 +143,19 @@ discoverCoverage info base journal = do
   inputs <- case reusable of
     Just paths -> return (Right paths)
     Nothing -> do
-      started <- try (writeTimestampMarker marker)
-      files <- journalInputs info [journal]
+      scanned <- try $ do
+        initializeCache base
+        PathIO.withTempDir (parent cache) ".ledger-coverage-" $ \dir -> do
+          let marker = dir </> [relfile|started|]
+          B.writeFile (toFilePath marker) B.empty
+          start <- PathIO.getModificationTime marker
+          files <- journalInputs info [journal]
+          return (Just start, files)
+      (started, files) <- case scanned of
+        Right result -> return result
+        Left (_ :: IOException) -> do
+          files <- journalInputs info [journal]
+          return (Nothing, files)
       case files of
         Left err -> return (Left err)
         Right paths -> do
@@ -150,13 +163,13 @@ discoverCoverage info base journal = do
           case snapshot of
             Right saved -> do
               case started of
-                Right start -> do
+                Just start -> do
                   unchanged <- inputsUnchanged saved start
                   when unchanged $ do
                     _ <- try (withStagedOutput cache (\stage ->
                       encodeFile (toFilePath stage) (CachedInputs path executable version start saved))) :: IO (Either IOException ())
                     return ()
-                Left (_ :: IOException) -> return ()
+                Nothing -> return ()
               return (Right (inputTargets saved))
             Left (_ :: IOException) -> Right <$> traverse (Directory.canonicalizePath . toFilePath) paths
   case inputs of
