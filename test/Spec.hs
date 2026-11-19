@@ -9,6 +9,7 @@ import qualified CSVImport.Unit
 import qualified Common.Integration
 import qualified Common.Unit
 import qualified Environment.Unit
+import qualified HledgerConfig.Unit
 import qualified ImportHelpers.Integration
 import qualified Incremental.Cache
 import qualified Incremental.Dependencies
@@ -48,6 +49,7 @@ tests =
       ReleaseNotice.Unit.tests,
       RulesTemplate.Unit.tests,
       RuntimeOptions.Unit.tests,
+      HledgerConfig.Unit.tests,
       Environment.Unit.tests
     ]
 

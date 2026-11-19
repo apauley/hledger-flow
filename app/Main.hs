@@ -54,6 +54,7 @@ import Hledger.Flow.Status.Gather ( classifyDir )
 import Hledger.Flow.Status.Render ( printStatus )
 import qualified Data.Text as Text
 import Path.IO ( getCurrentDir, resolveDir' )
+import Hledger.Flow.HledgerConfig (ConfigUse (..), requireSafeConfig)
 import Hledger.Flow.Init ( runInit )
 import Hledger.Flow.DocHelpers ( DocLink (..), docURL, siteURL )
 import Hledger.Flow.Logging ( useColor )
@@ -151,10 +152,14 @@ runCommand = do
       T.putStrLn $ versionInfo sysInfo 
     Command mainParams' (Just (Import subParams)) -> do
       (base, runDir) <- determineBaseDir (maybeImportBaseDir subParams)
-      withReleaseNotice base $ (toRuntimeOptionsImport base runDir mainParams' subParams >>= importCSVs) `catch` reportFatal
+      opts <- toRuntimeOptionsImport base runDir mainParams' subParams
+      requireSafeConfig ImportConfig opts
+      withReleaseNotice base $ importCSVs opts `catch` reportFatal
     Command mainParams' (Just (Report subParams)) -> do
       (base, _) <- determineBaseDir (maybeReportBaseDir subParams)
-      withReleaseNotice base $ (toRuntimeOptionsReport base mainParams' subParams >>= generateReports) `catch` reportFatal
+      opts <- toRuntimeOptionsReport base mainParams' subParams
+      requireSafeConfig ReportConfig opts
+      withReleaseNotice base $ generateReports opts `catch` reportFatal
     Command mainParams' (Just (Status subParams)) -> runStatus mainParams' subParams
     Command mainParams' (Just (Init subParams)) -> do
       cwd <- getCurrentDir

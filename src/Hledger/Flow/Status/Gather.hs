@@ -23,6 +23,7 @@ import qualified Data.Text.IO as T
 import Data.Time.Clock (UTCTime)
 import Hledger.Flow.BaseDir (findBaseDir, relativeToBase')
 import Hledger.Flow.Common (firstExistingFile, groupValuesBy, hledgerFileArgument, runProcessCaptured)
+import Hledger.Flow.HledgerConfig (findConfigConflicts)
 import Hledger.Flow.Import.ImportHelpers (defaultRulesCandidates, extractImportDirs, rulesFileCandidates)
 import Hledger.Flow.Import.IncludeFiles (includesNeedUpdate)
 import Hledger.Flow.Import.Inventory (classifyGeneratedOutputs, findImportFiles, generatedOutput, isManualJournal, managedIncludeFiles, stageFiles)
@@ -60,6 +61,7 @@ gatherStatusWithConfig hledger conf base = do
   let statements = stageFiles root [reldir|1-in|] files
       groups = Map.toAscList (groupValuesBy (accountName root) statements)
   accounts <- forM groups (uncurry (accountStatus base))
+  conflicts <- maybe (pure []) (\hl -> findConfigConflicts hl conf) hledger
   selection <- selectLedger hledger base
   let defaultJournal = base </> [relfile|all-years.journal|]
   allYears <- PathIO.doesFileExist defaultJournal
@@ -79,6 +81,7 @@ gatherStatusWithConfig hledger conf base = do
         lsLedgerFile = selectedLedgerFile selection,
         lsAggregateJournal = selected,
         lsHledgerConf = conf,
+        lsConfigConflicts = conflicts,
         lsAccounts = accounts,
         lsMisplaced = List.sortOn mpPath (misplacedFiles root files),
         lsManualJournals = length (filter (isManualJournal root) files),

@@ -34,6 +34,13 @@ your XDG config directory. hledger-flow runs hledger from the directory you
 run it in, so that file applies to import and reports too. Import runs
 `hledger print`, so options under `[print]` apply to journal generation.
 
+Import and report select their journal inputs themselves. An active
+`-f` or `--file` setting, or an argument file such as `@args.txt`, stops
+the affected command before it writes anything. The message names the
+config file, section and line. Remove the setting or use `--hledger-conf`
+to select a config for this workflow. Status carries an explicit config
+forward in its suggested commands.
+
 The `hledger.conf` line in the Environment section at the end of status names
 the file, marked `(found by hledger)` when you didn't give it.
 

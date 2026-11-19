@@ -16,6 +16,7 @@ module Hledger.Flow.Status
     flowCommand,
     ledgerFileNote,
     balanceHint,
+    withConfigCheck,
     hledgerVersionNumber,
     plural,
   )
@@ -27,6 +28,7 @@ import qualified Data.Set as Set
 import qualified Data.Text as T
 import Hledger.Flow.Common (Shell (..), hledgerFileArgument, hledgerVersionNumber, homeShellPath, posixLiteral, powerShellLiteral, shellArgument, tildePath)
 import Hledger.Flow.DocHelpers (DocLink (..), docURL)
+import Hledger.Flow.HledgerConfig (ConfigConflict, ConfigUse (..), firstConfigConflict, renderConfigConflict)
 import Hledger.Flow.Import.Inventory (stageFiles)
 import Hledger.Flow.LedgerSelection (Coverage (..), LedgerFile (..), ledgerFileProblem)
 import Hledger.Flow.PathHelpers (AbsDir, AbsFile)
@@ -59,6 +61,7 @@ data LedgerStatus = LedgerStatus
     lsLedgerFile :: Maybe LedgerFile,
     lsAggregateJournal :: Maybe AbsFile,
     lsHledgerConf :: Maybe HledgerConf,
+    lsConfigConflicts :: [ConfigConflict],
     lsAccounts :: [AccountStatus],
     lsMisplaced :: [Misplaced],
     lsManualJournals :: Int,
@@ -139,17 +142,21 @@ nextStep year shell homes cwd s
         ["Save its output as that file, then edit it."]
         (Just (docURL RulesFiles))
   | toImport > 0 =
-      NextStep ("Import " <> plural toImport "new or changed statement") (Just importCommand) [] Nothing
+      withConfigCheck ImportConfig s $
+        NextStep ("Import " <> plural toImport "new or changed statement") (Just importCommand) [] Nothing
   | Nothing <- lsAggregateJournal s, not (lsAllYearsExists s), not missingConfigured =
-      NextStep "Run import to create all-years.journal" (Just importCommand) [] Nothing
+      withConfigCheck ImportConfig s $
+        NextStep "Run import to create all-years.journal" (Just importCommand) [] Nothing
   | lsNeedsReconciliation s =
-      NextStep "Run import to reconcile generated files and journal includes" (Just importCommand) [] Nothing
+      withConfigCheck ImportConfig s $
+        NextStep "Run import to reconcile generated files and journal includes" (Just importCommand) [] Nothing
   | lsNeedsPrices s =
-      NextStep
-        "Add market prices for your commodities"
-        Nothing
-        ["Save them in prices/<year>/prices.journal, then run " <> importCommand <> "."]
-        (Just (docURL PriceFiles))
+      withConfigCheck ImportConfig s $
+        NextStep
+          "Add market prices for your commodities"
+          Nothing
+          ["Save them in prices/<year>/prices.journal, then run " <> importCommand <> "."]
+          (Just (docURL PriceFiles))
   | Just lf <- lsLedgerFile s, not (lfExists lf) =
       NextStep
         "Point LEDGER_FILE at this ledger so hledger finds it"
@@ -157,8 +164,9 @@ nextStep year shell homes cwd s
         [ledgerFileProblem lf]
         (Just (docURL SetLedgerFile))
   | otherwise =
-      NextStep "Generate reports, or explore with hledger" (Just (command "report"))
-        ["Or try: " <> hint | Nothing <- [ledgerFileNote shell homes s], Just hint <- [balanceHint shell homes s]] Nothing
+      withConfigCheck ReportConfig s $
+        NextStep "Generate reports, or explore with hledger" (Just (command "report"))
+          ["Or try: " <> hint | Nothing <- [ledgerFileNote shell homes s], Just hint <- [balanceHint shell homes s]] Nothing
   where
     commandArgs = flowCommand shell homes cwd (lsBaseDir s) (lsHledgerConf s)
     command subcommand = commandArgs subcommand []
@@ -195,6 +203,9 @@ setLedgerFileCommand shell homes s = case shell of
 
 balanceHint :: Shell -> [FilePath] -> LedgerStatus -> Maybe T.Text
 balanceHint shell homes s = do
+  case firstConfigConflict BalanceConfig (lsConfigConflicts s) of
+    Just _ -> Nothing
+    Nothing -> Just ()
   info <- lsHledger s
   journal <- lsAggregateJournal s
   let config = case lsHledgerConf s of
@@ -212,3 +223,9 @@ ledgerFileNote shell homes s = do
     _ -> Nothing
   return (T.intercalate "\n" ([message, "hledger-flow report uses all-years.journal.", "For hledger, run: " <> setLedgerFileCommand shell homes s]
       ++ ["Or try: " <> hint | Just hint <- [balanceHint shell homes s]]))
+
+withConfigCheck :: ConfigUse -> LedgerStatus -> NextStep -> NextStep
+withConfigCheck use status next = case firstConfigConflict use (lsConfigConflicts status) of
+  Just problem -> NextStep "Fix hledger.conf before continuing" Nothing
+    (T.lines (renderConfigConflict problem)) (Just (docURL StatusCommand))
+  Nothing -> next

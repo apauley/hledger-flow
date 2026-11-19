@@ -25,6 +25,7 @@ blank =
       lsLedgerFile = Just (LedgerFile "/x" True CoversLedger),
       lsAggregateJournal = Just (testRoot </> [relfile|fin/all-years.journal|]),
       lsHledgerConf = Nothing,
+      lsConfigConflicts = [],
       lsAccounts = [],
       lsMisplaced = [],
       lsManualJournals = 0,

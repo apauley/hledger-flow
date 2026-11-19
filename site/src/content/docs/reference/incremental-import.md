@@ -58,6 +58,9 @@ A CSV rules file can include shared rules outside the ledger with a relative pat
 Each incremental import hashes the hledger executable once while it remains unchanged. On macOS it uses the system SHA-256 implementation. Replacing hledger with different bytes triggers a rebuild even if the version, file size and modification time stay the same. For a small selection, a full import can still finish sooner. Incremental import supports **hledger 1.52.4 or later**, including development builds such as `1.99-g01a4b4866`. Package-manager and locally compiled builds use the same checks.
 
 Incremental import hashes the whole active hledger config file. Editing it triggers a rebuild even when the changed setting applies to another command. Run `hledger-flow status` from the same directory to [find the active config](/reference/status/#hledger-config-file).
+An active file option or argument file in the hledger config stops import
+before it reads journal inputs. See [config settings for import and report](/reference/status/#hledger-config-file).
+
 
 Config settings permit reuse by default, including static queries, formatting options, and unfamiliar options. hledger still validates the config during conversion. Settings under `[print]` also apply when hledger-flow converts statements, because conversion uses `hledger print`.
 

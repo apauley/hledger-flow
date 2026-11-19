@@ -270,3 +270,25 @@ cp "$inbox/march.csv" "$inbox/april.csv"
 hledger-flow status --json | jq -e '.next.command == "hledger-flow import"' > /dev/null
 $ sh -eu
 assets:bank || -5
+
+# Config-supplied journal inputs fail before modifying existing reports.
+<
+. ./test/shell/setup.sh
+flow import
+flow report --ascii-reports
+cp -R reports before
+printf '2016-01-01 Other\n    assets:unrelated  99\n    equity:opening\n' > other.journal
+for section in general balancesheet; do
+    printf '# Header\n[%s]\n--file=other.journal\n' "$section" > hledger.conf
+    if hledger-flow report > out 2> err; then exit 1; fi
+    grep -Fq "line 3 [$section] adds a journal: --file=other.journal" err
+    diff -r reports before
+done
+cp hledger.conf "given config.conf"
+if hledger-flow --hledger-conf "given config.conf" report > out 2> err; then exit 1; fi
+grep -Fq 'given config.conf line 3 [balancesheet]' err
+diff -r reports before
+printf '[balancesheet]\n--output-format csv\n[general]\n--alias "-f=assets:other"\n' > hledger.conf
+flow report --ascii-reports
+tr -d '\r' < reports/all/2016/balance-sheet.txt | grep -Fxq '"assets:bank","-5"'
+$ sh -eu

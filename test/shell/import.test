@@ -245,3 +245,24 @@ hledger -f all-years.journal descriptions
 hledger-flow status --json | jq -e '.accounts[0].account == "import/import/import" and .accounts[0].journalsOutdated == 0' > /dev/null
 $ sh -eu
 Monthly bank fee
+
+# Config-supplied journal inputs are rejected before changing imported files.
+<
+. ./test/shell/setup.sh
+flow import
+cp "$journal" before
+printf '2016-01-01 Other\n    assets:unrelated  99\n    equity:opening\n' > other.journal
+for section in general print; do
+    printf '# Header\n[%s]\n--file other.journal\n' "$section" > hledger.conf
+    if hledger-flow import > out 2> err; then exit 1; fi
+    grep -Fq "line 3 [$section] adds a journal: --file other.journal" err
+    cmp "$journal" before
+done
+cp hledger.conf "given config.conf"
+printf '[print]\n--alias "-f=assets:other"\n' > hledger.conf
+if hledger-flow --hledger-conf "given config.conf" import > out 2> err; then exit 1; fi
+grep -Fq 'given config.conf line 3 [print]' err
+cmp "$journal" before
+flow import
+cmp "$journal" before
+$ sh -eu

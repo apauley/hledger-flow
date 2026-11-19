@@ -38,6 +38,7 @@ library
       Hledger.Flow.DateTime
       Hledger.Flow.DocHelpers
       Hledger.Flow.Environment
+      Hledger.Flow.HledgerConfig
       Hledger.Flow.Import.Cache
       Hledger.Flow.Import.Conversion
       Hledger.Flow.Import.CSVImport
@@ -140,6 +141,7 @@ test-suite hledger-flow-test
       CSVImport.Integration
       CSVImport.Unit
       Environment.Unit
+      HledgerConfig.Unit
       ImportHelpers.Integration
       Incremental.Cache
       Incremental.Dependencies

@@ -242,3 +242,17 @@ export LEDGER_FILE=second.journal
 check_status
 test "$(wc -l < calls | tr -d ' ')" -eq 5
 $ sh -eu
+
+# Status names the relevant config line and hides an unsafe standalone hint.
+<
+. ./test/shell/setup.sh
+flow import
+printf '2016-01-01 Other\n    assets:unrelated  99\n    equity:opening\n' > other.journal
+cp "$inbox/march.csv" "$inbox/april.csv"
+printf '[print]\n-f other.journal\n' > hledger.conf
+hledger-flow status --json | jq -e '.next.command == null and (.next.detail | join(" ") | contains("line 2 [print]"))' > /dev/null
+printf '[balance]\n-fother.journal\n' > hledger.conf
+hledger-flow status --json | jq -e '.next.command == "hledger-flow import" and (.ledgerFileNote | contains("Or try:") | not)' > /dev/null
+rm "$inbox/april.csv"
+hledger-flow status --json | jq -e '.next.command == null and (.next.detail | join(" ") | contains("line 2 [balance]")) and (.ledgerFileNote | contains("Or try:") | not)' > /dev/null
+$ sh -eu

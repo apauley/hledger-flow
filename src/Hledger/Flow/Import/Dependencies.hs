@@ -23,6 +23,7 @@ import qualified Data.Text.Read as TR
 import Data.Time (getCurrentTimeZone, timeZoneMinutes)
 import GHC.IO.Encoding (getLocaleEncoding, getFileSystemEncoding, getForeignEncoding)
 import Hledger.Flow.Common (firstConfirmedFile, lookupHledgerConf, probeHledgerVersion, hledgerVersionNumber)
+import Hledger.Flow.HledgerConfig (ConfigLine (..), parseConfigLines)
 import Hledger.Flow.Import.Fingerprint
 import Hledger.Flow.Import.ImportHelpers (rulesFileCandidates)
 import Hledger.Flow.Import.Types (ImportDirs)
@@ -284,24 +285,16 @@ readDependency check path = checkedIO "could not read dependency" (toFilePath pa
 checkConfig :: Release -> AbsFile -> B.ByteString -> ReuseDecision ()
 checkConfig release path bytes = do
   ls <- physicalLines path (dropUtf8Bom bytes)
-  (_, settings) <- foldM line ("general", []) (zip [1 :: Int ..] ls)
-  case configDependency (concat (reverse settings)) of
+  let settings =
+        [ (configLineNumber row, word)
+          | row <- parseConfigLines (release == V1996) ls,
+            configSection row `elem` ["general", "print"],
+            word <- configArguments row
+        ]
+  case configDependency settings of
     Nothing -> pure ()
     Just n -> Fallback $ ConfigEntry "non-deterministic hledger config entry" (toFilePath path)
       ("line " <> T.pack (show n) <> ": " <> T.strip (ls !! (n - 1)))
-  where
-    line (section, settings) (n,raw)
-      | T.null body || "#" `T.isPrefixOf` body = pure (section, settings)
-      | release == V1996 || T.stripStart raw == raw,
-        Just start <- T.stripPrefix "[" body,
-        (name,end) <- T.breakOn "]" start, not (T.null end) =
-          pure (option n (T.strip name) (T.drop 1 end) settings)
-      | otherwise = pure (option n section body settings)
-      where body = T.strip raw
-    option n section arg settings = (section,
-      if section `elem` ["general", "print"]
-        then map (\word -> (n,word)) (configWords arg) : settings
-        else settings)
 
 -- A denylist, not a config validator: hledger validates unfamiliar syntax and
 -- options on conversion. Add only known dependencies outside the cache inputs.
@@ -363,20 +356,6 @@ relativeDate value = any relative parts
                      "jun", "june", "jul", "july", "aug", "august", "sep", "september",
                      "oct", "october", "nov", "november", "dec", "december", "q1", "q2", "q3", "q4"]
       || let digits = T.takeWhile isDigit (T.dropWhile (`elem` ("+-" :: String)) part) in not (T.null digits) && T.length digits < 4
-
--- Config arguments can quote spaces or a #; neither quotes nor comments are
--- arguments. Leave malformed quoting for hledger to diagnose.
-configWords :: T.Text -> [T.Text]
-configWords = map T.pack . wordsOutside Nothing "" . T.unpack
-  where
-    wordsOutside _ word [] = [reverse word | not (null word)]
-    wordsOutside quote word (c:cs)
-      | Just c == quote = wordsOutside Nothing word cs
-      | quote == Nothing, c `elem` ['\'', '"'] = wordsOutside (Just c) word cs
-      | quote == Nothing, c == '#' = [reverse word | not (null word)]
-      | quote == Nothing, isSpace c =
-          [reverse word | not (null word)] ++ wordsOutside Nothing "" cs
-      | otherwise = wordsOutside quote (c:word) cs
 
 journalIncludes :: AbsFile -> B.ByteString -> ReuseDecision [FilePath]
 journalIncludes path bytes = do
