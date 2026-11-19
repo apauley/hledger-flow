@@ -109,6 +109,10 @@ if,date
 %datum '(..) Mrt',2016-03-\1
 ```
 
+This isn’t ideal: the year 2016 is now written into the rules, so every
+statement gets it, even next year’s. It works for these three statements,
+and Gawie removes the hard-coded year in [part 5](/tutorial/part-5/).
+
 **Build a description.** hledger’s
 [rules functions](https://hledger.org/dev/hledger.html#functions) transform
 values as they’re used. `join` combines the three description columns,
@@ -325,9 +329,8 @@ git add -A
 git commit -q -m "Add the Bogart cheque account"
 ```
 
-One thing still bothers
-Gawie: the year 2016 is written into his rules. That’s where
-[part 5](/tutorial/part-5/) begins.
+The year written into the date table is the one thing left to fix.
+That’s where [part 5](/tutorial/part-5/) begins.
 
 ## Try it yourself
 
