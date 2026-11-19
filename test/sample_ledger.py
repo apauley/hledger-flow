@@ -346,7 +346,8 @@ class ImportTests(Workspace):
             self.assertEqual((base / f"prices/{year}/prices.journal").read_text(),
                              "include USD-EUR.journal\ninclude USD-BTC.journal\n")
         self.assertIn("include directives.journal", (base / "all-years.journal").read_text())
-        self.assertIn("commodity 1,000.00 GBP  ; alias: £\n", (base / "directives.journal").read_text())
+        self.assertIn("commodity 1,000.00 GBP  ; alias: £\n",
+                      (base / "directives.journal").read_text(encoding="utf-8"))
         openings = sorted(base.glob("import/*/*/*/2024-opening.journal"))
         self.assertEqual(len(openings), 4)
 
