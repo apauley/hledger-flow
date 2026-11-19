@@ -18,11 +18,36 @@ Suppose you have twelve monthly statements. Adding April's download for the next
 
 Use an equals sign to select a mode. A separate argument after `--incremental` is the directory to import.
 
-With no scripts, both incremental modes do the same work. Use `skip-unchanged-scripts` when each script depends only on its input and arguments, or clear the import cache after a file the script reads changes. For example, if a `preprocess` script reads a merchant lookup table that you edit regularly, plain `--incremental` picks up those edits on every run.
+With no scripts, both incremental modes do the same work. Use `skip-unchanged-scripts` when each script depends only on its input, arguments and tracked shell helpers, or clear the import cache after a file the script reads changes. For example, if a `preprocess` script reads a merchant lookup table that you edit regularly, plain `--incremental` picks up those edits on every run.
 
 In `run-scripts` mode, if preprocessing strips a download header and produces the same CSV as last time, its timestamp is preserved. If the rules and other conversion inputs also match, hledger-flow reuses the journal. A `construct` script always runs its hledger conversion in this mode. If a running script updates its own input, hledger-flow leaves its result in place and runs the script again the next time. A subsequent timestamp-only import can rebuild once if the original is newer than the saved CSV.
 
 The selected mode applies to every account in the import. Run from an account directory to limit its scope. Changing working directory can rerun scripts because their output may depend on that directory. When a script is skipped, changes to an imported Python module or a file included by its output can leave the journal stale. Checks made while scripts run can also miss a directory temporarily replaced and restored, or a same-byte rewrite on a filesystem with coarse timestamps.
+
+## Sourced shell helpers
+
+With `--incremental=skip-unchanged-scripts`, hledger-flow follows explicit `source` and `.` commands in Bash, sh and dash hooks and in the files they load. For example, a Bash `preprocess` hook can load a helper from an exported directory and pass it the input and output paths.
+
+```bash
+source "${STATEMENT_LIB}/bank.bash" "$1" "$2"
+```
+
+hledger-flow reads `STATEMENT_LIB` from its own environment. Changing its value, redirecting a helper symlink to another file, or editing any helper in the chain reruns each affected hook. A relative path such as `. ./helpers/common.sh` starts in the hook’s working directory, even when the line appears in a nested helper.
+
+**When hledger-flow cannot verify a source, it runs the affected hook on every import.** A `construct` hook then rebuilds that statement’s journal. A `preprocess` hook regenerates its CSV. If the CSV is byte-for-byte unchanged and the other journal checks pass, hledger-flow reuses the journal. Other statements keep their own cache decisions.
+
+The hook runs even on unchanged input in these cases.
+
+- **The shell must find or compute the filename.** Examples include a bare name searched through `PATH` (`. common.sh`), a wildcard, `~`, command substitution, or a parameter expression such as `${LIB:-./lib}`. Use `. ./common.sh` for a file in the working directory.
+- **The source path depends on a variable hledger-flow cannot expand safely.** Examples include an unset or empty variable, a shell-managed value such as `$PWD`, or an unquoted variable containing spaces. Double-quote paths built from ordinary exported variables, as in the example above.
+- **Earlier commands could change what a later source loads.** This includes `cd` and variable assignments, even inside an earlier helper. For example, if the first library sets variables, hledger-flow reruns a hook that then sources a second library, even when both files exist.
+- **The source depends on shell control flow or uses unsupported arguments.** Examples include a source inside an `if`, loop or function, a source invoked through `eval`, or a computed argument after the filename. Literal arguments and quoted positional arguments such as `"$1"` and `"$@"` are supported.
+- **The file chain cannot be verified.** This happens if a helper is missing, unreadable, or not a regular file. It also happens if the chain contains a cycle or requires more than 128 script visits, counting the hook itself.
+- **The shell or its startup code cannot be checked.** Examples include a text hook without a shebang, a Bash shebang with extra flags, a nonempty `BASH_ENV`, or a hook or helper that the parser cannot read as UTF-8 shell code.
+
+If a helper changes while a hook is running, hledger-flow skips saving the cache record for that stage and runs it again on the next import. Use `--verbose` to see which hook triggered a fallback.
+
+Files read by other commands, such as a merchant lookup table read by `awk`, and external programs invoked by the hook are outside source tracking. Changes to those inputs can leave a skipped hook’s output stale. Use plain `--incremental` to run the hooks on every import when they depend on such inputs.
 
 ## What gets checked
 

@@ -22,6 +22,7 @@ import Hledger.Flow.Import.Conversion
 import Hledger.Flow.Import.Dependencies
 import Hledger.Flow.Import.Fingerprint
 import Hledger.Flow.Import.Inventory (generatedOutput)
+import Hledger.Flow.Import.ShellSources
 import Hledger.Flow.Import.Snapshot
 import Hledger.Flow.Import.Types
 import Hledger.Flow.Logging
@@ -36,16 +37,17 @@ import qualified System.Info as Sys
 
 -- Keep one path only when every occurrence of a reason names that file.
 data Notices = Notices !(Set.Set AbsFile) !(Map.Map T.Text (Maybe T.Text))
-data IncrementalRun = IncrementalRun SnapshotRun (IO (ReuseDecision Converter)) (IORef Notices)
+data IncrementalRun = IncrementalRun SnapshotRun SourceCache (IO (ReuseDecision Converter)) (IORef Notices)
 
 withIncrementalRun :: RuntimeOptions -> TChan LogMessage -> Int -> (IncrementalRun -> IO a) -> IO a
 withIncrementalRun opts ch count action = withSnapshotRun (baseDir opts) $ \snapshots -> do
+  scripts <- newSourceCache
   reasons <- newIORef (Notices Set.empty Map.empty)
   probe <- newConverterProbe opts
   when (count > 0) $ do
     initialized <- tryIOError $ initializeCache (baseDir opts)
     either (channelErrLn ch . ("Could not initialize incremental cache: " <>) . T.pack . show) pure initialized
-  finally (action (IncrementalRun snapshots probe reasons)) $ do
+  finally (action (IncrementalRun snapshots scripts probe reasons)) $ do
     Notices affected warnings <- readIORef reasons
     unless (Map.null warnings) $ do
       let scope | Set.size affected == count = "all selected statements"
@@ -54,21 +56,27 @@ withIncrementalRun opts ch count action = withSnapshotRun (baseDir opts) $ \snap
       channelErrLn ch $ "Incremental reuse unavailable for " <> scope <> ": "
         <> T.intercalate ", " (map describe (Map.toAscList warnings)) <> ". See " <> docURL IncrementalImportFallback
 
-data HookInputs = HookInputs AbsFile FileObservation AbsFile FileObservation
+data HookInputs = HookInputs AbsFile FileObservation AbsFile FileObservation [SourceInput]
   deriving (Eq, Show)
 
-observeHook :: AbsFile -> AbsFile -> IO (ReuseDecision HookInputs)
-observeHook script source = checkedIO "could not check script inputs" (P.toFilePath script) $ do
+observeHook :: SourceCache -> AbsFile -> AbsFile -> IO (ReuseDecision HookInputs)
+observeHook scripts script source = checkedIO "could not check script inputs" (P.toFilePath script) $ do
   runnable <- if Sys.os == "mingw32" then pure True else D.executable <$> D.getPermissions (P.toFilePath script)
   if runnable
-    then Reusable <$> (HookInputs script <$> observeFile script <*> pure source <*> observeFile source)
+    then do
+      observed <- observeFile script
+      input <- observeFile source
+      deps <- checkedIO "unresolved shell source" (P.toFilePath script) $
+        Reusable <$> hookSources scripts script observed
+      pure (HookInputs script observed source input <$> deps)
     else pure $ Fallback (OrdinaryInputError "script is not executable" (pathText script))
 
 hookInputsKey :: ImportDirs P.Abs -> FilePath -> T.Text -> HookInputs -> StageInputs
-hookInputsKey dirs cwd stage (HookInputs script s input i) =
+hookInputsKey dirs cwd stage (HookInputs script s input i deps) =
   [("stage",stage),("working directory",T.pack cwd),("hook",pathText script),
    ("hook digest",digestHex (observationDigest s)),("input",pathText input),
    ("input digest",digestHex (observationDigest i))] ++ map ("argument",) (hookDirArgs dirs)
+    ++ concatMap sourceKey deps
 
 pathText :: AbsFile -> T.Text
 pathText = T.pack . P.toFilePath
@@ -82,7 +90,7 @@ data JournalInputs = JournalInputs
   } deriving (Eq, Show)
 
 importStatement :: IncrementalRun -> RuntimeOptions -> TChan LogMessage -> ImportDirs P.Abs -> AbsFile -> IO (AbsFile,Bool,Bool)
-importStatement (IncrementalRun snapshots probe reasons) opts ch dirs source = do
+importStatement (IncrementalRun snapshots scripts probe reasons) opts ch dirs source = do
   cwd <- D.getCurrentDirectory
   record <- recordPath (baseDir opts) source
   old <- readRecord record
@@ -117,7 +125,7 @@ importStatement (IncrementalRun snapshots probe reasons) opts ch dirs source = d
       input <- savedInput opts ch source intermediate
       pure (input,Nothing,False)
     Just script -> do
-      before <- observeHook script source
+      before <- observeHook scripts script source
       let key = hookInputsKey dirs cwd "preprocess" <$> before
           prior = old >>= preprocessRecord
       hit <- case key of
@@ -132,7 +140,7 @@ importStatement (IncrementalRun snapshots probe reasons) opts ch dirs source = d
         previous <- digestIfPresent intermediate
         digest <- installOutput True intermediate (preprocess opts ch script dirs source intermediate)
         when (Just digest == previous) $ logVerbose opts ch "Preprocessing ran; the CSV is unchanged."
-        after <- observeHook script source
+        after <- observeHook scripts script source
         selected <- hook "preprocess"
         usable <- case key of
           Fallback reason -> when skipScripts (report reason) >> pure Nothing
@@ -157,7 +165,7 @@ importStatement (IncrementalRun snapshots probe reasons) opts ch dirs source = d
                       JournalInputs converter inputs (common ++ map ("hledger argument",) args ++ extra ++ [(pathText p,digestHex d) | (p,d) <- files]) files construct
                 case candidate of
                   Just script -> do
-                    observation <- observeHook script csv
+                    observation <- observeHook scripts script csv
                     pure $ (\h -> mk (ConstructInput (fst <$> conf)) (maybeToList conf)
                                         (constructArguments configArgs "<journal>") (hookInputsKey dirs cwd "construct" h) (Just h)) <$> observation
                   Nothing | not (isSeparatedValues csv) -> pure $ atPath "unsupported input reader" (P.toFilePath csv) ""
@@ -193,7 +201,7 @@ importStatement (IncrementalRun snapshots probe reasons) opts ch dirs source = d
         Nothing -> True
         Just entry -> Just (stageOutput entry) == case liveConstruct inputs of
           Nothing -> lookup csv (copiedDigests inputs)
-          Just (HookInputs _ _ _ observed) -> Just (observationDigest observed)
+          Just (HookInputs _ _ _ observed _) -> Just (observationDigest observed)
       decision = rawDecision >>= \inputs -> if agrees inputs then pure inputs else Fallback changed
   (journal,generated) <- case decision of
     Fallback r -> fallback r
@@ -215,7 +223,7 @@ importStatement (IncrementalRun snapshots probe reasons) opts ch dirs source = d
               contents <- convertRules opts ch executable (RulesPaths src rf ds) (RulesPaths src' rf' ds') (pin conf) translate
               target <- D.canonicalizePath (P.toFilePath output) >>= P.parseAbsFile
               installOutput False target (writeStagedText target contents)
-            (ConstructInput _,ConstructInput conf,Just (HookInputs s _ _ _)) ->
+            (ConstructInput _,ConstructInput conf,Just (HookInputs s _ _ _ _)) ->
               installOutput False output (constructWith opts ch executable (pin conf) translate s dirs csv output)
             _ -> ioError (userError "Inconsistent incremental conversion inputs")
           again <- discover

@@ -33,6 +33,7 @@ How to keep this ChangeLog
 
 ## Unreleased
 
+- `import --incremental=skip-unchanged-scripts` now tracks [sourced shell helpers](https://hledger-flow.github.io/reference/incremental-import/#sourced-shell-helpers), including nested files under an exported directory. Editing a helper reruns the hooks that use it.
 - `import --incremental` can reuse statements whose CSV rules include shared files outside the ledger by relative path, including paths through symbolic links and directories followed by `..`. See [what gets checked](https://hledger-flow.github.io/reference/incremental-import/#what-gets-checked).
 - `hledger-flow status` suggests adding [market prices](https://hledger-flow.github.io/reference/price-files/) when the imported journal uses more than one commodity and has no market price directives.
 - `import --incremental` now reuses journals whatever your `hledger.conf` contains, unless an entry is known to be non-deterministic, for example because it depends on today's date or reads untracked files. The notice quotes that entry and its line instead of reporting an unsupported config. See [config handling](https://hledger-flow.github.io/reference/incremental-import/#what-gets-checked).

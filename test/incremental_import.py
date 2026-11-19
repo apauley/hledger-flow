@@ -653,6 +653,57 @@ class Diagnostics(Ledger):
 
 
 class Hooks(Ledger):
+    @unittest.skipIf(os.name == "nt", "Bash hooks")
+    def test_recursive_shell_sources(self):
+        for stage in ("preprocess", "construct"):
+            hook = self.account / stage
+            write(hook, '#!/usr/bin/env bash\nsource "$HOOK_LIB/middle" "$1" "$2"\n')
+            hook.chmod(0o755)
+            for name in ("first libs", "second libs"):
+                libs = self.tmp / name
+                self.env["HOOK_LIB"] = str(libs)
+                write(libs / "middle", '. "./leaf"\n')
+                # Bash resolves ./leaf in the working directory.
+                leaf = self.base / "leaf"
+                command = ('sed s/Coffee/Lunch/ "$1" > "$2"' if stage == "preprocess"
+                           else 'printf "%s" ' + shlex.quote(CONSTRUCT.replace("Coffee", "Lunch")))
+                write(leaf, command + "\n")
+                ran = self.flow(SKIP_UNCHANGED)
+                self.assertNotIn("Skipped unchanged " + stage, ran.stdout + ran.stderr)
+                self.assertIn("Lunch", self.journal.read_text())
+                self.imports(0, SKIP_UNCHANGED)
+                write(leaf, command.replace("Lunch", "Dinner") + "\n")
+                old_timestamp(leaf)
+                self.imports(1, SKIP_UNCHANGED)
+                self.assertIn("Dinner", self.journal.read_text())
+            hook.unlink()
+
+    @unittest.skipIf(os.name == "nt", "Bash hooks")
+    def test_unresolved_shell_sources_rerun(self):
+        hook = self.account / "preprocess"
+        self.env["HOOK_LIB"] = str(self.tmp / "original")
+        for name in ("original", "replacement"):
+            write(self.tmp / name / "helper", 'cat "$1" > "$2"\n')
+        for body in (
+                'source "$(printf %s "$HOOK_LIB/helper")"',
+                'HOOK_LIB="$HOOK_LIB/../replacement"\n. "$HOOK_LIB/helper"',
+                'cd "$HOOK_LIB"\n. ./helper',
+                'source "$HOOK_LIB/helper" "$1" "$2" "$HOOK_LIB"',
+                '. ./missing || cat "$1" > "$2"',
+                'PATH="$HOOK_LIB:$PATH"\n. helper',
+                'false && . ./missing\ncat "$1" > "$2"',
+                'false && . ./cycle\ncat "$1" > "$2"'):
+            with self.subTest(body=body):
+                write(self.base / "cycle", ". ./cycle\n")
+                counter = self.tmp / "runs"
+                write(hook, "#!/bin/bash\n" + body + "\necho run >> " + shlex.quote(str(counter)) + "\n")
+                hook.chmod(0o755)
+                for _ in range(2):
+                    before = counter.stat().st_size if counter.exists() else 0
+                    result = self.flow(SKIP_UNCHANGED)
+                    self.assertIn(NOTICE, result.stderr)
+                    self.assertGreater(counter.stat().st_size, before)
+
     def test_preprocess_and_mode_switches(self):
         pre = self.hook("preprocess", """
             with Path("pre-runs").open("a") as counter:
