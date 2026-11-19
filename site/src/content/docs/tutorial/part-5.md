@@ -41,8 +41,8 @@ Ledger: ~/my-finances   (hledger 1.99.6-gc3a608c2b-20261101 found)
   gawie/kudu/creditcard   3 statements (2016)   ✓ 3 journals
 
 Next: Create import/gawie/goggatjie/tips/goggatjie-tips.rules (rules for gawie/goggatjie/tips)
-      Run: hledger-flow status --rules-template gawie/goggatjie/tips
-      Save its output as that file, then edit it.
+      Run: hledger-flow rules gawie/goggatjie/tips
+      It creates that file from the statement's columns, for you to edit.
       Docs: https://hledger-flow.github.io/go/rules-files/
 
 Environment:

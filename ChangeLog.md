@@ -33,7 +33,7 @@ How to keep this ChangeLog
 
 ## Unreleased
 
-- `status --rules-template` prints [starter rules for statements without a header](https://hledger-flow.github.io/reference/rules-files/#starter-rules-for-exports-without-a-header), including a sample row and date-format guidance.
+- Run `hledger-flow rules OWNER/BANK/ACCOUNT` to create a starter in the account folder. `status --rules-template` also prints [starter rules for statements without a header](https://hledger-flow.github.io/reference/rules-files/#starter-rules-for-exports-without-a-header), including a sample row and date-format guidance.
 
 - Import and report stop if [an active hledger config option adds a journal](https://hledger-flow.github.io/reference/status/#hledger-config-file). The error names the file and line to edit.
 

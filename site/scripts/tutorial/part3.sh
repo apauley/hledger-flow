@@ -2,7 +2,8 @@
 c mkdir -p import/gawie/bogart/cheque/1-in/2016
 c "cp ../Downloads/Bogart/123456789_2016-0*.csv import/gawie/bogart/cheque/1-in/2016/"
 c hledger-flow status
-c hledger-flow status --rules-template gawie/bogart/cheque
+c hledger-flow rules gawie/bogart/cheque
+c cat import/gawie/bogart/cheque/bogart-cheque.rules
 c head -n 9 import/gawie/bogart/cheque/1-in/2016/123456789_2016-03-30.csv
 put import/gawie/bogart/cheque/bogart-cheque.rules
 put import/gawie/categories.rules

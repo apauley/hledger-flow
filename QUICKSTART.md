@@ -126,9 +126,9 @@ hledger-flow status
 1. Put a statement where `status` says, for example
    `import/me/mybank/checking/1-in/2026/statement.csv`. Use non-overlapping
    exports for this account. A transaction in two files will be imported twice.
-2. Create the rules file `status` names. For a CSV with a header row,
-   `hledger-flow status --rules-template me/mybank/checking` prints a starter
-   to save as that file and edit.
+2. Run the rules command `status` suggests, for example
+   `hledger-flow rules me/mybank/checking`. Open the file it creates and
+   check the fields, dates and account names before importing.
 3. Run `hledger-flow import`. It creates `all-years.journal`.
 4. Run `hledger-flow report`. Reports go under `reports/`. If you also want
    hledger commands such as `hledger balance` to open this ledger by default,

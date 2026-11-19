@@ -8,6 +8,8 @@ module Hledger.Flow.RulesTemplate
     templateFields,
     rulesTemplate,
     rulesTemplateFor,
+    rulesStarterFor,
+    runRules,
   )
 where
 
@@ -18,11 +20,18 @@ import qualified Data.Set as Set
 import qualified Data.Text as T
 import Hledger.Flow.BaseDir (relativeToBase')
 import Hledger.Flow.DocHelpers (DocLink (..), docURL)
+import Hledger.Flow.Common (homeDirs, nativeShell, tildePath)
+import Hledger.Flow.Import.ImportHelpers (defaultRulesCandidates, extractImportDirs)
 import Hledger.Flow.Import.Inventory (findImportFiles, stageFiles)
+import Hledger.Flow.PathHelpers (AbsFile, writeNewUtf8File)
 import Hledger.Flow.StatementScan
+import Hledger.Flow.Status (flowCommand)
 import Hledger.Flow.Status.Gather (accountName, cachedStatement)
-import Hledger.Flow.Types (BaseDir)
+import Hledger.Flow.Types (BaseDir, HledgerConf)
 import Path
+import qualified Path.IO as PathIO
+import qualified Data.Text.IO as T
+import System.IO.Error (tryIOError, isAlreadyExistsError)
 
 -- | hledger field names for the columns: obvious date, description and amount
 -- columns are named for hledger; the rest keep a normalised version of their name.
@@ -152,26 +161,57 @@ headerlessTemplate bank account path statement = case statementRows statement of
         : map ("#     " <>) rest
       [] -> []
 
--- | The starter rules file for an account (@owner/bank/account@), from its newest statement.
-rulesTemplateFor :: BaseDir -> T.Text -> IO (Either T.Text T.Text)
-rulesTemplateFor base requested = do
-  let account = T.dropWhileEnd (== '/') (maybe requested id (T.stripPrefix "import/" requested))
+-- | The first default rules candidate and the starter for the newest statement.
+rulesStarterFor :: BaseDir -> T.Text -> IO (Either T.Text (AbsFile, T.Text))
+rulesStarterFor base requested = do
+  let account = T.dropWhileEnd (== '/') (fromMaybe requested (T.stripPrefix "import/" requested))
       root = base </> [reldir|import|]
   files <- findImportFiles root
   let inputs = stageFiles root [reldir|1-in|] files
       statements = filter ((== account) . accountName root) inputs
       known = List.nub (map (accountName root) inputs)
   case reverse statements of
-    [] ->
-      return . Left $
-        "No statements found for " <> account <> ". Accounts with statements: "
-          <> (if null known then "none" else T.intercalate ", " known) <> "."
-    newest : _ -> do
-      source <- fromMaybe newest <$> cachedStatement newest
-      let path = relativeToBase' (toFilePath base) (toFilePath source)
-          (bank, acct) = case T.splitOn "/" account of
-            [_, b, a] -> (b, a)
-            _ -> (account, account)
-      if isDelimitedFile path
-        then renderTemplate bank acct path <$> readRuleSample source
-        else return (Left (notCsv path))
+    [] -> return . Left $
+      "No statements found for " <> account <> ". Accounts with statements: "
+        <> (if null known then "none" else T.intercalate ", " known) <> "."
+    newest : _ -> case extractImportDirs root newest of
+      Left problem -> return (Left problem)
+      Right dirs -> do
+        candidates <- defaultRulesCandidates dirs
+        case candidates of
+          target : _ -> do
+            source <- fromMaybe newest <$> cachedStatement newest
+            let path = relativeToBase' (toFilePath base) (toFilePath source)
+                (bank, acct) = case T.splitOn "/" account of
+                  [_, b, a] -> (b, a)
+                  _ -> (account, account)
+            if isDelimitedFile path
+              then fmap (fmap (\template -> (target, template)) . renderTemplate bank acct path) (readRuleSample source)
+              else return (Left (notCsv path))
+          [] -> return (Left ("No rules file target for " <> account <> "."))
+
+rulesTemplateFor :: BaseDir -> T.Text -> IO (Either T.Text T.Text)
+rulesTemplateFor base = fmap (fmap snd) . rulesStarterFor base
+
+runRules :: Maybe HledgerConf -> BaseDir -> T.Text -> IO ()
+runRules conf base account = do
+  result <- rulesStarterFor base account
+  (target, template) <- either (ioError . userError . T.unpack) return result
+  cwd <- PathIO.getCurrentDir
+  homes <- homeDirs
+  let path = toFilePath target
+      shown = T.pack (if cwd == base then relativeToBase' (toFilePath base) path else tildePath homes path)
+      command sub args = flowCommand nativeShell homes cwd base conf sub args
+  written <- tryIOError (writeNewUtf8File target template)
+  case written of
+    Left err -> do
+      occupied <- PathIO.doesFileExist target
+      let problem
+            | occupied || isAlreadyExistsError err =
+                shown <> " already exists. Delete it first or preview a fresh starter with: "
+                  <> command "status" ["--rules-template", account]
+            | otherwise = "Could not create " <> shown <> ": " <> T.pack (show err)
+      ioError (userError (T.unpack problem))
+    Right () -> do
+      T.putStrLn ("Created " <> shown)
+      T.putStrLn ("Edit it: check the fields line and the account names. Then run: " <> command "import" [])

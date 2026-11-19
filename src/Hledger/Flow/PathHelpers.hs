@@ -1,15 +1,23 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Hledger.Flow.PathHelpers where
 
 import Control.Monad.Catch (Exception, MonadThrow, throwM)
 import Control.Monad.IO.Class (MonadIO, liftIO)
+import qualified Data.ByteString as B
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 import Hledger.Flow.DocHelpers (DocLink (..), docURL)
 import qualified Path
 import qualified Path.IO as Path
 import System.Directory (doesDirectoryExist)
 import qualified System.FilePath as FilePath
+#ifdef mingw32_HOST_OS
+import qualified System.Win32.File as Win32
+#else
+import qualified System.Posix.Files as Posix
+#endif
 
 type AbsFile = Path.Path Path.Abs Path.File
 
@@ -28,6 +36,23 @@ withStagedOutput target writeOutput = do
     let staged = tmp Path.</> Path.filename target
     writeOutput staged
     Path.renameFile staged target
+
+-- | Install complete UTF-8 bytes at an unused path. The final operation must
+-- fail for an existing entry, including a dangling symlink.
+writeNewUtf8File :: AbsFile -> T.Text -> IO ()
+writeNewUtf8File target contents = do
+  let dir = Path.parent target
+  Path.createDirIfMissing True dir
+  Path.withTempDir dir ".hledger-flow-" $ \tmp -> do
+    let staged = tmp Path.</> Path.filename target
+        src = Path.toFilePath staged
+        dest = Path.toFilePath target
+    B.writeFile src (T.encodeUtf8 contents)
+#ifdef mingw32_HOST_OS
+    Win32.moveFile src dest
+#else
+    Posix.createLink src dest
+#endif
 
 isGlobMetacharacter :: Char -> Bool
 isGlobMetacharacter c = c `elem` ("*?[{<" :: String)

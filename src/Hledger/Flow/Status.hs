@@ -138,8 +138,8 @@ nextStep year shell homes cwd s
   | a : _ <- filter needsRules (lsAccounts s) =
       NextStep
         ("Create " <> T.pack (tildePath homes (firstCandidate a)) <> " (rules for " <> asAccount a <> ")")
-        (Just (commandArgs "status" ["--rules-template", asAccount a]))
-        ["Save its output as that file, then edit it."]
+        (Just (commandArgs "rules" [asAccount a]))
+        ["It creates that file from the statement\'s columns, for you to edit."]
         (Just (docURL RulesFiles))
   | toImport > 0 =
       withConfigCheck ImportConfig s $
@@ -184,7 +184,7 @@ flowCommand shell homes cwd base conf subcommand arguments =
   T.unwords (["hledger-flow"] ++ config ++ [subcommand] ++ map (shellArgument shell) arguments ++ directory)
   where
     config = case conf of
-      Just (GivenConf file) | subcommand `elem` ["import", "report"] ->
+      Just (GivenConf file) | subcommand `elem` ["import", "report", "rules"] ->
         ["--hledger-conf", shellPath shell homes file]
       _ -> []
     directory = [shellPath shell homes (FilePath.dropTrailingPathSeparator (toFilePath base)) | cwd /= base]

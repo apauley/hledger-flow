@@ -7,7 +7,8 @@ q git init -q .
 c mkdir -p import/gawie/kudu/creditcard/1-in/2016
 c cp ../Downloads/Kudu/creditcard_2016-03-31.csv import/gawie/kudu/creditcard/1-in/2016/
 c hledger-flow status
-c hledger-flow status --rules-template gawie/kudu/creditcard
+c hledger-flow rules gawie/kudu/creditcard
+c cat import/gawie/kudu/creditcard/kudu-creditcard.rules
 put import/gawie/kudu/creditcard/kudu-creditcard.rules
 c hledger-flow import
 c tree

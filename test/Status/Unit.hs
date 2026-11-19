@@ -95,11 +95,11 @@ testRules =
       "3 misplaced" ~: summaryOf blank {lsMisplaced = [Misplaced "import/a.csv" "x"]} ~?= "Move 1 file to where hledger-flow looks",
       "3 misplaced plural" ~: summaryOf blank {lsMisplaced = [Misplaced "import/a.csv" "x", Misplaced "import/b.csv" "y"]} ~?= "Move 2 files to where hledger-flow looks",
       "3 detail" ~: nsDetail (atRoot blank {lsMisplaced = [Misplaced "import/a.csv" "x"]}) ~?= ["import/a.csv → x"],
-      "4 rules" ~: commandOf blank {lsAccounts = [acct {asWithoutRules = 1, asRulesFile = Nothing}]} ~?= Just "hledger-flow status --rules-template me/mybank/checking",
+      "4 rules" ~: commandOf blank {lsAccounts = [acct {asWithoutRules = 1, asRulesFile = Nothing}]} ~?= Just "hledger-flow rules me/mybank/checking",
       "4 summary" ~: summaryOf blank {lsAccounts = [acct {asWithoutRules = 1, asRulesFile = Nothing}]} ~?= "Create import/me/mybank/checking/mybank-checking.rules (rules for me/mybank/checking)",
       "4 powershell literal account" ~:
         nsCommand (nextStep 2026 PowerShell [] (lsBaseDir blank) blank {lsAccounts = [acct {asWithoutRules = 1, asAccount = "me/Bob's Bank/Lee’s $(example)"}]})
-          ~?= Just "hledger-flow status --rules-template 'me/Bob''s Bank/Lee’’s $(example)'",
+          ~?= Just "hledger-flow rules 'me/Bob''s Bank/Lee’’s $(example)'",
       "4 skipped with construct" ~: commandOf blank {lsAccounts = [acct {asWithoutRules = 1, asConstruct = True}]} ~?= Just "hledger-flow report",
       "5 import" ~: summaryOf blank {lsAccounts = [acct {asJournalsMissing = 1, asJournalsOutdated = 1}]} ~?= "Import 2 new or changed statements",
       "5 import singular" ~: summaryOf blank {lsAccounts = [acct {asJournalsMissing = 1}]} ~?= "Import 1 new or changed statement",

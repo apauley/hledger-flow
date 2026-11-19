@@ -1,15 +1,20 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE QuasiQuotes #-}
 
 module RulesTemplate.Unit (tests) where
 
 import qualified Data.Text as T
 import Hledger.Flow.RulesTemplate
+import Path ((</>), parent, relfile, toFilePath)
+import Path.IO (createDirIfMissing)
 import Test.HUnit
+import TestHelpers (withTestDir)
 
 tests :: Test
 tests =
   TestList
-    [ "bom stripped" ~: templateFields (snd (splitHeader "\xFEFF\&Date,Desc,Amount")) ~?= ["date", "description", "amount"],
+    [ "default target" ~: defaultTarget,
+      "bom stripped" ~: templateFields (snd (splitHeader "\xFEFF\&Date,Desc,Amount")) ~?= ["date", "description", "amount"],
       "semicolons" ~: fst (splitHeader "\"Datum\";\"Omschrijving\";\"Bedrag\"") ~?= ';',
       "tabs" ~: fst (splitHeader "Date\tDesc\tAmount") ~?= '\t',
       "mapping" ~: templateFields ["Transaction Date", "Payee Name", "Amount", "Balance (ZAR)", "", "Amount"]
@@ -65,3 +70,12 @@ tests =
       "not csv" ~: either (T.isInfixOf "isn't a CSV file") (const False)
         (rulesTemplate "b" "a" "x.pdf" "%PDF") ~?= True
     ]
+
+defaultTarget :: Assertion
+defaultTarget = withTestDir $ \base -> do
+  let sample = base </> [relfile|import/sm/wf/bchecking/1-in/2026/latest_rfo-card.csv|]
+      target = base </> [relfile|import/sm/wf/bchecking/wf-bchecking.rules|]
+  createDirIfMissing True (parent sample)
+  writeFile (toFilePath sample) "Date,Desc,Amount\n2026-01-02,Store,-2\n"
+  result <- rulesStarterFor base "sm/wf/bchecking"
+  fmap fst result @?= Right target

@@ -38,6 +38,7 @@ hledger-flow turns bank statements into hledger journals and reports.
 Commands:
   status   Show what's in your ledger and what to do next
   init     Start a new ledger in a folder
+  rules    Create a starter rules file for an account
   import   Turn statements into journals
   report   Generate reports from your journals
 
@@ -94,8 +95,8 @@ Ledger: ~/my-finances   (hledger 1.99.6-gc3a608c2b-20261101 found)
   gawie/kudu/creditcard   1 statement (2016)   ✗ no rules file
 
 Next: Create import/gawie/kudu/creditcard/kudu-creditcard.rules (rules for gawie/kudu/creditcard)
-      Run: hledger-flow status --rules-template gawie/kudu/creditcard
-      Save its output as that file, then edit it.
+      Run: hledger-flow rules gawie/kudu/creditcard
+      It creates that file from the statement's columns, for you to edit.
       Docs: https://hledger-flow.github.io/go/rules-files/
 
 Environment:
@@ -116,10 +117,13 @@ which and which accounts to use. `hledger-flow` can draft one from the
 statement’s header row:
 
 ```bash
-hledger-flow status --rules-template gawie/kudu/creditcard
+hledger-flow rules gawie/kudu/creditcard
+cat import/gawie/kudu/creditcard/kudu-creditcard.rules
 ```
 
 ```text
+Created import/gawie/kudu/creditcard/kudu-creditcard.rules
+Edit it: check the fields line and the account names. Then run: hledger-flow import
 # Starter rules for kudu/creditcard, made by hledger-flow from the header row of
 # import/gawie/kudu/creditcard/1-in/2016/creditcard_2016-03-31.csv. Check every line, then run: hledger-flow import
 # hledger's CSV rules reference: https://hledger.org/hledger.html#csv

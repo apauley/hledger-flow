@@ -97,8 +97,11 @@ Let me know if you think it should change.
 
 ## Starter rules for exports without a header
 
-Run `hledger-flow status --rules-template OWNER/BANK/ACCOUNT` to print a
-starter. For a headerless export it shows the first row by column and uses
+Run `hledger-flow rules OWNER/BANK/ACCOUNT` to create a starter in the
+account folder. It writes UTF-8 and refuses to replace an existing file.
+Use `hledger-flow status --rules-template OWNER/BANK/ACCOUNT` to preview the
+same starter on standard output. For a headerless export it shows the first
+row by column and uses
 up to 50 rows to suggest the date, amount and description fields. Check the
 guesses, account names and date format before importing. A neutral name such
 as `column3` leaves that field for you to identify.

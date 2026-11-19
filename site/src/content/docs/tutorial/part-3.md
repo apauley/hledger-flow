@@ -24,8 +24,8 @@ Ledger: ~/my-finances   (hledger 1.99.6-gc3a608c2b-20261101 found)
   gawie/kudu/creditcard   3 statements (2016)   ✓ 3 journals
 
 Next: Create import/gawie/bogart/cheque/bogart-cheque.rules (rules for gawie/bogart/cheque)
-      Run: hledger-flow status --rules-template gawie/bogart/cheque
-      Save its output as that file, then edit it.
+      Run: hledger-flow rules gawie/bogart/cheque
+      It creates that file from the statement's columns, for you to edit.
       Docs: https://hledger-flow.github.io/go/rules-files/
 
 Environment:
@@ -36,11 +36,13 @@ Environment:
 ```
 
 ```bash
-hledger-flow status --rules-template gawie/bogart/cheque
+hledger-flow rules gawie/bogart/cheque
+cat import/gawie/bogart/cheque/bogart-cheque.rules
 ```
 
 ```text
-hledger-flow: The first line of import/gawie/bogart/cheque/1-in/2016/123456789_2016-05-28.csv looks like data, not column names. Write the fields line yourself: https://hledger-flow.github.io/go/rules-files/
+hledger-flow: import/gawie/bogart/cheque/1-in/2016/123456789_2016-05-28.csv: Statement rows have different numbers of columns. Write the fields line yourself: https://hledger-flow.github.io/go/rules-files/
+cat: import/gawie/bogart/cheque/bogart-cheque.rules: No such file or directory
 ```
 
 No draft this time. Gawie looks at the statement:

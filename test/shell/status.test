@@ -26,7 +26,7 @@ printf 'Date,Desc,Amount\n2026-01-02,Coffee,-3.50\n' > import/me/mybank/jan.csv
 hledger-flow status | grep -q 'Next: Move 1 file to where hledger-flow looks'
 hledger-flow status --json | jq -e '.misplaced[0].suggestion | split("\\") | join("/") == "import/me/mybank/<account>/1-in/<year>/jan.csv"' > /dev/null
 mkdir -p import/me/mybank/checking/1-in/2026 && mv import/me/mybank/jan.csv import/me/mybank/checking/1-in/2026/
-hledger-flow status --json | jq -e '.next.command == "hledger-flow status --rules-template me/mybank/checking"' > /dev/null
+hledger-flow status --json | jq -e '.next.command == "hledger-flow rules me/mybank/checking"' > /dev/null
 printf 'skip 1\nfields date, description, amount\naccount1 assets:checking\n' > import/me/mybank/checking/mybank-checking.rules
 hledger-flow status --json | jq -e '.next.command == "hledger-flow import"' > /dev/null
 hledger-flow import > /dev/null
@@ -133,7 +133,7 @@ account="$target/import/$owner/bank/checking"
 mkdir -p "$account/1-in/2026" "$target/reports" other/import
 printf 'Date,Desc,Amount\n2026-01-02,Coffee,-3.50\n' > "$account/1-in/2026/jan.csv"
 cd other
-run_suggestion "$(next_command "../$target")" > "../$account/bank-checking.rules"
+run_suggestion "$(next_command "../$target")" > rules-output
 grep -q '^fields date, description, amount' "../$account/bank-checking.rules"
 (cd "../$target/reports" && run_suggestion "$(next_command)") > import-output
 test -s "../$account/3-journal/2026/jan.journal"
@@ -290,4 +290,35 @@ printf '03/04/2026,COFFEE SHOP,-4.50\n' > "$inbox/november.csv"
 hledger-flow status --rules-template sm/wf/bchecking > "$rules"
 grep -q '^# date-format' "$rules"
 if grep -q '^date-format' "$rules"; then exit 1; fi
+$ sh -eu
+
+# The rules command writes the suggested default without replacing other files.
+<
+. ./test/shell/status-commands.sh
+cd "$(mktemp -d "${TMPDIR:-/tmp}/hledger-flow.XXXXXXXX")"
+unset LEDGER_FILE
+ledger="target ledger"
+acct=import/sm/wf/bchecking
+inbox="$ledger/$acct/1-in/2026"
+mkdir -p "$inbox" caller/import
+printf 'Date,Desc,Amount\n2026-01-01,Shop,-5\n' > "$inbox/january.csv"
+printf '2026-02-01,Special,-9\n' > "$inbox/february_rfo-card.csv"
+printf 'fields date, description, amount\naccount1 assets:card\naccount2 expenses:special\n' > "$ledger/$acct/rfo-card.rules"
+cp "$ledger/$acct/rfo-card.rules" before-override
+cd caller
+hledger-flow status --rules-template sm/wf/bchecking "../$ledger" > starter
+run_suggestion "$(next_command "../$ledger")" > wrote
+path="../$ledger/$acct/wf-bchecking.rules"
+cmp starter "$path"
+grep -q '^Created .*wf-bchecking.rules' wrote
+grep -q '^Edit it: check the fields line and the account names.' wrote
+cmp "../before-override" "../$ledger/$acct/rfo-card.rules"
+errfile="$(pwd)/duplicate.err"
+(cd "../$ledger/$acct/1-in/2026" && if hledger-flow rules sm/wf/bchecking >/dev/null 2>"$errfile"; then exit 1; else grep -q 'already exists' "$errfile"; grep -q -- '--rules-template' "$errfile"; fi)
+cmp starter "$path"
+hledger-flow import "../$ledger" > imported
+grep -q 'expenses:special' "../$ledger/$acct/3-journal/2026/february_rfo-card.journal"
+if hledger-flow rules sm/wf/not-found "../$ledger" > out 2> err; then exit 1; fi
+grep -q 'No statements found' err
+test ! -d "../$ledger/import/sm/wf/not-found"
 $ sh -eu
