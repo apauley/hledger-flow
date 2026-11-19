@@ -26,7 +26,7 @@ import Hledger.Flow.Logging
 import Hledger.Flow.PathHelpers (AbsFile, RelDir, literalGlobPath, withStagedOutput)
 import qualified Hledger.Flow.RuntimeOptions as RT
 import Hledger.Flow.Types
-import Path (reldir, relfile, toFilePath)
+import Path (parent, reldir, relfile, toFilePath)
 import qualified Path
 import qualified Path.IO as Path
 import qualified System.Directory as Directory
@@ -268,6 +268,23 @@ errExit' :: Int -> (T.Text -> IO ()) -> T.Text -> IO a
 errExit' exitStatus logFun errorMessage = do
   logFun errorMessage
   exitWith (ExitFailure exitStatus)
+
+-- | Move to a file path, with the same collision rules in either shell.
+moveFileCommand :: Shell -> [FilePath] -> AbsFile -> AbsFile -> T.Text
+moveFileCommand shell homes source target = case shell of
+  Posix ->
+    "mkdir -p " <> path dir <> " && [ ! -e " <> dest <> " ] && [ ! -L " <> dest
+      <> " ] && mv -n " <> path src <> " " <> dest
+  PowerShell ->
+    "New-Item -ItemType Directory -Force -Path " <> literal dir <> " -ErrorAction Stop | Out-Null; "
+      <> "[System.IO.File]::Move(" <> literal src <> ", " <> literal file <> ")"
+  where
+    src = toFilePath source
+    file = toFilePath target
+    dir = FilePath.dropTrailingPathSeparator (toFilePath (parent target))
+    literal = powerShellLiteral . T.pack
+    path name = fromMaybe (shellArgument shell (T.pack name)) (homeShellPath shell homes name)
+    dest = path file
 
 -- | An external program hledger-flow runs, described for the people reading its output.
 data External = External

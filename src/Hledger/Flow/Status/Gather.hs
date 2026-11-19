@@ -29,7 +29,8 @@ import Hledger.Flow.Import.IncludeFiles (includesNeedUpdate)
 import Hledger.Flow.Import.Inventory (classifyGeneratedOutputs, findImportFiles, generatedOutput, isManualJournal, managedIncludeFiles, stageFiles)
 import Hledger.Flow.Import.Types (ImportDirs (..))
 import Hledger.Flow.LedgerSelection
-import Hledger.Flow.PathHelpers (AbsDir, AbsFile, RelFile)
+import Hledger.Flow.PathHelpers (AbsDir, AbsFile, RelFile, pathOccupied)
+import Hledger.Flow.StatementScan (StatementYear (..), inferStatementYear, isDelimitedFile, readDelimitedStatement)
 import Hledger.Flow.Status
 import Hledger.Flow.Types (BaseDir, HledgerConf, HledgerInfo (..))
 import Path
@@ -74,6 +75,7 @@ gatherStatusWithConfig hledger conf base = do
   needsPrices <- case (hledger, selected) of
     (Just info, Just journal) | not reconciliation -> journalNeedsPrices info journal
     _ -> return False
+  misplaced <- traverse (inspectMisplaced base) (List.sortOn mpPath (misplacedFiles root files))
   return
     LedgerStatus
       { lsBaseDir = base,
@@ -83,12 +85,31 @@ gatherStatusWithConfig hledger conf base = do
         lsHledgerConf = conf,
         lsConfigConflicts = conflicts,
         lsAccounts = accounts,
-        lsMisplaced = List.sortOn mpPath (misplacedFiles root files),
+        lsMisplaced = misplaced,
         lsManualJournals = length (filter (isManualJournal root) files),
         lsAllYearsExists = allYears,
         lsNeedsReconciliation = reconciliation,
         lsNeedsPrices = needsPrices
       }
+
+inspectMisplaced :: BaseDir -> Misplaced -> IO Misplaced
+inspectMisplaced base item = do
+  evidence <- case mpYear item of
+    UnknownYear | isDelimitedFile (mpPath item), Just path <- parseRelFile (mpPath item) -> do
+      scanned <- tryIOError (readDelimitedStatement Nothing (base </> path))
+      return $ case scanned of
+        Right (Right statement) -> inferStatementYear statement
+        _ -> UnknownYear
+    known -> return known
+  let suggestion = case evidence of
+        SingleYear year -> FilePath.joinPath
+          [if part == "<year>" then show year else part | part <- FilePath.splitDirectories (mpSuggestion item)]
+        _ -> mpSuggestion item
+      enriched = item {mpYear = evidence, mpSuggestion = suggestion}
+  occupied <- case placementDestination enriched of
+    Nothing -> return False
+    Just path -> either (const True) id <$> tryIOError (pathOccupied (base </> path))
+  return enriched {mpDestinationExists = occupied}
 
 -- Ask hledger to resolve includes and parse the journal. If it cannot read
 -- the journal, status can still report what it found in the import tree.

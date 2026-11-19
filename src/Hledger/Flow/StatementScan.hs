@@ -15,12 +15,14 @@ module Hledger.Flow.StatementScan
     dateCellYear,
     inferDateFormat,
     isSignedDecimal,
+    StatementYear (..),
+    inferStatementYear,
   )
 where
 
 import Data.Char (isDigit, isSpace, toLower)
-import Data.List (intersect)
-import Data.Maybe (isJust)
+import Data.List (intersect, nub, sort, transpose)
+import Data.Maybe (catMaybes, isJust)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import qualified Data.Text.Read as T
@@ -258,3 +260,25 @@ inferDateFormat :: [DateCell] -> Maybe T.Text
 inferDateFormat cells = case map dateFormats cells of
   first : rest | [one] <- foldl' intersect first rest -> Just one
   _ -> Nothing
+
+data StatementYear = UnknownYear | SingleYear Integer | SpanningYears [Integer]
+  deriving (Eq, Show)
+
+inferStatementYear :: DelimitedStatement -> StatementYear
+inferStatementYear statement = case traverse agreed (transpose dateColumns) of
+  Just years -> case sort (nub years) of
+    [year] -> SingleYear year
+    [] -> UnknownYear
+    many -> SpanningYears many
+  Nothing -> UnknownYear
+  where
+    dateColumns =
+      [ dates
+        | column <- transpose (statementRows statement),
+          let dates = map parseDateCell column,
+          any isJust dates,
+          and (zipWith (\cell date -> T.null cell || isJust date) column dates)
+      ]
+    agreed cells = case nub (map dateCellYear (catMaybes cells)) of
+      [year] -> Just year
+      _ -> Nothing

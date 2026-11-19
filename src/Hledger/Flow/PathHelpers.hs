@@ -11,7 +11,8 @@ import qualified Data.Text.Encoding as T
 import Hledger.Flow.DocHelpers (DocLink (..), docURL)
 import qualified Path
 import qualified Path.IO as Path
-import System.Directory (doesDirectoryExist)
+import System.Directory (doesDirectoryExist, doesPathExist, pathIsSymbolicLink)
+import System.IO.Error (catchIOError, isDoesNotExistError)
 import qualified System.FilePath as FilePath
 #ifdef mingw32_HOST_OS
 import qualified System.Win32.File as Win32
@@ -53,6 +54,14 @@ writeNewUtf8File target contents = do
 #else
     Posix.createLink src dest
 #endif
+
+pathOccupied :: AbsFile -> IO Bool
+pathOccupied file = do
+  let name = Path.toFilePath file
+  exists <- doesPathExist name
+  if exists then return True else
+    pathIsSymbolicLink name `catchIOError` \err ->
+      if isDoesNotExistError err then return False else ioError err
 
 isGlobMetacharacter :: Char -> Bool
 isGlobMetacharacter c = c `elem` ("*?[{<" :: String)

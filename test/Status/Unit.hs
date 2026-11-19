@@ -10,6 +10,7 @@ import Data.List (sort)
 import qualified Data.Text as T
 import Hledger.Flow.Common (Shell (..))
 import Hledger.Flow.LedgerSelection (Coverage (..))
+import Hledger.Flow.StatementScan (StatementYear (..), inferStatementYear, parseDelimitedStatement)
 import Hledger.Flow.Status.Render (renderStatus, statusJSON)
 import Hledger.Flow.Status
 import Path
@@ -92,9 +93,9 @@ testRules =
       "2 example uses current year" ~: nsDetail (atRoot blank) ~?= ["For example: import/me/mybank/checking/1-in/2026/statement.csv", "Then check with: hledger-flow status"],
       "2 skipped for manual-only ledger" ~: summaryOf blank {lsManualJournals = 1} ~?= "Generate reports, or explore with hledger",
       "5 import when all-years.journal is missing" ~: commandOf blank {lsManualJournals = 1, lsAllYearsExists = False, lsAggregateJournal = Nothing} ~?= Just "hledger-flow import",
-      "3 misplaced" ~: summaryOf blank {lsMisplaced = [Misplaced "import/a.csv" "x"]} ~?= "Move 1 file to where hledger-flow looks",
-      "3 misplaced plural" ~: summaryOf blank {lsMisplaced = [Misplaced "import/a.csv" "x", Misplaced "import/b.csv" "y"]} ~?= "Move 2 files to where hledger-flow looks",
-      "3 detail" ~: nsDetail (atRoot blank {lsMisplaced = [Misplaced "import/a.csv" "x"]}) ~?= ["import/a.csv → x"],
+      "3 misplaced" ~: summaryOf blank {lsMisplaced = [Misplaced "import/a.csv" "x" (SingleYear 2026) False]} ~?= "Move 1 file to where hledger-flow looks",
+      "3 misplaced plural" ~: summaryOf blank {lsMisplaced = [Misplaced "import/a.csv" "x" (SingleYear 2026) False, Misplaced "import/b.csv" "y" (SingleYear 2026) False]} ~?= "Move 2 files to where hledger-flow looks",
+      "3 detail" ~: take 1 (nsDetail (atRoot blank {lsMisplaced = [Misplaced "import/a.csv" "x" (SingleYear 2026) False]})) ~?= ["import/a.csv → x"],
       "4 rules" ~: commandOf blank {lsAccounts = [acct {asWithoutRules = 1, asRulesFile = Nothing}]} ~?= Just "hledger-flow rules me/mybank/checking",
       "4 summary" ~: summaryOf blank {lsAccounts = [acct {asWithoutRules = 1, asRulesFile = Nothing}]} ~?= "Create import/me/mybank/checking/mybank-checking.rules (rules for me/mybank/checking)",
       "4 powershell literal account" ~:
@@ -162,4 +163,17 @@ testJSONShape = TestCase $ case statusJSON testSystemInfo Nothing blank (atRoot 
       @?= ["accounts", "aggregateJournal", "allYearsJournalExists", "baseDir", "environment", "hledger", "ledgerFile", "ledgerFileNote", "manualJournals", "misplaced", "next", "schemaVersion"]
   _ -> assertFailure "status JSON is an object"
 
-tests = TestList [testSuggest, testMisplacedUpperCase, testRules, testHome, testVersion, testRenderNoColour, testRenderPending, testJSONShape]
+tests = TestList [testStatementYear, testSuggest, testMisplacedUpperCase, testRules, testHome, testVersion, testRenderNoColour, testRenderPending, testJSONShape]
+
+testStatementYear :: Test
+testStatementYear = "statement year" ~: TestList
+  [ check "Date,Desc,Amount\n2025-12-31,\"Shop, City\",-5\n" (SingleYear 2025),
+    check "2025-12-31,Shop,-5\n2026-01-01,Store,-7\n" (SpanningYears [2025,2026]),
+    check "2025-12-31,2026-01-02,Shop,-5\n" UnknownYear,
+    check "2025-12-31,Shop,-5\n,Store,-7\n" UnknownYear,
+    check "20251231,Shop,-5\n31/12/25,Store,-7\n" UnknownYear,
+    check "31.12.2025 12:30,Shop,-5\n" (SingleYear 2025),
+    check ",,Shop,-5\n,,Store,-7\n" UnknownYear
+  ]
+  where
+    check rows expected = fmap inferStatementYear (parseDelimitedStatement "2026-01-02.csv" rows) ~?= Right expected

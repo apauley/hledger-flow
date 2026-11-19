@@ -20,6 +20,7 @@ data DocLink
   | GettingStarted
   | IncrementalImportFallback
   | InputFiles
+  | StatementYearFolders
   | RulesFiles
   | PriceFiles
   | PreprocessScript
@@ -33,6 +34,7 @@ docSlug Docs = "docs"
 docSlug GettingStarted = "getting-started"
 docSlug IncrementalImportFallback = "incremental-import-fallback"
 docSlug InputFiles = "input-files"
+docSlug StatementYearFolders = "statement-year-folders"
 docSlug RulesFiles = "rules-files"
 docSlug PriceFiles = "price-files"
 docSlug PreprocessScript = "preprocess-script"

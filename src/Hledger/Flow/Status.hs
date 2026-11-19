@@ -12,6 +12,8 @@ module Hledger.Flow.Status
     statementExtensions,
     suggestPlacement,
     misplacedFiles,
+    placementDestination,
+    misplacedMoveCommand,
     nextStep,
     flowCommand,
     ledgerFileNote,
@@ -26,14 +28,15 @@ import Data.Char (isDigit, toLower)
 import Data.Maybe (fromMaybe, mapMaybe)
 import qualified Data.Set as Set
 import qualified Data.Text as T
-import Hledger.Flow.Common (Shell (..), hledgerFileArgument, hledgerVersionNumber, homeShellPath, posixLiteral, powerShellLiteral, shellArgument, tildePath)
+import Hledger.Flow.Common (Shell (..), hledgerFileArgument, hledgerVersionNumber, homeShellPath, moveFileCommand, posixLiteral, powerShellLiteral, shellArgument, tildePath)
 import Hledger.Flow.DocHelpers (DocLink (..), docURL)
 import Hledger.Flow.HledgerConfig (ConfigConflict, ConfigUse (..), firstConfigConflict, renderConfigConflict)
 import Hledger.Flow.Import.Inventory (stageFiles)
 import Hledger.Flow.LedgerSelection (Coverage (..), LedgerFile (..), ledgerFileProblem)
-import Hledger.Flow.PathHelpers (AbsDir, AbsFile)
+import Hledger.Flow.PathHelpers (AbsDir, AbsFile, RelFile)
+import Hledger.Flow.StatementScan (StatementYear (..))
 import Hledger.Flow.Types (BaseDir, HledgerConf (..), HledgerInfo)
-import Path (reldir, relfile, stripProperPrefix, toFilePath, (</>))
+import Path (parseRelFile, reldir, relfile, stripProperPrefix, toFilePath, (</>))
 import qualified System.FilePath as FilePath
 
 data Situation = InLedger BaseDir | EmptyDir | Elsewhere deriving (Eq, Show)
@@ -53,7 +56,13 @@ data AccountStatus = AccountStatus
   deriving (Eq, Show)
 
 -- | Both paths are relative to the base directory and start with @import@.
-data Misplaced = Misplaced {mpPath :: FilePath, mpSuggestion :: FilePath} deriving (Eq, Show)
+data Misplaced = Misplaced
+  { mpPath :: FilePath,
+    mpSuggestion :: FilePath,
+    mpYear :: StatementYear,
+    mpDestinationExists :: Bool
+  }
+  deriving (Eq, Show)
 
 data LedgerStatus = LedgerStatus
   { lsBaseDir :: BaseDir,
@@ -109,7 +118,40 @@ misplacedFiles root files = mapMaybe misplaced (filter candidate files)
     misplaced f = do
       rel <- stripProperPrefix root f
       let parts = FilePath.splitDirectories (toFilePath rel)
-      return (Misplaced (FilePath.joinPath ("import" : parts)) (suggestPlacement parts))
+      let evidence = case filter isYear (take (length parts - 1) parts) of
+            first : _ -> SingleYear (read first)
+            [] -> UnknownYear
+      return (Misplaced (FilePath.joinPath ("import" : parts)) (suggestPlacement parts) evidence False)
+
+placementDestination :: Misplaced -> Maybe RelFile
+placementDestination item = case mpYear item of
+  SingleYear _ | null (missingParts item) -> parseRelFile (mpSuggestion item)
+  _ -> Nothing
+
+missingParts :: Misplaced -> [T.Text]
+missingParts item =
+  [T.pack part | part <- ["owner", "bank", "account"],
+    ("<" ++ part ++ ">") `elem` FilePath.splitDirectories (FilePath.takeDirectory (mpSuggestion item))]
+
+misplacedMoveCommand :: Shell -> [FilePath] -> BaseDir -> Misplaced -> Maybe T.Text
+misplacedMoveCommand _ _ _ item | mpDestinationExists item = Nothing
+misplacedMoveCommand shell homes base item = do
+  source <- parseRelFile (mpPath item)
+  target <- placementDestination item
+  return (moveFileCommand shell homes (base </> source) (base </> target))
+
+placementDetails :: Shell -> [FilePath] -> BaseDir -> Misplaced -> [T.Text]
+placementDetails shell homes base item =
+  [T.pack (mpPath item) <> " → " <> T.pack (mpSuggestion item)]
+    ++ ["Choose the " <> T.intercalate ", " parts <> "." | parts@(_ : _) <- [missingParts item]]
+    ++ case mpYear item of
+      SpanningYears years ->
+        ["This statement contains transactions from " <> T.intercalate ", " (map (T.pack . show) years)
+          <> ". Split it into one file per year."]
+      UnknownYear -> ["Couldn't tell the year from the file. Use the year of its transactions."]
+      SingleYear _ | mpDestinationExists item ->
+        ["The destination already exists. Compare the two paths above before moving the statement."]
+      SingleYear _ -> ["Move it with: " <> cmd | Just cmd <- [misplacedMoveCommand shell homes base item]]
 
 plural :: Int -> T.Text -> T.Text
 plural 1 noun = "1 " <> noun
@@ -133,8 +175,8 @@ nextStep year shell homes cwd s
       NextStep
         ("Move " <> plural (length (lsMisplaced s)) "file" <> " to where hledger-flow looks")
         Nothing
-        [T.pack (mpPath m) <> " → " <> T.pack (mpSuggestion m) | m <- lsMisplaced s]
-        (Just (docURL InputFiles))
+        (concatMap (placementDetails shell homes (lsBaseDir s)) (lsMisplaced s))
+        (Just (docURL (if any spansYears (lsMisplaced s) then StatementYearFolders else InputFiles)))
   | a : _ <- filter needsRules (lsAccounts s) =
       NextStep
         ("Create " <> T.pack (tildePath homes (firstCandidate a)) <> " (rules for " <> asAccount a <> ")")
@@ -170,6 +212,7 @@ nextStep year shell homes cwd s
   where
     commandArgs = flowCommand shell homes cwd (lsBaseDir s) (lsHledgerConf s)
     command subcommand = commandArgs subcommand []
+    spansYears item = case mpYear item of SpanningYears _ -> True; _ -> False
     missingConfigured = maybe False (not . lfExists) (lsLedgerFile s)
     importCommand = command "import"
     statements = sum (map asStatements (lsAccounts s))

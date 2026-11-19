@@ -24,7 +24,7 @@ unset LEDGER_FILE
 mkdir -p import/me/mybank
 printf 'Date,Desc,Amount\n2026-01-02,Coffee,-3.50\n' > import/me/mybank/jan.csv
 hledger-flow status | grep -q 'Next: Move 1 file to where hledger-flow looks'
-hledger-flow status --json | jq -e '.misplaced[0].suggestion | split("\\") | join("/") == "import/me/mybank/<account>/1-in/<year>/jan.csv"' > /dev/null
+hledger-flow status --json | jq -e '.misplaced[0].suggestion | split("\\") | join("/") == "import/me/mybank/<account>/1-in/2026/jan.csv"' > /dev/null
 mkdir -p import/me/mybank/checking/1-in/2026 && mv import/me/mybank/jan.csv import/me/mybank/checking/1-in/2026/
 hledger-flow status --json | jq -e '.next.command == "hledger-flow rules me/mybank/checking"' > /dev/null
 printf 'skip 1\nfields date, description, amount\naccount1 assets:checking\n' > import/me/mybank/checking/mybank-checking.rules

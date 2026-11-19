@@ -76,7 +76,10 @@ path with `--hledger-path` even when `PATH` is unset.
   A shared rules file newer than the journal counts toward `journalsOutdated`.
   A missing or unreadable include, or an include cycle, also marks the journal
   outdated. Fix the rules if needed, then run `hledger-flow import`.
-- `misplaced`: `{"path", "suggestion"}` for statement files import will never read.
+- `misplaced`: `{"path", "suggestion", "year", "years", "destinationExists", "command"}`
+  for statements outside an input folder. `year` is set for a known single
+  year, `years` lists years when the statement spans several, and `command`
+  is set when there is a complete, unoccupied destination.
 - `manualJournals`: the number of `_manual_` journals.
 - `allYearsJournalExists`: whether import has created `all-years.journal`.
 - `next`: `{"summary", "command", "detail", "docs"}`. `command` is `null`

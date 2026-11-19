@@ -81,3 +81,62 @@ printf 'include ../labels.rules\n' > 'import/shared rules/nested/fields.rules'
 touch -t 201501010000 'import/shared rules/nested/fields.rules'
 check_stale 1
 $ sh -eu
+
+# Misplaced statements use transaction dates and native moves refuse collisions.
+<
+. ./test/shell/status-commands.sh
+. ./test/shell/setup.sh
+account="import/me/mybank/checking [east]"
+src="$account/1-in/January [download].csv"
+dest="$account/1-in/2025/January [download].csv"
+mkdir -p "$account/1-in"
+printf 'Date,Desc,Amount\n2025-12-31,"Shop, City",-5\n' > "$src"
+cp "$src" original
+move() { hledger-flow status --json | jq -er '.misplaced[0].command' | tr -d '\r'; }
+hledger-flow status | grep -q ' → .*2025'
+command=$(move)
+mkdir -p "$(dirname "$dest")"
+printf collision > "$dest"
+hledger-flow status --json | jq -e '.misplaced[0] | .year == 2025 and .destinationExists and .command == null' > /dev/null
+if run_suggestion "$command" >/dev/null 2>&1; then exit 1; fi
+cmp "$src" original
+test "$(cat "$dest")" = collision
+rm "$dest"
+mkdir "$dest"
+if run_suggestion "$command" >/dev/null 2>&1; then exit 1; fi
+test -d "$dest"
+cmp "$src" original
+rmdir "$dest"
+case "$(uname -s)" in
+    MINGW*|MSYS*) ;;
+    *) ln -s missing "$dest"
+       if run_suggestion "$command" >/dev/null 2>&1; then exit 1; fi
+       test -L "$dest"
+       test "$(readlink "$dest")" = missing
+       cmp "$src" original
+       unlink "$dest" ;;
+esac
+rmdir "$(dirname "$dest")"
+printf blocker > "$(dirname "$dest")"
+if run_suggestion "$command" >/dev/null 2>&1; then exit 1; fi
+cmp "$src" original
+test "$(cat "$(dirname "$dest")")" = blocker
+rm "$(dirname "$dest")"
+run_suggestion "$command" >/dev/null
+test ! -e "$src"
+cmp "$dest" original
+printf '2025-12-31,Shop,-5\n' > import/misplaced.csv
+hledger-flow status --json | jq -e '.misplaced[0] | .year == 2025 and .command == null' > /dev/null
+$ sh -eu
+
+# Existing year folders win, and disagreement between date columns needs review.
+<
+. ./test/shell/setup.sh
+mkdir -p "$account/2014"
+printf '2025-12-31,2026-01-01,Shop,-5\n' > "$account/2014/wrong-stage.csv"
+hledger-flow status --json | jq -e '.misplaced[0] | .year == 2014 and .command != null' > /dev/null
+mv "$account/2014/wrong-stage.csv" "$account/1-in/wrong-stage.csv"
+hledger-flow status --json | jq -e '.misplaced[0] | .year == null and .command == null' > /dev/null
+printf '2025-12-31,Shop,-5\n2026-01-01,Store,-6\n' > "$account/1-in/wrong-stage.csv"
+hledger-flow status --json | jq -e '(.misplaced[0] | .years == [2025,2026] and .command == null) and (.next.docs | endswith("/statement-year-folders/"))' > /dev/null
+$ sh -eu

@@ -27,6 +27,7 @@ import Hledger.Flow.Types (BaseDir)
 import Path.IO (getCurrentDir)
 import qualified Data.Text as T
 import Hledger.Flow.Status
+import Hledger.Flow.StatementScan (StatementYear (..))
 import Hledger.Flow.LedgerSelection (Coverage (..))
 import Hledger.Flow.Types (HledgerConf, HledgerInfo (..))
 import Path (toFilePath)
@@ -98,7 +99,7 @@ statusJSON sys conf s next =
       "aggregateJournal" .= fmap toFilePath (lsAggregateJournal s),
       "ledgerFileNote" .= ledgerFileNote nativeShell [] s,
       "accounts" .= map accountJSON (lsAccounts s),
-      "misplaced" .= [object ["path" .= mpPath m, "suggestion" .= mpSuggestion m] | m <- lsMisplaced s],
+      "misplaced" .= map misplacedJSON (lsMisplaced s),
       "manualJournals" .= lsManualJournals s,
       "allYearsJournalExists" .= lsAllYearsExists s,
       "next"
@@ -110,6 +111,14 @@ statusJSON sys conf s next =
           ]
     ]
   where
+    misplacedJSON item = object
+      [ "path" .= mpPath item,
+        "suggestion" .= mpSuggestion item,
+        "year" .= (case mpYear item of SingleYear year -> Just year; _ -> Nothing),
+        "years" .= (case mpYear item of SpanningYears years -> years; _ -> []),
+        "destinationExists" .= mpDestinationExists item,
+        "command" .= misplacedMoveCommand nativeShell [] (lsBaseDir s) item
+      ]
     hledgerJSON hl = object ["path" .= toFilePath (hlPath hl), "version" .= hledgerVersionNumber (hlVersion hl)]
     accountJSON a =
       object

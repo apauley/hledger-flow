@@ -2,6 +2,7 @@
   "docs": "/quickstart/",
   "getting-started": "/quickstart/#import-your-first-statement",
   "input-files": "/reference/input-files/",
+  "statement-year-folders": "/reference/input-files/#year-folders",
   "incremental-import-fallback": "/reference/incremental-import/#when-reuse-is-unavailable",
   "rules-files": "/reference/rules-files/",
   "price-files": "/reference/price-files/",

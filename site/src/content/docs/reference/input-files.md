@@ -37,6 +37,14 @@ can resolve relative paths and hledger can find the same config. Paths below the
 working directory start with `./`. Each statement's lines appear together once
 it's done. With `--sequential`, they appear as import works.
 
+## Year folders
+
+Use the year of the transactions in the statement. If a statement contains
+transactions from two years, split it and put each file in its own year
+folder. When status finds a misplaced delimited statement, it can suggest
+a year from its dates and show a move command. Confirm the year yourself
+when dates are missing or transaction and posting dates disagree.
+
 ## More About Input Files
 
 The owner folder groups accounts for reporting. For example, filing statements
