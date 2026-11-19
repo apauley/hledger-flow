@@ -11,7 +11,9 @@ Run status from that root for shorter move and rename commands with relative
 paths. From another directory, the commands use paths that work from there.
 Once the import is up to date, status suggests adding
 [market prices](/reference/price-files/) if the imported journal uses more
-than one commodity and has no market price directives.
+than one commodity and has no market price directives. It points you to
+one [pair file](/reference/price-files/) per currency pair, included from
+the year’s `prices.journal`.
 Interactive status also shows a [cached upgrade notice](/reference/release-notices/) when a previous import or report found a newer release.
 `hledger-flow init` starts a ledger with a working example statement and
 rules, plus starter journals for [manual entries](/reference/manual-journals/),

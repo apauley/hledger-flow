@@ -24,7 +24,7 @@ if,date
 %datum '(..) Des',2016-12-\1
 
 description %{replace(join(" ", %desc1, %desc2, %desc3), "^#", "")}
-currency R
+currency ZAR
 status *
 account1 assets:bogart:cheque
 

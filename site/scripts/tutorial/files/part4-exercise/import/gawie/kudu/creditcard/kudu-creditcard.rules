@@ -2,7 +2,7 @@ skip 1
 fields date, description, amount
 
 description %{capitalize(%description)}
-currency R
+currency ZAR
 account1 liabilities:kudu:creditcard
 account2 expenses:unknown
 

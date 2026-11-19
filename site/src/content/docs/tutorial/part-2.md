@@ -44,16 +44,26 @@ line already names the date, description and amount columns. The dates are
 in hledger’s own format, so there’s no `date-format` to set.
 
 Gawie makes two changes. A credit card is money he owes, so `account1` is a
-liability. And the amounts are in rand, so he adds `currency R`. He saves
-the result as `import/gawie/kudu/creditcard/kudu-creditcard.rules`:
+liability. And the amounts are in rand, so he adds `currency ZAR`, the
+rand’s three-letter code. He saves the result as
+`import/gawie/kudu/creditcard/kudu-creditcard.rules`:
 
 ```hledger title="import/gawie/kudu/creditcard/kudu-creditcard.rules"
 skip 1
 fields date, description, amount
 
-currency R
+currency ZAR
 account1 liabilities:kudu:creditcard
 account2 expenses:unknown
+```
+
+`directives.journal`, which `init` made, declares how hledger shows common
+currencies. Rand isn’t one of them, so Gawie adds it. The alias lets him
+type the familiar `R` in journals he writes by hand, and hledger reads it as
+ZAR:
+
+```bash
+echo 'commodity 1,000.00 ZAR  ; alias: R' >> directives.journal
 ```
 
 ## Import
@@ -71,16 +81,18 @@ The import also found the example’s journal, whose statement Gawie
 deleted in part 1. hledger-flow never deletes your files, so it moved the
 journal to a `.trash/` folder in the account. Gawie can look at it there
 and delete it when he likes. He tells Git to ignore those folders, then
-looks at what the import changed:
+looks at what changed:
 
 ```bash
 echo '.trash/' > .gitignore
 git add -A
 git status --short
+git diff --staged -- directives.journal
 ```
 
 ```text
 A  .gitignore
+M  directives.journal
 A  import/2016-include.journal
 M  import/2026-include.journal
 M  import/all-years.journal
@@ -96,6 +108,15 @@ A  import/gawie/kudu/creditcard/3-journal/2016/creditcard_2016-03-31.journal
 D  import/gawie/kudu/creditcard/3-journal/2026/hledger-flow-example.journal
 M  import/gawie/kudu/creditcard/all-years.journal
 A  import/gawie/kudu/creditcard/kudu-creditcard.rules
+diff --git a/directives.journal b/directives.journal
+index f3d4e10..1806cb5 100644
+--- a/directives.journal
++++ b/directives.journal
+@@ -29,3 +29,4 @@ account assets:cash             ; type: C
+ account equity:conversion       ; type: V
+ account equity:unrealised-gain  ; type: U
+ account revenues:gain           ; type: G
++commodity 1,000.00 ZAR  ; alias: R
 ```
 
 The statement became an hledger journal in `3-journal/2016/`, with a
@@ -109,12 +130,12 @@ head -n 7 import/gawie/kudu/creditcard/3-journal/2016/creditcard_2016-03-31.jour
 
 ```hledger
 2016-03-02 PUNDA MARIA TRADING STORE
-    liabilities:kudu:creditcard                R-842.50
-    expenses:unknown                            R842.50
+    liabilities:kudu:creditcard                 -842.50 ZAR
+    expenses:unknown                             842.50 ZAR
 
 2016-03-04 LETABA FUEL STOP
-    liabilities:kudu:creditcard                R-910.00
-    expenses:unknown                            R910.00
+    liabilities:kudu:creditcard                 -910.00 ZAR
+    expenses:unknown                             910.00 ZAR
 ```
 
 ## Ask hledger
@@ -129,13 +150,13 @@ hledger balance
 ```
 
 ```text
-           R-1745.60  liabilities:kudu:creditcard
-            R1745.60  expenses:unknown
+       -1,745.60 ZAR  liabilities:kudu:creditcard
+        1,745.60 ZAR  expenses:unknown
 --------------------
                    0  
 ```
 
-Gawie owes Kudu Bank R1745.60, and every rand of it went to
+Gawie owes Kudu Bank 1,745.60 ZAR, and every rand of it went to
 `expenses:unknown`. He commits his first real import:
 
 ```bash

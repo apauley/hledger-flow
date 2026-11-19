@@ -1,6 +1,6 @@
 skip 1
 fields date, description, amount
 
-currency R
+currency ZAR
 account1 liabilities:kudu:creditcard
 account2 expenses:unknown

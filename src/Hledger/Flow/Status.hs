@@ -230,7 +230,9 @@ nextStep year shell homes cwd s
         NextStep
           "Add market prices for your commodities"
           Nothing
-          ["Save them in prices/<year>/prices.journal, then run " <> importCommand <> "."]
+          [ "Save each pair's P directives in prices/<year>/<commodity>-<quote>.prices, such as XAU-USD.prices.",
+            "Include each pair file from prices/<year>/prices.journal, then run " <> importCommand <> "."
+          ]
           (Just (docURL PriceFiles))
   | Just lf <- lsLedgerFile s, not (lfExists lf) =
       NextStep

@@ -25,8 +25,8 @@ hledger balance
 ```
 
 ```text
-           R-2674.40  liabilities:kudu:creditcard
-            R2674.40  expenses:unknown
+       -2,674.40 ZAR  liabilities:kudu:creditcard
+        2,674.40 ZAR  expenses:unknown
 --------------------
                    0  
 ```
@@ -87,7 +87,7 @@ are relative to the file that includes them:
 skip 1
 fields date, description, amount
 
-currency R
+currency ZAR
 account1 liabilities:kudu:creditcard
 account2 expenses:unknown
 
@@ -104,19 +104,19 @@ hledger balance
 
 ```text
 Imported 3 statements for gawie/kudu/creditcard.
-          R-43000.00  assets:transfers:creditcard
-           R-2674.40  liabilities:kudu:creditcard
-            R9055.00  expenses:car
-            R6197.00  expenses:groceries
-            R6839.00  expenses:household
-           R19135.00  expenses:mopane-worms
-             R750.00  expenses:phone
-            R3698.40  expenses:unknown
+      -43,000.00 ZAR  assets:transfers:creditcard
+       -2,674.40 ZAR  liabilities:kudu:creditcard
+        9,055.00 ZAR  expenses:car
+        6,197.00 ZAR  expenses:groceries
+        6,839.00 ZAR  expenses:household
+       19,135.00 ZAR  expenses:mopane-worms
+          750.00 ZAR  expenses:phone
+        3,698.40 ZAR  expenses:unknown
 --------------------
                    0  
 ```
 
-R19135 on mopane worms in three months. Gawie is a dedicated chef, even at
+19,135.00 ZAR on mopane worms in three months. Gawie is a dedicated chef, even at
 home.
 
 Git shows what the new rules did. Besides the two rules files, the import
@@ -136,62 +136,62 @@ git diff --staged -- import/gawie/kudu/creditcard/3-journal/2016/creditcard_2016
  import/gawie/kudu/creditcard/kudu-creditcard.rules |  2 ++
  5 files changed, 50 insertions(+), 28 deletions(-)
 diff --git a/import/gawie/kudu/creditcard/3-journal/2016/creditcard_2016-03-31.journal b/import/gawie/kudu/creditcard/3-journal/2016/creditcard_2016-03-31.journal
-index 0ce930d..555224d 100644
+index d3ebe5d..bee117e 100644
 --- a/import/gawie/kudu/creditcard/3-journal/2016/creditcard_2016-03-31.journal
 +++ b/import/gawie/kudu/creditcard/3-journal/2016/creditcard_2016-03-31.journal
 @@ -1,18 +1,18 @@
  2016-03-02 PUNDA MARIA TRADING STORE
-     liabilities:kudu:creditcard                R-842.50
--    expenses:unknown                            R842.50
-+    expenses:groceries                          R842.50
+     liabilities:kudu:creditcard                 -842.50 ZAR
+-    expenses:unknown                             842.50 ZAR
++    expenses:groceries                           842.50 ZAR
  
  2016-03-04 LETABA FUEL STOP
-     liabilities:kudu:creditcard                R-910.00
--    expenses:unknown                            R910.00
-+    expenses:car                                R910.00
+     liabilities:kudu:creditcard                 -910.00 ZAR
+-    expenses:unknown                             910.00 ZAR
++    expenses:car                                 910.00 ZAR
  
  2016-03-07 MOPANE MASTERS WHOLESALE
-     liabilities:kudu:creditcard               R-3150.00
--    expenses:unknown                           R3150.00
-+    expenses:mopane-worms                      R3150.00
+     liabilities:kudu:creditcard               -3,150.00 ZAR
+-    expenses:unknown                           3,150.00 ZAR
++    expenses:mopane-worms                      3,150.00 ZAR
  
  2016-03-10 PAYMENT RECEIVED - THANK YOU
-     liabilities:kudu:creditcard               R14000.00
--    expenses:unknown                         R-14000.00
-+    assets:transfers:creditcard              R-14000.00
+     liabilities:kudu:creditcard               14,000.00 ZAR
+-    expenses:unknown                         -14,000.00 ZAR
++    assets:transfers:creditcard              -14,000.00 ZAR
  
  2016-03-12 BAOBAB BOOKS ONLINE
-     liabilities:kudu:creditcard                R-389.00
+     liabilities:kudu:creditcard                 -389.00 ZAR
 @@ -20,19 +20,19 @@
  
  2016-03-15 BUSHTEL AIRTIME
-     liabilities:kudu:creditcard                R-250.00
--    expenses:unknown                            R250.00
-+    expenses:phone                              R250.00
+     liabilities:kudu:creditcard                 -250.00 ZAR
+-    expenses:unknown                             250.00 ZAR
++    expenses:phone                               250.00 ZAR
  
  2016-03-18 PUNDA MARIA TRADING STORE
-     liabilities:kudu:creditcard               R-1135.20
--    expenses:unknown                           R1135.20
-+    expenses:groceries                         R1135.20
+     liabilities:kudu:creditcard               -1,135.20 ZAR
+-    expenses:unknown                           1,135.20 ZAR
++    expenses:groceries                         1,135.20 ZAR
  
  2016-03-21 LETABA FUEL STOP
-     liabilities:kudu:creditcard                R-875.00
--    expenses:unknown                            R875.00
-+    expenses:car                                R875.00
+     liabilities:kudu:creditcard                 -875.00 ZAR
+-    expenses:unknown                             875.00 ZAR
++    expenses:car                                 875.00 ZAR
  
  2016-03-23 THOHOYANDOU APPLIANCES
-     liabilities:kudu:creditcard               R-4999.00
--    expenses:unknown                           R4999.00
-+    expenses:household                         R4999.00
+     liabilities:kudu:creditcard               -4,999.00 ZAR
+-    expenses:unknown                           4,999.00 ZAR
++    expenses:household                         4,999.00 ZAR
  
  2016-03-26 PAFURI PHARMACY
-     liabilities:kudu:creditcard                R-214.90
+     liabilities:kudu:creditcard                 -214.90 ZAR
 @@ -40,5 +40,5 @@
  
  2016-03-29 MOPANE MASTERS WHOLESALE
-     liabilities:kudu:creditcard               R-2980.00
--    expenses:unknown                           R2980.00
-+    expenses:mopane-worms                      R2980.00
+     liabilities:kudu:creditcard               -2,980.00 ZAR
+-    expenses:unknown                           2,980.00 ZAR
++    expenses:mopane-worms                      2,980.00 ZAR
  
 ```
 
@@ -261,7 +261,7 @@ Next: Categorise 5 unknown transactions
       Docs: https://hledger-flow.github.io/go/review-unknown-transactions/
 
 Environment:
-  hledger-flow  0.20.1 (575e7b3), ghc 9.10, darwin aarch64
+  hledger-flow  0.20.1 (2c5bc2a), ghc 9.10, darwin aarch64
   hledger       ~/bin/hledger  (1.99.6-gc3a608c2b-20261101)   --hledger-path
   hledger.conf  none                                          --hledger-conf
   Cores         18, using 18
@@ -279,24 +279,24 @@ cat reports/gawie/2016/unknown-transactions.txt
 hledger --file directives.journal --file import/gawie/all-years.journal --period 2016 print unknown
 
 2016-03-12 BAOBAB BOOKS ONLINE
-    liabilities:kudu:creditcard                R-389.00
-    expenses:unknown                            R389.00
+    liabilities:kudu:creditcard                 -389.00 ZAR
+    expenses:unknown                             389.00 ZAR
 
 2016-03-26 PAFURI PHARMACY
-    liabilities:kudu:creditcard                R-214.90
-    expenses:unknown                            R214.90
+    liabilities:kudu:creditcard                 -214.90 ZAR
+    expenses:unknown                             214.90 ZAR
 
 2016-05-13 BAOBAB BOOKS ONLINE
-    liabilities:kudu:creditcard                R-455.00
-    expenses:unknown                            R455.00
+    liabilities:kudu:creditcard                 -455.00 ZAR
+    expenses:unknown                             455.00 ZAR
 
 2016-05-21 TSHIPISE HOT SPRINGS
-    liabilities:kudu:creditcard               R-2450.00
-    expenses:unknown                           R2450.00
+    liabilities:kudu:creditcard               -2,450.00 ZAR
+    expenses:unknown                           2,450.00 ZAR
 
 2016-05-27 PAFURI PHARMACY
-    liabilities:kudu:creditcard                R-189.50
-    expenses:unknown                            R189.50
+    liabilities:kudu:creditcard                 -189.50 ZAR
+    expenses:unknown                             189.50 ZAR
 ```
 
 Each month, Gawie files the new statements, runs `hledger-flow import` and

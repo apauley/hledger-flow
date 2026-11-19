@@ -60,19 +60,19 @@ hledger incomestatement
 
 ```text
 Imported 7 statements for gawie/bogart/cheque, gawie/bogart/savings, gawie/kudu/creditcard.
-hledger: Error: /home/gawie/my-finances/import/gawie/bogart/savings/3-journal/2017/123456790_2017-01-27.journal:2:57:
+hledger: Error: /home/gawie/my-finances/import/gawie/bogart/savings/3-journal/2017/123456790_2017-01-27.journal:2:61:
   | 2016-01-02 * Oordrag Van Tjekrekening
-2 |     assets:bogart:savings                      R5000.00 = R13579.50
-  |                                                         ^^^^^^^^^^^
-  |     assets:transfers:savings                  R-5000.00
+2 |     assets:bogart:savings                      5,000.00 ZAR = 13,579.50 ZAR
+  |                                                             ^^^^^^^^^^^^^^^
+  |     assets:transfers:savings                  -5,000.00 ZAR
 
 Balance assertion failed in assets:bogart:savings
-In commodity R at this point, excluding subaccounts, ignoring costs,
-the asserted balance is:        R13579.50
-but the calculated balance is:   R5000.00
-(difference: R8579.50)
+In commodity ZAR at this point, excluding subaccounts, ignoring costs,
+the asserted balance is:        13,579.50 ZAR
+but the calculated balance is:   5,000.00 ZAR
+(difference: 8,579.50 ZAR)
 To troubleshoot, check this account's running balance with assertions disabled, eg:
-hledger reg -E --ignore-assertions '2016-01-03'assets:bogart:savings$ cur:R -e
+hledger reg -E --ignore-assertions '2016-01-03'assets:bogart:savings$ cur:ZAR -e
 ```
 
 2016-01-02? That deposit was made on 2 January **2017**. The date table
@@ -156,7 +156,7 @@ if,date
 %datum '(..) Des (....)',\2-12-\1
 
 description %{replace(join(" ", %desc1, %desc2, %desc3), "^#", "")}
-currency R
+currency ZAR
 status *
 ```
 
@@ -186,13 +186,13 @@ hledger register bogart:savings
 ```
 
 ```text
-2016-11-01 Oordrag Van Tjekr..  as:bogart:savings         R5000.00      R5000.00
-2016-11-30 Rente                as:bogart:savings           R27.40      R5027.40
-2016-12-01 Oordrag Van Tjekr..  as:bogart:savings         R5000.00     R10027.40
-2016-12-23 Kontant Onttrekki..  as:bogart:savings        R-1500.00      R8527.40
-2016-12-31 Rente                as:bogart:savings           R52.10      R8579.50
-2017-01-02 Oordrag Van Tjekr..  as:bogart:savings         R5000.00     R13579.50
-2017-01-27 Rente                as:bogart:savings           R71.85     R13651.35
+2016-11-01 Oordrag Van Tjek..  as:bogart:savings     5,000.00 ZAR   5,000.00 ZAR
+2016-11-30 Rente               as:bogart:savings        27.40 ZAR   5,027.40 ZAR
+2016-12-01 Oordrag Van Tjek..  as:bogart:savings     5,000.00 ZAR  10,027.40 ZAR
+2016-12-23 Kontant Onttrekk..  as:bogart:savings    -1,500.00 ZAR   8,527.40 ZAR
+2016-12-31 Rente               as:bogart:savings        52.10 ZAR   8,579.50 ZAR
+2017-01-02 Oordrag Van Tjek..  as:bogart:savings     5,000.00 ZAR  13,579.50 ZAR
+2017-01-27 Rente               as:bogart:savings        71.85 ZAR  13,651.35 ZAR
 ```
 
 January is back in 2017, and every balance assertion holds. A savings
@@ -213,15 +213,15 @@ hledger --file all-years.journal --period 2016 balance --pretty-tables --quarter
 
 Balance changes in 2016:
 
-┌──────────────────────────╥────────┬────────┬────────┬────────────┐
-│                          ║ 2016Q1 │ 2016Q2 │ 2016Q3 │     2016Q4 │
-╞══════════════════════════╬════════╪════════╪════════╪════════════╡
-│ assets:transfers:savings ║      0 │      0 │      0 │ R-10000.00 │
-└──────────────────────────╨────────┴────────┴────────┴────────────┘
+┌──────────────────────────╥────────┬────────┬────────┬────────────────┐
+│                          ║ 2016Q1 │ 2016Q2 │ 2016Q3 │         2016Q4 │
+╞══════════════════════════╬════════╪════════╪════════╪════════════════╡
+│ assets:transfers:savings ║      0 │      0 │      0 │ -10,000.00 ZAR │
+└──────────────────────────╨────────┴────────┴────────┴────────────────┘
 ```
 
 The report shows the change in each transfer account during each quarter.
-The card payments cancel within each quarter here. The R-10000 in the savings
+The card payments cancel within each quarter here. The -10,000.00 ZAR in the savings
 row is the other side of deposits into savings. Gawie has yet to import the
 cheque statements showing the withdrawals. When he does, he can check that
 the corresponding postings reach `assets:transfers:savings`. If the two

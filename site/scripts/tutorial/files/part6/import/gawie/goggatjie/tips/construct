@@ -4,16 +4,12 @@
 import json
 import sys
 
-symbols = {"ZAR": "R"}
-
 with open(sys.argv[1]) as statement:
     export = json.load(statement)
 
 for shift in export["shifts"]:
     print(f"{shift['date']} * Tips, {shift['service']} shift")
     for tip in shift["tips"]:
-        currency, amount = tip["currency"], tip["amount"]
-        money = symbols[currency] + amount if currency in symbols else f"{amount} {currency}"
-        print(f"    assets:goggatjie:tips    {money}")
+        print(f"    assets:goggatjie:tips    {tip['amount']} {tip['currency']}")
     print("    income:tips")
     print()

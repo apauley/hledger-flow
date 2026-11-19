@@ -33,7 +33,7 @@ Next: Create import/gawie/bogart/cheque/bogart-cheque.rules (rules for gawie/bog
       Docs: https://hledger-flow.github.io/go/rules-files/
 
 Environment:
-  hledger-flow  0.20.1 (575e7b3), ghc 9.10, darwin aarch64
+  hledger-flow  0.20.1 (2c5bc2a), ghc 9.10, darwin aarch64
   hledger       ~/bin/hledger  (1.99.6-gc3a608c2b-20261101)   --hledger-path
   hledger.conf  none                                          --hledger-conf
   Cores         18, using 18
@@ -148,7 +148,7 @@ if,date
 %datum '(..) Des',2016-12-\1
 
 description %{replace(join(" ", %desc1, %desc2, %desc3), "^#", "")}
-currency R
+currency ZAR
 status *
 account1 assets:bogart:cheque
 
@@ -196,12 +196,12 @@ head -n 7 import/gawie/bogart/cheque/3-journal/2016/123456789_2016-03-30.journal
 ```text
 Imported 6 statements for gawie/bogart/cheque, gawie/kudu/creditcard.
 2016-03-01 * Monthly Bank Fee
-    assets:bogart:cheque                       R-500.00 = R40000.00
-    expenses:bank-fees                          R500.00
+    assets:bogart:cheque                        -500.00 ZAR = 40,000.00 ZAR
+    expenses:bank-fees                           500.00 ZAR
 
 2016-03-01 * Gereeld Bet Na Rent
-    assets:bogart:cheque                      R-5000.00 = R35000.00
-    expenses:rent                              R5000.00
+    assets:bogart:cheque                      -5,000.00 ZAR = 35,000.00 ZAR
+    expenses:rent                              5,000.00 ZAR
 ```
 
 Gawie ran a full import from `my-finances`, so it also rebuilt the card’s
@@ -214,24 +214,25 @@ hledger incomestatement
 ```
 
 ```text
-hledger: Error: /home/gawie/my-finances/import/gawie/bogart/cheque/3-journal/2016/123456789_2016-03-30.journal:2:57:
+hledger: Error: /home/gawie/my-finances/import/gawie/bogart/cheque/3-journal/2016/123456789_2016-03-30.journal:2:61:
   | 2016-03-01 * Monthly Bank Fee
-2 |     assets:bogart:cheque                       R-500.00 = R40000.00
-  |                                                         ^^^^^^^^^^^
-  |     expenses:bank-fees                          R500.00
+2 |     assets:bogart:cheque                        -500.00 ZAR = 40,000.00 ZAR
+  |                                                             ^^^^^^^^^^^^^^^
+  |     expenses:bank-fees                           500.00 ZAR
 
 Balance assertion failed in assets:bogart:cheque
-In commodity R at this point, excluding subaccounts, ignoring costs,
-the asserted balance is:        R40000.00
-but the calculated balance is:   R-500.00
-(difference: R40500.00)
+In commodity ZAR at this point, excluding subaccounts, ignoring costs,
+the asserted balance is:        40,000.00 ZAR
+but the calculated balance is:    -500.00 ZAR
+(difference: 40,500.00 ZAR)
 To troubleshoot, check this account's running balance with assertions disabled, eg:
-hledger reg -E --ignore-assertions '2016-03-02'assets:bogart:cheque$ cur:R -e
+hledger reg -E --ignore-assertions '2016-03-02'assets:bogart:cheque$ cur:ZAR -e
 ```
 
 The balance assertion caught something. Bogart says the account held
-R40000 after the first transaction, but hledger only knows about the R500
-fee. The account already had R40500 in it before the first statement.
+40,000.00 ZAR after the first transaction, but hledger only knows about the
+500.00 ZAR fee. The account already had 40,500.00 ZAR in it before the
+first statement.
 
 `hledger-flow` includes a file named `<year>-opening.journal` in an account
 directory before that year’s statements. It’s the file `init` made as a
@@ -241,7 +242,7 @@ starter for the example account in [part 1](/tutorial/part-1/). Gawie saves the
 
 ```hledger title="import/gawie/bogart/cheque/2016-opening.journal"
 2016-03-01 Cheque account opening balance
-    assets:bogart:cheque              R40500
+    assets:bogart:cheque              40500.00 ZAR
     equity:opening/closing balances
 ```
 
@@ -254,34 +255,34 @@ hledger incomestatement --monthly --pretty
 Imported 6 statements for gawie/bogart/cheque, gawie/kudu/creditcard.
 Monthly Income Statement 2016-03-01..2016-05-31
 
-┌───────────────────────╥───────────┬───────────┬───────────┐
-│                       ║       Mar │       Apr │       May │
-╞═══════════════════════╬═══════════╪═══════════╪═══════════╡
-│ Revenues              ║           │           │           │
-├───────────────────────╫───────────┼───────────┼───────────┤
-│ income:salary         ║ R37256.28 │ R37256.28 │ R37256.28 │
-├───────────────────────╫───────────┼───────────┼───────────┤
-│                       ║ R37256.28 │ R37256.28 │ R37256.28 │
-╞═══════════════════════╬═══════════╪═══════════╪═══════════╡
-│ Expenses              ║           │           │           │
-├───────────────────────╫───────────┼───────────┼───────────┤
-│ expenses:bank-fees    ║  R1050.23 │   R599.06 │         0 │
-│ expenses:car          ║  R1785.00 │  R5455.00 │  R1815.00 │
-│ expenses:cash         ║  R3000.00 │  R5000.00 │  R4000.00 │
-│ expenses:charity      ║  R4000.00 │  R4500.00 │  R4000.00 │
-│ expenses:fun          ║   R389.00 │         0 │  R2905.00 │
-│ expenses:groceries    ║  R1977.70 │  R2056.05 │  R2163.25 │
-│ expenses:health       ║   R214.90 │         0 │   R189.50 │
-│ expenses:household    ║  R4999.00 │  R1840.00 │         0 │
-│ expenses:insurance    ║  R5234.43 │  R5234.43 │  R5234.43 │
-│ expenses:mopane-worms ║  R6130.00 │  R6495.00 │  R6510.00 │
-│ expenses:phone        ║   R250.00 │   R250.00 │   R250.00 │
-│ expenses:rent         ║  R5000.00 │  R5000.00 │  R5000.00 │
-├───────────────────────╫───────────┼───────────┼───────────┤
-│                       ║ R34030.26 │ R36429.54 │ R32067.18 │
-╞═══════════════════════╬═══════════╪═══════════╪═══════════╡
-│ Net:                  ║  R3226.02 │   R826.74 │  R5189.10 │
-└───────────────────────╨───────────┴───────────┴───────────┘
+┌───────────────────────╥───────────────┬───────────────┬───────────────┐
+│                       ║           Mar │           Apr │           May │
+╞═══════════════════════╬═══════════════╪═══════════════╪═══════════════╡
+│ Revenues              ║               │               │               │
+├───────────────────────╫───────────────┼───────────────┼───────────────┤
+│ income:salary         ║ 37,256.28 ZAR │ 37,256.28 ZAR │ 37,256.28 ZAR │
+├───────────────────────╫───────────────┼───────────────┼───────────────┤
+│                       ║ 37,256.28 ZAR │ 37,256.28 ZAR │ 37,256.28 ZAR │
+╞═══════════════════════╬═══════════════╪═══════════════╪═══════════════╡
+│ Expenses              ║               │               │               │
+├───────────────────────╫───────────────┼───────────────┼───────────────┤
+│ expenses:bank-fees    ║  1,050.23 ZAR │    599.06 ZAR │             0 │
+│ expenses:car          ║  1,785.00 ZAR │  5,455.00 ZAR │  1,815.00 ZAR │
+│ expenses:cash         ║  3,000.00 ZAR │  5,000.00 ZAR │  4,000.00 ZAR │
+│ expenses:charity      ║  4,000.00 ZAR │  4,500.00 ZAR │  4,000.00 ZAR │
+│ expenses:fun          ║    389.00 ZAR │             0 │  2,905.00 ZAR │
+│ expenses:groceries    ║  1,977.70 ZAR │  2,056.05 ZAR │  2,163.25 ZAR │
+│ expenses:health       ║    214.90 ZAR │             0 │    189.50 ZAR │
+│ expenses:household    ║  4,999.00 ZAR │  1,840.00 ZAR │             0 │
+│ expenses:insurance    ║  5,234.43 ZAR │  5,234.43 ZAR │  5,234.43 ZAR │
+│ expenses:mopane-worms ║  6,130.00 ZAR │  6,495.00 ZAR │  6,510.00 ZAR │
+│ expenses:phone        ║    250.00 ZAR │    250.00 ZAR │    250.00 ZAR │
+│ expenses:rent         ║  5,000.00 ZAR │  5,000.00 ZAR │  5,000.00 ZAR │
+├───────────────────────╫───────────────┼───────────────┼───────────────┤
+│                       ║ 34,030.26 ZAR │ 36,429.54 ZAR │ 32,067.18 ZAR │
+╞═══════════════════════╬═══════════════╪═══════════════╪═══════════════╡
+│ Net:                  ║  3,226.02 ZAR │    826.74 ZAR │  5,189.10 ZAR │
+└───────────────────────╨───────────────┴───────────────┴───────────────┘
 ```
 
 Gawie earns more than he spends every month, even in April, when the car
@@ -296,24 +297,24 @@ hledger balancesheet --pretty
 ```text
 Balance Sheet 2016-05-30
 
-┌─────────────────────────────╥────────────┐
-│                             ║ 2016-05-30 │
-╞═════════════════════════════╬════════════╡
-│ Assets                      ║            │
-├─────────────────────────────╫────────────┤
-│ assets:bogart:cheque        ║  R37416.26 │
-│ assets:investments          ║  R15000.00 │
-├─────────────────────────────╫────────────┤
-│                             ║  R52416.26 │
-╞═════════════════════════════╬════════════╡
-│ Liabilities                 ║            │
-├─────────────────────────────╫────────────┤
-│ liabilities:kudu:creditcard ║   R2674.40 │
-├─────────────────────────────╫────────────┤
-│                             ║   R2674.40 │
-╞═════════════════════════════╬════════════╡
-│ Net:                        ║  R49741.86 │
-└─────────────────────────────╨────────────┘
+┌─────────────────────────────╥───────────────┐
+│                             ║    2016-05-30 │
+╞═════════════════════════════╬═══════════════╡
+│ Assets                      ║               │
+├─────────────────────────────╫───────────────┤
+│ assets:bogart:cheque        ║ 37,416.26 ZAR │
+│ assets:investments          ║ 15,000.00 ZAR │
+├─────────────────────────────╫───────────────┤
+│                             ║ 52,416.26 ZAR │
+╞═════════════════════════════╬═══════════════╡
+│ Liabilities                 ║               │
+├─────────────────────────────╫───────────────┤
+│ liabilities:kudu:creditcard ║  2,674.40 ZAR │
+├─────────────────────────────╫───────────────┤
+│                             ║  2,674.40 ZAR │
+╞═════════════════════════════╬═══════════════╡
+│ Net:                        ║ 49,741.86 ZAR │
+└─────────────────────────────╨───────────────┘
 ```
 
 All from rules files, without a line of script. Gawie commits the new

@@ -50,7 +50,7 @@ Next: Create import/gawie/goggatjie/tips/goggatjie-tips.rules (rules for gawie/g
       Docs: https://hledger-flow.github.io/go/rules-files/
 
 Environment:
-  hledger-flow  0.20.1 (575e7b3), ghc 9.10, darwin aarch64
+  hledger-flow  0.20.1 (2c5bc2a), ghc 9.10, darwin aarch64
   hledger       ~/bin/hledger  (1.99.6-gc3a608c2b-20261101)   --hledger-path
   hledger.conf  none                                          --hledger-conf
   Cores         18, using 18
@@ -94,22 +94,20 @@ Gawie writes his in Python and saves it as
 import json
 import sys
 
-symbols = {"ZAR": "R"}
-
 with open(sys.argv[1]) as statement:
     export = json.load(statement)
 
 for shift in export["shifts"]:
     print(f"{shift['date']} * Tips, {shift['service']} shift")
     for tip in shift["tips"]:
-        currency, amount = tip["currency"], tip["amount"]
-        money = symbols[currency] + amount if currency in symbols else f"{amount} {currency}"
-        print(f"    assets:goggatjie:tips    {money}")
+        print(f"    assets:goggatjie:tips    {tip['amount']} {tip['currency']}")
     print("    income:tips")
     print()
 ```
 
-Each transaction ends with an `income:tips` posting without an amount.
+The export already uses ZAR, like the rest of Gawie’s ledger, so the
+script copies each currency code as it is. Each transaction ends with an
+`income:tips` posting without an amount.
 hledger fills it in, with one amount per currency. A construct script is
 easy to try on its own:
 
@@ -120,27 +118,27 @@ import/gawie/goggatjie/tips/construct import/gawie/goggatjie/tips/1-in/2016/tips
 
 ```hledger
 2016-05-06 * Tips, dinner shift
-    assets:goggatjie:tips    R420.00
+    assets:goggatjie:tips    420.00 ZAR
     assets:goggatjie:tips    20.00 USD
     income:tips
 
 2016-05-07 * Tips, lunch shift
-    assets:goggatjie:tips    R180.00
+    assets:goggatjie:tips    180.00 ZAR
     assets:goggatjie:tips    500.00 MZN
     income:tips
 
 2016-05-07 * Tips, dinner shift
-    assets:goggatjie:tips    R610.00
+    assets:goggatjie:tips    610.00 ZAR
     assets:goggatjie:tips    10.00 USD
     assets:goggatjie:tips    250.00 MZN
     income:tips
 
 2016-05-13 * Tips, dinner shift
-    assets:goggatjie:tips    R385.00
+    assets:goggatjie:tips    385.00 ZAR
     income:tips
 
 2016-05-14 * Tips, dinner shift
-    assets:goggatjie:tips    R540.00
+    assets:goggatjie:tips    540.00 ZAR
     assets:goggatjie:tips    15.00 USD
     income:tips
 ```
@@ -153,11 +151,11 @@ hledger balance tips
 ```text
 Imported 8 statements for 4 accounts.
           750.00 MZN
-            R2135.00
-           45.00 USD  assets:goggatjie:tips
+           45.00 USD
+        2,135.00 ZAR  assets:goggatjie:tips
          -750.00 MZN
-           R-2135.00
-          -45.00 USD  income:tips
+          -45.00 USD
+       -2,135.00 ZAR  income:tips
 --------------------
                    0  
 ```
@@ -165,69 +163,111 @@ Imported 8 statements for 4 accounts.
 ## What the tips are worth
 
 hledger keeps each currency separate. To see the tips in rand, it needs
-exchange rates. `hledger-flow` includes `prices/<year>/prices.journal` in
-the ledger for that year, so Gawie saves the rates he looked up as
-`prices/2016/prices.journal`:
+exchange rates, and status says so:
 
-```hledger title="prices/2016/prices.journal"
-; Exchange rates for Gawie's tips, May 2016
-P 2016-05-01 USD R15.40
-P 2016-05-01 MZN R0.29
+```bash
+hledger-flow status
 ```
 
-`--value=then,R` converts each amount to rand at the rate on its date:
+```text
+Ledger: ~/my-finances   (hledger 1.99.6-gc3a608c2b-20261101 found)
+
+  gawie/bogart/cheque     3 statements (2016)   ✓ 3 journals
+  gawie/bogart/savings    1 statement (2017)    ✓ 1 journal
+  gawie/goggatjie/tips    1 statement (2016)    ✓ 1 journal
+  gawie/kudu/creditcard   3 statements (2016)   ✓ 3 journals
+
+Next: Add market prices for your commodities
+      Save each pair's P directives in prices/<year>/<commodity>-<quote>.prices, such as XAU-USD.prices.
+      Include each pair file from prices/<year>/prices.journal, then run hledger-flow import.
+      Docs: https://hledger-flow.github.io/go/price-files/
+
+Environment:
+  hledger-flow  0.20.1 (2c5bc2a), ghc 9.10, darwin aarch64
+  hledger       ~/bin/hledger  (1.99.6-gc3a608c2b-20261101)   --hledger-path
+  hledger.conf  none                                          --hledger-conf
+  Cores         18, using 18
+```
+
+`hledger-flow` includes `prices/<year>/prices.journal` in the ledger for
+that year. The starter that `init` made in part 1 kept one file per
+currency pair, such as `EUR-USD.prices`, with prices in US dollars, and
+`prices.journal` only included them. Status suggests the same pattern, so
+Gawie follows it for 2016, with rand as his base currency. He saves the rates he looked up in
+`prices/2016/USD-ZAR.prices`:
+
+```hledger title="prices/2016/USD-ZAR.prices"
+; Rand per US dollar, for Gawie's tips.
+P 2016-05-01 USD 15.40 ZAR
+```
+
+and `prices/2016/MZN-ZAR.prices`:
+
+```hledger title="prices/2016/MZN-ZAR.prices"
+; Rand per Mozambican metical, for Gawie's tips.
+P 2016-05-01 MZN 0.29 ZAR
+```
+
+and includes both from `prices/2016/prices.journal`:
+
+```hledger title="prices/2016/prices.journal"
+include USD-ZAR.prices
+include MZN-ZAR.prices
+```
+
+`--value=then,ZAR` converts each amount to rand at the rate on its date:
 
 ```bash
 hledger-flow import
-hledger balance tips --value=then,R
+hledger balance tips --value=then,ZAR
 ```
 
 ```text
 Imported 8 statements for 4 accounts.
-            R3045.50  assets:goggatjie:tips
-           R-3045.50  income:tips
+        3,045.50 ZAR  assets:goggatjie:tips
+       -3,045.50 ZAR  income:tips
 --------------------
                    0  
 ```
 
 ```bash
-hledger incomestatement --pretty --period 2016-05 --value=then,R
+hledger incomestatement --pretty --period 2016-05 --value=then,ZAR
 ```
 
 ```text
 Income Statement 2016-05, valued at posting date
 
-┌───────────────────────╥───────────┐
-│                       ║       May │
-╞═══════════════════════╬═══════════╡
-│ Revenues              ║           │
-├───────────────────────╫───────────┤
-│ income:salary         ║ R37256.28 │
-│ income:tips           ║  R3045.50 │
-├───────────────────────╫───────────┤
-│                       ║ R40301.78 │
-╞═══════════════════════╬═══════════╡
-│ Expenses              ║           │
-├───────────────────────╫───────────┤
-│ expenses:car          ║  R1815.00 │
-│ expenses:cash         ║  R4000.00 │
-│ expenses:charity      ║  R4000.00 │
-│ expenses:fun          ║  R2905.00 │
-│ expenses:groceries    ║  R2163.25 │
-│ expenses:health       ║   R189.50 │
-│ expenses:insurance    ║  R5234.43 │
-│ expenses:mopane-worms ║  R6510.00 │
-│ expenses:phone        ║   R250.00 │
-│ expenses:rent         ║  R5000.00 │
-├───────────────────────╫───────────┤
-│                       ║ R32067.18 │
-╞═══════════════════════╬═══════════╡
-│ Net:                  ║  R8234.60 │
-└───────────────────────╨───────────┘
+┌───────────────────────╥───────────────┐
+│                       ║           May │
+╞═══════════════════════╬═══════════════╡
+│ Revenues              ║               │
+├───────────────────────╫───────────────┤
+│ income:salary         ║ 37,256.28 ZAR │
+│ income:tips           ║  3,045.50 ZAR │
+├───────────────────────╫───────────────┤
+│                       ║ 40,301.78 ZAR │
+╞═══════════════════════╬═══════════════╡
+│ Expenses              ║               │
+├───────────────────────╫───────────────┤
+│ expenses:car          ║  1,815.00 ZAR │
+│ expenses:cash         ║  4,000.00 ZAR │
+│ expenses:charity      ║  4,000.00 ZAR │
+│ expenses:fun          ║  2,905.00 ZAR │
+│ expenses:groceries    ║  2,163.25 ZAR │
+│ expenses:health       ║    189.50 ZAR │
+│ expenses:insurance    ║  5,234.43 ZAR │
+│ expenses:mopane-worms ║  6,510.00 ZAR │
+│ expenses:phone        ║    250.00 ZAR │
+│ expenses:rent         ║  5,000.00 ZAR │
+├───────────────────────╫───────────────┤
+│                       ║ 32,067.18 ZAR │
+╞═══════════════════════╬═══════════════╡
+│ Net:                  ║  8,234.60 ZAR │
+└───────────────────────╨───────────────┘
 ```
 
 Gawie typed two rates by hand. For daily rates over many months,
-[fetch them with pricehist](/reference/price-files/#fetch-prices-with-pricehist).
+[fetch them with pricehist](/reference/price-files/#fetch-prices-with-pricehist) into each pair’s file.
 
 The tips pay for nearly half of the month’s mopane worms. Gawie is ready for a quiet
 season.
@@ -249,7 +289,7 @@ Next: Generate reports, or explore with hledger
       Or try: hledger -f "$HOME/my-finances/all-years.journal" balance
 
 Environment:
-  hledger-flow  0.20.1 (575e7b3), ghc 9.10, darwin aarch64
+  hledger-flow  0.20.1 (2c5bc2a), ghc 9.10, darwin aarch64
   hledger       ~/bin/hledger  (1.99.6-gc3a608c2b-20261101)   --hledger-path
   hledger.conf  none                                          --hledger-conf
   Cores         18, using 18

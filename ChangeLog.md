@@ -33,7 +33,7 @@ How to keep this ChangeLog
 
 ## Unreleased
 
-- `init` creates a working example account plus starter journals for manual entries, directives and prices. Follow `status` through the first import and report. Status tells you when the untouched example is safe to delete. Status guides you to your first statement when only the starter comments remain.
+- `init` creates a working example account plus starter journals for manual entries, directives and prices. Follow `status` through the first import and report. When the example is untouched, status tells you how to adapt it to your first account. Status guides you to your first statement when only the starter comments remain.
 
 - After a successful report, `status` points to [unknown transactions and transfers that need review](https://hledger-flow.github.io/reference/status/#review-unknown-transactions).
 
@@ -51,7 +51,7 @@ How to keep this ChangeLog
 
 - `import --incremental=skip-unchanged-scripts` now tracks [sourced shell helpers](https://hledger-flow.github.io/reference/incremental-import/#sourced-shell-helpers), including nested files under an exported directory. Editing a helper reruns the scripts that source it.
 - `import --incremental` can reuse statements whose CSV rules include shared files outside the ledger by relative path, including paths through symbolic links and directories followed by `..`. See [what gets checked](https://hledger-flow.github.io/reference/incremental-import/#what-gets-checked).
-- `hledger-flow status` suggests adding [market prices](https://hledger-flow.github.io/reference/price-files/) when the imported journal uses more than one commodity and has no market price directives.
+- `hledger-flow status` suggests adding [market prices](https://hledger-flow.github.io/reference/price-files/) when the imported journal uses more than one commodity and has no market price directives, with one file per currency pair.
 - `import --incremental` now reuses journals whatever your `hledger.conf` contains, unless an entry is known to be non-deterministic, for example because it depends on today's date or reads untracked files. The notice quotes that entry and its line instead of reporting an unsupported config. See [config handling](https://hledger-flow.github.io/reference/incremental-import/#what-gets-checked).
 - Incremental import now follows literal journal includes in `directives.journal`, including nested files and files with custom extensions or no extension. Editing an included file rebuilds the statements that use it. See the [supported directives](https://hledger-flow.github.io/reference/incremental-import/#what-gets-checked).
 

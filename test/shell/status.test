@@ -58,6 +58,7 @@ printf '\n2026-01-02 Opening\n    assets:savings  10 USD\n    equity:opening bal
 unset LEDGER_FILE
 hledger-flow status --json | jq -e '.next.docs == "https://hledger-flow.github.io/go/price-files/"' > /dev/null
 hledger-flow status | grep -q '^Next: Add market prices'
+hledger-flow status | grep -q 'prices/<year>/<commodity>-<quote>.prices'
 printf 'P 2026-01-01 USD 0.90 EUR\n' >> "$prices"
 export LEDGER_FILE="$(native_pwd)/all-years.journal"
 hledger-flow status | grep -q '^Next: Generate reports'
@@ -270,6 +271,21 @@ hledger -f all-years.journal balance --flat --no-total --format '%(account) %(to
 $ sh -eu
 assets:mybank:checking -3.50
 expenses:unknown 3.50
+
+# The rules starter skips init's sample when the account has a real statement,
+# even an older one.
+<
+cd "$(mktemp -d "${TMPDIR:-/tmp}/hledger-flow.XXXXXXXX")"
+USER=me USERNAME=me hledger-flow init > /dev/null
+mv import/me/mybank import/me/kudu
+mv import/me/kudu/checking import/me/kudu/creditcard
+rm import/me/kudu/creditcard/mybank-checking.rules
+mkdir -p import/me/kudu/creditcard/1-in/2016
+printf 'Date,Payee,Amount\n2016-03-02,Store,-1.00\n' > import/me/kudu/creditcard/1-in/2016/mar.csv
+hledger-flow rules me/kudu/creditcard > /dev/null
+grep -q '1-in/2016/mar.csv' import/me/kudu/creditcard/kudu-creditcard.rules
+grep -qx 'fields date, description, amount' import/me/kudu/creditcard/kudu-creditcard.rules
+$ sh -eu
 
 # Output survives a C locale (Linux containers, cron, agent sandboxes).
 <

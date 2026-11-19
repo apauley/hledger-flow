@@ -23,6 +23,7 @@ import Hledger.Flow.DocHelpers (DocLink (..), docURL)
 import Hledger.Flow.Common (homeDirs, nativeShell, tildePath)
 import Hledger.Flow.Import.ImportHelpers (defaultRulesCandidates, extractImportDirs)
 import Hledger.Flow.Import.Inventory (findImportFiles, stageFiles)
+import Hledger.Flow.Init.Example (isSampleStatement)
 import Hledger.Flow.PathHelpers (AbsFile, writeNewUtf8File)
 import Hledger.Flow.StatementScan
 import Hledger.Flow.Status (flowCommand)
@@ -162,14 +163,18 @@ headerlessTemplate bank account path statement = case statementRows statement of
         : map ("#     " <>) rest
       [] -> []
 
--- | The first default rules candidate and the starter for the newest statement.
+-- | The first default rules candidate and the starter for the newest statement,
+-- skipping init's sample statement when the account also has real ones.
 rulesStarterFor :: BaseDir -> T.Text -> IO (Either T.Text (AbsFile, T.Text))
 rulesStarterFor base requested = do
   let account = T.dropWhileEnd (== '/') (fromMaybe requested (T.stripPrefix "import/" requested))
       root = base </> [reldir|import|]
   files <- findImportFiles root
   let inputs = stageFiles root [reldir|1-in|] files
-      statements = filter ((== account) . accountName root) inputs
+      found = filter ((== account) . accountName root) inputs
+      statements = case filter (not . isSampleStatement) found of
+        [] -> found
+        real -> real
       known = List.nub (map (accountName root) inputs)
   case reverse statements of
     [] -> return . Left $

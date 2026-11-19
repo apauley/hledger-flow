@@ -3,6 +3,7 @@
 
 module Hledger.Flow.Init.Example
   ( exampleImportFiles,
+    isSampleStatement,
     exampleBaseFiles,
     starterOwner,
     exampleAccount,
@@ -66,6 +67,9 @@ exampleAccountPath account = "import/" <> T.pack (intercalate "/" parts)
 
 sampleName :: RelFile
 sampleName = [relfile|hledger-flow-example.csv|]
+
+isSampleStatement :: AbsFile -> Bool
+isSampleStatement file = filename file == sampleName
 
 rulesName :: RelFile
 rulesName = [relfile|mybank-checking.rules|]
