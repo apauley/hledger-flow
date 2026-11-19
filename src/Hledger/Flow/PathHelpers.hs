@@ -29,14 +29,15 @@ type AbsDir = Path.Path Path.Abs Path.Dir
 type RelDir = Path.Path Path.Rel Path.Dir
 
 -- | Publish a complete file by renaming it on the destination filesystem.
-withStagedOutput :: AbsFile -> (AbsFile -> IO ()) -> IO ()
+withStagedOutput :: AbsFile -> (AbsFile -> IO a) -> IO a
 withStagedOutput target writeOutput = do
   let dir = Path.parent target
   Path.createDirIfMissing True dir
   Path.withTempDir dir ".hledger-flow-" $ \tmp -> do
     let staged = tmp Path.</> Path.filename target
-    writeOutput staged
+    result <- writeOutput staged
     Path.renameFile staged target
+    return result
 
 -- | Install complete UTF-8 bytes at an unused path. The final operation must
 -- fail for an existing entry, including a dangling symlink.
@@ -46,14 +47,20 @@ writeNewUtf8File target contents = do
   Path.createDirIfMissing True dir
   Path.withTempDir dir ".hledger-flow-" $ \tmp -> do
     let staged = tmp Path.</> Path.filename target
-        src = Path.toFilePath staged
-        dest = Path.toFilePath target
-    B.writeFile src (T.encodeUtf8 contents)
+    B.writeFile (Path.toFilePath staged) (T.encodeUtf8 contents)
+    publishNewFile staged target
+
+-- | Publish a staged file exclusively, without replacing an existing target.
+publishNewFile :: AbsFile -> AbsFile -> IO ()
+publishNewFile staged target =
 #ifdef mingw32_HOST_OS
-    Win32.moveFile (extendedWindowsPath src) (extendedWindowsPath dest)
+  Win32.moveFile (extendedWindowsPath src) (extendedWindowsPath dest)
 #else
-    Posix.createLink src dest
+  Posix.createLink src dest
 #endif
+  where
+    src = Path.toFilePath staged
+    dest = Path.toFilePath target
 
 #ifdef mingw32_HOST_OS
 -- The raw Win32 move needs the file namespace for paths beyond MAX_PATH.
@@ -65,9 +72,9 @@ extendedWindowsPath path = case FilePath.normalise path of
   absolute -> "\\\\?\\" ++ absolute
 #endif
 
-pathOccupied :: AbsFile -> IO Bool
+pathOccupied :: Path.Path Path.Abs t -> IO Bool
 pathOccupied file = do
-  let name = Path.toFilePath file
+  let name = FilePath.dropTrailingPathSeparator (Path.toFilePath file)
   exists <- doesPathExist name
   if exists then return True else
     pathIsSymbolicLink name `catchIOError` \err ->

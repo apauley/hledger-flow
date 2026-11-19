@@ -15,6 +15,7 @@ module Hledger.Flow.ReportReview
     countUnknownTransactions,
     invalidateReportReview,
     loadReportReview,
+    reportInputsCurrent,
     reviewFile,
     reviewHasData,
     saveReportReview,
@@ -109,6 +110,9 @@ captureReportInputs info started aggregate conf roots = do
         return (ReportInputs started aggregate config snapshot)
       return (either (Left . T.pack . show) Right (result :: Either IOException ReportInputs))
 
+reportInputsCurrent :: ReportInputs -> IO Bool
+reportInputsCurrent inputs = inputsUnchanged (runInputs inputs) (runStarted inputs)
+
 reviewFile :: BaseDir -> AbsFile -> Maybe ReviewFile
 reviewFile base file = do
   kind <- case toFilePath (filename file) of
@@ -134,7 +138,7 @@ loadReportReview base aggregate conf = do
         if runConfig inputs /= currentConfig || runAggregate inputs /= aggregate
           then return Nothing
           else do
-            current <- inputsUnchanged (runInputs inputs) (runStarted inputs)
+            current <- reportInputsCurrent inputs
             if current then Just . summarize <$> traverse readReview files else return Nothing
   return (either (const Nothing :: IOException -> Maybe Review) id result)
   where

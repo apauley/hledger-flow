@@ -443,15 +443,147 @@ rm -r "$acct/_manual_"
 touch "$acct/preprocess"
 hledger-flow status --json | jq -e '.next.detail | join(" ") | contains("safe to delete") | not' > /dev/null
 rm "$acct/preprocess"
+hledger-flow import > import.out
+hledger-flow report > report.out
+mkdir -p reports/alex/2000 reports/all/2000
+printf 'Archived real owner report\n' > reports/alex/2000/accounts.txt
+printf 'Archived aggregate report\n' > reports/all/2000/balance-sheet.txt
 printf '%s-01-03 User manual entry\n    assets:manual  11 USD\n    equity:opening balances\n' "$year" > "$manual"
-cp -R reports/me old-me-reports
+test -s "reports/me/$year/accounts.txt"
 rm -r "$acct"
 hledger-flow import > import.out
 hledger-flow report > report.out
-diff -r reports/me old-me-reports
+test ! -e import/me
+test ! -e reports/me
+grep -Fxq 'Archived real owner report' reports/alex/2000/accounts.txt
+grep -Fxq 'Archived aggregate report' reports/all/2000/balance-sheet.txt
 grep -R -q assets:manual reports/all
 if grep -R -q hledger-flow-example import; then exit 1; fi
 if grep -q 'reports.*me.*unknown-transactions' .hledger-flow/reports.json; then exit 1; fi
+$ sh -eu
+
+# Sample cleanup preserves edited and archived owner reports.
+<
+cd "$(mktemp -d "${TMPDIR:-/tmp}/hledger-flow.XXXXXXXX")"
+unset LEDGER_FILE
+year=$(date +%Y)
+hledger-flow init >/dev/null
+rm import/.hledger-flow-example.json
+hledger-flow import >/dev/null
+hledger-flow report >/dev/null
+printf 'User report edits\n' >> "reports/me/$year/accounts.txt"
+cp "reports/me/$year/accounts.txt" edited
+mkdir -p reports/me/2000
+printf 'Archived real report\n' > reports/me/2000/accounts.txt
+rm -r import/me/mybank/checking
+hledger-flow import >/dev/null
+hledger-flow report >/dev/null
+test ! -e import/me
+cmp edited "reports/me/$year/accounts.txt"
+grep -Fxq 'Archived real report' reports/me/2000/accounts.txt
+test ! -e "reports/me/$year/income-expenses.txt"
+$ sh -eu
+
+# Removing the sample leaves a real account under the same owner alone.
+<
+cd "$(mktemp -d "${TMPDIR:-/tmp}/hledger-flow.XXXXXXXX")"
+unset LEDGER_FILE
+year=$(date +%Y)
+hledger-flow init >/dev/null
+hledger-flow import >/dev/null
+hledger-flow report >/dev/null
+real=import/me/realbank/savings
+mkdir -p "$real/1-in/$year"
+printf '%s-01-09,Real deposit,19\n' "$year" > "$real/1-in/$year/january.csv"
+printf 'fields date, description, amount\naccount1 assets:realbank:savings\naccount2 income:salary\n' > "$real/realbank-savings.rules"
+cp "$real/1-in/$year/january.csv" original-statement
+hledger-flow import >/dev/null
+hledger-flow report >/dev/null
+grep -q assets:realbank:savings "reports/me/$year/accounts.txt"
+cp "reports/me/$year/accounts.txt" original-report
+rm -r import/me/mybank/checking
+hledger-flow import >/dev/null
+cmp original-report "reports/me/$year/accounts.txt"
+cmp original-statement "$real/1-in/$year/january.csv"
+hledger-flow report >/dev/null
+grep -q assets:realbank:savings "reports/me/$year/accounts.txt"
+$ sh -eu
+
+# Reports that included real directives are preserved after the sample is removed.
+<
+cd "$(mktemp -d "${TMPDIR:-/tmp}/hledger-flow.XXXXXXXX")"
+unset LEDGER_FILE
+year=$(date +%Y)
+hledger-flow init >/dev/null
+hledger-flow import >/dev/null
+printf '%s-01-10 Real transaction\n    assets:realbank  5 USD\n    income:salary\n' "$year" > directives.journal
+hledger-flow report >/dev/null
+grep -q assets:realbank "reports/me/$year/accounts.txt"
+cp "reports/me/$year/accounts.txt" original-report
+rm -r import/me/mybank/checking
+hledger-flow import >/dev/null
+hledger-flow report >/dev/null
+test ! -e import/me
+cmp original-report "reports/me/$year/accounts.txt"
+$ sh -eu
+
+# Cleanup leaves symlinked report directories and their contents alone.
+<
+case "$(uname -s)" in MINGW*|MSYS*) exit 0 ;; esac
+cd "$(mktemp -d "${TMPDIR:-/tmp}/hledger-flow.XXXXXXXX")"
+unset LEDGER_FILE
+year=$(date +%Y)
+hledger-flow init >/dev/null
+hledger-flow import >/dev/null
+hledger-flow report >/dev/null
+mv reports/me saved-reports
+ln -s ../saved-reports reports/me
+cp "saved-reports/$year/accounts.txt" original-report
+rm -r import/me/mybank/checking
+hledger-flow import >/dev/null
+test ! -e import/me
+test -L reports/me
+cmp original-report "saved-reports/$year/accounts.txt"
+$ sh -eu
+
+# Cleanup preserves report folders it never populated.
+<
+cd "$(mktemp -d "${TMPDIR:-/tmp}/hledger-flow.XXXXXXXX")"
+unset LEDGER_FILE
+year=$(date +%Y)
+mkdir -p "reports/me/$year/monthly"
+hledger-flow init >/dev/null
+rm -r import/me/mybank/checking
+hledger-flow import >/dev/null
+test ! -e import/me
+test -d "reports/me/$year/monthly"
+$ sh -eu
+
+# A report replaced during generation does not become a sample-owned file.
+<
+case "$(uname -s)" in MINGW*|MSYS*) exit 0 ;; esac
+cd "$(mktemp -d "${TMPDIR:-/tmp}/hledger-flow.XXXXXXXX")"
+unset LEDGER_FILE
+year=$(date +%Y)
+export ACTUAL_HLEDGER="$(command -v hledger)" SAMPLE_YEAR="$year"
+cat > hledger-wrapper <<'WRAPPER'
+#!/bin/sh
+for arg do
+    if [ "$arg" = accounts ]; then
+        test -s "reports/me/$SAMPLE_YEAR/income-expenses.txt" || exit 1
+        printf 'Real replacement report\n' > "reports/me/$SAMPLE_YEAR/income-expenses.txt"
+    fi
+done
+exec "$ACTUAL_HLEDGER" "$@"
+WRAPPER
+chmod +x hledger-wrapper
+hledger-flow init >/dev/null
+hledger-flow import >/dev/null
+hledger-flow --hledger-path "$PWD/hledger-wrapper" --sequential report >/dev/null
+rm -r import/me/mybank/checking
+hledger-flow import >/dev/null
+grep -Fxq 'Real replacement report' "reports/me/$year/income-expenses.txt"
+test ! -e "reports/me/$year/accounts.txt"
 $ sh -eu
 
 # A failed init can be retried without an incomplete import tree.

@@ -107,7 +107,8 @@ Environment:
   Cores         18, using 18
 ```
 
-He can remove the example account while its files are untouched.
+He can remove the example account while its files are untouched. The next
+import cleans up its empty owner folders and unchanged sample-only reports.
 
 ```bash
 rm -r import/me/mybank/checking

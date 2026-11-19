@@ -7,8 +7,10 @@ c hledger-flow import
 c hledger-flow report
 c hledger-flow status
 c rm -r import/me/mybank/checking
+# Reconcile the removed account and clean up its owner folders and reports.
+q hledger-flow import
 # This tutorial uses historical statements. Discard the remaining demo files.
-q rm -r import/me import/_manual_ prices reports
+q rm -r import/_manual_ prices reports
 q git init -q .
 c mkdir -p import/gawie/kudu/creditcard/1-in/2016
 c cp ../Downloads/Kudu/creditcard_2016-03-31.csv import/gawie/kudu/creditcard/1-in/2016/

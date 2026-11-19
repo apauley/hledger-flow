@@ -13,11 +13,12 @@ import Data.Either
 import Data.Maybe (mapMaybe)
 import qualified Data.List as List
 import qualified Data.Text as T
-import qualified Data.Text.IO as T
 import Hledger.Flow.DateTime (timeAction)
 import Hledger.Flow.Environment (renderSettings, reportSettings)
 import Hledger.Flow.BaseDir (relativeToBase)
 import Hledger.Flow.Common
+import Hledger.Flow.Init.Example (rememberExampleReports, writeExampleReport)
+import Hledger.Flow.Import.Fingerprint (Digest)
 import Hledger.Flow.LedgerSelection
 import Hledger.Flow.Logging
 import Hledger.Flow.PathHelpers (AbsDir, AbsFile, RelDir, RelFile)
@@ -36,7 +37,9 @@ data ReportParams = ReportParams
   }
   deriving (Show)
 
-type ReportGenerator = RuntimeOptions -> TChan FlowTypes.LogMessage -> [FilePath] -> AbsDir -> Integer -> IO (Either AbsFile AbsFile)
+type ReportResult = Either AbsFile (AbsFile, Maybe Digest)
+
+type ReportGenerator = RuntimeOptions -> TChan FlowTypes.LogMessage -> [FilePath] -> AbsDir -> Integer -> IO (ReportResult)
 
 generateReports :: RuntimeOptions -> IO ()
 generateReports opts = withConsoleLogging $ \ch -> do
@@ -51,7 +54,7 @@ generateReports opts = withConsoleLogging $ \ch -> do
   channelOutLn ch "Each report starts with the hledger command that made it. Copy that line to tailor the report."
   logVerbose opts ch ("Reports finished in " <> showDuration diff)
 
-generateReports' :: RuntimeOptions -> TChan FlowTypes.LogMessage -> IO [Either AbsFile AbsFile]
+generateReports' :: RuntimeOptions -> TChan FlowTypes.LogMessage -> IO [ReportResult]
 generateReports' opts ch = do
   started <- startReportRun (baseDir opts)
   owners <- listOwners opts
@@ -88,12 +91,13 @@ generateReports' opts ch = do
   roots <- traverse (traverse parseAbsFile . ledgerFiles) ownerWithAggregateParams
   inputs <- captureReportInputs info started journal (hledgerConf opts) roots
   results <- parAwareActions opts (aggregateOnlyReports ++ ownerWithAggregateReports ++ ownerOnlyReports)
+  rememberExampleReports (baseDir opts) (either (const (pure False)) reportInputsCurrent inputs) (rights results)
   case inputs of
     Left problem -> logVerbose opts ch ("Could not record report inputs: " <> problem)
-    Right available -> saveReportReview (baseDir opts) available (mapMaybe (reviewFile (baseDir opts)) (rights results))
+    Right available -> saveReportReview (baseDir opts) available (mapMaybe (reviewFile (baseDir opts) . fst) (rights results))
   return results
 
-reportActions :: RuntimeOptions -> TChan FlowTypes.LogMessage -> [ReportGenerator] -> ReportParams -> [IO (Either AbsFile AbsFile)]
+reportActions :: RuntimeOptions -> TChan FlowTypes.LogMessage -> [ReportGenerator] -> ReportParams -> [IO (ReportResult)]
 reportActions opts ch reports (ReportParams journals years reportsDir) = do
   y <- years
   map (\r -> r opts ch journals reportsDir y) reports
@@ -128,7 +132,7 @@ transferBalance opts ch journals baseOutDir year = do
   let reportArgs = ["balance"] ++ (if prettyReports opts then ["--pretty-tables"] else []) ++ ["--quarterly", "--flat", "--no-total", "transfer"]
   generateReport opts ch journals year baseOutDir [relfile|transfer-balance.txt|] reportArgs (reviewHasData TransferBalances)
 
-generateReport :: RuntimeOptions -> TChan FlowTypes.LogMessage -> [FilePath] -> Integer -> AbsDir -> RelFile -> [T.Text] -> (T.Text -> Bool) -> IO (Either AbsFile AbsFile)
+generateReport :: RuntimeOptions -> TChan FlowTypes.LogMessage -> [FilePath] -> Integer -> AbsDir -> RelFile -> [T.Text] -> (T.Text -> Bool) -> IO (ReportResult)
 generateReport opts logCh journals year reportsDir fileName args successCheck = do
   yearDir <- parseRelDir (show year)
   let outputFile = reportsDir </> yearDir </> fileName
@@ -148,9 +152,9 @@ generateReport opts logCh journals year reportsDir fileName args successCheck = 
     stdOut <- runExternal opts ch external False (hledger, reportArgs, Nothing)
     if (successCheck stdOut)
       then do
-        T.writeFile (toFilePath outputFile) (cmdLabel <> "\n\n" <> stdOut)
+        digest <- writeExampleReport (baseDir opts) outputFile (cmdLabel <> "\n\n" <> stdOut)
         logVerbose opts ch $ "Wrote " <> T.pack relativeOutputFile
-        return $ Right outputFile
+        return $ Right (outputFile, digest)
       else do
         logVerbose opts ch $ "Skipped empty report " <> T.pack relativeOutputFile
         exists <- PathIO.doesFileExist outputFile
