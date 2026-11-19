@@ -73,25 +73,22 @@ hledger-flow import
 ```
 
 ```text
-Moved orphaned output import/gawie/kudu/creditcard/3-journal/2026/hledger-flow-example.journal to import/gawie/kudu/creditcard/.trash/2026/3-journal/hledger-flow-example.journal
+Moved orphaned output import/gawie/kudu/creditcard/3-journal/2026/hledger-flow-example.journal to .hledger-flow/trash/import/gawie/kudu/creditcard/3-journal/2026/hledger-flow-example.journal
 Imported 1 statement for gawie/kudu/creditcard.
 ```
 
 The import also found the example’s journal, whose statement Gawie
 deleted in part 1. hledger-flow never deletes your files, so it moved the
-journal to a `.trash/` folder in the account. Gawie can look at it there
-and delete it when he likes. He tells Git to ignore those folders, then
+journal to its trash in `.hledger-flow/trash/`, which Git ignores. Gawie
 looks at what changed:
 
 ```bash
-echo '.trash/' > .gitignore
 git add -A
 git status --short
 git diff --staged -- directives.journal
 ```
 
 ```text
-A  .gitignore
 M  directives.journal
 A  import/2016-include.journal
 M  import/2026-include.journal

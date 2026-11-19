@@ -4,7 +4,6 @@ c cat import/gawie/kudu/creditcard/kudu-creditcard.rules
 put import/gawie/kudu/creditcard/kudu-creditcard.rules
 c "echo 'commodity 1,000.00 ZAR  ; alias: R' >> directives.journal"
 c hledger-flow import
-c "echo '.trash/' > .gitignore"
 c git add -A
 c git status --short
 c git diff --staged -- directives.journal

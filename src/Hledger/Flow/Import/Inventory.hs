@@ -25,6 +25,7 @@ import Data.Char (isAscii, isDigit, isPrint, toLower)
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
+import Hledger.Flow.Cache (initializeIgnoredDir, trashDir)
 import Hledger.Flow.Common (groupValuesBy, homeDirs, tildePath)
 import Hledger.Flow.PathHelpers (AbsDir, AbsFile, RelDir)
 import Path
@@ -203,20 +204,19 @@ managedIncludeFiles root = filter supported
         && (name == "all-years.journal" || (isYear (take 4 name) && drop 4 name == "-include.journal"))
       _ -> False
 
-moveToTrash :: AbsFile -> IO AbsFile
-moveToTrash file = do
-  let year = dirname (parent file)
-      stage = dirname (parent (parent file))
-      account = parent (parent (parent file))
-      trash = account </> [reldir|.trash|]
+-- | Move a file under the ledger's trash, keeping its path from the ledger root.
+moveToTrash :: AbsDir -> AbsFile -> IO AbsFile
+moveToTrash base file = do
+  rel <- stripProperPrefix base (parent file)
+  let trash = trashDir base
       lock = trash </> [reldir|.move-lock|]
-      destination = trash </> year </> stage
+      destination = trash </> rel
       acquire = Directory.createDirectory (toFilePath lock) `catchIOError` \err ->
         if isAlreadyExistsError err
           then homeDirs >>= \homes -> ioError (userError ("Trash is in use: " ++ tildePath homes (toFilePath lock)
             ++ ". If no import is running, remove this empty lock directory and retry."))
           else ioError err
-  PathIO.createDirIfMissing True trash
+  initializeIgnoredDir trash
   -- Serialize destination selection and rename so two imports cannot replace
   -- each other's recovery files. An interrupted move leaves a recoverable lock.
   bracket_ acquire (PathIO.removeDir lock) $ do

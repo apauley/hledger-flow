@@ -94,7 +94,7 @@ importCSVs' opts ch = do
       cached = if or [refresh | (_, _, refresh) <- outcomes] then Nothing else Just inventory
   ((refreshed, orphans, journalsOnDisk), journalFindTime) <- timeAction $ reconciliationInventory importRoot cached
   forM_ (filter selected orphans) $ \file -> do
-    target <- moveToTrash file
+    target <- moveToTrash (baseDir opts) file
     channelOutLn ch $ "Moved orphaned output " <> relative file <> " to " <> relative target
   withLogBlock opts True ch "Include files" $ \_ -> do
     (_, writeIncludeTime1) <- timeAction $ writeIncludesFromInventory opts ch importRoot refreshed journalsOnDisk

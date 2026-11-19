@@ -33,6 +33,8 @@ How to keep this ChangeLog
 
 ## Unreleased
 
+- `import` moves orphaned generated files to `.hledger-flow/trash/` at the ledger root instead of each account's `.trash` folder, keeping their path from the root. The trash has its own `.gitignore`. Recover what you need from existing account `.trash` folders, then delete them and any `.trash/` line in your `.gitignore`. See [generated files and recovery](https://hledger-flow.github.io/reference/input-files/#generated-files-and-recovery).
+
 - `init` creates a working example account plus starter journals for manual entries, directives and prices. Follow `status` through the first import and report. When the example is untouched, status tells you how to adapt it to your first account. Status guides you to your first statement when only the starter comments remain.
 
 - After a successful report, `status` points to [unknown transactions and transfers that need review](https://hledger-flow.github.io/reference/status/#review-unknown-transactions).

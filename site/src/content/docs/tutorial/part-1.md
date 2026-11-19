@@ -247,7 +247,7 @@ Next: Adapt the example account to your ledger
       Docs: https://hledger-flow.github.io/go/input-files/
 
 Environment:
-  hledger-flow  0.20.1 (2c5bc2a), ghc 9.10, darwin aarch64
+  hledger-flow  0.20.1 (0d49906), ghc 9.10, darwin aarch64
   hledger       ~/bin/hledger  (1.99.6-gc3a608c2b-20261101)   --hledger-path
   hledger.conf  none                                          --hledger-conf
   Cores         18, using 18
@@ -316,7 +316,7 @@ Next: Create import/gawie/kudu/creditcard/kudu-creditcard.rules (rules for gawie
       Docs: https://hledger-flow.github.io/go/rules-files/
 
 Environment:
-  hledger-flow  0.20.1 (2c5bc2a), ghc 9.10, darwin aarch64
+  hledger-flow  0.20.1 (0d49906), ghc 9.10, darwin aarch64
   hledger       ~/bin/hledger  (1.99.6-gc3a608c2b-20261101)   --hledger-path
   hledger.conf  none                                          --hledger-conf
   Cores         18, using 18

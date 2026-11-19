@@ -261,7 +261,7 @@ Next: Categorise 5 unknown transactions
       Docs: https://hledger-flow.github.io/go/review-unknown-transactions/
 
 Environment:
-  hledger-flow  0.20.1 (2c5bc2a), ghc 9.10, darwin aarch64
+  hledger-flow  0.20.1 (0d49906), ghc 9.10, darwin aarch64
   hledger       ~/bin/hledger  (1.99.6-gc3a608c2b-20261101)   --hledger-path
   hledger.conf  none                                          --hledger-conf
   Cores         18, using 18

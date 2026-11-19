@@ -110,14 +110,16 @@ tests = TestList [testInventory, testRestoredSource, testStagedOutput, testTrash
 testTrashLock :: Test
 testTrashLock = TestCase $ withSystemTempDir "hlflow-trash" $ \root -> do
   let source = root </> [relfile|import/owner/bank/account/3-journal/2020/march.journal|]
-      lock = root </> [reldir|import/owner/bank/account/.trash/.move-lock|]
-      target = root </> [relfile|import/owner/bank/account/.trash/2020/3-journal/march.journal|]
+      lock = root </> [reldir|.hledger-flow/trash/.move-lock|]
+      target = root </> [relfile|.hledger-flow/trash/import/owner/bank/account/3-journal/2020/march.journal|]
+      ignore = root </> [relfile|.hledger-flow/trash/.gitignore|]
   touchFile source
   createDirIfMissing True lock
-  result <- tryIOError (moveToTrash source)
+  result <- tryIOError (moveToTrash root source)
   assertBool "A concurrent trash move must not race for a destination" (isLeft result)
   T.readFile (toFilePath source) >>= assertEqual "Busy trash leaves source intact" "x"
   doesFileExist target >>= assertBool "Busy trash writes no destination" . not
   removeDir lock
-  actual <- moveToTrash source
+  actual <- moveToTrash root source
   assertEqual "Retry after the other move completes succeeds" target actual
+  T.readFile (toFilePath ignore) >>= assertEqual "Git ignores the trash" "*\n"
