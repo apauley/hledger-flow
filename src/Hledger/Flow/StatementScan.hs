@@ -211,6 +211,7 @@ parseDateCell value = do
   let (date, suffix) = T.break (\c -> isSpace c || c == 'T') (T.strip value)
   (sep, _) <- T.uncons (T.dropWhile isDigit date)
   if sep `elem` ['-', '/', '.'] then Just () else Nothing
+  -- hledger accepts both padded and unpadded components with %-m and %-d.
   case T.splitOn (T.singleton sep) date of
     [a,b,c]
       | T.length a == 4 && short b && short c -> do
@@ -218,15 +219,15 @@ parseDateCell value = do
           m <- decimal b
           d <- decimal c
           -- Year-first inputs use conventional ISO order wherever it fits.
-          let formats = if valid year m d then [fmt sep ["%Y","%m","%d"]]
-                        else [fmt sep ["%Y","%d","%m"] | valid year d m]
+          let formats = if valid year m d then [fmt sep ["%Y","%-m","%-d"]]
+                        else [fmt sep ["%Y","%-d","%-m"] | valid year d m]
           cell year formats suffix
       | short a && short b && T.length c == 4 -> do
           year <- parseYear c
           lo <- decimal a
           hi <- decimal b
-          cell year ([fmt sep ["%m","%d","%Y"] | valid year lo hi] ++
-                     [fmt sep ["%d","%m","%Y"] | valid year hi lo]) suffix
+          cell year ([fmt sep ["%-m","%-d","%Y"] | valid year lo hi] ++
+                     [fmt sep ["%-d","%-m","%Y"] | valid year hi lo]) suffix
     _ -> Nothing
   where
     short t = T.length t <= 2 && digits t

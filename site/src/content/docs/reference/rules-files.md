@@ -106,8 +106,9 @@ up to 50 rows to suggest the date, amount and description fields. Check the
 guesses, account names and date format before importing. A neutral name such
 as `column3` leaves that field for you to identify.
 
-The starter preserves the export's date separator. When the dates leave the
-day and month ambiguous or mix formats, set `date-format` yourself using the
+The starter preserves the export's date separator and accepts day and month
+numbers with or without leading zeroes. When the dates leave the day and
+month ambiguous or mix formats, set `date-format` yourself using the
 example in the starter.
 
 ## Reuse existing rules

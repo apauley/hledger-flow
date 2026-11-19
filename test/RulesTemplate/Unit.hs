@@ -51,7 +51,7 @@ tests =
       "Wells Fargo starter" ~:
         fmap (\t -> all (`T.isInfixOf` t)
           ["#   column1 = 11/14/2026", "#   column2 = -4.50", "#   column3 = *", "#   column4 =", "#   column5 = COFFEE SHOP",
-           "fields date, amount, column3, column4, description", "date-format %m/%d/%Y",
+           "fields date, amount, column3, column4, description", "date-format %-m/%-d/%Y",
            "account1 assets:wf:bchecking", "account2 expenses:unknown"] && not ("skip " `T.isInfixOf` t))
           (rulesTemplate "wf" "bchecking" "x.csv" "11/14/2026,-4.50,*,,COFFEE SHOP\n11/15/2026,-6.75,*,,BOOK SHOP\n")
         ~?= Right True,
