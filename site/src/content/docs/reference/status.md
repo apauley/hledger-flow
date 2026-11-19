@@ -140,8 +140,9 @@ on Windows.
 
 ## Paths in your home folder
 
-Status, init, import and report show paths in your home folder as `~`, such
-as `~/finances`. In commands to paste they write the home folder as `$HOME`,
+Status, init, import and report show paths in your home folder as `~`. For
+example, a `LEDGER_FILE` notice might show `~/finances/all-years.journal`.
+In commands to paste they write the home folder as `$HOME`,
 which the shell expands where a quoted `~` wouldn't, such as
 `export LEDGER_FILE="$HOME/finances/all-years.journal"`. A path whose rest
 contains a character that is special inside double quotes, such as `$`,

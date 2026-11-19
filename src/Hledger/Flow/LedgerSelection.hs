@@ -22,7 +22,7 @@ import qualified Data.Text as T
 import Data.Time.Clock (UTCTime)
 import GHC.Generics (Generic)
 import Hledger.Flow.Cache (cacheDir, initializeCache)
-import Hledger.Flow.Common (configuredLedgerFile, hledgerFileArgument, runProcessCaptured)
+import Hledger.Flow.Common (configuredLedgerFile, hledgerFileArgument, runProcessCaptured, tildePath)
 import Hledger.Flow.InputSnapshot
 import Hledger.Flow.PathHelpers (AbsFile, withStagedOutput)
 import Hledger.Flow.Types (BaseDir, HledgerInfo (..))
@@ -75,20 +75,22 @@ coverageFor index directives files
   | index `elem` files && maybe True (`elem` files) directives = CoversLedger
   | otherwise = UnrelatedLedger
 
-ledgerFileProblem :: LedgerFile -> T.Text
-ledgerFileProblem file
-  | not (lfExists file) = "LEDGER_FILE is set to " <> T.pack (lfValue file) <> ", which doesn't exist."
+ledgerFileProblem :: [FilePath] -> LedgerFile -> T.Text
+ledgerFileProblem homes file
+  | not (lfExists file) = "LEDGER_FILE is set to " <> displayed <> ", which doesn't exist."
   | otherwise = case lfCoverage file of
       CoversLedger -> ""
-      UnrelatedLedger -> "LEDGER_FILE (" <> T.pack (lfValue file) <> ") does not include this ledger."
-      UnreadableLedger err -> "Could not read LEDGER_FILE (" <> T.pack (lfValue file) <> "): " <> err
+      UnrelatedLedger -> "LEDGER_FILE (" <> displayed <> ") does not include this ledger."
+      UnreadableLedger err -> "Could not read LEDGER_FILE (" <> displayed <> "): " <> err
+  where
+    displayed = T.pack (tildePath homes (lfValue file))
 
-selectLedger :: Maybe HledgerInfo -> BaseDir -> IO LedgerSelection
-selectLedger info base = do
+selectLedger :: [FilePath] -> Maybe HledgerInfo -> BaseDir -> IO LedgerSelection
+selectLedger homes info base = do
   let root = base </> [relfile|all-years.journal|]
   rootExists <- Directory.doesFileExist (toFilePath root)
   configured <- configuredLedgerFile
-  let missingRoot = "No all-years.journal in " <> T.pack (toFilePath base) <> " yet. Run `hledger-flow import` first."
+  let missingRoot = "No all-years.journal in " <> T.pack (tildePath homes (toFilePath base)) <> " yet. Run `hledger-flow import` first."
       fallback value
         | rootExists = LedgerSelection value (Just root) Nothing
         | otherwise = LedgerSelection value Nothing (Just missingRoot)
@@ -99,8 +101,8 @@ selectLedger info base = do
       if not exists
         then do
           let file = LedgerFile value False UnrelatedLedger
-          return (LedgerSelection (Just file) Nothing (Just (ledgerFileProblem file <>
-            " Point it at " <> T.pack (toFilePath root) <> ", or unset it.")))
+          return (LedgerSelection (Just file) Nothing (Just (ledgerFileProblem homes file <>
+            " Point it at " <> T.pack (tildePath homes (toFilePath root)) <> ", or unset it.")))
         else do
           absolute <- resolveLedgerPath path
           canonical <- Directory.canonicalizePath (toFilePath absolute)

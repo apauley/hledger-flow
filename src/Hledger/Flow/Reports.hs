@@ -56,17 +56,17 @@ generateReports' opts ch = do
   started <- startReportRun (baseDir opts)
   owners <- listOwners opts
   info <- hledgerInfo opts
-  selection <- selectLedger (Just info) (baseDir opts)
+  homes <- homeDirs
+  selection <- selectLedger homes (Just info) (baseDir opts)
   journal <- case (aggregateJournal selection, selectionError selection) of
     (Just file, _) -> return file
     (_, Just problem) -> ioError (userError (T.unpack problem))
     _ -> ioError (userError "No journal selected for reporting.")
   let hledgerJournal = toFilePath journal
-  homes <- homeDirs
   case selectedLedgerFile selection of
     Just file | lfCoverage file == CoversLedger ->
       channelOutLn ch ("Reporting on " <> T.pack (tildePath homes hledgerJournal) <> " (from LEDGER_FILE).")
-    Just file -> channelOutLn ch (ledgerFileProblem file <> " Reporting on all-years.journal.")
+    Just file -> channelOutLn ch (ledgerFileProblem homes file <> " Reporting on all-years.journal.")
     Nothing -> return ()
   let journalWithYears = baseDir opts </> [relfile|import/all-years.journal|]
   let aggregateReportDir

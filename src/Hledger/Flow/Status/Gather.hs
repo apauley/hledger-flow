@@ -68,7 +68,7 @@ gatherStatusWithConfig hledger conf base = do
       groups = Map.toAscList (groupValuesBy (accountName root) statements)
   accounts <- forM groups (uncurry (accountStatus base))
   conflicts <- maybe (pure []) (\hl -> findConfigConflicts hl conf) hledger
-  selection <- selectLedger hledger base
+  selection <- selectLedger [] hledger base
   let defaultJournal = base </> [relfile|all-years.journal|]
   allYears <- PathIO.doesFileExist defaultJournal
   let selected = aggregateJournal selection

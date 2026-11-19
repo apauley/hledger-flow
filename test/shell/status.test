@@ -296,6 +296,25 @@ if grep -q '^  Ledger ' ../status-output; then exit 1; fi
 set_ledger=$(sed -n 's/^ *For hledger, run: //p' ../status-output)
 test "$set_ledger" = 'export LEDGER_FILE="$HOME/my finances/all-years.journal"'
 run_suggestion "$set_ledger; hledger-flow status --json" | jq -e '.ledgerFile.exists and (.baseDir | startswith("/"))' > /dev/null
+
+mkdir -p "$HOME/original-fin"
+printf '; Another ledger\n' > "$HOME/original-fin/all-years.journal"
+LEDGER_FILE="$(cd "$HOME" && native_pwd)/original-fin/all-years.journal"
+export LEDGER_FILE
+hledger-flow status > ../status-output
+grep -Fxq '  Note: LEDGER_FILE (~/original-fin/all-years.journal) does not include this ledger.' ../status-output
+grep -Fxq '        For hledger, run: export LEDGER_FILE="$HOME/my finances/all-years.journal"' ../status-output
+hledger-flow status --json | jq -e --arg path "$LEDGER_FILE" '.ledgerFile.value == $path' > /dev/null
+hledger-flow report > ../report-output
+grep -Fxq 'LEDGER_FILE (~/original-fin/all-years.journal) does not include this ledger. Reporting on all-years.journal.' ../report-output
+
+LEDGER_FILE="$(cd "$HOME" && native_pwd)/missing.journal"
+hledger-flow status > ../status-output
+grep -Fq "LEDGER_FILE is set to ~/missing.journal, which doesn't exist." ../status-output
+if hledger-flow report > ../report-error 2>&1; then exit 1; fi
+grep -Fq "LEDGER_FILE is set to ~/missing.journal, which doesn't exist. Point it at ~/my finances/all-years.journal, or unset it." ../report-error
+
+unset LEDGER_FILE
 cd "$HOME"
 hledger-flow init 'cost $5' > output
 change=$(sed -n 's/^Change to it first: //p' output)

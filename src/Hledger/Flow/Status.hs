@@ -236,7 +236,7 @@ nextStep year shell homes cwd s
       NextStep
         "Point LEDGER_FILE at this ledger so hledger finds it"
         (Just (setLedgerFileCommand shell homes s))
-        [ledgerFileProblem lf]
+        [ledgerFileProblem homes lf]
         (Just (docURL SetLedgerFile))
   | otherwise = case lsReview s of
       Nothing -> withConfigCheck ReportConfig s $
@@ -327,7 +327,7 @@ ledgerFileNote shell homes s = do
   _ <- lsAggregateJournal s
   message <- case lsLedgerFile s of
     Nothing -> Just "LEDGER_FILE isn't set, so hledger won't find this ledger by default."
-    Just file | lfExists file && lfCoverage file /= CoversLedger -> Just (ledgerFileProblem file)
+    Just file | lfExists file && lfCoverage file /= CoversLedger -> Just (ledgerFileProblem homes file)
     _ -> Nothing
   return (T.intercalate "\n" ([message, "hledger-flow report uses all-years.journal.", "For hledger, run: " <> setLedgerFileCommand shell homes s]
       ++ ["Or try: " <> hint | Just hint <- [balanceHint shell homes s]]))
