@@ -31,6 +31,7 @@ import Hledger.Flow.Types (BaseDir, HledgerConf)
 import Path
 import qualified Path.IO as PathIO
 import qualified Data.Text.IO as T
+import System.IO (Newline (..), nativeNewline)
 import System.IO.Error (tryIOError, isAlreadyExistsError)
 
 -- | hledger field names for the columns: obvious date, description and amount
@@ -202,7 +203,11 @@ runRules conf base account = do
   let path = toFilePath target
       shown = T.pack (if cwd == base then relativeToBase' (toFilePath base) path else tildePath homes path)
       command sub args = flowCommand nativeShell homes cwd base conf sub args
-  written <- tryIOError (writeNewUtf8File target template)
+      -- Match the native line endings of status --rules-template on stdout.
+      fileTemplate = case nativeNewline of
+        LF -> template
+        CRLF -> T.replace "\n" "\r\n" template
+  written <- tryIOError (writeNewUtf8File target fileTemplate)
   case written of
     Left err -> do
       occupied <- PathIO.doesFileExist target
