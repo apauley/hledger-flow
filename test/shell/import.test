@@ -245,3 +245,67 @@ hledger -f all-years.journal descriptions
 hledger-flow status --json | jq -e '.accounts[0].account == "import/import/import" and .accounts[0].journalsOutdated == 0' > /dev/null
 $ sh -eu
 Monthly bank fee
+
+# Config-supplied journal inputs are rejected before changing imported files.
+<
+. ./test/shell/setup.sh
+flow import
+cp "$journal" before
+printf '2016-01-01 Other\n    assets:unrelated  99\n    equity:opening\n' > other.journal
+for section in general print; do
+    for option in '--file=other.journal' '-If other.journal' '-Ifother.journal' '--alias "" -f other.journal'; do
+        printf '# Header\n[%s]\n%s\n' "$section" "$option" > hledger.conf
+        if hledger-flow import > out 2> err; then exit 1; fi
+        grep -Fq "line 3 [$section] adds a journal: $option" err
+        cmp "$journal" before
+    done
+done
+cp hledger.conf "given config.conf"
+printf '[print]\n--alias "-f=assets:other"\n' > hledger.conf
+if hledger-flow --hledger-conf "given config.conf" import > out 2> err; then exit 1; fi
+grep -Fq 'given config.conf line 3 [print]' err
+cmp "$journal" before
+flow import
+cmp "$journal" before
+# The last definition of each config section wins.
+printf '[general]\n--alias\n[general]\n-f other.journal\n' > hledger.conf
+if hledger-flow import > out 2> err; then exit 1; fi
+grep -Fq 'line 4 [general] adds a journal: -f other.journal' err
+printf '[general]\n-f other.journal\n[general]\n-I\n' > hledger.conf
+flow import
+if hledger --version | grep -q '^hledger 1\.52\.'; then
+    printf '[print]\n-m"" -f other.journal\n' > hledger.conf
+    if hledger-flow import > out 2> err; then exit 1; fi
+    grep -Fq 'line 2 [print] adds a journal: -m"" -f other.journal' err
+fi
+$ sh -eu
+
+# Existing rules directives still convert the in-tree statement.
+<
+. ./test/shell/setup.sh
+statement="$inbox/march.csv"
+alternate="import/gawie/bogart/elsewhere.csv"
+root_rules="$account/bogart-cheque.rules"
+common_rules="$account/common.rules"
+printf '2016-03-04,In-tree statement,53\n' > "$statement"
+printf '2016-03-09,Alternate source,91\n' > "$alternate"
+printf 'source ../elsewhere.csv\narchive\nfields date, description, amount\naccount1 assets:bank:cheque\ninclude common.rules\n' > "$root_rules"
+printf 'account2 income:included-rule\n' > "$common_rules"
+cp "$statement" before-statement
+cp "$alternate" before-alternate
+cp "$root_rules" before-rules
+cp "$common_rules" before-common
+find import/gawie/bogart -type f | LC_ALL=C sort > before-paths
+flow import
+hledger --no-conf -f "$journal" print | tr -d '\r' > converted
+grep -Fxq '2016-03-04 In-tree statement' converted
+grep -Eq 'assets:bank:cheque[[:space:]]+53[[:space:]]*$' converted
+grep -q 'income:included-rule' converted
+test "$(grep -Ec '^[0-9]{4}-' converted)" -eq 1
+cmp "$statement" before-statement
+cmp "$alternate" before-alternate
+cmp "$root_rules" before-rules
+cmp "$common_rules" before-common
+find import/gawie/bogart -type f ! -name all-years.journal ! -name 2016-include.journal ! -path "$journal" | LC_ALL=C sort > after-paths
+cmp before-paths after-paths
+$ sh -eu

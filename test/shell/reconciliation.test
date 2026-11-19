@@ -9,8 +9,9 @@ mv "$inbox/march.csv" "$inbox/renamed.csv"
 flow import --new-files-only
 test ! -e "$journal"
 test ! -e "$account/2-preprocessed/2016/march.csv"
-cmp old.journal "$account/.trash/2016/3-journal/march.journal"
-cmp "$inbox/renamed.csv" "$account/.trash/2016/2-preprocessed/march.csv"
+cmp old.journal ".hledger-flow/trash/$account/3-journal/2016/march.journal"
+cmp "$inbox/renamed.csv" ".hledger-flow/trash/$account/2-preprocessed/2016/march.csv"
+test "$(cat .hledger-flow/trash/.gitignore)" = '*'
 hledger -f all-years.journal balance expenses --flat --no-total --format '%(total)'
 $ sh -eu
 5
@@ -24,7 +25,7 @@ printf 'unrelated PDF\n' > "$account/3-journal/2016/receipt.pdf"
 rm "$inbox/march.csv"
 flow import
 test ! -e "$journal"
-cmp old.journal "$account/.trash/2016/3-journal/march.journal"
+cmp old.journal ".hledger-flow/trash/$account/3-journal/2016/march.journal"
 test -s "$account/3-journal/2016/receipt.pdf"
 for ledger in all-years.journal import/all-years.journal import/gawie/all-years.journal "$account/all-years.journal" "$account/2016-include.journal"; do
     test -z "$(hledger -f "$ledger" print)"
@@ -45,8 +46,8 @@ flow import
 cp "$journal" second.journal
 rm "$inbox/march.csv"
 flow import
-cmp first.journal "$account/.trash/2016/3-journal/march.journal"
-cmp second.journal "$account/.trash/2016/3-journal/march.journal.1"
+cmp first.journal ".hledger-flow/trash/$account/3-journal/2016/march.journal"
+cmp second.journal ".hledger-flow/trash/$account/3-journal/2016/march.journal.1"
 $ sh -eu
 
 # Cleanup obeys the account and start year, but source-less journals are not included.
@@ -62,8 +63,8 @@ rm "$inbox/march.csv"
 test -s "$journal"
 test -s import/other/bank/account/3-journal/2017/stray.journal
 test ! -e "$account/3-journal/2017/stray.journal"
-test -s "$account/.trash/2017/3-journal/stray.journal"
-test -s "$account/.trash/2017/2-preprocessed/stray.csv"
+test -s ".hledger-flow/trash/$account/3-journal/2017/stray.journal"
+test -s ".hledger-flow/trash/$account/2-preprocessed/2017/stray.csv"
 test -z "$(hledger -f all-years.journal print)"
 $ sh -eu
 
@@ -76,7 +77,7 @@ mv "$inbox/march.csv" "$inbox/renamed.csv"
 rm import/bogart.rules
 if hledger-flow import > failure.log 2>&1; then exit 1; fi
 test -s "$journal"
-test ! -e "$account/.trash"
+test ! -e ".hledger-flow/trash/$account"
 cmp before.journal import/2016-include.journal
 $ sh -eu
 
@@ -98,11 +99,11 @@ cmp good.journal "$journal"
 cmp old-year.journal import/2016-include.journal
 cmp old-account.journal "$account/2016-include.journal"
 cmp old-root.journal all-years.journal
-test ! -e "$account/.trash"
+test ! -e ".hledger-flow/trash/$account"
 test ! -e "$account/3-journal/2016/z-failure.journal"
 printf '%s\n' '2016-03-03,Repaired statement,-9' > "$inbox/z-failure.csv"
 flow --batch-size 2 import --new-files-only
-cmp good.journal "$account/.trash/2016/3-journal/march.journal"
+cmp good.journal ".hledger-flow/trash/$account/3-journal/2016/march.journal"
 hledger -f all-years.journal balance expenses --flat --no-total --format '%(total)'
 $ sh -eu
 Success before failure
@@ -128,7 +129,9 @@ for level in import import/gawie import/gawie/bogart "$account"; do
     printf '2018-01-01 Manual entry\n    expenses:cash  2\n    assets:cash\n' > "$level/_manual_/2018/pre-import.journal"
     printf '2018-01-02 Manual entry\n    expenses:cash  3\n    assets:cash\n' > "$level/_manual_/2018/post-import.journal"
 done
-mkdir -p "$account/.trash/2018/3-journal"
+# Neither the trash nor an account's .trash folder from older versions is imported.
+mkdir -p ".hledger-flow/trash/$account/3-journal/2018" "$account/.trash/2018/3-journal"
+printf 'not a journal\n' > ".hledger-flow/trash/$account/3-journal/2018/broken.journal"
 printf 'not a journal\n' > "$account/.trash/2018/3-journal/broken.journal"
 flow import
 hledger -f all-years.journal balance expenses --flat --no-total --format '%(total)'
@@ -160,10 +163,11 @@ Monthly bank fee
 flow import
 cp "$journal" before.journal
 rm "$inbox/march.csv"
-printf 'blocks trash directory creation\n' > "$account/.trash"
+mkdir -p .hledger-flow
+printf 'blocks trash directory creation\n' > .hledger-flow/trash
 if hledger-flow import > failure.log 2>&1; then exit 1; fi
 cmp before.journal "$journal"
-test -f "$account/.trash"
+test -f .hledger-flow/trash
 $ sh -eu
 
 # A case-only source rename must not retire the journal that was just regenerated.
@@ -209,7 +213,7 @@ hledger-flow status --json | jq -e '.next.command == "hledger-flow import"' > /d
 cp "$journal" "$account/3-journal/2016/orphan.journal"
 flow import --new-files-only
 grep -q '1 already up to date' "$finance/flow.log"
-test -f "$account/.trash/2016/3-journal/orphan.journal"
+test -f ".hledger-flow/trash/$account/3-journal/2016/orphan.journal"
 hledger-flow status --json | jq -e '.next.command == "hledger-flow report"' > /dev/null
 hledger -f all-years.journal descriptions | tr -d '\r' | grep -x 'Manual entry'
 $ sh -eu
@@ -242,7 +246,7 @@ grep -q '^Next: Import 1 new or changed statement' "$finance/flow.log"
 hledger -f "$journal" descriptions
 test ! -e "$sibling/3-journal/2016/savings.journal"
 test -f "$sibling/3-journal/2016/retired.journal"
-test ! -e "$sibling/.trash"
+test ! -e ".hledger-flow/trash/$sibling"
 $ sh -eu
 Monthly bank fee
 

@@ -20,7 +20,7 @@ mkdir -p "$account/3-journal/2016"
 printf '2016-02-01 Hook sibling\n    expenses:cash  1\n    assets:cash\n' > "$account/3-journal/2016/later.journal"
 flow import
 hledger -f all-years.journal descriptions | tr -d '\r' | grep -qx 'Hook sibling'
-test ! -e "$account/.trash"
+test ! -e ".hledger-flow/trash/$account"
 $ sh -eu
 
 # Both hooks receive the account's file and the original bank, account and owner names.
@@ -195,7 +195,7 @@ ln -s march.journal "$account/3-journal/2016/alias.journal"
 cp "$journal" "$account/3-journal/2016/retired.journal"
 flow import
 test -L "$account/3-journal/2016/alias.journal"
-test -f "$account/.trash/2016/3-journal/retired.journal"
+test -f ".hledger-flow/trash/$account/3-journal/2016/retired.journal"
 hledger -f all-years.journal balance expenses:bank-fees --flat --no-total --format '%(total)'
 grep -Fxq 'include 3-journal/2016/march.journal' "$account/2016-include.journal"
 $ sh -eu

@@ -17,6 +17,7 @@ testIncludeYears :: Test
 testIncludeYears =
   TestCase
     ( do
+        assertEqual "An empty generated index has no report years" (Right []) (includeYears' (includePreamble <> "\n"))
         let txterr = "Some text without years"
         let expectederr = ["Unable to extract years from the following text:", txterr, "Errors:"]
         let actualerr = case lefts [includeYears' txterr] of

@@ -115,7 +115,20 @@ To use a specific copy of hledger, pass its path before the command, for
 example `hledger-flow --hledger-path /path/to/hledger import`.
 
 Start a ledger in an empty folder, then let `hledger-flow status` guide you.
-Each `status` ends with a `Next:` line saying exactly what to do:
+A new ledger includes an example account with a purchase and refund that
+cancel. Follow the suggested import and report commands to try the workflow.
+Use the example as your starting point. Rename its owner, bank and account
+folders, replace the sample CSV under `1-in/<year>/`, and supply your own
+`<bank>-<account>.rules` in the account folder. Init uses your username for
+the example owner, with `me` as a fallback. The starter journals show where
+to add [manual entries](https://hledger-flow.github.io/reference/manual-journals/),
+[opening and closing balances](https://hledger-flow.github.io/reference/balances/)
+and market prices.
+`directives.journal` defines common commodities and account types you can edit.
+
+Each `status` ends with a `Next:` line saying exactly what to do.
+For a new account, it shows a directory creation command with example names.
+Change the owner, bank, account and year to match your statement.
 
 ```text
 hledger-flow init ~/finances
@@ -124,14 +137,15 @@ hledger-flow status
 ```
 
 1. Put a statement where `status` says, for example
-   `import/me/mybank/checking/1-in/2026/statement.csv`. Use non-overlapping
+   `import/alex/mybank/checking/1-in/2026/statement.csv`. Use non-overlapping
    exports for this account. A transaction in two files will be imported twice.
-2. Create the rules file `status` names. For a CSV with a header row,
-   `hledger-flow status --rules-template me/mybank/checking` prints a starter
-   to save as that file and edit.
+2. Run the rules command `status` suggests, for example
+   `hledger-flow rules alex/mybank/checking`. Open the file it creates and
+   check the fields, dates and account names before importing.
 3. Run `hledger-flow import`. It creates `all-years.journal`.
-4. Point `LEDGER_FILE` at that journal with the line `status` prints, then run
-   `hledger-flow report`. Reports go under `reports/`.
+4. Run `hledger-flow report`. Reports go under `reports/`. If you also want
+   hledger commands such as `hledger balance` to open this ledger by default,
+   use the optional `LEDGER_FILE` command from `hledger-flow status`.
 
 Running `hledger-flow` with no command does the same as `status` inside a
 ledger. Scripts and AI agents can use `hledger-flow status --json`; see

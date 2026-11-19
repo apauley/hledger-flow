@@ -33,9 +33,27 @@ How to keep this ChangeLog
 
 ## Unreleased
 
+- `import` moves orphaned generated files to `.hledger-flow/trash/` at the ledger root instead of each account's `.trash` folder, keeping their path from the root. The trash has its own `.gitignore`. Recover what you need from existing account `.trash` folders, then delete them and any `.trash/` line in your `.gitignore`. See [generated files and recovery](https://hledger-flow.github.io/reference/input-files/#generated-files-and-recovery).
+
+- `init` creates a working example account plus starter journals for manual entries, directives and prices. Follow `status` through the first import and report. When the example is untouched, status tells you how to adapt it to your first account. Status guides you to your first statement when only the starter comments remain.
+
+- After a successful report, `status` points to [unknown transactions and transfers that need review](https://hledger-flow.github.io/reference/status/#review-unknown-transactions).
+
+- `status` helps you [reuse existing account rules](https://hledger-flow.github.io/reference/rules-files/#reuse-existing-rules) when the main rules file needs a different name.
+
+- `status` shows how to create the first account's input directory, with a command for your shell. While the sample account exists, the command uses a separate owner for real statements.
+
+- `status` suggests year folders for misplaced delimited statements and prints safe move commands when the destination is known. See [year folders](https://hledger-flow.github.io/reference/input-files/#year-folders).
+
+- Run `hledger-flow rules OWNER/BANK/ACCOUNT` to create a starter in the account folder. `status --rules-template` also prints [starter rules for statements without a header](https://hledger-flow.github.io/reference/rules-files/#starter-rules-for-exports-without-a-header), including a sample row and a suggested date format that accepts day and month numbers with or without leading zeroes.
+
+- Import and report stop if [an active hledger config option adds a journal](https://hledger-flow.github.io/reference/status/#hledger-config-file). The error names the file and line to edit.
+
+- `report` uses the local journal when an existing `LEDGER_FILE` points at an unrelated ledger. `status` shows how to select the journal for standalone hledger commands and continues with the next step. Coverage is checked again if an input changes during the check. See [journal selection](https://hledger-flow.github.io/reference/status/#journal-used-for-reports).
+
 - `import --incremental=skip-unchanged-scripts` now tracks [sourced shell helpers](https://hledger-flow.github.io/reference/incremental-import/#sourced-shell-helpers), including nested files under an exported directory. Editing a helper reruns the scripts that source it.
 - `import --incremental` can reuse statements whose CSV rules include shared files outside the ledger by relative path, including paths through symbolic links and directories followed by `..`. See [what gets checked](https://hledger-flow.github.io/reference/incremental-import/#what-gets-checked).
-- `hledger-flow status` suggests adding [market prices](https://hledger-flow.github.io/reference/price-files/) when the imported journal uses more than one commodity and has no market price directives.
+- `hledger-flow status` suggests adding [market prices](https://hledger-flow.github.io/reference/price-files/) when the imported journal uses more than one commodity and has no market price directives, with one file per currency pair.
 - `import --incremental` now reuses journals whatever your `hledger.conf` contains, unless an entry is known to be non-deterministic, for example because it depends on today's date or reads untracked files. The notice quotes that entry and its line instead of reporting an unsupported config. See [config handling](https://hledger-flow.github.io/reference/incremental-import/#what-gets-checked).
 - Incremental import now follows literal journal includes in `directives.journal`, including nested files and files with custom extensions or no extension. Editing an included file rebuilds the statements that use it. See the [supported directives](https://hledger-flow.github.io/reference/incremental-import/#what-gets-checked).
 

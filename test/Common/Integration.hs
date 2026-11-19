@@ -13,6 +13,7 @@ import qualified Data.Text.IO as T
 import Data.Time.Clock (UTCTime(..), addUTCTime, secondsToDiffTime)
 import Data.Time.Calendar (fromGregorian)
 import Hledger.Flow.Common
+import Hledger.Flow.PathHelpers (writeNewUtf8File)
 import qualified Hledger.Flow.RuntimeOptions as RT
 import Hledger.Flow.Types (HledgerConf (..), LogMessage (StdErr))
 import qualified Path
@@ -248,5 +249,15 @@ testWriteGeneratedText = TestLabel "write generated text" $ TestCase $ withTestD
   entries <- Directory.listDirectory dir
   assertBool ("no staged files left: " ++ show entries) (not (any (List.isPrefixOf ".") entries))
 
+testWriteNewFileAtLongPath :: Test
+testWriteNewFileAtLongPath = TestLabel "create a file at a long path without replacing it" $ TestCase $ withTestDir $ \base -> do
+  name <- Path.parseRelFile (replicate 100 'a' </> replicate 100 'b' </> replicate 100 'c' </> "starter.rules")
+  let target = base Path.</> name
+  writeNewUtf8File target "first\n"
+  second <- tryIOError (writeNewUtf8File target "second\n")
+  case second of
+    Left _ -> T.readFile (Path.toFilePath target) >>= assertEqual "preserve the first write" "first\n"
+    Right () -> assertFailure "an existing file was replaced"
+
 tests :: Test
-tests = TestList [testWriteGeneratedText, testHledgerLookup, testFindHledgerConf, testHomeDirs, testFilterPaths, testFirstExistingFile, testVerboseTestFile, testNeedsRegeneration, testBatchOrder, testBatchFailure]
+tests = TestList [testWriteGeneratedText, testWriteNewFileAtLongPath, testHledgerLookup, testFindHledgerConf, testHomeDirs, testFilterPaths, testFirstExistingFile, testVerboseTestFile, testNeedsRegeneration, testBatchOrder, testBatchFailure]

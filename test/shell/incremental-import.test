@@ -21,3 +21,24 @@ $ python3 test/incremental_import.py Hooks
 # Recover from failed conversion, corrupt records and a killed writer.
 $ python3 test/incremental_import.py Cache Concurrent WindowsPaths
 >2 /OK/
+
+# A literal included rules file remains eligible and invalidates the statement.
+<
+. ./test/shell/setup.sh
+printf 'fields date, description, amount\naccount1 assets:bank:cheque\ninclude common.rules\n' > "$account/bogart-cheque.rules"
+common="$account/common.rules"
+printf 'account2 expenses:original-category\n' > "$common"
+flow import --incremental
+grep -q 'expenses:original-category' "$journal"
+flow import --incremental
+grep -q '^Imported 0 of 1 statement' "$finance/flow.log"
+printf 'account2 expenses:updated-category\n' > "$common"
+python3 -c 'import os, sys; t = os.stat(sys.argv[2]).st_mtime_ns + 1_000_000_000; os.utime(sys.argv[1], ns=(t, t))' "$common" "$journal"
+hledger-flow status --json > status.json
+jq -e '.accounts[0].journalsOutdated == 1' status.json > /dev/null
+flow import --incremental
+grep -q '^Imported 1 statement' "$finance/flow.log"
+grep -q 'expenses:updated-category' "$journal"
+flow import --incremental
+grep -q '^Imported 0 of 1 statement' "$finance/flow.log"
+$ sh -eu

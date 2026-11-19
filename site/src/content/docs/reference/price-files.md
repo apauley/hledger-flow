@@ -4,9 +4,16 @@ description: Yearly market price journals that are included automatically, and w
 ---
 
 Save the year’s [market prices as hledger `P` directives](https://hledger.org/hledger.html#p-directive)
-in `prices/<year>/prices.journal`, under the ledger root alongside `import/`.
-When import builds that year’s include file under `import/`, it adds the price
-file if present. You supply the prices hledger uses to value your holdings.
+under `prices/<year>/` alongside `import/`. A new ledger’s
+`prices/<year>/prices.journal` includes `EUR-USD.prices` and
+`BTC-USD.prices`. Both starter files quote prices in USD. Name pair files
+`<priced-commodity>-<quote-currency>.prices` and add an `include` line for each one. The **priced commodity** is the unit
+being priced. The **quote currency** is what you express its price in.
+For example, `EUR-USD.prices` contains the price of one EUR in USD.
+
+Existing ledgers can also put `P` directives directly in `prices.journal`.
+When import builds that year’s include file under `import/`, it includes
+`prices.journal` if present.
 
 After running an import with available price files you'll see a line has been added to `import/2020-include.journal`:
 
@@ -30,9 +37,10 @@ A price only applies to amounts that use the same commodity name. Price tools
 such as pricehist and hledger’s `getprices` write ISO codes like `USD`. If your
 statements write US dollars as `$`, declare `$` as an
 [alias](https://hledger.org/dev/hledger.html#commodity-aliases) of `USD` in
-the year’s price file:
+a file included by the year’s price index. For example, add
+`include aliases.journal` to `prices/2025/prices.journal` and save:
 
-```hledger title="prices/2025/prices.journal"
+```hledger title="prices/2025/aliases.journal"
 commodity USD  ; alias: $
 ```
 
@@ -46,7 +54,7 @@ the commodity only from 1.99.5. hledger 1.52 and earlier don’t have them. Use
 the [linking price](#link-names-with-a-price) instead.
 :::
 
-Declare the alias in every year’s price file. An alias only converts amounts
+Include the alias file from every year’s price index. An alias only converts amounts
 in the files read together with it, and a year’s include file, such as
 `import/2025-include.journal`, doesn’t include `directives.journal`.
 
@@ -69,11 +77,12 @@ sources with `pricehist sources`. Some sources, such as Alpha Vantage and
 CoinMarketCap, need a free API key.
 
 Fetch a year of euro exchange rates from the European Central Bank and append
-them to that year’s price file:
+them to that year’s pair file. Add `include EUR-USD.prices` to
+`prices/2025/prices.journal` if it is new:
 
 ```bash
 mkdir -p prices/2025
-pricehist fetch ecb EUR/USD -s 2025-01-01 -e 2025-12-31 -o ledger --fmt-time '' >> prices/2025/prices.journal
+pricehist fetch ecb EUR/USD -s 2025-01-01 -e 2025-12-31 -o ledger --fmt-time '' >> prices/2025/EUR-USD.prices
 ```
 
 Each line looks like this:
@@ -83,11 +92,11 @@ P 2025-12-19 EUR 1.1712 USD
 ```
 
 Yahoo Finance names exchange rates like `GBPUSD=X`. Use `--fmt-base` to name
-the commodity being priced:
+the commodity being priced. Add `include GBP-USD.prices` to the index:
 
 ```bash
 pricehist fetch yahoo GBPUSD=X -s 2025-01-01 -e 2025-12-31 -o ledger --fmt-time '' \
-  --fmt-base GBP >> prices/2025/prices.journal
+  --fmt-base GBP >> prices/2025/GBP-USD.prices
 ```
 
 To add only prices newer than those already saved, use `-sx` with the date of
@@ -98,8 +107,8 @@ the last saved price instead of `-s`.
 hledger’s
 [`getprices`](https://github.com/hledgerorg/hledger/blob/main/bin/getprices)
 script picks a pricehist source for each commodity: currencies, cryptocurrencies
-or stocks. It takes your base currency, a commodity and a date range, so it
-can fetch one year at a time. Save it as `prices/getprices` and make it
+or stocks. It takes the quote currency, the priced commodity and a date
+range, so it can fetch one year at a time. Save it as `prices/getprices` and make it
 executable:
 
 ```bash
@@ -107,7 +116,8 @@ curl -o prices/getprices https://raw.githubusercontent.com/hledgerorg/hledger/ma
 chmod +x prices/getprices
 ```
 
-This fetches the 2025 prices for every commodity used in 2025. It replaces the
+For a ledger that keeps prices directly in `prices.journal`, this fetches
+prices for every commodity used in 2025. It replaces the
 `P` lines in that year’s price file, keeps its other lines, such as a
 [commodity alias](#commodity-names), and changes nothing if it fetched no
 prices:
@@ -124,9 +134,9 @@ mkdir -p prices/$year
 grep -q '^P ' prices/$year/prices.new && mv prices/$year/prices.new prices/$year/prices.journal
 ```
 
-Replace `USD` with your base currency. `hledger stats` shows the one hledger
-guesses from your journal. `getprices` skips the base currency and expects ISO
-codes such as `EUR` and `GBP`. If your statements use symbols, declare them as
+Replace `USD` with the quote currency you want to use for valuation.
+`getprices` skips that currency and expects ISO codes such as `EUR`
+and `GBP`. If your statements use symbols, declare them as
 [aliases](#commodity-names) first, so hledger lists the ISO codes. For the
 current year, use today’s date as the
 end date.

@@ -1,209 +1,164 @@
 ---
-title: "Part 2: Categories and reports"
-description: Import more statements, classify transactions with if rules, and generate reports.
+title: "Part 2: The first statement"
+description: Draft a rules file for a tidy credit card CSV, import it and ask hledger about it.
 ---
 
-This is the second part of a [five-part tutorial](/tutorial/). It continues
-in `my-finances` from [part 1](/tutorial/part-1/), with `LEDGER_FILE` set.
+This is the second part of a [six-part tutorial](/tutorial/). It continues
+in `finances` from [part 1](/tutorial/part-1/), where Gawie filed his
+first Kudu Bank statement.
 
-## More months
+## A rules file
 
-Adding statements to an account that already has a rules file takes one
-copy and one import:
+hledger converts a CSV statement with a
+[rules file](/reference/rules-files/): a few lines saying which column is
+which and which accounts to use. `hledger-flow` can draft one from the
+statement’s header row:
 
 ```bash
-cp ../Downloads/Kudu/creditcard_2016-0[45]*.csv import/gawie/kudu/creditcard/1-in/2016/
-hledger-flow import
+hledger-flow rules gawie/kudu/creditcard
+cat import/gawie/kudu/creditcard/kudu-creditcard.rules
 ```
 
 ```text
-Imported 3 statements for gawie/kudu/creditcard.
+Created import/gawie/kudu/creditcard/kudu-creditcard.rules
+Edit it: check the fields line and the account names. Then run: hledger-flow import
+# Starter rules for kudu/creditcard, made by hledger-flow from the header row of
+# import/gawie/kudu/creditcard/1-in/2016/creditcard_2016-03-31.csv. Check every line, then run: hledger-flow import
+# hledger's CSV rules reference: https://hledger.org/hledger.html#csv
+
+skip 1
+fields date, description, amount
+
+# Make the date format match your statement, e.g. %d/%m/%Y
+# date-format %Y-%m-%d
+
+# Separate debit and credit columns? Name them amount-out and amount-in
+# in the fields line instead of amount.
+
+account1 assets:kudu:creditcard
+account2 expenses:unknown
 ```
 
-```bash
-hledger balance
-```
+The draft is nearly right. `skip 1` skips the header row, and the `fields`
+line already names the date, description and amount columns. The dates are
+in hledger’s own format, so there’s no `date-format` to set.
 
-```text
-            R2674.40  expenses:unknown
-           R-2674.40  liabilities:kudu:creditcard
---------------------
-                   0  
-```
-
-Three months of spending, and all of it is still unknown. Even the monthly
-payments to the card count as negative expenses. Gawie wants to know where
-the money goes.
-
-## Categories
-
-hledger rules can set fields for matching rows only. An `if` block matches
-a pattern against the whole CSV row, ignoring case, and its indented lines
-apply only to the rows that match.
-
-Gawie’s other accounts will need the same categories, so he keeps them in a
-file of their own, `import/gawie/categories.rules`:
-
-```hledger title="import/gawie/categories.rules"
-# Gawie's categories, shared by all his accounts.
-# Each if block matches text anywhere in a CSV row, ignoring case.
-
-if PUNDA MARIA TRADING
-  account2 expenses:groceries
-
-if FUEL STOP|TYRES
-  account2 expenses:car
-
-if MOPANE MASTERS
-  account2 expenses:mopane-worms
-
-if APPLIANCES|HARDWARE
-  account2 expenses:household
-
-if BUSHTEL
-  account2 expenses:phone
-
-if PAYMENT RECEIVED
-  account2 assets:transfers:creditcard
-```
-
-A payment to the card isn’t an expense. It’s money moving from Gawie’s
-cheque account to the card, so it goes to a transfer account. When the
-cheque account arrives in [part 3](/tutorial/part-3/), its side of each
-payment goes to the same account, and the two cancel out.
-
-The card’s rules file includes the categories at the end. `include` paths
-are relative to the file that includes them:
+Gawie makes two changes. A credit card is money he owes, so `account1` is a
+liability. And the amounts are in rand, so he adds `currency ZAR`, the
+rand’s three-letter code. He saves the result as
+`import/gawie/kudu/creditcard/kudu-creditcard.rules`:
 
 ```hledger title="import/gawie/kudu/creditcard/kudu-creditcard.rules"
 skip 1
 fields date, description, amount
 
-currency R
+currency ZAR
 account1 liabilities:kudu:creditcard
 account2 expenses:unknown
-
-include ../../categories.rules
 ```
 
-`account2 expenses:unknown` stays as the fallback for rows no `if` block
-matches.
+`directives.journal`, which `init` made, declares how hledger shows common
+currencies. Rand isn’t one of them, so Gawie adds it. The alias lets him
+type the familiar `R` in journals he writes by hand, and hledger reads it as
+ZAR:
+
+```bash
+echo 'commodity 1,000.00 ZAR  ; alias: R' >> directives.journal
+```
+
+## Import
 
 ```bash
 hledger-flow import
+```
+
+```text
+Moved orphaned output import/gawie/kudu/creditcard/3-journal/2026/hledger-flow-example.journal to .hledger-flow/trash/import/gawie/kudu/creditcard/3-journal/2026/hledger-flow-example.journal
+Imported 1 statement for gawie/kudu/creditcard.
+```
+
+The import also found the example’s journal, whose statement Gawie
+deleted in part 1. hledger-flow never deletes your files, so it moved the
+journal to its trash in `.hledger-flow/trash/`, which Git ignores. Gawie
+looks at what changed:
+
+```bash
+git add -A
+git status --short
+git diff --staged -- directives.journal
+```
+
+```text
+M  directives.journal
+A  import/2016-include.journal
+M  import/2026-include.journal
+M  import/all-years.journal
+A  import/gawie/2016-include.journal
+M  import/gawie/2026-include.journal
+M  import/gawie/all-years.journal
+A  import/gawie/kudu/2016-include.journal
+M  import/gawie/kudu/2026-include.journal
+M  import/gawie/kudu/all-years.journal
+A  import/gawie/kudu/creditcard/2016-include.journal
+M  import/gawie/kudu/creditcard/2026-include.journal
+A  import/gawie/kudu/creditcard/3-journal/2016/creditcard_2016-03-31.journal
+D  import/gawie/kudu/creditcard/3-journal/2026/hledger-flow-example.journal
+M  import/gawie/kudu/creditcard/all-years.journal
+A  import/gawie/kudu/creditcard/kudu-creditcard.rules
+diff --git a/directives.journal b/directives.journal
+index f3d4e10..1806cb5 100644
+--- a/directives.journal
++++ b/directives.journal
+@@ -29,3 +29,4 @@ account assets:cash             ; type: C
+ account equity:conversion       ; type: V
+ account equity:unrealised-gain  ; type: U
+ account revenues:gain           ; type: G
++commodity 1,000.00 ZAR  ; alias: R
+```
+
+The statement became an hledger journal in `3-journal/2016/`, with a
+`2016-include.journal` beside it and at every level above it. The include
+files for the current year are now empty, since Gawie removed that year’s
+starters. hledger-flow leaves them in place.
+
+```bash
+head -n 7 import/gawie/kudu/creditcard/3-journal/2016/creditcard_2016-03-31.journal
+```
+
+```hledger
+2016-03-02 PUNDA MARIA TRADING STORE
+    liabilities:kudu:creditcard                 -842.50 ZAR
+    expenses:unknown                             842.50 ZAR
+
+2016-03-04 LETABA FUEL STOP
+    liabilities:kudu:creditcard                 -910.00 ZAR
+    expenses:unknown                             910.00 ZAR
+```
+
+## Ask hledger
+
+Status warned that hledger won’t find this ledger by default. Gawie sets
+`LEDGER_FILE`, as the note suggested, so hledger reads the whole ledger.
+He also adds the export line to his shell profile for future sessions.
+
+```bash
+export LEDGER_FILE="$HOME/finances/all-years.journal"
 hledger balance
 ```
 
 ```text
-Imported 3 statements for gawie/kudu/creditcard.
-          R-43000.00  assets:transfers:creditcard
-            R9055.00  expenses:car
-            R6197.00  expenses:groceries
-            R6839.00  expenses:household
-           R19135.00  expenses:mopane-worms
-             R750.00  expenses:phone
-            R3698.40  expenses:unknown
-           R-2674.40  liabilities:kudu:creditcard
+       -1,745.60 ZAR  liabilities:kudu:creditcard
+        1,745.60 ZAR  expenses:unknown
 --------------------
                    0  
 ```
 
-R19135 on mopane worms in three months. Gawie is a dedicated chef, even at
-home.
-
-## Reports
-
-`hledger-flow report` runs a set of hledger reports for every owner and
-year, plus combined ones for all owners under `reports/all/`, and saves them
-as text files:
+Gawie owes Kudu Bank 1,745.60 ZAR, and every rand of it went to
+`expenses:unknown`. He commits his first real import:
 
 ```bash
-hledger-flow report
-tree reports
+git commit -q -m "Import my first Kudu statement"
 ```
 
-```text
-Generated 9 reports in reports/.
-Each report starts with the hledger command that made it. Copy that line to tailor the report.
-reports
-|-- all
-|   `-- 2016
-|       |-- balance-sheet.txt
-|       |-- income-expenses.txt
-|       |-- monthly
-|       |   `-- income-expenses.txt
-|       `-- transfer-balance.txt
-`-- gawie
-    `-- 2016
-        |-- accounts.txt
-        |-- balance-sheet.txt
-        |-- income-expenses.txt
-        |-- monthly
-        |   `-- income-expenses.txt
-        `-- unknown-transactions.txt
-
-7 directories, 9 files
-```
-
-`unknown-transactions.txt` is Gawie’s to-do list:
-
-```bash
-cat reports/gawie/2016/unknown-transactions.txt
-```
-
-```hledger
-hledger --file import/gawie/all-years.journal --period 2016 print unknown
-
-2016-03-12 BAOBAB BOOKS ONLINE
-    liabilities:kudu:creditcard                R-389.00
-    expenses:unknown                            R389.00
-
-2016-03-26 PAFURI PHARMACY
-    liabilities:kudu:creditcard                R-214.90
-    expenses:unknown                            R214.90
-
-2016-05-13 BAOBAB BOOKS ONLINE
-    liabilities:kudu:creditcard                R-455.00
-    expenses:unknown                            R455.00
-
-2016-05-21 TSHIPISE HOT SPRINGS
-    liabilities:kudu:creditcard               R-2450.00
-    expenses:unknown                           R2450.00
-
-2016-05-27 PAFURI PHARMACY
-    liabilities:kudu:creditcard                R-189.50
-    expenses:unknown                            R189.50
-```
-
-Each month, Gawie files the new statements, runs `hledger-flow import` and
-then `hledger-flow report`. He can leave unfamiliar purchases in
-`expenses:unknown` until he recognises them. After adding a category rule,
-he runs import again to rebuild the entries, then report to refresh his list.
-
-## Try it yourself
-
-Classify the five purchases from the three remaining merchants: the pharmacy as
-`expenses:health`, and the books and the weekend at the hot springs as
-`expenses:fun`. Then run `hledger-flow import` and `hledger-flow report`.
-
-<details>
-<summary>Answer</summary>
-
-Add these blocks to `import/gawie/categories.rules`. One `if` can match
-several patterns, separated by `|`.
-
-```hledger
-if PHARMACY
-  account2 expenses:health
-
-if BOOKS|HOT SPRINGS
-  account2 expenses:fun
-```
-
-`hledger-flow report` then says `Skipped 1 empty report.` and removes
-`unknown-transactions.txt`: nothing is left to classify.
-
-</details>
-
-The story continues with [part 3](/tutorial/part-3/), where Gawie meets
-Bogart Bank’s export.
+Sorting the spending into categories is the job for
+[part 3](/tutorial/part-3/).

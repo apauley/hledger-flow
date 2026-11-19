@@ -22,6 +22,7 @@ case "$got" in
      exit 1 ;;
 esac
 command -v tree >/dev/null || { echo "error: the tutorial runs tree. Install it first." >&2; exit 1; }
+command -v git >/dev/null || { echo "error: the tutorial runs git. Install it first." >&2; exit 1; }
 command -v python3 >/dev/null || { echo "error: install Python 3 to update the tutorial." >&2; exit 1; }
 if [[ ${1:-} == --check-tools ]]; then exit 0; fi
 

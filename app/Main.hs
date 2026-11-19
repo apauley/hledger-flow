@@ -54,10 +54,11 @@ import Hledger.Flow.Status.Gather ( classifyDir )
 import Hledger.Flow.Status.Render ( printStatus )
 import qualified Data.Text as Text
 import Path.IO ( getCurrentDir, resolveDir' )
+import Hledger.Flow.HledgerConfig (ConfigUse (..), requireSafeConfig)
 import Hledger.Flow.Init ( runInit )
 import Hledger.Flow.DocHelpers ( DocLink (..), docURL, siteURL )
 import Hledger.Flow.Logging ( useColor )
-import Hledger.Flow.RulesTemplate ( rulesTemplateFor )
+import Hledger.Flow.RulesTemplate ( rulesTemplateFor, runRules )
 import Data.Maybe (fromMaybe)
 import Hledger.Flow.Internals (availableCores, versionInfo, systemInfo)
 import Hledger.Flow.BaseDir ( determineBaseDir, findBaseDir )
@@ -92,7 +93,7 @@ data StatusParams = StatusParams { statusDir :: Maybe FilePath
 
 newtype InitParams = InitParams { initDir :: Maybe FilePath } deriving (Show)
 
-data Command = Import ImportParams | Report ReportParams | Status StatusParams | Init InitParams deriving (Show)
+data Command = Import ImportParams | Report ReportParams | Status StatusParams | Rules String (Maybe FilePath) | Init InitParams deriving (Show)
 
 data MainParams = MainParams { verbosity :: Int
                              , hledgerPathOpt :: Maybe FilePath
@@ -151,15 +152,23 @@ runCommand = do
       T.putStrLn $ versionInfo sysInfo 
     Command mainParams' (Just (Import subParams)) -> do
       (base, runDir) <- determineBaseDir (maybeImportBaseDir subParams)
-      withReleaseNotice base $ (toRuntimeOptionsImport base runDir mainParams' subParams >>= importCSVs) `catch` reportFatal
+      opts <- toRuntimeOptionsImport base runDir mainParams' subParams
+      requireSafeConfig ImportConfig opts
+      withReleaseNotice base $ importCSVs opts `catch` reportFatal
     Command mainParams' (Just (Report subParams)) -> do
       (base, _) <- determineBaseDir (maybeReportBaseDir subParams)
-      withReleaseNotice base $ (toRuntimeOptionsReport base mainParams' subParams >>= generateReports) `catch` reportFatal
+      opts <- toRuntimeOptionsReport base mainParams' subParams
+      requireSafeConfig ReportConfig opts
+      withReleaseNotice base $ generateReports opts `catch` reportFatal
     Command mainParams' (Just (Status subParams)) -> runStatus mainParams' subParams
+    Command mainParams' (Just (Rules account dir)) -> do
+      base <- statusBaseDir dir
+      conf <- findHledgerConf (hledgerConfOpt mainParams')
+      runRules conf base (Text.pack account)
     Command mainParams' (Just (Init subParams)) -> do
       cwd <- getCurrentDir
       dir <- maybe (return cwd) resolveDir' (initDir subParams)
-      runInit (hledgerPathOpt mainParams') cwd dir
+      runInit (hledgerPathOpt mainParams') (hledgerConfOpt mainParams') cwd dir
     Command mainParams' Nothing -> runBare mainParams'
 
 -- | (name, one-line description) of each command, in display order.
@@ -167,6 +176,7 @@ commandSummaries :: [(String, String)]
 commandSummaries =
   [ ("status", "Show what's in your ledger and what to do next"),
     ("init", "Start a new ledger in a folder"),
+    ("rules", "Create a starter rules file for an account"),
     ("import", "Turn statements into journals"),
     ("report", "Generate reports from your journals")
   ]
@@ -184,13 +194,17 @@ briefUsage =
 
 runStatus :: MainParams -> StatusParams -> IO ()
 runStatus mainParams' params = do
-  cwd <- getCurrentDir
-  dir <- maybe (return cwd) (resolveExistingDir cwd) (statusDir params)
-  base <- findBaseDir dir >>= maybe (throwIO (MissingBaseDir dir)) return
+  base <- statusBaseDir (statusDir params)
   case statusRulesTemplate params of
     Just account -> rulesTemplateFor base (Text.pack account) >>= either (ioError . userError . Text.unpack) T.putStr
     Nothing | statusJson params -> printStatus (hledgerPathOpt mainParams') (hledgerConfOpt mainParams') True base
             | otherwise -> printInteractiveStatus mainParams' base
+
+statusBaseDir :: Maybe FilePath -> IO BaseDir
+statusBaseDir target = do
+  cwd <- getCurrentDir
+  dir <- maybe (return cwd) (resolveExistingDir cwd) target
+  findBaseDir dir >>= maybe (throwIO (MissingBaseDir dir)) return
 
 printInteractiveStatus :: MainParams -> BaseDir -> IO ()
 printInteractiveStatus params base = withCachedReleaseNotice base $
@@ -264,6 +278,10 @@ commandParser colour = optional $ hsubparser $
       ("hledger-flow status --rules-template me/mybank/checking", "Print a starter rules file for one account") ]
     <> subcommand "init" GettingStarted (Init . InitParams <$> optional (argument str (metavar "DIR" <> help "The folder for the new ledger, created if missing. Default: the current folder.")))
     [ ("hledger-flow init ~/finances", "Start a ledger in ~/finances") ]
+    <> subcommand "rules" RulesFiles
+      (Rules <$> argument str (metavar "ACCOUNT" <> help "Account as owner/bank/account.")
+             <*> optional (argument str (metavar "DIR" <> help "Inspect the ledger containing this folder.")))
+    [ ("hledger-flow rules me/mybank/checking", "Write a starter rules file for this account") ]
     <> subcommand "import" InputFiles (Import <$> subcommandParserImport colour)
     [ ("hledger-flow import", "Import the current folder"),
       ("hledger-flow import import/me/mybank", "Import one bank's statements"),

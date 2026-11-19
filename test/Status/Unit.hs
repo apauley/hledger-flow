@@ -8,7 +8,9 @@ import qualified Data.Aeson.Key as Key
 import qualified Data.Aeson.KeyMap as KeyMap
 import Data.List (sort)
 import qualified Data.Text as T
-import Hledger.Flow.Common (Shell (..))
+import Hledger.Flow.Common (Shell (..), createDirectoryCommand, shellArgument)
+import Hledger.Flow.LedgerSelection (Coverage (..))
+import Hledger.Flow.StatementScan (StatementYear (..), inferStatementYear, parseDelimitedStatement)
 import Hledger.Flow.Status.Render (renderStatus, statusJSON)
 import Hledger.Flow.Status
 import Path
@@ -21,13 +23,20 @@ blank =
   LedgerStatus
     { lsBaseDir = testRoot </> [reldir|fin|],
       lsHledger = Just defaultHlInfo,
-      lsLedgerFile = Just (LedgerFile "/x" True),
+      lsLedgerFile = Just (LedgerFile "/x" True CoversLedger),
+      lsAggregateJournal = Just (testRoot </> [relfile|fin/all-years.journal|]),
+      lsHledgerConf = Nothing,
+      lsConfigConflicts = [],
       lsAccounts = [],
       lsMisplaced = [],
       lsManualJournals = 0,
+      lsHasManualWork = False,
       lsAllYearsExists = True,
       lsNeedsReconciliation = False,
-      lsNeedsPrices = False
+      lsNeedsPrices = False,
+      lsReview = Nothing,
+      lsFirstStatementOwner = [reldir|me|],
+      lsUntouchedExample = Nothing
     }
 
 acct :: AccountStatus
@@ -39,6 +48,8 @@ acct =
       asRulesFile = Just "import/me/mybank/checking/mybank-checking.rules",
       asRulesCandidates = ["import/me/mybank/checking/mybank-checking.rules", "import/mybank.rules"],
       asWithoutRules = 0,
+      asOtherRules = [],
+      asRulesTargetOccupied = False,
       asPreprocess = False,
       asConstruct = False,
       asJournalsMissing = 0,
@@ -80,31 +91,30 @@ summaryOf = nsSummary . atRoot
 commandOf :: LedgerStatus -> Maybe T.Text
 commandOf = nsCommand . atRoot
 
-allYears :: T.Text
-allYears = T.pack (toFilePath (lsBaseDir blank </> [relfile|all-years.journal|]))
-
 testRules :: Test
 testRules =
   TestList
     [ "1 hledger missing" ~: summaryOf blank {lsHledger = Nothing} ~?= "Install hledger, or pass its location with --hledger-path",
       "2 empty ledger" ~: summaryOf blank ~?= "Put your first statement in import/<owner>/<bank>/<account>/1-in/<year>/",
-      "2 example uses current year" ~: nsDetail (atRoot blank) ~?= ["For example: import/me/mybank/checking/1-in/2026/statement.csv", "Then check with: hledger-flow status"],
-      "2 skipped for manual-only ledger" ~: summaryOf blank {lsManualJournals = 1} ~?= "Generate reports, or explore with hledger",
-      "5 import when all-years.journal is missing" ~: commandOf blank {lsManualJournals = 1, lsAllYearsExists = False} ~?= Just "hledger-flow import",
-      "3 misplaced" ~: summaryOf blank {lsMisplaced = [Misplaced "import/a.csv" "x"]} ~?= "Move 1 file to where hledger-flow looks",
-      "3 misplaced plural" ~: summaryOf blank {lsMisplaced = [Misplaced "import/a.csv" "x", Misplaced "import/b.csv" "y"]} ~?= "Move 2 files to where hledger-flow looks",
-      "3 detail" ~: nsDetail (atRoot blank {lsMisplaced = [Misplaced "import/a.csv" "x"]}) ~?= ["import/a.csv → x"],
-      "4 rules" ~: commandOf blank {lsAccounts = [acct {asWithoutRules = 1, asRulesFile = Nothing}]} ~?= Just "hledger-flow status --rules-template me/mybank/checking",
+      "2 example uses current year" ~:
+        filter (T.isPrefixOf "Change the names, then run: ") (nsDetail (atRoot blank))
+          ~?= ["Change the names, then run: " <> createDirectoryCommand Posix [] (lsBaseDir blank)
+                (lsBaseDir blank </> [reldir|import/me/mybank/checking/1-in/2026|])],
+      "2 skipped for manual-only ledger" ~: summaryOf blank {lsManualJournals = 1, lsHasManualWork = True} ~?= "Generate reports, or explore with hledger",
+      "5 import when all-years.journal is missing" ~: commandOf blank {lsManualJournals = 1, lsHasManualWork = True, lsAllYearsExists = False, lsAggregateJournal = Nothing} ~?= Just "hledger-flow import",
+      "3 misplaced" ~: summaryOf blank {lsMisplaced = [Misplaced "import/a.csv" "x" (SingleYear 2026) False]} ~?= "Move 1 file to where hledger-flow looks",
+      "3 misplaced plural" ~: summaryOf blank {lsMisplaced = [Misplaced "import/a.csv" "x" (SingleYear 2026) False, Misplaced "import/b.csv" "y" (SingleYear 2026) False]} ~?= "Move 2 files to where hledger-flow looks",
+      "3 detail" ~: take 1 (nsDetail (atRoot blank {lsMisplaced = [Misplaced "import/a.csv" "x" (SingleYear 2026) False]})) ~?= ["import/a.csv → x"],
+      "4 rules" ~: commandOf blank {lsAccounts = [acct {asWithoutRules = 1, asRulesFile = Nothing}]} ~?= Just "hledger-flow rules me/mybank/checking",
       "4 summary" ~: summaryOf blank {lsAccounts = [acct {asWithoutRules = 1, asRulesFile = Nothing}]} ~?= "Create import/me/mybank/checking/mybank-checking.rules (rules for me/mybank/checking)",
       "4 powershell literal account" ~:
         nsCommand (nextStep 2026 PowerShell [] (lsBaseDir blank) blank {lsAccounts = [acct {asWithoutRules = 1, asAccount = "me/Bob's Bank/Lee’s $(example)"}]})
-          ~?= Just "hledger-flow status --rules-template 'me/Bob''s Bank/Lee’’s $(example)'",
+          ~?= Just "hledger-flow rules 'me/Bob''s Bank/Lee’’s $(example)'",
       "4 skipped with construct" ~: commandOf blank {lsAccounts = [acct {asWithoutRules = 1, asConstruct = True}]} ~?= Just "hledger-flow report",
       "5 import" ~: summaryOf blank {lsAccounts = [acct {asJournalsMissing = 1, asJournalsOutdated = 1}]} ~?= "Import 2 new or changed statements",
       "5 import singular" ~: summaryOf blank {lsAccounts = [acct {asJournalsMissing = 1}]} ~?= "Import 1 new or changed statement",
-      "6 posix" ~: commandOf blank {lsAccounts = [acct], lsLedgerFile = Nothing} ~?= Just ("export LEDGER_FILE='" <> allYears <> "'"),
-      "6 windows" ~: nsCommand (nextStep 2026 PowerShell [] (lsBaseDir blank) blank {lsAccounts = [acct], lsLedgerFile = Nothing}) ~?= Just ("$env:LEDGER_FILE = '" <> allYears <> "'"),
-      "6 set but missing" ~: nsDetail (atRoot blank {lsAccounts = [acct], lsLedgerFile = Just (LedgerFile "/nope.journal" False)}) ~?= ["LEDGER_FILE is set to /nope.journal, which doesn't exist."],
+      "6 unset" ~: commandOf blank {lsAccounts = [acct], lsLedgerFile = Nothing} ~?= Just "hledger-flow report",
+      "6 set but missing" ~: nsDetail (atRoot blank {lsAccounts = [acct], lsLedgerFile = Just (LedgerFile "/nope.journal" False UnrelatedLedger)}) ~?= ["LEDGER_FILE is set to /nope.journal, which doesn't exist."],
       "7 done" ~: commandOf blank {lsAccounts = [acct]} ~?= Just "hledger-flow report"
     ]
 
@@ -117,13 +127,18 @@ testHome =
       unset = blank {lsAccounts = [acct], lsLedgerFile = Nothing}
       quoted parts = "\"" <> T.pack (FilePath.joinPath ("$HOME" : parts)) <> "\""
       dollarInPath = unset {lsBaseDir = testRoot </> [reldir|fin$|]}
+      setting shell s = do
+        note <- ledgerFileNote shell homes s
+        case filter ("For hledger, run: " `T.isPrefixOf`) (T.lines note) of
+          [line] -> T.stripPrefix "For hledger, run: " line
+          _ -> Nothing
    in TestList
-        [ "posix export" ~: nsCommand (next Posix (lsBaseDir blank) unset) ~?= Just ("export LEDGER_FILE=" <> quoted ["fin", "all-years.journal"]),
-          "powershell export" ~: nsCommand (next PowerShell (lsBaseDir blank) unset) ~?= Just ("$env:LEDGER_FILE = " <> quoted ["fin", "all-years.journal"]),
+        [ "posix export" ~: setting Posix unset ~?= Just ("export LEDGER_FILE=" <> quoted ["fin", "all-years.journal"]),
+          "powershell export" ~: setting PowerShell unset ~?= Just ("$env:LEDGER_FILE = " <> quoted ["fin", "all-years.journal"]),
           "ledger argument" ~: nsCommand (next Posix elsewhere blank {lsAccounts = [acct]}) ~?= Just ("hledger-flow report " <> quoted ["fin"]),
           "summary" ~: nsSummary (next Posix elsewhere blank {lsAccounts = [acct {asWithoutRules = 1, asRulesFile = Nothing}]})
-            ~?= T.pack ("Create " <> FilePath.joinPath ["~", "fin", "import", "me", "mybank", "checking", "mybank-checking.rules"]) <> " (rules for me/mybank/checking)",
-          "special character falls back to the absolute path" ~: nsCommand (next Posix (lsBaseDir dollarInPath) dollarInPath)
+            ~?= "Create import/me/mybank/checking/mybank-checking.rules (rules for me/mybank/checking)",
+          "special character falls back to the absolute path" ~: setting Posix dollarInPath
             ~?= Just ("export LEDGER_FILE='" <> T.pack (toFilePath (lsBaseDir dollarInPath </> [relfile|all-years.journal|])) <> "'")
         ]
 
@@ -151,10 +166,36 @@ testRenderPending = TestCase $ do
   assertBool "clean" ("✓ 1 journal" `T.isInfixOf` render acct)
 
 testJSONShape :: Test
-testJSONShape = TestCase $ case statusJSON testSystemInfo Nothing blank (atRoot blank) of
+testJSONShape = TestCase $ case statusJSON testSystemInfo Nothing (lsBaseDir blank) blank (atRoot blank) of
   Object o ->
     sort (map Key.toText (KeyMap.keys o))
-      @?= ["accounts", "allYearsJournalExists", "baseDir", "environment", "hledger", "ledgerFile", "manualJournals", "misplaced", "next", "schemaVersion"]
+      @?= ["accounts", "aggregateJournal", "allYearsJournalExists", "baseDir", "environment", "hledger", "ledgerFile", "ledgerFileNote", "manualJournals", "misplaced", "next", "reportsCurrent", "review", "schemaVersion"]
   _ -> assertFailure "status JSON is an object"
 
-tests = TestList [testSuggest, testMisplacedUpperCase, testRules, testHome, testVersion, testRenderNoColour, testRenderPending, testJSONShape]
+tests = TestList [testFirstDirectory, testStatementYear, testSuggest, testMisplacedUpperCase, testRules, testHome, testVersion, testRenderNoColour, testRenderPending, testJSONShape]
+
+testStatementYear :: Test
+testStatementYear = "statement year" ~: TestList
+  [ check "Date,Desc,Amount\n2025-12-31,\"Shop, City\",-5\n" (SingleYear 2025),
+    check "2025-12-31,Shop,-5\n2026-01-01,Store,-7\n" (SpanningYears [2025,2026]),
+    check "2025-12-31,2026-01-02,Shop,-5\n" UnknownYear,
+    check "2025-12-31,Shop,-5\n,Store,-7\n" UnknownYear,
+    check "20251231,Shop,-5\n31/12/25,Store,-7\n" UnknownYear,
+    check "31.12.2025 12:30,Shop,-5\n" (SingleYear 2025),
+    check ",,Shop,-5\n,,Store,-7\n" UnknownYear
+  ]
+  where
+    check rows expected = fmap inferStatementYear (parseDelimitedStatement "2026-01-02.csv" rows) ~?= Right expected
+
+testFirstDirectory :: Test
+testFirstDirectory =
+  let base = lsBaseDir blank
+      dir = base </> [reldir|import/me/mybank/checking/1-in/2026|]
+      elsewhere = testRoot </> [reldir|another place|]
+      rootArgument = T.pack (native "import/me/mybank/checking/1-in/2026")
+   in TestList
+        [ createDirectoryCommand Posix [] base dir ~?= "mkdir -p " <> shellArgument Posix rootArgument,
+          createDirectoryCommand PowerShell [] base dir ~?= "New-Item -ItemType Directory -Force -Path " <> shellArgument PowerShell rootArgument,
+          T.isInfixOf (T.pack (FilePath.dropTrailingPathSeparator (toFilePath dir)))
+            (createDirectoryCommand Posix [] elsewhere dir) ~?= True
+        ]

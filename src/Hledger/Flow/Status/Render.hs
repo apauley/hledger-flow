@@ -22,11 +22,15 @@ import Hledger.Flow.Common (findHledger, findHledgerConf, homeDirs, nativeShell,
 import Hledger.Flow.DateTime (currentYear)
 import Hledger.Flow.Environment (coresSetting, environmentJSON, environmentSettings, renderSettings)
 import Hledger.Flow.Internals (SystemInfo, systemInfo)
-import Hledger.Flow.Status.Gather (gatherStatus)
+import Hledger.Flow.Status.Gather (gatherStatusWithConfig)
+import Hledger.Flow.PathHelpers (AbsDir)
 import Hledger.Flow.Types (BaseDir)
 import Path.IO (getCurrentDir)
 import qualified Data.Text as T
 import Hledger.Flow.Status
+import Hledger.Flow.ReportReview
+import Hledger.Flow.StatementScan (StatementYear (..))
+import Hledger.Flow.LedgerSelection (Coverage (..))
 import Hledger.Flow.Types (HledgerConf, HledgerInfo (..))
 import Path (toFilePath)
 import Hledger.Flow.Logging (bold, green, red, useColor, yellow)
@@ -39,7 +43,7 @@ baseText = FilePath.dropTrailingPathSeparator . toFilePath . lsBaseDir
 
 renderStatus :: Bool -> [FilePath] -> LedgerStatus -> NextStep -> T.Text
 renderStatus color homes s next =
-  T.unlines (header : accountBlock ++ misplacedBlock) <> renderNext color next
+  T.unlines (header : accountBlock ++ misplacedBlock ++ noteBlock ++ reviewBlock) <> renderNext color next
   where
     header = bold color "Ledger: " <> T.pack (tildePath homes (baseText s)) <> "   (" <> hledgerText <> ")"
     hledgerText = case lsHledger s of
@@ -69,6 +73,21 @@ renderStatus color homes s next =
                   ++ [tshow outdated <> " outdated" | outdated > 0]
               txt = T.intercalate ", " parts
            in if missing + outdated > 0 then yellow color ("• " <> txt) else green color ("✓ " <> txt)
+    noteBlock = case T.lines <$> ledgerFileNote nativeShell homes s of
+      Just (first : rest) -> "" : ("  Note: " <> first) : map ("        " <>) rest
+      _ -> []
+    reviewBlock = case maybe [] reviewItems (lsReview s) of
+      [] -> []
+      items -> "" : "  To review:" : map showReview (take 5 items)
+        ++ ["    and " <> tshow (length items - 5) <> " more" | length items > 5]
+    showReview item =
+      let label = case itemKind item of
+            UnknownTransactions -> "unknown transaction"
+            TransferBalances -> "transfer account to check"
+          count = case itemKind item of
+            TransferBalances -> fmap (\n -> plural n "transfer account" <> " to check") (itemCount item)
+            UnknownTransactions -> fmap (\n -> plural n label) (itemCount item)
+       in "    " <> maybe "count unavailable" id count <> "  " <> T.pack (itemPath item)
     misplacedBlock = case length (lsMisplaced s) of
       0 -> []
       n -> ["", "  " <> yellow color ("⚠ " <> plural n "file" <> " not where hledger-flow looks")]
@@ -83,16 +102,20 @@ renderNext color next =
 tshow :: Show a => a -> T.Text
 tshow = T.pack . show
 
-statusJSON :: SystemInfo -> Maybe HledgerConf -> LedgerStatus -> NextStep -> Value
-statusJSON sys conf s next =
+statusJSON :: SystemInfo -> Maybe HledgerConf -> AbsDir -> LedgerStatus -> NextStep -> Value
+statusJSON sys conf cwd s next =
   object
     [ "schemaVersion" .= (1 :: Int),
       "environment" .= environmentJSON sys conf,
       "baseDir" .= baseText s,
       "hledger" .= fmap hledgerJSON (lsHledger s),
-      "ledgerFile" .= fmap (\lf -> object ["value" .= lfValue lf, "exists" .= lfExists lf]) (lsLedgerFile s),
+      "ledgerFile" .= fmap (\lf -> object ["value" .= lfValue lf, "exists" .= lfExists lf, "coversLedger" .= (lfCoverage lf == CoversLedger)]) (lsLedgerFile s),
+      "aggregateJournal" .= fmap toFilePath (lsAggregateJournal s),
+      "ledgerFileNote" .= ledgerFileNote nativeShell [] s,
       "accounts" .= map accountJSON (lsAccounts s),
-      "misplaced" .= [object ["path" .= mpPath m, "suggestion" .= mpSuggestion m] | m <- lsMisplaced s],
+      "misplaced" .= map misplacedJSON (lsMisplaced s),
+      "reportsCurrent" .= maybe False (const True) (lsReview s),
+      "review" .= fmap reviewJSON (lsReview s),
       "manualJournals" .= lsManualJournals s,
       "allYearsJournalExists" .= lsAllYearsExists s,
       "next"
@@ -104,6 +127,17 @@ statusJSON sys conf s next =
           ]
     ]
   where
+    reviewJSON review = object ["unknownTransactions" .= category (reviewUnknowns review),
+                                "transferAccounts" .= category (reviewTransfers review)]
+    category review = object ["count" .= reviewCount review, "files" .= reviewFiles review]
+    misplacedJSON item = object
+      [ "path" .= mpPath item,
+        "suggestion" .= mpSuggestion item,
+        "year" .= (case mpYear item of SingleYear year -> Just year; _ -> Nothing),
+        "years" .= (case mpYear item of SpanningYears years -> years; _ -> []),
+        "destinationExists" .= mpDestinationExists item,
+        "command" .= misplacedMoveCommand nativeShell [] cwd (lsBaseDir s) item
+      ]
     hledgerJSON hl = object ["path" .= toFilePath (hlPath hl), "version" .= hledgerVersionNumber (hlVersion hl)]
     accountJSON a =
       object
@@ -113,12 +147,14 @@ statusJSON sys conf s next =
           "rulesFile" .= asRulesFile a,
           "rulesCandidates" .= asRulesCandidates a,
           "statementsWithoutRules" .= asWithoutRules a,
+          "otherRules" .= asOtherRules a,
+          "rulesTargetOccupied" .= asRulesTargetOccupied a,
           "hooks" .= object ["preprocess" .= asPreprocess a, "construct" .= asConstruct a],
           "journalsMissing" .= asJournalsMissing a,
           "journalsOutdated" .= asJournalsOutdated a
         ]
 
--- | The next step for people to read with @homes@, or for scripts with @[]@ (absolute paths).
+-- | The next step for people to read with @homes@, or for scripts with @[]@ (no home abbreviation).
 nextStepHere :: [FilePath] -> LedgerStatus -> IO NextStep
 nextStepHere homes status = do
   year <- currentYear
@@ -137,23 +173,23 @@ printStatus :: Maybe FilePath -> Maybe FilePath -> Bool -> BaseDir -> IO ()
 printStatus hledgerPath confOpt json base = do
   hledger <- findHledger hledgerPath
   conf <- findHledgerConf confOpt
-  status <- gatherStatus hledger base
+  status <- gatherStatusWithConfig hledger conf base
   sys <- systemInfo
+  cwd <- getCurrentDir
+  year <- currentYear
+  let next homes = nextStep year nativeShell homes cwd status
   if json
-    then do
-      next <- nextStepHere [] status
-      TL.putStrLn (encodeToLazyText (statusJSON sys conf status next))
+    then TL.putStrLn (encodeToLazyText (statusJSON sys conf cwd status (next [])))
     else do
       color <- useColor stdout
       homes <- homeDirs
-      next <- nextStepHere homes status
-      T.putStr (renderStatus color homes status next <> renderEnvironment color homes sys conf status)
+      T.putStr (renderStatus color homes status (next homes) <> renderEnvironment color homes sys conf status)
 
 -- | Print only the next step for a ledger.
-printNext :: Maybe FilePath -> BaseDir -> IO ()
-printNext hledgerPath base = do
+printNext :: Maybe FilePath -> Maybe HledgerConf -> BaseDir -> IO ()
+printNext hledgerPath conf base = do
   hledger <- findHledger hledgerPath
-  status <- gatherStatus hledger base
+  status <- gatherStatusWithConfig hledger conf base
   homes <- homeDirs
   next <- nextStepHere homes status
   color <- useColor stdout

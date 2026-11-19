@@ -94,7 +94,7 @@ class Ledger(unittest.TestCase):
 
     def journals(self):
         return {p.relative_to(self.base): p.read_bytes() for p in self.base.rglob("*.journal")
-                if ".hledger-flow" not in p.parts and ".trash" not in p.parts}
+                if ".hledger-flow" not in p.parts}
 
     def full_parity(self, *flags, ok=True):
         incremental = self.flow(*flags, ok=ok)

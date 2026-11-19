@@ -94,3 +94,27 @@ files have been used and tested fairly extensively, I don't expect this
 to change.
 
 Let me know if you think it should change.
+
+## Starter rules for exports without a header
+
+Run `hledger-flow rules OWNER/BANK/ACCOUNT` to create a starter in the
+account folder. It writes UTF-8 and refuses to replace an existing file.
+Use `hledger-flow status --rules-template OWNER/BANK/ACCOUNT` to preview the
+same starter on standard output. For a headerless export it shows the first
+row by column and uses
+up to 50 rows to suggest the date, amount and description fields. Check the
+guesses, account names and date format before importing. A neutral name such
+as `column3` leaves that field for you to identify.
+
+The starter preserves the export's date separator and accepts day and month
+numbers with or without leading zeroes. When the dates leave the day and
+month ambiguous or mix formats, set `date-format` yourself using the
+example in the starter.
+
+## Reuse existing rules
+
+Put your existing rules and any files they include in the account folder.
+If status identifies one main rules file under a different name, it suggests
+a safe rename to the expected account filename. Keep the names of files the
+main rules include. If status finds several possible main files, choose the
+one that matches the statement and rename it yourself.

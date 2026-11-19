@@ -4,6 +4,8 @@ description: Where to put your statements, and what happens to generated files w
 ---
 
 Save each statement in `import/<owner>/<bank>/<account>/1-in/<year>/`.
+For an empty ledger, `hledger-flow status` shows a command to create those
+directories. Substitute your owner, bank, account and year.
 For example, John’s June savings statement might be
 `import/john/mybank/savings/1-in/2018/123456789_2018-06-30.csv`.
 Import reads every visible file directly in that year folder as a statement.
@@ -36,6 +38,14 @@ import elsewhere, the command first changes to that working directory so scripts
 can resolve relative paths and hledger can find the same config. Paths below the
 working directory start with `./`. Each statement's lines appear together once
 it's done. With `--sequential`, they appear as import works.
+
+## Year folders
+
+Use the year of the transactions in the statement. If a statement contains
+transactions from two years, split it and put each file in its own year
+folder. When status finds a misplaced delimited statement, it can suggest
+a year from its dates and show a move command. Confirm the year yourself
+when dates are missing or transaction and posting dates disagree.
 
 ## More About Input Files
 
@@ -93,7 +103,8 @@ in the run may already contain the new data.
 
 After all selected inputs have been converted successfully, import moves
 orphaned `2-preprocessed/YYYY/*.csv` and `3-journal/YYYY/*.journal` files
-into the account's `.trash` directory. A corresponding input must be in
+into `.hledger-flow/trash/` at the ledger root, keeping their path from the
+root. A corresponding input must be in
 `1-in` for the same account and year, with a filename that produces that
 output when its extension is replaced. An old preprocessed CSV does not
 keep an orphaned journal active. If two inputs would produce the same
@@ -101,12 +112,12 @@ output, import stops before converting or moving files and names the
 conflicting inputs. If a symlink points to a source-backed journal, import keeps
 the link and includes the journal once, preferring the generated filename.
 
-For example, removing or renaming `1-in/2026/march.csv` retires its old
-outputs to:
+For example, removing or renaming
+`import/john/mybank/checking/1-in/2026/march.csv` retires its old outputs to:
 
 ```text
-.trash/2026/2-preprocessed/march.csv
-.trash/2026/3-journal/march.journal
+.hledger-flow/trash/import/john/mybank/checking/2-preprocessed/2026/march.csv
+.hledger-flow/trash/import/john/mybank/checking/3-journal/2026/march.journal
 ```
 
 Each move is reported. Existing trash entries are preserved, with `.1`,
@@ -116,14 +127,16 @@ to regenerate its outputs, or recover handwritten transactions from a
 trashed journal into `_manual_`. Restoring just the generated file without
 its input will cause it to be retired again.
 
-If you keep your base directory in Git, add `.trash/` to your `.gitignore`
-so retired outputs stay out of version control.
+The trash holds its own `.gitignore`, so retired outputs stay out of
+version control. Ledgers from hledger-flow 0.20.1 and earlier may also have
+a `.trash` folder in an account. Import ignores those folders. Recover
+what you need from them, then delete them.
 
-Trash moves use an account-local `.trash/.move-lock` directory to prevent
+Trash moves use a `.hledger-flow/trash/.move-lock` directory to prevent
 concurrent imports from overwriting recovery files. If an interrupted
 process leaves this lock behind, the error explains how to remove the
 empty lock directory once no import is running and retry. A failed run may
-have moved some outputs already; they remain recoverable in `.trash`.
+have moved some outputs already; they remain recoverable in the trash.
 
 Running `hledger-flow import` from anywhere below an account selects the
 whole account for statement conversion and orphan cleanup. For example,

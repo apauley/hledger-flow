@@ -1,0 +1,3 @@
+include ../bogart-statements.rules
+account1 assets:bogart:cheque
+include ../../categories.rules

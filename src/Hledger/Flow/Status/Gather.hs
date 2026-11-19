@@ -5,14 +5,17 @@
 module Hledger.Flow.Status.Gather
   ( classifyDir,
     gatherStatus,
+    gatherStatusWithConfig,
     accountName,
     cachedStatement,
     hookExists,
+    mainRulesCandidates,
   )
 where
 
 import Control.Applicative ((<|>))
 import Control.Monad (forM, when)
+import Data.Char (toLower)
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -21,14 +24,19 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import Data.Time.Clock (UTCTime)
 import Hledger.Flow.BaseDir (findBaseDir, relativeToBase')
-import Hledger.Flow.Common (configuredLedgerFile, firstExistingFile, groupValuesBy, hledgerFileArgument, runProcessCaptured)
+import Hledger.Flow.Common (firstExistingFile, groupValuesBy, hledgerFileArgument, runProcessCaptured)
+import Hledger.Flow.HledgerConfig (findConfigConflicts)
 import Hledger.Flow.Import.ImportHelpers (defaultRulesCandidates, extractImportDirs, rulesFileCandidates)
 import Hledger.Flow.Import.IncludeFiles (includesNeedUpdate)
 import Hledger.Flow.Import.Inventory (classifyGeneratedOutputs, findImportFiles, generatedOutput, isManualJournal, managedIncludeFiles, stageFiles)
 import Hledger.Flow.Import.Types (ImportDirs (..))
-import Hledger.Flow.PathHelpers (AbsDir, AbsFile, RelFile)
+import Hledger.Flow.Init.Example (directivesAreStarter, journalIsCommentsOnly, sampleAccountDir, starterOwner, untouchedExample)
+import Hledger.Flow.LedgerSelection
+import Hledger.Flow.PathHelpers (AbsDir, AbsFile, RelFile, pathOccupied)
+import Hledger.Flow.ReportReview (loadReportReview, reviewItems)
+import Hledger.Flow.StatementScan (StatementYear (..), inferStatementYear, isDelimitedFile, readDelimitedStatement)
 import Hledger.Flow.Status
-import Hledger.Flow.Types (BaseDir, HledgerInfo (..))
+import Hledger.Flow.Types (BaseDir, HledgerConf, HledgerInfo (..))
 import Path
 import qualified Path.IO as PathIO
 import qualified System.Directory as Directory
@@ -49,36 +57,89 @@ classifyDir dir = do
       return (if all ("." `List.isPrefixOf`) names then EmptyDir else Elsewhere)
 
 gatherStatus :: Maybe HledgerInfo -> BaseDir -> IO LedgerStatus
-gatherStatus hledger base = do
+gatherStatus hledger = gatherStatusWithConfig hledger Nothing
+
+gatherStatusWithConfig :: Maybe HledgerInfo -> Maybe HledgerConf -> BaseDir -> IO LedgerStatus
+gatherStatusWithConfig hledger conf base = do
   let root = base </> [reldir|import|]
   files <- findImportFiles root
   let statements = stageFiles root [reldir|1-in|] files
+      manualJournals = filter (isManualJournal root) files
       groups = Map.toAscList (groupValuesBy (accountName root) statements)
   accounts <- forM groups (uncurry (accountStatus base))
-  configured <- configuredLedgerFile
-  ledgerFile <- forM configured $ \(value, path) -> LedgerFile value <$> Directory.doesFileExist path
-  let journal = base </> [relfile|all-years.journal|]
-  allYears <- PathIO.doesFileExist journal
+  conflicts <- maybe (pure []) (\hl -> findConfigConflicts hl conf) hledger
+  selection <- selectLedger [] hledger base
+  let defaultJournal = base </> [relfile|all-years.journal|]
+  allYears <- PathIO.doesFileExist defaultJournal
+  let selected = aggregateJournal selection
   (orphans, journals) <- classifyGeneratedOutputs root files statements
   -- A newly initialised, empty ledger has no indexes to reconcile yet.
-  reconciliation <- if allYears && null orphans
-    then includesNeedUpdate base root files journals
+  reconciliation <- if (allYears || isJust selected) && null orphans
+    then includesNeedUpdate base root files journals allYears
     else return (not (null orphans) || not (null (managedIncludeFiles root files)))
-  needsPrices <- case hledger of
-    Just info | allYears && not reconciliation -> journalNeedsPrices info journal
+  needsPrices <- case (hledger, selected) of
+    (Just info, Just journal) | not reconciliation -> journalNeedsPrices info journal
     _ -> return False
+  review <- maybe (pure Nothing) (\journal -> loadReportReview base journal conf) selected
+  owner <- starterOwner
+  examplePresent <- either (const True) id <$> tryIOError (pathOccupied (sampleAccountDir base owner))
+  let personal = [reldir|personal|]
+      alternate = if FilePath.equalFilePath (toFilePath owner) (toFilePath personal) then [reldir|me|] else personal
+      firstOwner = if examplePresent then alternate else owner
+  example <- case review of
+    Just current | null (reviewItems current) -> untouchedExample base statements
+    _ -> return Nothing
+  manualWork <- case manualJournals of
+    [] -> pure False
+    -- A wrapper can contribute journal entries of its own.
+    _ | not (null statements) || maybe False (/= defaultJournal) selected -> pure True
+    _ -> either (const True) not <$> tryIOError (onlyStarterJournals base manualJournals)
+  misplaced <- traverse (inspectMisplaced base) (List.sortOn mpPath (misplacedFiles root files))
   return
     LedgerStatus
       { lsBaseDir = base,
         lsHledger = hledger,
-        lsLedgerFile = ledgerFile,
+        lsLedgerFile = selectedLedgerFile selection,
+        lsAggregateJournal = selected,
+        lsHledgerConf = conf,
+        lsConfigConflicts = conflicts,
         lsAccounts = accounts,
-        lsMisplaced = List.sortOn mpPath (misplacedFiles root files),
-        lsManualJournals = length (filter (isManualJournal root) files),
+        lsMisplaced = misplaced,
+        lsManualJournals = length manualJournals,
+        lsHasManualWork = manualWork,
         lsAllYearsExists = allYears,
         lsNeedsReconciliation = reconciliation,
-        lsNeedsPrices = needsPrices
+        lsNeedsPrices = needsPrices,
+        lsReview = review,
+        lsFirstStatementOwner = firstOwner,
+        lsUntouchedExample = example
       }
+
+-- The starter ledger contains declarations and comments only.
+onlyStarterJournals :: BaseDir -> [AbsFile] -> IO Bool
+onlyStarterJournals base [] = directivesAreStarter base
+onlyStarterJournals base (file : rest) = do
+  commentOnly <- journalIsCommentsOnly file
+  if commentOnly then onlyStarterJournals base rest else return False
+
+inspectMisplaced :: BaseDir -> Misplaced -> IO Misplaced
+inspectMisplaced base item = do
+  evidence <- case mpYear item of
+    UnknownYear | isDelimitedFile (mpPath item), Just path <- parseRelFile (mpPath item) -> do
+      scanned <- tryIOError (readDelimitedStatement Nothing (base </> path))
+      return $ case scanned of
+        Right (Right statement) -> inferStatementYear statement
+        _ -> UnknownYear
+    known -> return known
+  let suggestion = case evidence of
+        SingleYear year -> FilePath.joinPath
+          [if part == "<year>" then show year else part | part <- FilePath.splitDirectories (mpSuggestion item)]
+        _ -> mpSuggestion item
+      enriched = item {mpYear = evidence, mpSuggestion = suggestion}
+  occupied <- case placementDestination enriched of
+    Nothing -> return False
+    Just path -> either (const True) id <$> tryIOError (pathOccupied (base </> path))
+  return enriched {mpDestinationExists = occupied}
 
 -- Ask hledger to resolve includes and parse the journal. If it cannot read
 -- the journal, status can still report what it found in the import tree.
@@ -115,15 +176,25 @@ accountStatus base name statements = do
   directives <- firstExistingFile [base </> [relfile|directives.journal|]]
   sources <- forM statements $ \s -> do
     cached <- cachedStatement s
-    rules <- rulesFileCandidates (fromMaybe s cached) dirs >>= firstExistingFile
-    return (s, cached, rules)
-  let resolved = [rules | (_, _, rules) <- sources]
+    candidates <- rulesFileCandidates (fromMaybe s cached) dirs
+    rules <- firstExistingFile candidates
+    return (s, cached, rules, candidates)
+  let resolved = [rules | (_, _, rules, _) <- sources]
+      withoutRules = length (filter isNothing resolved)
+  (otherRules, targetOccupied) <- if withoutRules > 0 && isNothing construct
+    then do
+      other <- tryIOError (mainRulesCandidates (accountDir dirs) (concat [xs | (_, _, _, xs) <- sources]))
+      occupied <- case defaults of
+        target : _ -> either (const True) id <$> tryIOError (pathOccupied target)
+        _ -> return False
+      return (either (const []) id other, occupied)
+    else return ([], False)
   -- Statements in an account commonly share one rules file.
   ruleTimes <- case construct of
     Just _ -> return Map.empty
     Nothing -> traverse (tryIOError . latestRuleChange) $
       Map.fromSet id (Set.fromList (catMaybes resolved))
-  journals <- forM sources $ \(s, cached, rules) -> do
+  journals <- forM sources $ \(s, cached, rules, _) -> do
     let inputs = s : catMaybes [cached, preprocess, construct <|> directives]
     journal <- generatedOutput [reldir|3-journal|] ".journal" s
     journalState inputs (rules >>= (`Map.lookup` ruleTimes)) journal
@@ -134,7 +205,9 @@ accountStatus base name statements = do
         asYears = List.nub (List.sort (map yearOf statements)),
         asRulesFile = relative <$> rulesFile,
         asRulesCandidates = map relative defaults,
-        asWithoutRules = length (filter isNothing resolved),
+        asWithoutRules = withoutRules,
+        asOtherRules = map relative otherRules,
+        asRulesTargetOccupied = targetOccupied,
         asPreprocess = isJust preprocess,
         asConstruct = isJust construct,
         asJournalsMissing = length (filter (== Missing) journals),
@@ -153,12 +226,27 @@ latestRuleChange = visit Set.empty . toFilePath
       key <- Directory.canonicalizePath file
       when (Set.member key ancestors) $ ioError (userError ("cyclic rules include: " ++ file))
       modified <- Directory.getModificationTime file
-      contents <- T.readFile file
-      let children = [FilePath.takeDirectory file FilePath.</> T.unpack (T.strip path)
-                     | line <- T.lines (T.dropWhile (== '\xFEFF') contents)
-                     , Just path <- [T.stripPrefix "include " line]]
+      children <- ruleIncludes file
       times <- mapM (visit (Set.insert key ancestors)) children
       return (maximum (modified : times))
+
+ruleIncludes :: FilePath -> IO [FilePath]
+ruleIncludes file = do
+  contents <- T.readFile file
+  return [FilePath.takeDirectory file FilePath.</> T.unpack (T.strip path)
+         | line <- T.lines (T.dropWhile (== '\xFEFF') contents),
+           Just path <- [T.stripPrefix "include " line]]
+
+mainRulesCandidates :: AbsDir -> [AbsFile] -> IO [AbsFile]
+mainRulesCandidates dir recognized = do
+  (_, files) <- PathIO.listDir dir
+  let local = List.sort [file | file <- files, map toLower (FilePath.takeExtension (toFilePath file)) == ".rules"]
+      canonical = Directory.canonicalizePath . toFilePath
+  recognizedTargets <- Set.fromList <$> traverse canonical recognized
+  children <- concat <$> traverse (ruleIncludes . toFilePath) local
+  childTargets <- Set.fromList <$> traverse Directory.canonicalizePath children
+  pairs <- traverse (\file -> (,) file <$> canonical file) local
+  return [file | (file, target) <- pairs, Set.notMember target (Set.union recognizedTargets childTargets)]
 
 journalState :: [AbsFile] -> Maybe (Either IOError UTCTime) -> AbsFile -> IO JournalState
 journalState inputs rulesTime journal = do

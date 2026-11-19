@@ -1,15 +1,25 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Hledger.Flow.PathHelpers where
 
 import Control.Monad.Catch (Exception, MonadThrow, throwM)
 import Control.Monad.IO.Class (MonadIO, liftIO)
+import qualified Data.ByteString as B
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
+import Data.Time.Clock (UTCTime)
 import Hledger.Flow.DocHelpers (DocLink (..), docURL)
 import qualified Path
 import qualified Path.IO as Path
-import System.Directory (doesDirectoryExist)
+import System.Directory (doesDirectoryExist, doesPathExist, pathIsSymbolicLink)
+import System.IO.Error (catchIOError, isDoesNotExistError)
 import qualified System.FilePath as FilePath
+#ifdef mingw32_HOST_OS
+import qualified System.Win32.File as Win32
+#else
+import qualified System.Posix.Files as Posix
+#endif
 
 type AbsFile = Path.Path Path.Abs Path.File
 
@@ -20,14 +30,63 @@ type AbsDir = Path.Path Path.Abs Path.Dir
 type RelDir = Path.Path Path.Rel Path.Dir
 
 -- | Publish a complete file by renaming it on the destination filesystem.
-withStagedOutput :: AbsFile -> (AbsFile -> IO ()) -> IO ()
+withStagedOutput :: AbsFile -> (AbsFile -> IO a) -> IO a
 withStagedOutput target writeOutput = do
   let dir = Path.parent target
   Path.createDirIfMissing True dir
   Path.withTempDir dir ".hledger-flow-" $ \tmp -> do
     let staged = tmp Path.</> Path.filename target
-    writeOutput staged
+    result <- writeOutput staged
     Path.renameFile staged target
+    return result
+
+-- | Use this operation's own filesystem timestamp, even if another process
+-- publishes a marker at the same destination.
+writeTimestampMarker :: AbsFile -> IO UTCTime
+writeTimestampMarker target = withStagedOutput target $ \stage -> do
+  B.writeFile (Path.toFilePath stage) B.empty
+  Path.getModificationTime stage
+
+-- | Install complete UTF-8 bytes at an unused path. The final operation must
+-- fail for an existing entry, including a dangling symlink.
+writeNewUtf8File :: AbsFile -> T.Text -> IO ()
+writeNewUtf8File target contents = do
+  let dir = Path.parent target
+  Path.createDirIfMissing True dir
+  Path.withTempDir dir ".hledger-flow-" $ \tmp -> do
+    let staged = tmp Path.</> Path.filename target
+    B.writeFile (Path.toFilePath staged) (T.encodeUtf8 contents)
+    publishNewFile staged target
+
+-- | Publish a staged file exclusively, without replacing an existing target.
+publishNewFile :: AbsFile -> AbsFile -> IO ()
+publishNewFile staged target =
+#ifdef mingw32_HOST_OS
+  Win32.moveFile (extendedWindowsPath src) (extendedWindowsPath dest)
+#else
+  Posix.createLink src dest
+#endif
+  where
+    src = Path.toFilePath staged
+    dest = Path.toFilePath target
+
+#ifdef mingw32_HOST_OS
+-- The raw Win32 move needs the file namespace for paths beyond MAX_PATH.
+-- GHC file writes already use that namespace for ordinary absolute paths.
+extendedWindowsPath :: FilePath -> FilePath
+extendedWindowsPath path = case FilePath.normalise path of
+  absolute@('\\' : '\\' : marker : '\\' : _) | marker == '?' || marker == '.' -> absolute
+  '\\' : '\\' : unc -> "\\\\?\\UNC\\" ++ unc
+  absolute -> "\\\\?\\" ++ absolute
+#endif
+
+pathOccupied :: Path.Path Path.Abs t -> IO Bool
+pathOccupied file = do
+  let name = FilePath.dropTrailingPathSeparator (Path.toFilePath file)
+  exists <- doesPathExist name
+  if exists then return True else
+    pathIsSymbolicLink name `catchIOError` \err ->
+      if isDoesNotExistError err then return False else ioError err
 
 isGlobMetacharacter :: Char -> Bool
 isGlobMetacharacter c = c `elem` ("*?[{<" :: String)

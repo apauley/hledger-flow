@@ -9,6 +9,7 @@ if grep -q -- '--batch-size' "${TMPDIR:-/tmp}/err.$$"; then exit 1; fi
 rm "${TMPDIR:-/tmp}/err.$$"
 hledger-flow status --help | grep -q 'hledger-flow status --rules-template me/mybank/checking'
 hledger-flow import --help | grep -q 'hledger-flow import --start-year current'
+hledger-flow rules --help | grep -q 'hledger-flow rules me/mybank/checking'
 $ sh -eu
 
 # Subcommand help lists each incremental mode on its own line, the global

@@ -29,7 +29,7 @@ export default defineConfig({
         { label: 'Quick start', link: '/quickstart/' },
         {
           label: 'Tutorial',
-          items: ['tutorial', 'tutorial/part-1', 'tutorial/part-2', 'tutorial/part-3', 'tutorial/part-4', 'tutorial/part-5'],
+          items: ['tutorial', 'tutorial/part-1', 'tutorial/part-2', 'tutorial/part-3', 'tutorial/part-4', 'tutorial/part-5', 'tutorial/part-6'],
         },
         {
           label: 'Reference',

@@ -237,3 +237,305 @@ test ! -d reports/nextyear
 report_row reports/gawie/2016/income-expenses.txt expenses:bank-fees
 $ sh -eu
 expenses:bank-fees || 5
+
+# An unrelated LEDGER_FILE cannot replace the current ledger's aggregate.
+<
+. ./test/shell/setup.sh
+flow import
+printf '2016-01-01 Other\n    assets:unrelated  999\n    equity:opening\n' > other.journal
+export LEDGER_FILE=other.journal
+flow report --ascii-reports
+grep -q 'does not include this ledger' flow.log
+for owner in all gawie; do
+  report_row "reports/$owner/2016/balance-sheet.txt" assets:bank | grep -Fx 'assets:bank || -5'
+  if grep -q assets:unrelated "reports/$owner/2016/balance-sheet.txt"; then exit 1; fi
+done
+hledger-flow status --json | jq -e '.ledgerFile.exists and (.ledgerFile.coversLedger == false) and (.ledgerFileNote != null) and .reportsCurrent and (.next.summary == "Everything is imported and reported")' > /dev/null
+$ sh -eu
+assets:bank || -5
+assets:bank || -5
+
+# A coverage scan uses a temporary filesystem timestamp and only caches stable inputs.
+<
+. ./test/shell/setup.sh
+case "$(uname -s)" in MINGW*|MSYS*) exit 0 ;; esac
+git init -q
+flow import
+printf 'include nested.journal\n' > wrapper.journal
+printf '; Unrelated at the start of the scan\n' > nested.journal
+export LEDGER_FILE=wrapper.journal ACTUAL_HLEDGER="$(command -v hledger)"
+cat > scan-hledger <<'WRAPPER'
+#!/bin/sh
+set -eu
+if [ "$1" = --no-conf ] && [ "$2" = files ]; then
+    "$ACTUAL_HLEDGER" "$@"
+    if [ ! -e scans ]; then
+        printf 'include import/all-years.journal\n' > nested.journal
+        python3 - <<'PY'
+import os
+from pathlib import Path
+import time
+
+state = Path(".hledger-flow")
+markers = list(state.glob("cache/.ledger-coverage-*/started"))
+# Emulate a coarse timestamp even when run against the previous implementation.
+marker = markers[0] if markers else state / "ledger-coverage-started"
+changed_at = marker.stat().st_mtime_ns if marker.exists() else time.time_ns() - 2_000_000_000
+os.utime("nested.journal", ns=(changed_at, changed_at))
+PY
+    fi
+    printf 'scan\n' >> scans
+else
+    exec "$ACTUAL_HLEDGER" "$@"
+fi
+WRAPPER
+chmod +x scan-hledger
+coverage() { hledger-flow --hledger-path "$finance/scan-hledger" status --json; }
+coverage | jq -e '.ledgerFile.coversLedger == false' > /dev/null
+test ! -e .hledger-flow/ledger-coverage-started
+test -z "$(find .hledger-flow -name '.ledger-coverage-*' -print)"
+test ! -e .hledger-flow/cache/ledger-coverage.json
+coverage | jq -e '.ledgerFile.coversLedger' > /dev/null
+test "$(wc -l < scans)" -eq 2
+# Stable inputs older than the marker can still use the cache.
+find import -type f -name '*.journal' -exec touch -t 200001010000 {} +
+touch -t 200001010000 wrapper.journal nested.journal
+coverage | jq -e '.ledgerFile.coversLedger' > /dev/null
+test -s .hledger-flow/cache/ledger-coverage.json
+git check-ignore --quiet .hledger-flow/cache/ledger-coverage.json
+test -z "$(find .hledger-flow -name '.ledger-coverage-*' -print)"
+coverage | jq -e '.ledgerFile.coversLedger' > /dev/null
+test "$(wc -l < scans)" -eq 3
+flow report
+test -s .hledger-flow/cache/reports.json
+git check-ignore --quiet .hledger-flow/cache/reports.json
+git check-ignore --quiet .hledger-flow/cache/report-started
+$ sh -eu
+
+# The literal bracketed wrapper includes the renamed root.
+<
+. ./test/shell/setup.sh
+flow import
+mv all-years.journal 'selected ledger.journal'
+printf 'include selected ledger.journal\n' > '[ledger].journal'
+printf '2016-01-01 Other\n    assets:unrelated  999\n    equity:opening\n' > l.journal
+export LEDGER_FILE='[ledger].journal'
+hledger-flow status --json | jq -e '.ledgerFile.coversLedger and (.allYearsJournalExists == false) and (.next.command == "hledger-flow report")' > /dev/null
+flow report --ascii-reports
+report_row reports/all/2016/balance-sheet.txt assets:bank
+cp "$inbox/march.csv" "$inbox/april.csv"
+hledger-flow status --json | jq -e '.next.command == "hledger-flow import"' > /dev/null
+$ sh -eu
+assets:bank || -5
+
+# Config-supplied journal inputs fail before modifying existing reports.
+<
+. ./test/shell/setup.sh
+flow import
+flow report --ascii-reports
+cp -R reports before
+printf '2016-01-01 Other\n    assets:unrelated  99\n    equity:opening\n' > other.journal
+for section in general balancesheet; do
+    for option in '--file=other.journal' '-If other.journal' '-Ifother.journal' '--alias "" -f other.journal'; do
+        printf '# Header\n[%s]\n%s\n' "$section" "$option" > hledger.conf
+        if hledger-flow report > out 2> err; then exit 1; fi
+        grep -Fq "line 3 [$section] adds a journal: $option" err
+        diff -r reports before
+    done
+done
+cp hledger.conf "given config.conf"
+if hledger-flow --hledger-conf "given config.conf" report > out 2> err; then exit 1; fi
+grep -Fq 'given config.conf line 3 [balancesheet]' err
+diff -r reports before
+printf '[balancesheet]\n--output-format csv\n[general]\n--alias "-f=assets:other"\n' > hledger.conf
+flow report --ascii-reports
+tr -d '\r' < reports/all/2016/balance-sheet.txt | grep -Fxq '"assets:bank","-5"'
+# The last definition of each config section wins.
+printf '[general]\n--alias\n[general]\n-f other.journal\n' > hledger.conf
+if hledger-flow report > out 2> err; then exit 1; fi
+grep -Fq 'line 4 [general] adds a journal: -f other.journal' err
+printf '[general]\n-f other.journal\n[general]\n-I\n' > hledger.conf
+flow report
+$ sh -eu
+
+# A configured journal resolves parent components from the invoking folder.
+<
+. ./test/shell/setup.sh
+flow import
+mkdir caller
+(
+  cd caller
+  export LEDGER_FILE=../all-years.journal
+  hledger-flow status --json | jq -e '.ledgerFile.coversLedger' > /dev/null
+  hledger-flow report --ascii-reports > /dev/null
+)
+test -s reports/all/2016/balance-sheet.txt
+$ sh -eu
+
+# A completed run reports unknowns even with an unrelated LEDGER_FILE.
+<
+. ./test/shell/setup.sh
+printf 'fields date, description, amount\naccount1 assets:bank\naccount2 expenses:unknown\n' > import/bogart.rules
+printf '2016-01-01 Transfer\n    assets:transfer  2\n    assets:bank\n' > directives.journal
+printf '; external ledger\n' > other.journal
+export LEDGER_FILE=other.journal
+flow import
+hledger-flow status --json | jq -e '.reportsCurrent == false and .review == null' > /dev/null
+flow report --ascii-reports
+hledger-flow status --json | jq -e '.reportsCurrent and .review.unknownTransactions.count == 1 and .review.transferAccounts.count == 1 and .next.summary == "Categorise 1 unknown transaction"' > /dev/null
+hledger-flow status > status.out
+grep -q 'To review:' status.out
+tr '\\' '/' < status.out | grep -q 'reports/gawie/2016/unknown-transactions.txt'
+tr '\\' '/' < status.out | grep -q 'reports/all/2016/transfer-balance.txt'
+cp reports/gawie/2016/unknown-transactions.txt archived
+mv "$inbox/march.csv" "$finance/retired.csv"
+flow import
+flow report --ascii-reports
+cmp reports/gawie/2016/unknown-transactions.txt archived
+hledger-flow status --json | jq -e '.reportsCurrent and .review.unknownTransactions.count == 0 and .review.unknownTransactions.files == []' > /dev/null
+$ sh -eu
+
+# Review preserves short CSVs with data and removes recognized empty output.
+<
+. ./test/shell/setup.sh
+printf 'fields date, description, amount\naccount1 assets:bank\naccount2 expenses:unknown\n' > import/bogart.rules
+mkdir -p import/_manual_/2016
+manual=import/_manual_/2016/post-import.journal
+printf '2016-01-01 Transfer\n    assets:transfer  2\n    assets:bank\n' > "$manual"
+flow import
+printf '[balance]\n--output-format csv\n[print]\n--output-format csv\n' > hledger.conf
+flow report --ascii-reports
+test -s reports/all/2016/transfer-balance.txt
+test -s reports/gawie/2016/unknown-transactions.txt
+hledger-flow status --json | jq -e '.reportsCurrent and .review.transferAccounts.count == null and (.review.transferAccounts.files | length == 1) and .review.unknownTransactions.count == null' > /dev/null
+hledger-flow status | grep -q 'count unavailable'
+printf '; No transfer this time\n' > "$manual"
+flow report --ascii-reports
+test ! -e reports/all/2016/transfer-balance.txt
+hledger-flow status --json | jq -e '.reportsCurrent and .review.transferAccounts.count == 0' > /dev/null
+$ sh -eu
+
+# Changes to the report inputs and deleted outputs invalidate completed review.
+<
+. ./test/shell/setup.sh
+printf 'fields date, description, amount\naccount1 assets:bank\naccount2 expenses:unknown\n' > import/bogart.rules
+mkdir -p deps import/gawie/_manual_/2016
+printf '; external\n' > deps/one.journal
+printf 'include deps/*.journal\n' > directives.journal
+printf '; temporary manual file\n' > import/gawie/_manual_/2016/post-import.journal
+printf '[files]\n--file unrelated-inventory.journal\n' > hledger.conf
+touch unrelated-inventory.journal older.conf
+touch -t 201001010000 older.conf
+flow import
+stale() { hledger-flow "$@" status --json | jq -e '.reportsCurrent == false and .review == null' > /dev/null; }
+flow report --ascii-reports
+if grep -q 'unrelated-inventory.journal' .hledger-flow/cache/reports.json; then exit 1; fi
+stale --hledger-conf older.conf
+for path in dirs-placeholder deps/one.journal directives.journal import/gawie/_manual_/2016/post-import.journal hledger.conf; do
+    if [ "$path" = dirs-placeholder ]; then
+       printf '; added\n' > deps/two.journal
+    else
+       if [ "$path" = hledger.conf ]; then printf '# comment\n' >> "$path"; else printf '; changed\n' >> "$path"; fi
+    fi
+    stale
+    flow report --ascii-reports
+done
+python3 - <<'PY'
+import os
+from pathlib import Path
+marker = Path(".hledger-flow/cache/report-started").stat().st_mtime_ns
+os.utime("deps/one.journal", ns=(marker,marker))
+PY
+stale
+flow report --ascii-reports
+rm reports/gawie/2016/unknown-transactions.txt
+stale
+$ sh -eu
+
+# A failed rerun removes the manifest before writing partial reports.
+<
+. ./test/shell/setup.sh
+case "$(uname -s)" in MINGW*|MSYS*) exit 0 ;; esac
+flow import
+flow report --ascii-reports
+test -s .hledger-flow/cache/reports.json
+cat > fail-later <<'SH'
+#!/bin/sh
+for arg do
+    if test "$arg" = incomestatement; then exit 17; fi
+done
+exec hledger "$@"
+SH
+chmod +x fail-later
+if hledger-flow -H "$(pwd -P)/fail-later" --sequential report >out 2>err; then exit 1; fi
+test ! -e .hledger-flow/cache/reports.json
+hledger-flow status --json | jq -e '.reportsCurrent == false and .review == null and .next.command == "hledger-flow report"' > /dev/null
+$ sh -eu
+
+# An older input reached through a retargeted symlink is stale.
+<
+. ./test/shell/setup.sh
+case "$(uname -s)" in MINGW*|MSYS*) exit 0 ;; esac
+mkdir one two
+printf '; one\n' > one/part.journal
+printf '; two\n' > two/part.journal
+touch -t 201601010000 one/part.journal two/part.journal
+ln -s one selected
+ln -s one/part.journal selected.journal
+printf 'include selected/part.journal\ninclude selected.journal\n' > directives.journal
+flow import
+flow report --ascii-reports
+hledger-flow status --json | jq -e '.reportsCurrent' > /dev/null
+unlink selected
+ln -s two selected
+hledger-flow status --json | jq -e '.reportsCurrent == false and .review == null' > /dev/null
+flow report --ascii-reports
+unlink selected.journal
+ln -s two/part.journal selected.journal
+hledger-flow status --json | jq -e '.reportsCurrent == false and .review == null' > /dev/null
+$ sh -eu
+
+# Newly matching files invalidate reports for home-relative, reader-prefixed and recursive globs.
+<
+. ./test/shell/setup.sh
+# Windows hledger uses the profile directory even when HOME is overridden.
+case "$(uname -s)" in
+    MINGW*|MSYS*) home_glob='home-journals/*.journal' ;;
+    *) export HOME="$finance"; home_glob='~/home-journals/*.journal' ;;
+esac
+mkdir -p home-journals timed-journals recursive/nested
+printf '; Included journal\n' > home-journals/first.journal
+printf '# Included timedot\n' > timed-journals/first.timedot
+printf '; Nested journal\n' > recursive/nested/first.journal
+printf 'include %s\ninclude timedot:timed-journals/*.timedot\ninclude recursive/**.journal\n' "$home_glob" > directives.journal
+case "$(uname -s)" in
+    MINGW*|MSYS*) ;;
+    *)
+        mkdir -p symlink-target/inside
+        printf 'include inside/*.journal\n' > symlink-target/entry.journal
+        printf '; Included via symlink\n' > symlink-target/inside/first.journal
+        ln -s symlink-target/entry.journal linked.journal
+        printf 'include linked.journal\n' >> directives.journal
+        ;;
+esac
+flow import
+flow report --ascii-reports
+current() { hledger-flow status --json | jq -e '.reportsCurrent' > /dev/null; }
+current
+printf '; New home journal\n' > home-journals/second.journal
+if current; then exit 1; fi
+flow report --ascii-reports
+current
+printf '# New timedot\n' > timed-journals/second.timedot
+if current; then exit 1; fi
+flow report --ascii-reports
+current
+printf '; New nested journal\n' > recursive/nested/second.journal
+if current; then exit 1; fi
+if [ -L linked.journal ]; then
+    flow report --ascii-reports
+    current
+    printf '; New journal via symlink\n' > symlink-target/inside/second.journal
+    if current; then exit 1; fi
+fi
+$ sh -eu

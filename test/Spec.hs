@@ -9,14 +9,17 @@ import qualified CSVImport.Unit
 import qualified Common.Integration
 import qualified Common.Unit
 import qualified Environment.Unit
+import qualified HledgerConfig.Unit
 import qualified ImportHelpers.Integration
 import qualified Incremental.Cache
 import qualified Incremental.Dependencies
 import qualified Incremental.Platform
 import qualified Incremental.Snapshot
 import qualified Init.Integration
+import qualified LedgerSelection.Unit
 import qualified PathHelpers.Unit
 import qualified ReleaseNotice.Unit
+import qualified ReportReview.Unit
 import qualified RulesTemplate.Unit
 import qualified RuntimeOptions.Unit
 import qualified Status.Integration
@@ -43,9 +46,12 @@ tests =
       Incremental.Platform.tests,
       Incremental.Snapshot.tests,
       Init.Integration.tests,
+      LedgerSelection.Unit.tests,
       ReleaseNotice.Unit.tests,
+      ReportReview.Unit.tests,
       RulesTemplate.Unit.tests,
       RuntimeOptions.Unit.tests,
+      HledgerConfig.Unit.tests,
       Environment.Unit.tests
     ]
 

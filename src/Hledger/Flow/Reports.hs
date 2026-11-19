@@ -7,9 +7,10 @@ module Hledger.Flow.Reports
 where
 
 import Control.Concurrent.STM
-import Control.Monad (filterM, unless, when)
+import Control.Monad (filterM, when)
 import Data.Char (toLower)
 import Data.Either
+import Data.Maybe (mapMaybe)
 import qualified Data.List as List
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
@@ -17,14 +18,15 @@ import Hledger.Flow.DateTime (timeAction)
 import Hledger.Flow.Environment (renderSettings, reportSettings)
 import Hledger.Flow.BaseDir (relativeToBase)
 import Hledger.Flow.Common
+import Hledger.Flow.LedgerSelection
 import Hledger.Flow.Logging
 import Hledger.Flow.PathHelpers (AbsDir, AbsFile, RelDir, RelFile)
+import Hledger.Flow.ReportReview
 import Hledger.Flow.RuntimeOptions
 import Hledger.Flow.Status (plural)
 import qualified Hledger.Flow.Types as FlowTypes
-import Path ((</>), parent, reldir, relfile, parseRelDir, toFilePath)
+import Path ((</>), parent, reldir, relfile, parseAbsFile, parseRelDir, toFilePath)
 import qualified Path.IO as PathIO
-import qualified System.Directory as Directory
 import Prelude hiding (putStrLn, readFile, writeFile)
 
 data ReportParams = ReportParams
@@ -51,15 +53,21 @@ generateReports opts = withConsoleLogging $ \ch -> do
 
 generateReports' :: RuntimeOptions -> TChan FlowTypes.LogMessage -> IO [Either AbsFile AbsFile]
 generateReports' opts ch = do
+  started <- startReportRun (baseDir opts)
   owners <- listOwners opts
-  configured <- configuredLedgerFile
-  let hledgerJournal = maybe (toFilePath (baseDir opts </> [relfile|all-years.journal|])) snd configured
-  hledgerJournalExists <- Directory.doesFileExist hledgerJournal
+  info <- hledgerInfo opts
   homes <- homeDirs
-  unless hledgerJournalExists $ ioError $ userError $ case configured of
-    Just (v, _) -> "LEDGER_FILE is set to " ++ v ++ ", which doesn't exist. Point it at "
-      ++ tildePath homes (toFilePath (baseDir opts </> [relfile|all-years.journal|])) ++ ", or unset it."
-    Nothing -> "No all-years.journal in " ++ tildePath homes (toFilePath (baseDir opts)) ++ " yet. Run `hledger-flow import` first."
+  selection <- selectLedger homes (Just info) (baseDir opts)
+  journal <- case (aggregateJournal selection, selectionError selection) of
+    (Just file, _) -> return file
+    (_, Just problem) -> ioError (userError (T.unpack problem))
+    _ -> ioError (userError "No journal selected for reporting.")
+  let hledgerJournal = toFilePath journal
+  case selectedLedgerFile selection of
+    Just file | lfCoverage file == CoversLedger ->
+      channelOutLn ch ("Reporting on " <> T.pack (tildePath homes hledgerJournal) <> " (from LEDGER_FILE).")
+    Just file -> channelOutLn ch (ledgerFileProblem homes file <> " Reporting on all-years.journal.")
+    Nothing -> return ()
   let journalWithYears = baseDir opts </> [relfile|import/all-years.journal|]
   let aggregateReportDir
         | any ((== toFilePath [reldir|all|]) . map toLower . toFilePath) owners = baseDir opts </> [reldir|reports/_all_|]
@@ -77,7 +85,13 @@ generateReports' opts ch = do
   let sharedOptions = (if prettyReports opts then ["--pretty-tables"] else []) ++ ["--depth", "2"]
   let ownerWithAggregateReports = List.concat $ fmap (reportActions opts ch [incomeStatement sharedOptions, incomeMonthlyStatement sharedOptions, balanceSheet sharedOptions]) ownerWithAggregateParams
   let ownerOnlyReports = List.concat $ fmap (reportActions opts ch [accountList, unknownTransactions]) ownerParams
-  parAwareActions opts (aggregateOnlyReports ++ ownerWithAggregateReports ++ ownerOnlyReports)
+  roots <- traverse (traverse parseAbsFile . ledgerFiles) ownerWithAggregateParams
+  inputs <- captureReportInputs info started journal (hledgerConf opts) roots
+  results <- parAwareActions opts (aggregateOnlyReports ++ ownerWithAggregateReports ++ ownerOnlyReports)
+  case inputs of
+    Left problem -> logVerbose opts ch ("Could not record report inputs: " <> problem)
+    Right available -> saveReportReview (baseDir opts) available (mapMaybe (reviewFile (baseDir opts)) (rights results))
+  return results
 
 reportActions :: RuntimeOptions -> TChan FlowTypes.LogMessage -> [ReportGenerator] -> ReportParams -> [IO (Either AbsFile AbsFile)]
 reportActions opts ch reports (ReportParams journals years reportsDir) = do
@@ -92,7 +106,7 @@ accountList opts ch journals baseOutDir year = do
 unknownTransactions :: ReportGenerator
 unknownTransactions opts ch journals baseOutDir year = do
   let reportArgs = ["print", "unknown"]
-  generateReport opts ch journals year baseOutDir [relfile|unknown-transactions.txt|] reportArgs (not . T.null)
+  generateReport opts ch journals year baseOutDir [relfile|unknown-transactions.txt|] reportArgs (reviewHasData UnknownTransactions)
 
 incomeStatement :: [T.Text] -> ReportGenerator
 incomeStatement sharedOptions opts ch journals baseOutDir year = do
@@ -112,7 +126,7 @@ balanceSheet sharedOptions opts ch journals baseOutDir year = do
 transferBalance :: ReportGenerator
 transferBalance opts ch journals baseOutDir year = do
   let reportArgs = ["balance"] ++ (if prettyReports opts then ["--pretty-tables"] else []) ++ ["--quarterly", "--flat", "--no-total", "transfer"]
-  generateReport opts ch journals year baseOutDir [relfile|transfer-balance.txt|] reportArgs (\txt -> (length $ T.lines txt) > 4)
+  generateReport opts ch journals year baseOutDir [relfile|transfer-balance.txt|] reportArgs (reviewHasData TransferBalances)
 
 generateReport :: RuntimeOptions -> TChan FlowTypes.LogMessage -> [FilePath] -> Integer -> AbsDir -> RelFile -> [T.Text] -> (T.Text -> Bool) -> IO (Either AbsFile AbsFile)
 generateReport opts logCh journals year reportsDir fileName args successCheck = do

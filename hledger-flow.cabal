@@ -38,6 +38,7 @@ library
       Hledger.Flow.DateTime
       Hledger.Flow.DocHelpers
       Hledger.Flow.Environment
+      Hledger.Flow.HledgerConfig
       Hledger.Flow.Import.Cache
       Hledger.Flow.Import.Conversion
       Hledger.Flow.Import.CSVImport
@@ -52,13 +53,18 @@ library
       Hledger.Flow.Import.Snapshot
       Hledger.Flow.Import.Types
       Hledger.Flow.Init
+      Hledger.Flow.Init.Example
+      Hledger.Flow.InputSnapshot
       Hledger.Flow.Internals
+      Hledger.Flow.LedgerSelection
       Hledger.Flow.Logging
       Hledger.Flow.PathHelpers
       Hledger.Flow.ReleaseNotice
+      Hledger.Flow.ReportReview
       Hledger.Flow.Reports
       Hledger.Flow.RulesTemplate
       Hledger.Flow.RuntimeOptions
+      Hledger.Flow.StatementScan
       Hledger.Flow.Status
       Hledger.Flow.Status.Gather
       Hledger.Flow.Status.Render
@@ -138,14 +144,17 @@ test-suite hledger-flow-test
       CSVImport.Integration
       CSVImport.Unit
       Environment.Unit
+      HledgerConfig.Unit
       ImportHelpers.Integration
       Incremental.Cache
       Incremental.Dependencies
       Incremental.Platform
       Incremental.Snapshot
       Init.Integration
+      LedgerSelection.Unit
       PathHelpers.Unit
       ReleaseNotice.Unit
+      ReportReview.Unit
       RulesTemplate.Unit
       RuntimeOptions.Unit
       Status.Integration
