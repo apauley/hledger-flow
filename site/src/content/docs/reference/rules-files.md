@@ -94,3 +94,15 @@ files have been used and tested fairly extensively, I don't expect this
 to change.
 
 Let me know if you think it should change.
+
+## Starter rules for exports without a header
+
+Run `hledger-flow status --rules-template OWNER/BANK/ACCOUNT` to print a
+starter. For a headerless export it shows the first row by column and uses
+up to 50 rows to suggest the date, amount and description fields. Check the
+guesses, account names and date format before importing. A neutral name such
+as `column3` leaves that field for you to identify.
+
+The starter preserves the export's date separator. When the dates leave the
+day and month ambiguous or mix formats, set `date-format` yourself using the
+example in the starter.

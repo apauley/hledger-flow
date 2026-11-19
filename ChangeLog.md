@@ -33,6 +33,8 @@ How to keep this ChangeLog
 
 ## Unreleased
 
+- `status --rules-template` prints [starter rules for statements without a header](https://hledger-flow.github.io/reference/rules-files/#starter-rules-for-exports-without-a-header), including a sample row and date-format guidance.
+
 - Import and report stop if [an active hledger config option adds a journal](https://hledger-flow.github.io/reference/status/#hledger-config-file). The error names the file and line to edit.
 
 - `report` uses the local journal when an existing `LEDGER_FILE` points at an unrelated ledger. `status` shows how to select the journal for standalone hledger commands and continues with the next step. See [journal selection](https://hledger-flow.github.io/reference/status/#journal-used-for-reports).

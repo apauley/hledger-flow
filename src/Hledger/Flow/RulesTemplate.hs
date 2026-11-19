@@ -11,7 +11,7 @@ module Hledger.Flow.RulesTemplate
   )
 where
 
-import Data.Char (isAlphaNum, isDigit, toLower)
+import Data.Char (isAlpha, isAlphaNum, isDigit, toLower)
 import qualified Data.List as List
 import Data.Maybe (fromMaybe)
 import qualified Data.Set as Set
@@ -19,32 +19,10 @@ import qualified Data.Text as T
 import Hledger.Flow.BaseDir (relativeToBase')
 import Hledger.Flow.DocHelpers (DocLink (..), docURL)
 import Hledger.Flow.Import.Inventory (findImportFiles, stageFiles)
+import Hledger.Flow.StatementScan
 import Hledger.Flow.Status.Gather (accountName, cachedStatement)
 import Hledger.Flow.Types (BaseDir)
 import Path
-import qualified System.FilePath as FilePath
-import System.IO (IOMode (ReadMode), hIsEOF, hSetEncoding, mkTextEncoding, withFile)
-import qualified Data.Text.IO as T
-
--- | The separator and the column names of a header line. Strips a UTF-8 BOM,
--- surrounding quotes and spaces.
--- ponytail: a quoted name containing the separator is split; use a CSV parser if that bites.
-splitHeader :: T.Text -> (Char, [T.Text])
-splitHeader line = (sep, map clean (T.splitOn (T.singleton sep) l))
-  where
-    l = T.dropWhileEnd (== '\r') (T.dropWhile (== '\xFEFF') line)
-    count c = T.count (T.singleton c) l
-    sep = List.foldl' (\best c -> if count c > count best then c else best) ',' [';', '\t']
-    clean = T.strip . unquote . T.strip
-    unquote t
-      | T.length t >= 2 && T.head t == '"' && T.last t == '"' = T.init (T.tail t)
-      | otherwise = t
-
--- | False when any column looks like a date or an amount.
-looksLikeHeader :: [T.Text] -> Bool
-looksLikeHeader = not . any dataish
-  where
-    dataish f = not (T.null f) && T.all (`elem` ("0123456789-/.:,+$€£ " :: String)) f
 
 -- | hledger field names for the columns: obvious date, description and amount
 -- columns are named for hledger; the rest keep a normalised version of their name.
@@ -91,18 +69,24 @@ notCsv path =
 -- | The starter rules file for a statement, from its contents.
 rulesTemplate :: T.Text -> T.Text -> FilePath -> T.Text -> Either T.Text T.Text
 rulesTemplate bank account path contents
-  | map toLower (FilePath.takeExtension path) `notElem` [".csv", ".tsv", ".ssv"] = Left (notCsv path)
-  | T.null (T.strip line) || not (looksLikeHeader names) =
-      Left ("The first line of " <> T.pack path <> " looks like data, not column names. Write the fields line yourself: " <> docURL RulesFiles)
-  | otherwise =
-      Right . T.unlines $
+  | not (isDelimitedFile path) = Left (notCsv path)
+  | otherwise = renderTemplate bank account path (parseRuleSample path contents)
+
+renderTemplate :: T.Text -> T.Text -> FilePath -> Either T.Text DelimitedStatement -> Either T.Text T.Text
+renderTemplate bank account path result = case result of
+  Left problem -> Left (T.pack path <> ": " <> problem <> " Write the fields line yourself: " <> docURL RulesFiles)
+  Right statement -> case statementHeader statement of
+    Nothing -> headerlessTemplate bank account path statement
+    Just names ->
+      let fields = templateFields names
+       in Right . T.unlines $
         [ "# Starter rules for " <> bank <> "/" <> account <> ", made by hledger-flow from the header row of",
           "# " <> T.pack path <> ". Check every line, then run: hledger-flow import",
           "# hledger's CSV rules reference: https://hledger.org/hledger.html#csv",
           "",
           "skip 1"
         ]
-          ++ ["separator " <> (if sep == '\t' then "TAB" else T.singleton sep) | sep /= ',']
+          ++ separatorRule (statementSeparator statement)
           ++ [ "fields " <> T.intercalate ", " fields,
                ""
              ]
@@ -120,10 +104,53 @@ rulesTemplate bank account path contents
                "account1 assets:" <> bank <> ":" <> account,
                "account2 expenses:unknown"
              ]
+separatorRule :: Char -> [T.Text]
+separatorRule sep = ["separator " <> (if sep == '\t' then "TAB" else T.singleton sep) | sep /= ',']
+
+headerlessTemplate :: T.Text -> T.Text -> FilePath -> DelimitedStatement -> Either T.Text T.Text
+headerlessTemplate bank account path statement = case statementRows statement of
+  [] -> Left ("No data rows in " <> T.pack path <> ".")
+  sample : _ ->
+    let columns = zip [1 :: Int ..] (List.transpose (statementRows statement))
+        dateCandidates = [(n, cells) | (n, column) <- columns, Just cells <- [traverse parseDateCell column]]
+        dateChoice = unique dateCandidates
+        amountChoice = unique [n | (n, column) <- columns, all isSignedDecimal column]
+        descriptionChoice = unique
+          [ n | (n, column) <- columns, all (T.any isAlpha) column, Set.size (Set.fromList column) > 1
+          ]
+        field n
+          | Just n == fmap fst dateChoice = "date"
+          | Just n == amountChoice = "amount"
+          | Just n == descriptionChoice = "description"
+          | otherwise = columnName n
+        dateRule = case dateChoice of
+          Just (n, cells) -> case inferDateFormat cells of
+            Just "%Y-%m-%d" -> []
+            Just layout -> ["date-format " <> layout]
+            Nothing -> ["# date-format (set the order and separator for " <> sampleValue n sample <> ")"]
+          Nothing -> ["# Rename the transaction date column to date, then set date-format if needed."]
+     in Right . T.unlines $
+          [ "# Starter rules for " <> bank <> "/" <> account <> ", made by hledger-flow from",
+            "# " <> T.pack path <> ", which has no header row.",
+            "# The first row, by column:"
+          ]
+            ++ concat (zipWith commentValue [1 :: Int ..] sample)
+            ++ ["# Check every line, then run: hledger-flow import", ""]
+            ++ separatorRule (statementSeparator statement)
+            ++ ["fields " <> T.intercalate ", " (map (field . fst) columns)]
+            ++ dateRule
+            ++ ["# Rename the amount column to amount." | amountChoice == Nothing]
+            ++ ["# Rename the payee column to description." | descriptionChoice == Nothing]
+            ++ ["", "account1 assets:" <> bank <> ":" <> account, "account2 expenses:unknown"]
   where
-    line = T.takeWhile (/= '\n') contents
-    (sep, names) = splitHeader line
-    fields = templateFields names
+    unique [one] = Just one
+    unique _ = Nothing
+    columnName n = "column" <> T.pack (show n)
+    sampleValue n = T.filter (/= '\n') . T.intercalate " " . take 1 . drop (n - 1)
+    commentValue n value = case T.splitOn "\n" value of
+      first : rest -> ("#   " <> columnName n <> " =" <> if T.null first then "" else " " <> first)
+        : map ("#     " <>) rest
+      [] -> []
 
 -- | The starter rules file for an account (@owner/bank/account@), from its newest statement.
 rulesTemplateFor :: BaseDir -> T.Text -> IO (Either T.Text T.Text)
@@ -142,16 +169,9 @@ rulesTemplateFor base requested = do
     newest : _ -> do
       source <- fromMaybe newest <$> cachedStatement newest
       let path = relativeToBase' (toFilePath base) (toFilePath source)
-          isCsv = map toLower (FilePath.takeExtension path) `elem` [".csv", ".tsv", ".ssv"]
           (bank, acct) = case T.splitOn "/" account of
             [_, b, a] -> (b, a)
             _ -> (account, account)
-      header <- if isCsv then firstLine (toFilePath source) else return ""
-      return (rulesTemplate bank acct path header)
-
--- | The first line of a file, tolerating encodings other than UTF-8.
-firstLine :: FilePath -> IO T.Text
-firstLine path = withFile path ReadMode $ \h -> do
-  hSetEncoding h =<< mkTextEncoding "UTF-8//ROUNDTRIP"
-  eof <- hIsEOF h
-  if eof then return "" else T.hGetLine h
+      if isDelimitedFile path
+        then renderTemplate bank acct path <$> readRuleSample source
+        else return (Left (notCsv path))

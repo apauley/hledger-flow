@@ -256,3 +256,38 @@ hledger-flow status --json | jq -e '.next.command == "hledger-flow import" and (
 rm "$inbox/april.csv"
 hledger-flow status --json | jq -e '.next.command == null and (.next.detail | join(" ") | contains("line 2 [balance]")) and (.ledgerFileNote | contains("Or try:") | not)' > /dev/null
 $ sh -eu
+
+# Headerless starters identify Wells Fargo, dotted dates and timestamps.
+<
+. ./test/shell/setup.sh
+rm "$inbox/march.csv"
+account=import/sm/wf/bchecking
+inbox=$account/1-in/2026
+mkdir -p "$inbox"
+rules=$account/wf-bchecking.rules
+printf '11/14/2026,-4.50,*,,COFFEE SHOP\n11/15/2026,-6.75,*,,BOOK SHOP\n' > "$inbox/november.csv"
+hledger-flow status --rules-template sm/wf/bchecking > "$rules"
+grep -Fq 'fields date, amount, column3, column4, description' "$rules"
+grep -q '^date-format %m/%d/%Y' "$rules"
+if grep -q '^skip' "$rules"; then exit 1; fi
+flow import
+journal=$account/3-journal/2026/november.journal
+grep -q '^2026-11-14 COFFEE SHOP' "$journal"
+grep -Eq 'assets:wf:bchecking +(-4\.50|-4\.5)' "$journal"
+printf '31.12.2026,COFFEE SHOP,-4.50\n30.12.2026,BOOK SHOP,-6.75\n' > "$inbox/november.csv"
+hledger-flow status --rules-template sm/wf/bchecking > "$rules"
+grep -q '^date-format %d.%m.%Y' "$rules"
+flow import
+grep -q '^2026-12-31 COFFEE SHOP' "$journal"
+grep -Eq 'assets:wf:bchecking +(-4\.50|-4\.5)' "$journal"
+printf '2026-12-31 08:00,COFFEE SHOP,-4.50\n2026-12-30 09:10,BOOK SHOP,-6.75\n' > "$inbox/november.csv"
+hledger-flow status --rules-template sm/wf/bchecking > "$rules"
+grep -q '^date-format %Y-%m-%d %H:%M' "$rules"
+flow import
+grep -q '^2026-12-31 COFFEE SHOP' "$journal"
+grep -Eq 'assets:wf:bchecking +(-4\.50|-4\.5)' "$journal"
+printf '03/04/2026,COFFEE SHOP,-4.50\n' > "$inbox/november.csv"
+hledger-flow status --rules-template sm/wf/bchecking > "$rules"
+grep -q '^# date-format' "$rules"
+if grep -q '^date-format' "$rules"; then exit 1; fi
+$ sh -eu
