@@ -118,8 +118,10 @@ Start a ledger in an empty folder, then let `hledger-flow status` guide you.
 A new ledger includes an example account with a purchase and refund that
 cancel. Follow the suggested import and report commands to try the workflow.
 When status says the sample is untouched, delete `import/me` and
-`reports/me`, then add your own statement. The root-level `import/_manual_/`
-and `prices/` starter journals show where to add your own entries and prices.
+`reports/me`, then add your own statement. The starter journals show where to
+add [manual entries](https://hledger-flow.github.io/reference/manual-journals/),
+[opening and closing balances](https://hledger-flow.github.io/reference/balances/)
+and market prices.
 `directives.journal` defines common commodities and account types you can edit.
 
 Each `status` ends with a `Next:` line saying exactly what to do.

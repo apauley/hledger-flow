@@ -58,7 +58,7 @@ hledger-flow init
 
 ```text
 Started a ledger in ~/my-finances
-Created an example account (import/me/mybank/checking) and starter journals in import/_manual_/.
+Created an example account (import/me/mybank/checking) and starter journals for manual entries and balances.
 Created directives.journal
 Created prices/2026/EUR-USD.prices
 Created prices/2026/BTC-USD.prices

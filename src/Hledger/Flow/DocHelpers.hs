@@ -23,6 +23,8 @@ data DocLink
   | StatementYearFolders
   | RulesFiles
   | PriceFiles
+  | ManualJournals
+  | Balances
   | PreprocessScript
   | SetLedgerFile
   | StatusCommand
@@ -39,6 +41,8 @@ docSlug InputFiles = "input-files"
 docSlug StatementYearFolders = "statement-year-folders"
 docSlug RulesFiles = "rules-files"
 docSlug PriceFiles = "price-files"
+docSlug ManualJournals = "manual-journals"
+docSlug Balances = "balances"
 docSlug PreprocessScript = "preprocess-script"
 docSlug SetLedgerFile = "set-ledger-file"
 docSlug StatusCommand = "status"

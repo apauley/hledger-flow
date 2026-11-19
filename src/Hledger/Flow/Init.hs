@@ -85,7 +85,7 @@ runInit hledgerPath confOption cwd dir = do
         "That folder is inside the ledger at " <> shown b <> ". Start a new ledger outside its import/ folder."
     Created base parentLedger baseFiles -> do
       T.putStrLn ("Started a ledger in " <> shown base)
-      T.putStrLn "Created an example account (import/me/mybank/checking) and starter journals in import/_manual_/."
+      T.putStrLn "Created an example account (import/me/mybank/checking) and starter journals for manual entries and balances."
       mapM_ (\(name, created) -> T.putStrLn ((if created then "Created " else "Kept existing ") <> T.pack (toFilePath name))) baseFiles
       mapM_ (\p -> T.putStrLn ("Note: " <> shown p <> " also has an import/ folder. Commands run inside " <> shown base <> " use the new ledger.")) parentLedger
       when (base /= cwd) $ do

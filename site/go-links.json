@@ -6,6 +6,8 @@
   "incremental-import-fallback": "/reference/incremental-import/#when-reuse-is-unavailable",
   "rules-files": "/reference/rules-files/",
   "price-files": "/reference/price-files/",
+  "manual-journals": "/reference/manual-journals/",
+  "balances": "/reference/balances/",
   "preprocess-script": "/reference/preprocess/",
   "set-ledger-file": "/quickstart/#import-your-first-statement",
   "status": "/reference/status/",

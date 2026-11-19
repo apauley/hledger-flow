@@ -16,7 +16,7 @@ import Data.Maybe (mapMaybe)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as TIO
-import Hledger.Flow.DocHelpers (DocLink (RulesFiles), docURL)
+import Hledger.Flow.DocHelpers (DocLink (Balances, ManualJournals, RulesFiles), docURL)
 import Hledger.Flow.PathHelpers (AbsDir, AbsFile, RelDir, RelFile, pathOccupied)
 import Hledger.Flow.Types (BaseDir)
 import Path
@@ -35,7 +35,11 @@ rulesName :: RelFile
 rulesName = [relfile|mybank-checking.rules|]
 
 sampleCsv :: Integer -> T.Text
-sampleCsv year = T.unlines
+sampleCsv year = T.unlines $
+  zipWith (<>) (sampleCsvRows year) [",Comment", ",\"" <> starterNotice <> "\"", ","]
+
+sampleCsvRows :: Integer -> [T.Text]
+sampleCsvRows year =
   ["Date,Description,Amount", date <> ",Example purchase,-5.00", date <> ",Example refund,5.00"]
   where
     date = T.pack (show year) <> "-01-02"
@@ -56,27 +60,89 @@ sampleRules = T.unlines
 
 exampleImportFiles :: Integer -> [(RelFile, T.Text)]
 exampleImportFiles year =
-  (exampleAccount </> rulesName, sampleRules)
-    : paths
-      [ (toFilePath exampleAccount F.</> "1-in" F.</> show year F.</> toFilePath sampleName, sampleCsv year),
-        ("_manual_" F.</> show year F.</> "pre-import.journal", manual "before"),
-        ("_manual_" F.</> show year F.</> "post-import.journal", manual "after")
-      ]
+  (exampleAccount </> rulesName, starterComment "# " sampleRules)
+    : paths ((samplePath, sampleCsv year) : manualFiles ++ balanceFiles)
   where
-    manual place = T.unlines
-      [ "; Put transactions here that should appear " <> place <> " imported statements.",
-        "; " <> T.pack (show year) <> "-01-01 Opening balance",
-        ";     assets:mybank:checking  100 USD",
-        ";     equity:opening balances"
+    account = F.dropTrailingPathSeparator (toFilePath exampleAccount)
+    bank = F.takeDirectory account
+    owner = F.takeDirectory bank
+    yearName = show year
+    samplePath = account F.</> "1-in" F.</> yearName F.</> toFilePath sampleName
+    date day = T.pack yearName <> "-" <> day
+    entry day description postings = (date day <> " " <> description) : map ("    " <>) postings
+    manual level phase help example =
+      (level F.</> "_manual_" F.</> yearName F.</> (phase ++ "-import.journal"),
+       journalExample ManualJournals help example)
+    balance suffix help example =
+      (account F.</> (yearName ++ "-" ++ suffix ++ ".journal"), journalExample Balances help example)
+    manualFiles =
+      [ manual "" "pre" ["Record an entry shared across owners before their imported activity."]
+          (entry "01-01" "Fund the household cash box from my cash"
+            ["assets:household:cash  150.00 USD", "assets:me:cash"]),
+        manual "" "post" ["Record a transfer between owners after reviewing both sets of statements."]
+          (entry "01-02" "Reimburse partner for shared groceries"
+            ["assets:partner:cash  35.00 USD", "assets:me:cash"]),
+        manual owner "pre" ["Fill a gap in a transfer between this owner's banks before their first statements."]
+          (entry "01-01" "Move savings to a new bank"
+            ["assets:otherbank:savings  75.00 USD", "assets:mybank:checking"]),
+        manual owner "post" ["Record a transfer between this owner's banks after reviewing their statements."]
+          (entry "01-02" "Move emergency savings back to checking"
+            ["assets:mybank:checking  50.00 USD", "assets:otherbank:savings"]),
+        manual bank "pre" ["Record a transfer between accounts at this bank before their imported activity."]
+          (entry "01-01" "Move money from checking to savings"
+            ["assets:mybank:savings  25.00 USD", "assets:mybank:checking"]),
+        manual bank "post" ["Fill in a transfer missing from both exports after reviewing this bank's statements."]
+          (entry "01-02" "Sweep savings into checking"
+            ["assets:mybank:checking  12.00 USD", "assets:mybank:savings"]),
+        manual account "pre"
+          ["Fill a gap before this account's first statement.", "Put opening balances in the dedicated yearly opening file."]
+          (entry "01-01" "Replace debit card"
+            ["expenses:bank-fees  5.00 USD", "assets:mybank:checking"]),
+        manual account "post"
+          ["Assert this account's balance after its imported entries for the same day.",
+           "Use the balance shown by your bank. Put closing balances in the dedicated yearly closing file."]
+          (entry "01-02" "Check balance after the sample statement"
+            ["assets:mybank:checking  0 USD = 0 USD"])
       ]
+    balanceFiles =
+      [ balance "opening" ["Record what this account already held just before its first imported transaction."]
+          (entry "01-01" "Checking opening balance"
+            ["assets:mybank:checking  100.00 USD", "equity:opening/closing balances"]),
+        balance "closing"
+          ["Close this account's balance to zero when you deliberately close your books.",
+           "This example assumes the starter opening balance and sample statement."]
+          (entry "12-31" "Checking closing balance"
+            ["assets:mybank:checking  -100.00 USD = 0 USD", "equity:opening/closing balances"])
+      ]
+
+starterNotice :: T.Text
+starterNotice = "Generated by hledger-flow init as a starter. This file is yours to edit. hledger-flow leaves it as you save it."
+
+starterComment :: T.Text -> T.Text -> T.Text
+starterComment prefix contents = prefix <> starterNotice <> "\n" <> contents
+
+optionalIncludeNotice :: T.Text
+optionalIncludeNotice = "; This file is optional. If absent, hledger-flow omits it from the include files it maintains."
+
+optionalJournal :: T.Text -> T.Text
+optionalJournal contents = starterComment "; " (optionalIncludeNotice <> "\n" <> contents)
+
+journalExample :: DocLink -> [T.Text] -> [T.Text] -> T.Text
+journalExample link help example = optionalJournal $ T.unlines $
+  map ("; " <>) help ++ ["; Docs: " <> docURL link, "", "; Example. Remove its leading semicolons and adapt it."]
+    ++ map ("; " <>) example
 
 exampleBaseFiles :: Integer -> [(RelFile, T.Text)]
 exampleBaseFiles year = paths $
   [("directives.journal", starterDirectives)]
-    ++ [ (priceDir F.</> name, T.unlines ["; Add market prices here.", "; P " <> date <> " " <> quote])
+    ++ [ (priceDir F.</> name, starterComment "; " (T.unlines
+           [ "; This file is optional. Remove its include line from prices.journal to omit the pair.",
+             "; Add market prices here.",
+             "; P " <> date <> " " <> quote
+           ]))
          | (name, quote) <- pairs
        ]
-    ++ [(priceDir F.</> "prices.journal", T.unlines ["include " <> T.pack name | (name, _) <- pairs])]
+    ++ [(priceDir F.</> "prices.journal", optionalJournal (T.unlines ["include " <> T.pack name | (name, _) <- pairs]))]
   where
     priceDir = "prices" F.</> show year
     date = T.pack (show year) <> "-01-01"
@@ -85,6 +151,8 @@ exampleBaseFiles year = paths $
 starterDirectives :: T.Text
 starterDirectives = T.unlines
   [ "; Ledger-wide directives go here. https://hledger.org/dev/hledger.html#directives",
+    "; " <> starterNotice,
+    optionalIncludeNotice,
     "",
     "; Common commodities. https://hledger.org/dev/hledger.html#commodity-aliases",
     "commodity 1,000.00 USD  ; alias: US$",
@@ -132,13 +200,26 @@ untouchedExample base [source] = case stripProperPrefix account source of
               bank = parent account
               owner = parent bank
               indexes dir = [dir </> yearIndex, dir </> [relfile|all-years.journal|]]
-              allowed = [source, rules, journal] ++ concatMap indexes [owner, bank, account]
-              dirs = [bank, account, parent source, parent (parent source), parent journal, parent (parent journal)]
+              otherStarters =
+                [ (file, contents)
+                  | (relative, contents) <- exampleImportFiles year,
+                    let file = importRoot base </> relative,
+                    isProperPrefixOf owner file, file /= source, file /= rules
+                ]
+              allowed = [source, rules, journal] ++ map fst otherStarters ++ concatMap indexes [owner, bank, account]
+              dirs = concatMap (takeWhile (isProperPrefixOf owner) . iterate parent . parent) allowed
+              optionalStarter (file, contents) = do
+                exists <- PathIO.doesFileExist file
+                if exists then matches file contents else pure True
           cleanPath <- allM plainDir [importRoot base, owner]
           cleanContents <- if cleanPath then containsOnly dirs allowed owner else return False
-          if cleanContents
-            then (&&) <$> matches source (sampleCsv year) <*> matches rules sampleRules
-            else return False
+          if cleanContents then do
+            current <- (&&) <$> matches source (sampleCsv year)
+                            <*> matches rules (starterComment "# " sampleRules)
+            sampleMatches <- if current then pure True
+              else (&&) <$> matches source (T.unlines (sampleCsvRows year)) <*> matches rules sampleRules
+            if sampleMatches then allM optionalStarter otherStarters else pure False
+          else pure False
         return (either (const False) id result)
   _ -> return False
   where
