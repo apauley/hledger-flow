@@ -18,11 +18,11 @@ import Control.Exception (IOException, try)
 import Control.Monad (when)
 import Data.Aeson (FromJSON, ToJSON, decodeFileStrict', encodeFile)
 import qualified Data.Text as T
-import Data.Time.Clock (getCurrentTime)
+import Data.Time.Clock (UTCTime)
 import GHC.Generics (Generic)
 import Hledger.Flow.Common (configuredLedgerFile, hledgerFileArgument, runProcessCaptured)
 import Hledger.Flow.InputSnapshot
-import Hledger.Flow.PathHelpers (AbsFile, withStagedOutput)
+import Hledger.Flow.PathHelpers (AbsFile, withStagedOutput, writeTimestampMarker)
 import Hledger.Flow.Types (BaseDir, HledgerInfo (..))
 import Path
 import qualified System.Directory as Directory
@@ -46,7 +46,7 @@ data LedgerSelection = LedgerSelection
   }
   deriving (Show)
 
-data CachedInputs = CachedInputs FilePath FilePath T.Text InputSnapshot
+data CachedInputs = CachedInputs FilePath FilePath T.Text UTCTime InputSnapshot
   deriving (Generic)
 
 instance FromJSON CachedInputs
@@ -126,21 +126,22 @@ resolveLedgerPath path = do
 discoverCoverage :: HledgerInfo -> BaseDir -> AbsFile -> IO Coverage
 discoverCoverage info base journal = do
   let cache = base </> [relfile|.hledger-flow/ledger-coverage.json|]
+      marker = base </> [relfile|.hledger-flow/ledger-coverage-started|]
       path = toFilePath journal
       executable = toFilePath (hlPath info)
       version = hlVersion info
   cached <- try (decodeFileStrict' (toFilePath cache))
   reusable <- case cached of
-    Right (Just (CachedInputs oldPath oldExecutable oldVersion snapshot))
+    Right (Just (CachedInputs oldPath oldExecutable oldVersion start snapshot))
       | (oldPath, oldExecutable, oldVersion) == (path, executable, version) -> do
-          unchanged <- inputsMatch snapshot
+          unchanged <- inputsUnchanged snapshot start
           return (if unchanged then Just (inputTargets snapshot) else Nothing)
     Left (_ :: IOException) -> return Nothing
     _ -> return Nothing
   inputs <- case reusable of
     Just paths -> return (Right paths)
     Nothing -> do
-      started <- getCurrentTime
+      started <- try (writeTimestampMarker marker)
       files <- journalInputs info [journal]
       case files of
         Left err -> return (Left err)
@@ -148,11 +149,14 @@ discoverCoverage info base journal = do
           snapshot <- try (snapshotInputs paths)
           case snapshot of
             Right saved -> do
-              unchanged <- inputsUnchanged saved started
-              when unchanged $ do
-                _ <- try (withStagedOutput cache (\stage ->
-                  encodeFile (toFilePath stage) (CachedInputs path executable version saved))) :: IO (Either IOException ())
-                return ()
+              case started of
+                Right start -> do
+                  unchanged <- inputsUnchanged saved start
+                  when unchanged $ do
+                    _ <- try (withStagedOutput cache (\stage ->
+                      encodeFile (toFilePath stage) (CachedInputs path executable version start saved))) :: IO (Either IOException ())
+                    return ()
+                Left (_ :: IOException) -> return ()
               return (Right (inputTargets saved))
             Left (_ :: IOException) -> Right <$> traverse (Directory.canonicalizePath . toFilePath) paths
   case inputs of

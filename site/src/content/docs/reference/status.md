@@ -36,6 +36,8 @@ local root and explain why. A path that names a missing file needs to be fixed
 or unset before reporting. An unset or unrelated `LEDGER_FILE` appears as a
 note in status so you can keep following `Next:`. Use the optional setup or
 explicit balance command in the note to explore with hledger itself.
+If an included file changes during the coverage check, the next command
+checks coverage again.
 
 ## hledger config file
 

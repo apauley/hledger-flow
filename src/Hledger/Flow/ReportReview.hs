@@ -25,7 +25,6 @@ where
 
 import Control.Exception (IOException, try)
 import Data.Aeson (FromJSON, ToJSON, decodeFileStrict', encodeFile)
-import qualified Data.ByteString as B
 import Data.Char (isDigit, isSpace)
 import Data.List (nub, sortOn)
 import Data.Maybe (mapMaybe)
@@ -36,7 +35,7 @@ import Data.Time.Clock (UTCTime)
 import GHC.Generics (Generic)
 import Hledger.Flow.InputSnapshot (InputSnapshot, inputsUnchanged, snapshotInputs)
 import Hledger.Flow.LedgerSelection (journalInputs)
-import Hledger.Flow.PathHelpers (AbsFile, RelFile, withStagedOutput)
+import Hledger.Flow.PathHelpers (AbsFile, RelFile, withStagedOutput, writeTimestampMarker)
 import Hledger.Flow.Types (BaseDir, HledgerConf, HledgerInfo, hledgerConfPath)
 import Path
 import qualified Path.IO as PathIO
@@ -91,9 +90,7 @@ invalidateReportReview base =
 startReportRun :: BaseDir -> IO UTCTime
 startReportRun base = do
   invalidateReportReview base
-  let marker = base </> [relfile|.hledger-flow/report-started|]
-  withStagedOutput marker (\file -> B.writeFile (toFilePath file) B.empty)
-  PathIO.getModificationTime marker
+  writeTimestampMarker (base </> [relfile|.hledger-flow/report-started|])
 
 configPath :: Maybe HledgerConf -> IO (Maybe AbsFile)
 configPath = traverse ((>>= parseAbsFile) . D.canonicalizePath . hledgerConfPath)

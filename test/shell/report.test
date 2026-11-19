@@ -255,6 +255,53 @@ $ sh -eu
 assets:bank || -5
 assets:bank || -5
 
+# A coverage scan is not cached when an included journal changes at its start time.
+<
+. ./test/shell/setup.sh
+case "$(uname -s)" in MINGW*|MSYS*) exit 0 ;; esac
+flow import
+printf 'include nested.journal\n' > wrapper.journal
+printf '; Unrelated at the start of the scan\n' > nested.journal
+export LEDGER_FILE=wrapper.journal ACTUAL_HLEDGER="$(command -v hledger)"
+cat > scan-hledger <<'WRAPPER'
+#!/bin/sh
+set -eu
+if [ "$1" = --no-conf ] && [ "$2" = files ]; then
+    "$ACTUAL_HLEDGER" "$@"
+    if [ ! -e scans ]; then
+        printf 'include import/all-years.journal\n' > nested.journal
+        python3 - <<'PY'
+import os
+from pathlib import Path
+import time
+
+marker = Path(".hledger-flow/ledger-coverage-started")
+# Emulate a coarse timestamp when running against a build without a marker.
+changed_at = marker.stat().st_mtime_ns if marker.exists() else time.time_ns() - 2_000_000_000
+os.utime("nested.journal", ns=(changed_at, changed_at))
+PY
+    fi
+    printf 'scan\n' >> scans
+else
+    exec "$ACTUAL_HLEDGER" "$@"
+fi
+WRAPPER
+chmod +x scan-hledger
+coverage() { hledger-flow --hledger-path "$finance/scan-hledger" status --json; }
+coverage | jq -e '.ledgerFile.coversLedger == false' > /dev/null
+test -f .hledger-flow/ledger-coverage-started
+test ! -e .hledger-flow/ledger-coverage.json
+coverage | jq -e '.ledgerFile.coversLedger' > /dev/null
+test "$(wc -l < scans)" -eq 2
+# Stable inputs older than the marker can still use the cache.
+find import -type f -name '*.journal' -exec touch -t 200001010000 {} +
+touch -t 200001010000 wrapper.journal nested.journal
+coverage | jq -e '.ledgerFile.coversLedger' > /dev/null
+test -s .hledger-flow/ledger-coverage.json
+coverage | jq -e '.ledgerFile.coversLedger' > /dev/null
+test "$(wc -l < scans)" -eq 3
+$ sh -eu
+
 # The literal bracketed wrapper includes the renamed root.
 <
 . ./test/shell/setup.sh

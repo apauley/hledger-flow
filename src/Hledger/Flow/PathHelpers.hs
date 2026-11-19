@@ -8,6 +8,7 @@ import Control.Monad.IO.Class (MonadIO, liftIO)
 import qualified Data.ByteString as B
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
+import Data.Time.Clock (UTCTime)
 import Hledger.Flow.DocHelpers (DocLink (..), docURL)
 import qualified Path
 import qualified Path.IO as Path
@@ -38,6 +39,13 @@ withStagedOutput target writeOutput = do
     result <- writeOutput staged
     Path.renameFile staged target
     return result
+
+-- | Use this operation's own filesystem timestamp, even if another process
+-- publishes a marker at the same destination.
+writeTimestampMarker :: AbsFile -> IO UTCTime
+writeTimestampMarker target = withStagedOutput target $ \stage -> do
+  B.writeFile (Path.toFilePath stage) B.empty
+  Path.getModificationTime stage
 
 -- | Install complete UTF-8 bytes at an unused path. The final operation must
 -- fail for an existing entry, including a dangling symlink.
