@@ -251,10 +251,25 @@ tag's `Build & Release` run, and verifies the draft release has all of
 `hledger-flow-windows-x64.zip`. Like `ci`, it can be re-run to keep waiting, and
 reports failed jobs with the commands to inspect and rerun them.
 
+On a version tag, the workflow looks for a successful `build.yaml` push run on
+`master` for the exact tagged commit. It downloads all five platform artifacts
+by ID and verifies their SHA-256 digests against GitHub. If the run or any
+artifact is missing or expired, the tag builds and tests all five platforms.
+A digest mismatch stops the workflow before signing. With either source, the
+tag workflow signs and notarizes the macOS binaries and packages the release.
+
 The `release` job attests the build provenance of each binary archive before
 uploading it. `bin/release push-tag` downloads each asset and checks with
 `gh attestation verify` that it was built by `build.yaml` in this repository
-from `refs/tags/v<version>` on a GitHub-hosted runner.
+from `refs/tags/v<version>` on a GitHub-hosted runner. When the release uses
+master artifacts, a second signed attestation links the final archives to the
+original run, commit, artifact IDs and input digests. To inspect it, run:
+
+``` bash
+gh attestation verify ARCHIVE -R apauley/hledger-flow --deny-self-hosted-runners \
+  --signer-workflow apauley/hledger-flow/.github/workflows/build.yaml \
+  --source-ref "refs/tags/v${VERSION}" --predicate-type https://in-toto.io/attestation/link/v0.3 --format json
+```
 
 CI enforces the same ChangeLog check: the tag's `release` job fails if the tag,
 `package.yaml`, and `ChangeLog.md` disagree. The GitHub release notes are

@@ -16,7 +16,34 @@ permissions:
 
 jobs:
 
+  reuse:
+    name: Check for tested master artifacts
+    if: github.event_name == 'push' && github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      run_id: ${{ steps.stage.outputs.run_id }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Verify and stage the exact commit's build artifacts
+        id: stage
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .github/scripts/reuse-master-build.py master-build
+      - name: Keep verified inputs in this tag run for signing and packaging
+        if: steps.stage.outputs.run_id
+        uses: actions/upload-artifact@v7
+        with:
+          name: verified-master-build
+          path: master-build/
+          if-no-files-found: error
+          overwrite: true
+
   build:
+    needs: reuse
+    if: &build_required ${{ !cancelled() && !failure() && !needs.reuse.outputs.run_id }}
     strategy:
       matrix:
         os:
@@ -92,11 +119,12 @@ jobs:
       - name: Stack Setup
         run: stack setup --interleaved-output
 
-      - name: Test Hackage, Homebrew and Snap release steps offline
+      - name: Test release steps offline
         if: matrix.os == 'ubuntu-24.04'
         run: |
           bash test/release/hackage.sh
           bash test/release/snap.sh
+          python3 test/release/reuse_master_build.py
 
       - name: Build and Test
         run: stack test --interleaved-output && stack install
@@ -154,6 +182,8 @@ jobs:
           if-no-files-found: error
 
   build_windows:
+    needs: reuse
+    if: *build_required
     name: Build (Windows x64)
     runs-on: windows-latest
     env:
@@ -241,8 +271,10 @@ jobs:
 
   sign_macos:
     name: Sign (${{ matrix.platform }})
-    if: (github.event_name == 'push' && github.ref_type == 'tag') || github.event_name == 'workflow_dispatch'
-    needs: build
+    if: >-
+      !cancelled() && !failure() &&
+      ((github.event_name == 'push' && github.ref_type == 'tag') || github.event_name == 'workflow_dispatch')
+    needs: [reuse, build]
     strategy:
       fail-fast: false
       matrix:
@@ -257,7 +289,7 @@ jobs:
       - name: Download unsigned macOS binary
         uses: actions/download-artifact@v8
         with:
-          name: hledger-flow-${{ matrix.platform }}
+          name: ${{ needs.reuse.outputs.run_id && 'verified-master-build' || format('hledger-flow-{0}', matrix.platform) }}
           path: unsigned
 
       - name: Import macOS signing certificate
@@ -314,6 +346,7 @@ jobs:
   notarize_macos:
     name: Notarize (${{ matrix.platform }})
     needs: sign_macos
+    if: ${{ !cancelled() && needs.sign_macos.result == 'success' }}
     strategy:
       fail-fast: false
       matrix:
@@ -395,8 +428,10 @@ jobs:
           echo "::warning::Notarization failed. The signed release is unaffected; inspect the Apple log and rerun this job."
 
   release:
-    if: github.event_name == 'push' && github.ref_type == 'tag'
-    needs: [build, build_windows, sign_macos]
+    if: >-
+      !cancelled() && !failure() && needs.sign_macos.result == 'success' &&
+      github.event_name == 'push' && github.ref_type == 'tag'
+    needs: [reuse, build, build_windows, sign_macos]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -414,7 +449,21 @@ jobs:
           bin/release changelog
           bin/release notes > release-notes.md
 
+      - name: Download verified master inputs
+        if: needs.reuse.outputs.run_id
+        uses: actions/download-artifact@v8
+        with:
+          name: verified-master-build
+          path: master-build
+
+      - name: Stage tested Linux and Windows archives
+        if: needs.reuse.outputs.run_id
+        run: |
+          mkdir -p artifacts
+          cp master-build/hledger-flow-linux-*.tar master-build/hledger-flow-windows-x64.zip artifacts/
+
       - name: Download Linux binaries
+        if: ${{ !needs.reuse.outputs.run_id }}
         uses: actions/download-artifact@v8
         with:
           pattern: hledger-flow-linux-*
@@ -429,6 +478,7 @@ jobs:
           path: artifacts
 
       - name: Download Windows binary
+        if: ${{ !needs.reuse.outputs.run_id }}
         uses: actions/download-artifact@v8
         with:
           name: hledger-flow-windows-x64
@@ -454,6 +504,16 @@ jobs:
           subject-path: |
             artifacts/*.tar.gz
             artifacts/hledger-flow-windows-x64.zip
+
+      - name: Attest which master build supplied the release inputs
+        if: needs.reuse.outputs.run_id
+        uses: actions/attest@v4
+        with:
+          subject-path: |
+            artifacts/*.tar.gz
+            artifacts/hledger-flow-windows-x64.zip
+          predicate-type: https://in-toto.io/attestation/link/v0.3
+          predicate-path: master-build/build-inputs.json
 
       - name: Create GitHub Release with artifacts
         uses: softprops/action-gh-release@v3

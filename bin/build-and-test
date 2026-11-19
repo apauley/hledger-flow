@@ -23,4 +23,5 @@ case "$(uname -s)" in
 esac
 bash test/release/hackage.sh
 bash test/release/snap.sh
+python3 test/release/reuse_master_build.py
 stack install hledger-flow
