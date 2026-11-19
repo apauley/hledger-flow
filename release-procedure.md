@@ -153,7 +153,7 @@ a generated journal, include file, or report is still `major`.
 **Review**: settle the ChangeLog wording and the version number before bumping.
 They become the release notes and the tag.
 
-Install `tree` and use the hledger version in `site/scripts/tutorial/hledger-version`.
+Install `tree` and Git, and use the hledger version in `site/scripts/tutorial/hledger-version`.
 If that version is already on `PATH`, run the bump directly. Otherwise, point
 `HLEDGER` at the pinned executable, for example
 `HLEDGER=/path/to/hledger bin/release bump minor`.
@@ -163,7 +163,7 @@ bin/release bump major        # or minor, patch, or an explicit version like 0.1
 ```
 
 Before editing files, `bump` checks the version, the tutorial's hledger,
-`tree` and Python 3. It renames `## Unreleased` to `## <version>`, updates
+`tree`, Git and Python 3. It renames `## Unreleased` to `## <version>`, updates
 `package.yaml` and `snap/snapcraft.yaml`, regenerates `hledger-flow.cabal`
 and builds the new executable. It runs the tutorial with that build and
 commits the regenerated pages and version files together after the ChangeLog

@@ -191,7 +191,7 @@ HLEDGER=/path/to/hledger site/scripts/tutorial/update.sh
 
 `HLEDGER` must be the hledger version in `site/scripts/tutorial/hledger-version`,
 from [hledger's releases](https://github.com/hledgerorg/hledger/releases).
-The script also needs Python 3 and `tree`. It fails when a command shown on a
+The script also needs Python 3, `tree` and Git. It fails when a command shown on a
 page is missing from the part's script, or when an excerpt isn't in the
 files the run used. CI runs `update.sh --check` and fails when the pages are
 out of date. To move the tutorial to a newer hledger, change

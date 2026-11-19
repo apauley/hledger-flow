@@ -11,6 +11,7 @@ mkdir -p "$home/bin"
 cp "$2" "$home/bin/hledger-flow"
 cp "$3" "$home/bin/hledger"
 ln -s "$(command -v tree)" "$home/bin/tree"
+ln -s "$(command -v git)" "$home/bin/git"
 cp -R "$repo/site/public/tutorial/Downloads" "$home/"
 
 # The same environment on every machine, so the output only depends on the
@@ -22,9 +23,11 @@ export USER=gawie USERNAME=gawie
 export HLEDGER_FLOW_NO_UPDATE_CHECK=1
 export GIT_AUTHOR_NAME=Gawie GIT_AUTHOR_EMAIL=gawie@example.com
 export GIT_COMMITTER_NAME=Gawie GIT_COMMITTER_EMAIL=gawie@example.com
-export GIT_CONFIG_NOSYSTEM=1
-printf '[init]\n\tdefaultBranch = main\n[color]\n\tui = never\n' > "$home/.gitconfig"
-unset LC_ALL LEDGER_FILE XDG_CONFIG_HOME
+# Only this Git config, so a maintainer's own settings (such as commit
+# signing) can't change or break the run.
+export GIT_CONFIG_GLOBAL=$home/.gitconfig GIT_CONFIG_NOSYSTEM=1
+printf '[init]\n\tdefaultBranch = main\n[color]\n\tui = never\n' > "$GIT_CONFIG_GLOBAL"
+unset LC_ALL LEDGER_FILE XDG_CONFIG_HOME GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE
 cd "$home"
 
 # c COMMAND: run a command the tutorial shows, and record its output.
