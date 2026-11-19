@@ -1,6 +1,6 @@
 name: hledger-flow
 title: hledger-flow
-version: '0.20.1'
+version: '0.21.0'
 summary: Automate statement imports and reports with hledger
 description: |
   hledger-flow organises electronic statements, runs account-specific

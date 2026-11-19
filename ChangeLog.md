@@ -31,7 +31,7 @@ How to keep this ChangeLog
   existing destination belongs in release-procedure.md.
 -->
 
-## Unreleased
+## 0.21.0
 
 - `import` moves orphaned generated files to `.hledger-flow/trash/` at the ledger root instead of each account's `.trash` folder, keeping their path from the root. The trash has its own `.gitignore`. Recover what you need from existing account `.trash` folders, then delete them and any `.trash/` line in your `.gitignore`. See [generated files and recovery](https://hledger-flow.github.io/reference/input-files/#generated-files-and-recovery).
 - `import` and `report` now stop before writing output if the hledger config they use supplies `-f`, `--file` or an argument file such as `@args.txt`. The error names the file and line. Remove the setting or pass a separate config with `--hledger-conf`. See [hledger config file](https://hledger-flow.github.io/reference/status/#hledger-config-file).
