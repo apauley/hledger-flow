@@ -6,18 +6,22 @@ description: Follow Gawie, a chef in the Kruger Park, from his first CSV stateme
 ---
 
 Follow Gawie de Groot, a mopane worm chef in the Kruger National Park, as he
-takes charge of his finances. Each part brings a new kind of statement, and
-each one needs a little more than the last:
+takes charge of his finances. Part 1 starts his ledger from the example
+that `hledger-flow init` creates. Each part after that brings a new kind of
+statement, and each one needs a little more than the last:
 
-1.  [The first statement](/tutorial/part-1/): a tidy credit card CSV and the
+1.  [Try the example](/tutorial/part-1/): start a ledger in Git, follow
+    the example account through import, report and status, then make the
+    account your own.
+2.  [The first statement](/tutorial/part-2/): a tidy credit card CSV and the
     rules file `hledger-flow` drafts for it.
-2.  [Categories and reports](/tutorial/part-2/): sort spending into accounts
+3.  [Categories and reports](/tutorial/part-3/): sort spending into accounts
     with `if` rules shared by all of Gawie’s accounts.
-3.  [A difficult statement](/tutorial/part-3/): a bank CSV with a preamble,
+4.  [A difficult statement](/tutorial/part-4/): a bank CSV with a preamble,
     Afrikaans dates and no year, still converted by rules alone.
-4.  [When rules aren’t enough](/tutorial/part-4/): a `preprocess` script
+5.  [When rules aren’t enough](/tutorial/part-5/): a `preprocess` script
     that fixes the one thing rules can’t.
-5.  [The last resort](/tutorial/part-5/): a `construct` script for an export
+6.  [The last resort](/tutorial/part-6/): a `construct` script for an export
     that isn’t a table at all.
 
 The order is the advice: let [hledger’s CSV rules](/reference/rules-files/)
@@ -35,20 +39,21 @@ The tutorial runs its commands from your home folder and from
 | File | Used in |
 | --- | --- |
 | [Downloads/Kudu/creditcard_2016-03-31.csv](/tutorial/Downloads/Kudu/creditcard_2016-03-31.csv) | Part 1 |
-| [Downloads/Kudu/creditcard_2016-04-30.csv](/tutorial/Downloads/Kudu/creditcard_2016-04-30.csv) | Part 2 |
-| [Downloads/Kudu/creditcard_2016-05-31.csv](/tutorial/Downloads/Kudu/creditcard_2016-05-31.csv) | Part 2 |
-| [Downloads/Bogart/123456789_2016-03-30.csv](/tutorial/Downloads/Bogart/123456789_2016-03-30.csv) | Part 3 |
-| [Downloads/Bogart/123456789_2016-04-28.csv](/tutorial/Downloads/Bogart/123456789_2016-04-28.csv) | Part 3 |
-| [Downloads/Bogart/123456789_2016-05-28.csv](/tutorial/Downloads/Bogart/123456789_2016-05-28.csv) | Part 3 |
-| [Downloads/Bogart/123456790_2017-01-27.csv](/tutorial/Downloads/Bogart/123456790_2017-01-27.csv) | Part 4 |
-| [Downloads/Goggatjie/tips_2016-05.json](/tutorial/Downloads/Goggatjie/tips_2016-05.json) | Part 5 |
+| [Downloads/Kudu/creditcard_2016-04-30.csv](/tutorial/Downloads/Kudu/creditcard_2016-04-30.csv) | Part 3 |
+| [Downloads/Kudu/creditcard_2016-05-31.csv](/tutorial/Downloads/Kudu/creditcard_2016-05-31.csv) | Part 3 |
+| [Downloads/Bogart/123456789_2016-03-30.csv](/tutorial/Downloads/Bogart/123456789_2016-03-30.csv) | Part 4 |
+| [Downloads/Bogart/123456789_2016-04-28.csv](/tutorial/Downloads/Bogart/123456789_2016-04-28.csv) | Part 4 |
+| [Downloads/Bogart/123456789_2016-05-28.csv](/tutorial/Downloads/Bogart/123456789_2016-05-28.csv) | Part 4 |
+| [Downloads/Bogart/123456790_2017-01-27.csv](/tutorial/Downloads/Bogart/123456790_2017-01-27.csv) | Part 5 |
+| [Downloads/Goggatjie/tips_2016-05.json](/tutorial/Downloads/Goggatjie/tips_2016-05.json) | Part 6 |
 
 You need `hledger-flow` and `hledger` on your `PATH`; see the
-[quick start](/quickstart/). Part 3 uses hledger’s rules functions, which
-need hledger 1.99.6 or newer. Part 5 uses Python 3.
+[quick start](/quickstart/). Gawie commits each step with Git, so you need it to
+follow along exactly. Part 4 uses hledger’s rules
+functions, which need hledger 1.99.6 or newer. Part 6 uses Python 3.
 
 The commands are for a Unix shell (Linux, macOS or WSL). On Windows, see
-[Windows import scripts](/reference/windows-hooks/) for the scripts in parts 4 and 5.
+[Windows import scripts](/reference/windows-hooks/) for the scripts in parts 5 and 6.
 
 ## About the output
 
@@ -56,7 +61,7 @@ The output below each command came from running it with these versions:
 
 ```text
 $ hledger-flow --version
-hledger-flow 0.20.1 darwin aarch64 ghc 9.10 68c4ac516834d780664268fe0cf4a2692853794f
+hledger-flow 0.20.1 darwin aarch64 ghc 9.10 575e7b36e50b060620d649349d31e4c9903055a4
 $ hledger --version
 hledger 1.99.6-gc3a608c2b-20261101, mac-aarch64
 ```
@@ -64,8 +69,9 @@ hledger 1.99.6-gc3a608c2b-20261101, mac-aarch64
 hledger 1.99 is a preview of the upcoming hledger 2. Other hledger versions
 word their errors and draw their tables slightly differently.
 
-The commands ran in a fresh home folder, with both programs in `~/bin` and
-no hledger config file. hledger-flow shows paths in the home folder as `~`;
+The commands ran in a fresh home folder, with both programs in `~/bin`,
+no hledger config file and a Git config that only names the default
+branch. hledger-flow shows paths in the home folder as `~`;
 hledger’s own error messages show the full path, written here as
 `/home/gawie`. Your own paths, and the core count that `hledger-flow status`
 reports, will differ. Every

@@ -1,16 +1,21 @@
-# Part 5: the last resort. Commands as shown in part-5.md.
-c mkdir -p import/gawie/goggatjie/tips/1-in/2016
-c cp ../Downloads/Goggatjie/tips_2016-05.json import/gawie/goggatjie/tips/1-in/2016/
-c hledger-flow status
-c hledger-flow status --rules-template gawie/goggatjie/tips
-put import/gawie/goggatjie/tips/construct
-c chmod +x import/gawie/goggatjie/tips/construct
-c import/gawie/goggatjie/tips/construct import/gawie/goggatjie/tips/1-in/2016/tips_2016-05.json -
+# Part 5: when rules aren't enough. Commands as shown in part-5.md.
+c mkdir -p import/gawie/bogart/savings/1-in/2017
+c cp ../Downloads/Bogart/123456790_2017-01-27.csv import/gawie/bogart/savings/1-in/2017/
+put import/gawie/bogart/bogart-statements.rules part5-before-preprocess
+put import/gawie/bogart/cheque/bogart-cheque.rules
+put import/gawie/bogart/savings/bogart-savings.rules
+put import/gawie/categories.rules
 c hledger-flow import
-c hledger balance tips
-put prices/2016/prices.journal
+c hledger incomestatement
+put import/gawie/bogart/add-year
+c chmod +x import/gawie/bogart/add-year
+c ln -s ../add-year import/gawie/bogart/cheque/preprocess
+c ln -s ../add-year import/gawie/bogart/savings/preprocess
+put import/gawie/bogart/bogart-statements.rules
 c hledger-flow import
-c hledger balance tips --value=then,R
-c hledger incomestatement --pretty --period 2016-05 --value=then,R
-c hledger-flow status
-commit 'Tips'
+c head -n 9 import/gawie/bogart/savings/2-preprocessed/2017/123456790_2017-01-27.csv
+c hledger register bogart:savings
+c hledger-flow report
+c cat reports/all/2016/transfer-balance.txt
+c git add -A
+c 'git commit -q -m "Add the Bogart savings account"'

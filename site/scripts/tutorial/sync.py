@@ -24,7 +24,7 @@ REPO = HERE.parents[2]
 PAGES = REPO / "site/src/content/docs/tutorial"
 DOWNLOADS = REPO / "site/public/tutorial/Downloads"
 FILES = HERE / "files"
-PARTS = ["part-1.md", "part-2.md", "part-3.md", "part-4.md", "part-5.md"]
+PARTS = ["part-1.md", "part-2.md", "part-3.md", "part-4.md", "part-5.md", "part-6.md"]
 
 BLOCK = re.compile(r"```(\w*)([^\n]*)\n(.*?)```", re.S)
 PAIR = re.compile(r"```bash\n((?:(?!```).)*?)```(\s*)```(text|hledger)\n(.*?)```", re.S)
@@ -41,8 +41,10 @@ MASKS = [
     (re.compile(r"^(  hledger-flow  \S+) .*$", re.M), r"\1 BUILD"),
     (re.compile(r"^  Cores .*$", re.M), "  Cores N"),
     # Init uses the current year for the example and starter journals.
-    (re.compile(r"(Created prices/)\d{4}"), r"\1YEAR"),
-    (re.compile(r"(^  gawie/mybank/checking +1 statement \()\d{4}", re.M), r"\1YEAR"),
+    # Gawie's own statements are from 2016 and 2017.
+    (re.compile(r"\b20[2-9][0-9]\b"), "YEAR"),
+    # Git's blob ids change with the example's year.
+    (re.compile(r"^index [0-9a-f]+\.\.[0-9a-f]+", re.M), "index BLOBS"),
 ]
 
 

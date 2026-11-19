@@ -48,12 +48,3 @@ if Credit Card Account
 
 if Salary
   account2 income:salary
-
-if Oordrag Van
-  account2 assets:transfers:savings
-
-if Rente
-  account2 income:interest
-
-if Kontant Onttrekking
-  account2 expenses:cash

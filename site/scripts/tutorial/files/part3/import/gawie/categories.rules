@@ -18,33 +18,3 @@ if BUSHTEL
 
 if PAYMENT RECEIVED
   account2 assets:transfers:creditcard
-
-if PHARMACY
-  account2 expenses:health
-
-if BOOKS|HOT SPRINGS
-  account2 expenses:fun
-
-if Monthly Bank Fee
-  account2 expenses:bank-fees
-
-if Rent
-  account2 expenses:rent
-
-if Insurance
-  account2 expenses:insurance
-
-if Charity
-  account2 expenses:charity
-
-if Cash Withdrawal
-  account2 expenses:cash
-
-if MyBTCEx|Traditional Boring Investments
-  account2 assets:investments
-
-if Credit Card Account
-  account2 assets:transfers:creditcard
-
-if Salary
-  account2 income:salary

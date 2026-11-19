@@ -22,6 +22,8 @@ export USER=gawie USERNAME=gawie
 export HLEDGER_FLOW_NO_UPDATE_CHECK=1
 export GIT_AUTHOR_NAME=Gawie GIT_AUTHOR_EMAIL=gawie@example.com
 export GIT_COMMITTER_NAME=Gawie GIT_COMMITTER_EMAIL=gawie@example.com
+export GIT_CONFIG_NOSYSTEM=1
+printf '[init]\n\tdefaultBranch = main\n[color]\n\tui = never\n' > "$home/.gitconfig"
 unset LC_ALL LEDGER_FILE XDG_CONFIG_HOME
 cd "$home"
 
@@ -36,7 +38,7 @@ commit() { q git add -A; q git commit -q -m "\"$1\""; }
 
 c hledger-flow --version
 c hledger --version
-for part in part1 part2 part3 part4 part5; do
+for part in part1 part2 part3 part4 part5 part6; do
   echo; echo "######## $part"
   . "$here/$part.sh"
 done

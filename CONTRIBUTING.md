@@ -180,7 +180,7 @@ explains how to add one.
 
 Every code block in the [tutorial](https://hledger-flow.github.io/tutorial/)
 comes from a real run. `site/scripts/tutorial/` holds the commands of each
-part (`part1.sh` to `part5.sh`) and the files the reader saves in each part
+part (`part1.sh` to `part6.sh`) and the files the reader saves in each part
 (`files/`). After changing hledger-flow's output, the tutorial's commands or
 its files, regenerate the pages and commit the result:
 
