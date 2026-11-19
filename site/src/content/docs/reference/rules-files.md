@@ -109,3 +109,11 @@ as `column3` leaves that field for you to identify.
 The starter preserves the export's date separator. When the dates leave the
 day and month ambiguous or mix formats, set `date-format` yourself using the
 example in the starter.
+
+## Reuse existing rules
+
+Put your existing rules and any files they include in the account folder.
+If status identifies one main rules file under a different name, it suggests
+a safe rename to the expected account filename. Keep the names of files the
+main rules include. If status finds several possible main files, choose the
+one that matches the statement and rename it yourself.

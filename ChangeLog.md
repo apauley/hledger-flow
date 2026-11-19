@@ -33,6 +33,8 @@ How to keep this ChangeLog
 
 ## Unreleased
 
+- `status` helps you [reuse existing account rules](https://hledger-flow.github.io/reference/rules-files/#reuse-existing-rules) when the main rules file needs a different name.
+
 - `status` shows how to create the first account's input directory, with a command for your shell.
 
 - `status` suggests year folders for misplaced delimited statements and prints safe move commands when the destination is known. See [year folders](https://hledger-flow.github.io/reference/input-files/#year-folders).

@@ -69,7 +69,7 @@ path with `--hledger-path` even when `PATH` is unset.
 - `ledgerFileNote`: optional guidance about `LEDGER_FILE`, or `null`.
 - `accounts`: one object per `owner/bank/account` with statements:
   `account`, `statements`, `years`, `rulesFile` (the account's default rules
-  file, or `null`), `rulesCandidates`, `statementsWithoutRules`,
+  file, or `null`), `rulesCandidates`, `statementsWithoutRules`, `otherRules`, `rulesTargetOccupied`,
   `hooks` (`preprocess`, `construct`), `journalsMissing`, `journalsOutdated`.
   For journals generated with CSV rules, status follows each `include`
   relative to the rules file that contains it, including nested includes.

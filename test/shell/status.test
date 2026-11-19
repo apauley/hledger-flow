@@ -345,3 +345,34 @@ test -d "ledger two/$example"
 printf '%s-01-01,Shop,-5\n' "$year" > "ledger two/$example/statement.csv"
 hledger-flow status 'ledger two' --json | jq -e '.next.command | contains("hledger-flow rules me/mybank/checking")' > /dev/null
 $ sh -eu
+
+# Reuse a local rules entry point while leaving its included helper in place.
+<
+. ./test/shell/status-commands.sh
+. ./test/shell/setup.sh
+rm "$inbox/march.csv"
+account=import/sm/wf/bchecking
+inbox=$account/1-in/2026
+mkdir -p "$inbox"
+printf '2026-01-02,Shop,-7\n' > "$inbox/january.csv"
+printf 'fields date, description, amount\naccount1 assets:wf:bchecking\ninclude wf-common.rules\n' > "$account/wf-checking.rules"
+printf 'account2 expenses:from-included-rules\n' > "$account/wf-common.rules"
+cp "$account/wf-common.rules" helper
+cp "$account/wf-checking.rules" original
+printf 'fields date, description, amount\n' > "$account/other.rules"
+hledger-flow status --json | jq -e '.next.command == null and (.next.summary | contains("wf-bchecking.rules")) and (.next.detail | join(" ") | contains("wf-checking.rules") and contains("other.rules"))' > /dev/null
+rm "$account/other.rules"
+command=$(next_command)
+hledger-flow status | grep -q '^Next: Rename .*wf-checking.rules'
+printf unchanged > "$account/wf-bchecking.rules"
+if run_suggestion "$command" > out 2> err; then exit 1; fi
+test "$(cat "$account/wf-bchecking.rules")" = unchanged
+cmp "$account/wf-checking.rules" original
+rm "$account/wf-bchecking.rules"
+run_suggestion "$command"
+cmp helper "$account/wf-common.rules"
+cmp original "$account/wf-bchecking.rules"
+test ! -e "$account/wf-checking.rules"
+flow import
+grep -q expenses:from-included-rules "$account/3-journal/2026/january.journal"
+$ sh -eu

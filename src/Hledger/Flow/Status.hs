@@ -49,6 +49,8 @@ data AccountStatus = AccountStatus
     asRulesFile :: Maybe FilePath,
     asRulesCandidates :: [FilePath],
     asWithoutRules :: Int,
+    asOtherRules :: [FilePath],
+    asRulesTargetOccupied :: Bool,
     asPreprocess :: Bool,
     asConstruct :: Bool,
     asJournalsMissing :: Int,
@@ -187,6 +189,18 @@ nextStep year shell homes cwd s
         Nothing
         (concatMap (placementDetails shell homes (lsBaseDir s)) (lsMisplaced s))
         (Just (docURL (if any spansYears (lsMisplaced s) then StatementYearFolders else InputFiles)))
+  | a : _ <- filter needsRules (lsAccounts s),
+    source : other <- asOtherRules a =
+      case other of
+        [] | not (asRulesTargetOccupied a), Just commandLine <- renameRules a source ->
+          NextStep ("Rename " <> displayPath source <> " to " <> displayPath (relativeCandidate a))
+            (Just commandLine) ["Files it includes can keep their names."] (Just (docURL RulesFiles))
+        _ ->
+          NextStep ("Choose the rules to save as " <> displayPath (relativeCandidate a)) Nothing
+            (map displayPath (source : other) ++
+              ["The target already exists. Check it before making changes." | asRulesTargetOccupied a] ++
+              ["Rename the rules for this account. Files it includes can keep their names."])
+            (Just (docURL RulesFiles))
   | a : _ <- filter needsRules (lsAccounts s) =
       NextStep
         ("Create " <> T.pack (tildePath homes (firstCandidate a)) <> " (rules for " <> asAccount a <> ")")
@@ -228,6 +242,15 @@ nextStep year shell homes cwd s
     statements = sum (map asStatements (lsAccounts s))
     toImport = sum [asJournalsMissing a + asJournalsOutdated a | a <- lsAccounts s]
     needsRules a = asWithoutRules a > 0 && not (asConstruct a)
+    relativeCandidate a = fromMaybe "a rules file" (case asRulesCandidates a of
+      target : _ -> Just target
+      [] -> Nothing)
+    displayPath path = T.pack (tildePath homes
+      (if cwd == lsBaseDir s then path else toFilePath (lsBaseDir s) FilePath.</> path))
+    renameRules a source = do
+      old <- parseRelFile source
+      new <- parseRelFile (relativeCandidate a)
+      return (moveFileCommand shell homes (lsBaseDir s </> old) (lsBaseDir s </> new))
     firstCandidate a = case asRulesCandidates a of
       c : _ | cwd /= lsBaseDir s -> toFilePath (lsBaseDir s) FilePath.</> c
             | otherwise -> c

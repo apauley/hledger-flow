@@ -128,6 +128,8 @@ statusJSON sys conf s next =
           "rulesFile" .= asRulesFile a,
           "rulesCandidates" .= asRulesCandidates a,
           "statementsWithoutRules" .= asWithoutRules a,
+          "otherRules" .= asOtherRules a,
+          "rulesTargetOccupied" .= asRulesTargetOccupied a,
           "hooks" .= object ["preprocess" .= asPreprocess a, "construct" .= asConstruct a],
           "journalsMissing" .= asJournalsMissing a,
           "journalsOutdated" .= asJournalsOutdated a

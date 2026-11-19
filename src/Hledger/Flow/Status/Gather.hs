@@ -9,11 +9,13 @@ module Hledger.Flow.Status.Gather
     accountName,
     cachedStatement,
     hookExists,
+    mainRulesCandidates,
   )
 where
 
 import Control.Applicative ((<|>))
 import Control.Monad (forM, when)
+import Data.Char (toLower)
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -146,15 +148,25 @@ accountStatus base name statements = do
   directives <- firstExistingFile [base </> [relfile|directives.journal|]]
   sources <- forM statements $ \s -> do
     cached <- cachedStatement s
-    rules <- rulesFileCandidates (fromMaybe s cached) dirs >>= firstExistingFile
-    return (s, cached, rules)
-  let resolved = [rules | (_, _, rules) <- sources]
+    candidates <- rulesFileCandidates (fromMaybe s cached) dirs
+    rules <- firstExistingFile candidates
+    return (s, cached, rules, candidates)
+  let resolved = [rules | (_, _, rules, _) <- sources]
+      withoutRules = length (filter isNothing resolved)
+  (otherRules, targetOccupied) <- if withoutRules > 0 && isNothing construct
+    then do
+      other <- tryIOError (mainRulesCandidates (accountDir dirs) (concat [xs | (_, _, _, xs) <- sources]))
+      occupied <- case defaults of
+        target : _ -> either (const True) id <$> tryIOError (pathOccupied target)
+        _ -> return False
+      return (either (const []) id other, occupied)
+    else return ([], False)
   -- Statements in an account commonly share one rules file.
   ruleTimes <- case construct of
     Just _ -> return Map.empty
     Nothing -> traverse (tryIOError . latestRuleChange) $
       Map.fromSet id (Set.fromList (catMaybes resolved))
-  journals <- forM sources $ \(s, cached, rules) -> do
+  journals <- forM sources $ \(s, cached, rules, _) -> do
     let inputs = s : catMaybes [cached, preprocess, construct <|> directives]
     journal <- generatedOutput [reldir|3-journal|] ".journal" s
     journalState inputs (rules >>= (`Map.lookup` ruleTimes)) journal
@@ -165,7 +177,9 @@ accountStatus base name statements = do
         asYears = List.nub (List.sort (map yearOf statements)),
         asRulesFile = relative <$> rulesFile,
         asRulesCandidates = map relative defaults,
-        asWithoutRules = length (filter isNothing resolved),
+        asWithoutRules = withoutRules,
+        asOtherRules = map relative otherRules,
+        asRulesTargetOccupied = targetOccupied,
         asPreprocess = isJust preprocess,
         asConstruct = isJust construct,
         asJournalsMissing = length (filter (== Missing) journals),
@@ -184,12 +198,27 @@ latestRuleChange = visit Set.empty . toFilePath
       key <- Directory.canonicalizePath file
       when (Set.member key ancestors) $ ioError (userError ("cyclic rules include: " ++ file))
       modified <- Directory.getModificationTime file
-      contents <- T.readFile file
-      let children = [FilePath.takeDirectory file FilePath.</> T.unpack (T.strip path)
-                     | line <- T.lines (T.dropWhile (== '\xFEFF') contents)
-                     , Just path <- [T.stripPrefix "include " line]]
+      children <- ruleIncludes file
       times <- mapM (visit (Set.insert key ancestors)) children
       return (maximum (modified : times))
+
+ruleIncludes :: FilePath -> IO [FilePath]
+ruleIncludes file = do
+  contents <- T.readFile file
+  return [FilePath.takeDirectory file FilePath.</> T.unpack (T.strip path)
+         | line <- T.lines (T.dropWhile (== '\xFEFF') contents),
+           Just path <- [T.stripPrefix "include " line]]
+
+mainRulesCandidates :: AbsDir -> [AbsFile] -> IO [AbsFile]
+mainRulesCandidates dir recognized = do
+  (_, files) <- PathIO.listDir dir
+  let local = List.sort [file | file <- files, map toLower (FilePath.takeExtension (toFilePath file)) == ".rules"]
+      canonical = Directory.canonicalizePath . toFilePath
+  recognizedTargets <- Set.fromList <$> traverse canonical recognized
+  children <- concat <$> traverse (ruleIncludes . toFilePath) local
+  childTargets <- Set.fromList <$> traverse Directory.canonicalizePath children
+  pairs <- traverse (\file -> (,) file <$> canonical file) local
+  return [file | (file, target) <- pairs, Set.notMember target (Set.union recognizedTargets childTargets)]
 
 journalState :: [AbsFile] -> Maybe (Either IOError UTCTime) -> AbsFile -> IO JournalState
 journalState inputs rulesTime journal = do

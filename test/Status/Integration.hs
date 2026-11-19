@@ -8,7 +8,7 @@ import Data.Time.Clock (addUTCTime)
 import Hledger.Flow.Common (findHledger)
 import Hledger.Flow.PathHelpers (AbsFile)
 import Hledger.Flow.Status
-import Hledger.Flow.Status.Gather (classifyDir, gatherStatus)
+import Hledger.Flow.Status.Gather (classifyDir, gatherStatus, mainRulesCandidates)
 import Path
 import Path.IO
 import Control.Monad (unless)
@@ -88,5 +88,23 @@ testFindHledgerMissing = TestCase $ do
   r <- findHledger (Just "/nonexistent/hledger")
   assertBool "Nothing for a missing path" (isNothing r)
 
+testRulesRoots :: Test
+testRulesRoots = TestCase $ withTestDir $ \dir -> do
+  let mainRules = dir </> [relfile|wf-checking.rules|]
+      included = dir </> [relfile|wf-common.rules|]
+      override = dir </> [relfile|rfo-card.rules|]
+      another = dir </> [relfile|z.rules|]
+      roots = mainRulesCandidates dir [override]
+  roots >>= (@?= [])
+  writeFile (toFilePath mainRules) "include wf-common.rules\n"
+  writeFile (toFilePath included) "# helper\n"
+  writeFile (toFilePath override) "# statement-specific\n"
+  roots >>= (@?= [mainRules])
+  writeFile (toFilePath another) "# a second entry point\n"
+  roots >>= (@?= [mainRules, another])
+  removeFile another
+  writeFile (toFilePath included) "include wf-checking.rules\n"
+  roots >>= (@?= [])
+
 tests :: Test
-tests = TestList [testClassify, testGather, testFindHledgerMissing, testLedgerFileTilde]
+tests = TestList [testRulesRoots, testClassify, testGather, testFindHledgerMissing, testLedgerFileTilde]
