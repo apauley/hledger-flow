@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate reproducible sample statements, rules and hooks for hledger-flow.
+"""Generate reproducible sample statements, rules and import scripts for hledger-flow.
 
 The same command and seed always produce the same files, so a command line is
 enough to share a sample ledger, for example in a bug report.
@@ -28,7 +28,7 @@ Documentation: {DOCS}
 """
 
 FIRST_YEAR = 2024
-# Counter accounts and the merchant descriptions that rules and hooks map to them.
+# Counter accounts and the merchant descriptions that rules and import scripts map to them.
 MERCHANTS = {
     "expenses:groceries": ("North Market", "Corner Foods", "North Market refund"),
     "expenses:transport": ("City Rail", "Town Bus"),

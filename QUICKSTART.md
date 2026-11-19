@@ -148,6 +148,6 @@ In PowerShell, set `LEDGER_FILE` with
 
 Rules-based imports work on all three platforms. On native Windows you can
 put `preprocess.ps1` and `construct.ps1`, or their `.exe` equivalents, in
-the account directory. See [Windows import hooks](https://hledger-flow.github.io/reference/windows-hooks/)
+the account directory. See [Windows import scripts](https://hledger-flow.github.io/reference/windows-hooks/)
 for the arguments and commands to use from Command Prompt or PowerShell.
 For extensionless Unix shell scripts, use Linux, macOS, or WSL with Linux binaries.

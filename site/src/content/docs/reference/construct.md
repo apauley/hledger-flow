@@ -7,7 +7,7 @@ For most downloaded CSVs, [hledger's CSV rules](/reference/rules-files/) can gen
 the postings directly. Reserve `construct` for cases where you need to
 generate journal entries yourself, for example when you already have a
 converter that produces a journal for a specialised statement format.
-With this hook you maintain the logic for generating and balancing the
+With a construct script you maintain the logic for generating and balancing the
 postings. You can use it on its own or after `preprocess` if both steps
 are needed.
 

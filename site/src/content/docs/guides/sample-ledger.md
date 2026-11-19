@@ -1,6 +1,6 @@
 ---
 title: Generate sample ledgers
-description: Generate reproducible statements, rules and hooks to try features, share bug reports and benchmark imports.
+description: Generate reproducible statements, rules and import scripts to try features, share bug reports and benchmark imports.
 ---
 
 Download [generate-sample-ledger.py](https://raw.githubusercontent.com/apauley/hledger-flow/master/bin/generate-sample-ledger.py)
@@ -48,7 +48,7 @@ the command is all someone else needs to recreate your ledger. To report a bug, 
 whose output shows the problem and include it in the report. Change `--seed`
 to get different dates, amounts and prices with the same layout.
 
-The hook scripts in the import types `preprocess`, `construct` and `combined`
+The scripts generated for the import types `preprocess`, `construct` and `combined`
 are the one exception: generate them on the platform that will import the
 data. See [Platforms](#platforms).
 
@@ -69,9 +69,9 @@ category.
 | --- | --- |
 | `plain` | Rules use the bank category. |
 | `advanced` | Shared rules match the description and assign an expense account. |
-| `preprocess` | A hook classifies the merchant and writes a normalized CSV for the rules. |
-| `construct` | A hook classifies the merchant and writes both journal postings. |
-| `combined` | The preprocess hook classifies the merchant. The construct hook reads its CSV and writes the postings. |
+| `preprocess` | The preprocess script classifies the merchant and writes a normalized CSV for the rules. |
+| `construct` | The construct script classifies the merchant and writes both journal postings. |
+| `combined` | The preprocess script classifies the merchant. The construct script reads its CSV and writes the postings. |
 
 Run import on any child directory. For example, to check and report on the
 plain base after the import above, run the report with `LEDGER_FILE` unset.
@@ -129,17 +129,17 @@ later. See [Commodity names](/reference/price-files/#commodity-names).
 ## Platforms
 
 Generate on the platform that will import the data. On Linux and macOS,
-generated hooks use `python3`. On native Windows they use PowerShell and
+the generated scripts use `python3`. On native Windows they use PowerShell and
 invoke `py -3` or `python` on PATH. Python is needed during import for the
-three hook import types. You can move or copy an entire base on the same
-platform. See [Windows import hooks](/reference/windows-hooks/) for script
+`preprocess`, `construct` and `combined` import types. You can move or copy an entire base on the same
+platform. See [Windows import scripts](/reference/windows-hooks/) for script
 execution settings.
 
 ## Compare import times
 
 Keep the generator revision and the full command with the benchmark results.
 To compare `master` with a feature branch, generate once and give each binary
-a fresh copy of the base. Preserve executable permissions when copying hooks.
+a fresh copy of the base. Preserve executable permissions when copying scripts.
 Use the same machine, hledger executable, hledger configuration, Python interpreter and import
 concurrency (for example, `--batch-size 4`). Time only the import. Check the
 journal and run reports afterwards.

@@ -1,14 +1,14 @@
 ---
-title: Windows import hooks
-description: PowerShell and executable preprocess and construct hooks on native Windows.
+title: Windows import scripts
+description: Run preprocess and construct scripts or native executables on Windows.
 ---
 
-In the account directory, Windows checks each hook name in this order:
+In the account directory, hledger-flow looks for each script (`preprocess` or `construct`) in this order:
 the extensionless file first, then `.ps1`, then `.exe`. For example,
 `construct.ps1` takes precedence over `construct.exe`. Move an old
 extensionless launcher out of the account directory to use the script directly.
 These are the supported filenames. To run a batch file or another scripting
-language, invoke its interpreter from a PowerShell hook.
+language, invoke its interpreter from a PowerShell script.
 
 hledger-flow runs `.ps1` files with Windows PowerShell, using the current
 execution policy. From **Command Prompt** (`cmd.exe`), this example imports
@@ -28,17 +28,17 @@ run `hledger-flow import` directly.
 
 hledger-flow uses UTF-8 on Windows while running imports and reports, then
 restores the console’s previous code page. Names such as `Morgan’s Current`
-are preserved in hook arguments and journal includes. When running `hledger`
+are preserved in script arguments and journal includes. When running `hledger`
 separately, set the console to UTF-8 with `chcp 65001` in that terminal.
 Use the same setting before starting overlapping imports that share a Windows
 console, since those processes share its code page. For CSVs saved in a
 different encoding, set the CSV rules file’s `encoding` directive. Save
 journal and rules files that contain non-ASCII text in UTF-8.
 
-Both scripts receive the same five positional arguments as the extensionless
-hooks. A PowerShell hook can start with
+PowerShell and extensionless scripts receive the same five positional arguments.
+A PowerShell script can start with
 `param($Source, $Destination, $Bank, $Account, $Owner)`.
 For `preprocess.ps1`, write the CSV to `$Destination`. For `construct.ps1`,
 `$Destination` is the literal `-`: write the journal to standard output.
-Use `throw` or `exit` with a nonzero code to signal failure. If your hook ends
+Use `throw` or `exit` with a nonzero code to signal failure. If your script ends
 by running a native command, use `exit $LASTEXITCODE` to forward its result.

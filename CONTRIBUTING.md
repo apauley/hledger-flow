@@ -100,7 +100,7 @@ On Windows, run the Stack commands directly from PowerShell. Stack installs
 the required GHC and MSYS2 toolchain automatically. Use
 `stack path --local-bin` to find the directory containing `hledger-flow.exe`.
 Running imports and reports also requires `hledger` on `PATH` (or the
-`--hledger-path` option). The [Windows hook reference](https://hledger-flow.github.io/reference/windows-hooks/)
+`--hledger-path` option). The [Windows import script reference](https://hledger-flow.github.io/reference/windows-hooks/)
 describes PowerShell scripts, native executables, and the order of discovery.
 
 ### Run the command-line scenarios
@@ -118,7 +118,7 @@ publish anything or need credentials.
 
 For a fast development check, `stack test` runs HUnit only. Keep exact path,
 include-ordering and concurrency checks there. Use shell scenarios for CLI
-options, real hledger results, reports, hooks, and recovery after failures.
+options, real hledger results, reports, import scripts, and recovery after failures.
 Each shell scenario has a 120-second timeout so a blocked child process fails
 the test rather than hanging the suite.
 
@@ -144,13 +144,13 @@ export PATH="$PWD/dist:$PATH"
 shelltest --timeout=120 --shell=sh --exclude=posix-preprocess.test test/shell test/windows
 ```
 
-The Linux and macOS jobs exercise the `#!/bin/sh` hook. The Windows case
-starts on code page 850, runs both PowerShell hooks with spaces and
+The Linux and macOS jobs exercise the `#!/bin/sh` preprocess script. The Windows case
+starts on code page 850, runs the PowerShell scripts with spaces and
 apostrophes in their arguments, generates reports, and checks that a failed
-construct preserves the previous journal.
+construct script preserves the previous journal.
 
 For an end-to-end comparison with real statements, import the same annual
-CSVs into a rules-only base and a separate base with both hooks. In a UTF-8
+CSVs into a rules-only base and a separate base with preprocess and construct scripts. In a UTF-8
 terminal, compare `hledger -f all-years.journal print -O csv` and
 `hledger -f all-years.journal balance -O csv` between bases. Repeat for
 each annual journal, and run `hledger -f all-years.journal check` in both

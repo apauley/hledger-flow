@@ -42,9 +42,11 @@ See [price files](https://hledger-flow.github.io/reference/price-files/).
 
 See [hledger directives](https://hledger-flow.github.io/reference/directives/).
 
-## Windows import hooks
+<a name="windows-import-hooks"></a>
 
-See [Windows import hooks](https://hledger-flow.github.io/reference/windows-hooks/).
+## Windows import scripts
+
+See [Windows import scripts](https://hledger-flow.github.io/reference/windows-hooks/).
 
 ## The `preprocess` Script
 

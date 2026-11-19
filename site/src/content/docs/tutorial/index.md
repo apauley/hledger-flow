@@ -48,7 +48,7 @@ You need `hledger-flow` and `hledger` on your `PATH`; see the
 need hledger 1.99.6 or newer. Part 5 uses Python 3.
 
 The commands are for a Unix shell (Linux, macOS or WSL). On Windows, see
-[Windows import hooks](/reference/windows-hooks/) for the scripts in parts 4 and 5.
+[Windows import scripts](/reference/windows-hooks/) for the scripts in parts 4 and 5.
 
 ## About the output
 

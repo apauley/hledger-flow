@@ -33,7 +33,7 @@ How to keep this ChangeLog
 
 ## Unreleased
 
-- `import --incremental=skip-unchanged-scripts` now tracks [sourced shell helpers](https://hledger-flow.github.io/reference/incremental-import/#sourced-shell-helpers), including nested files under an exported directory. Editing a helper reruns the hooks that use it.
+- `import --incremental=skip-unchanged-scripts` now tracks [sourced shell helpers](https://hledger-flow.github.io/reference/incremental-import/#sourced-shell-helpers), including nested files under an exported directory. Editing a helper reruns the scripts that source it.
 - `import --incremental` can reuse statements whose CSV rules include shared files outside the ledger by relative path, including paths through symbolic links and directories followed by `..`. See [what gets checked](https://hledger-flow.github.io/reference/incremental-import/#what-gets-checked).
 - `hledger-flow status` suggests adding [market prices](https://hledger-flow.github.io/reference/price-files/) when the imported journal uses more than one commodity and has no market price directives.
 - `import --incremental` now reuses journals whatever your `hledger.conf` contains, unless an entry is known to be non-deterministic, for example because it depends on today's date or reads untracked files. The notice quotes that entry and its line instead of reporting an unsupported config. See [config handling](https://hledger-flow.github.io/reference/incremental-import/#what-gets-checked).
@@ -46,7 +46,7 @@ How to keep this ChangeLog
 - On macOS, incremental import checks the hledger executable faster and still detects a replacement build that reports the same version.
 - `hledger-flow import --verbose` and `hledger-flow report --verbose` are
   easier to read. Each statement's lines appear together, files are labelled
-  by what import looked for, and every hledger or hook command is shown ready
+  by what import looked for, and every hledger or import script command is shown ready
   to paste into a shell at the base directory, with paths there starting
   with `./`. On a terminal, the output uses colour unless
   `NO_COLOR` is set.
@@ -165,9 +165,9 @@ How to keep this ChangeLog
   Each binary archive now includes a [quick-start](https://github.com/apauley/hledger-flow/blob/master/QUICKSTART.md)
   covering installation, download verification and a first import.
 - Windows imports now run `preprocess.ps1` and `construct.ps1` directly
-  with PowerShell. Native hooks can use `preprocess.exe` and `construct.exe`.
-  Existing extensionless hooks take precedence. See
-  [Windows import hooks](https://github.com/apauley/hledger-flow/blob/master/docs/README.md#windows-import-hooks).
+  with PowerShell. Native executables can be named `preprocess.exe` and `construct.exe`.
+  Existing extensionless scripts take precedence. See
+  [Windows import scripts](https://github.com/apauley/hledger-flow/blob/master/docs/README.md#windows-import-hooks).
 - Manual-only years and ledgers now get include files without dummy inputs,
   including `_manual_` files at the import, owner, bank, and account levels.
   Fixes [#103](https://github.com/apauley/hledger-flow/issues/103).
@@ -188,9 +188,9 @@ How to keep this ChangeLog
 
 ## 0.17.0
 
-- If you use a custom `preprocess` hook, write to the path supplied as its
+- If you use a custom `preprocess` script, write to the path supplied as its
   second argument. It now points into a temporary directory and keeps the
-  final filename and extension. Failed hooks preserve the previous
+  final filename and extension. Failed scripts preserve the previous
   preprocessed CSV or constructed journal.
 - If you use the `Hledger.Flow.*` library, update calls that use Turtle
   types to use `path` and `Text` types. The `TurtlePath` alias has been

@@ -64,7 +64,7 @@ modification time with its source. It rebuilds a preprocessed CSV or journal
 when its source is newer, even if the two timestamps differ by only a
 fraction of a second. Equal timestamps count as up to date. If you replace
 a statement and preserve its timestamp, run `hledger-flow import` to force
-a rebuild. Also use a full import after changing rules or hooks. This flag
+a rebuild. Also use a full import after changing rules or import scripts. This flag
 compares only the statement, cached CSV and journal timestamps. To track
 content changes in statements, rules and nested includes, see
 [Incremental import](/reference/incremental-import/).
@@ -142,7 +142,7 @@ Obsolete generated year and account indexes are rewritten as empty ledgers.
 Manual-only and empty imports succeed without dummy input files.
 
 Import ignores hidden files and directories. Keep supporting documents such
-as PDF receipts outside `1-in/<year>/` unless a hook converts them.
+as PDF receipts outside `1-in/<year>/` unless a preprocess or construct script converts them.
 Deleting an input can therefore remove its transactions from the ledger,
 but does not permanently delete the generated files.
 
