@@ -156,7 +156,7 @@ cat reports/gawie/2016/unknown-transactions.txt
 ```
 
 ```hledger
-hledger --file import/gawie/all-years.journal --period 2016 print unknown
+hledger --file directives.journal --file import/gawie/all-years.journal --period 2016 print unknown
 
 2016-03-12 BAOBAB BOOKS ONLINE
     liabilities:kudu:creditcard                R-389.00

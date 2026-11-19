@@ -33,7 +33,8 @@ blank =
       lsAllYearsExists = True,
       lsNeedsReconciliation = False,
       lsNeedsPrices = False,
-      lsReview = Nothing
+      lsReview = Nothing,
+      lsUntouchedExample = False
     }
 
 acct :: AccountStatus

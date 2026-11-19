@@ -3,6 +3,12 @@ c hledger-flow
 c mkdir my-finances
 c cd my-finances
 c hledger-flow init
+c hledger-flow import
+c hledger-flow report
+c hledger-flow status
+c rm -r import/me/mybank/checking
+# This tutorial uses historical statements. Discard the remaining demo files.
+q rm -r import/me import/_manual_ prices reports
 q git init -q .
 c mkdir -p import/gawie/kudu/creditcard/1-in/2016
 c cp ../Downloads/Kudu/creditcard_2016-03-31.csv import/gawie/kudu/creditcard/1-in/2016/

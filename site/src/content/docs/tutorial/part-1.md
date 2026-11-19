@@ -58,16 +58,63 @@ hledger-flow init
 
 ```text
 Started a ledger in ~/my-finances
+Created an example account (import/me/mybank/checking) and starter journals in import/_manual_/.
+Created directives.journal
+Created prices/2026/prices.journal
+
+Next: Import 1 new or changed statement
+      Run: hledger-flow import
+```
+
+Gawie can run `hledger-flow status` at any point to see the next step.
+
+### Try the example account
+
+Gawie follows the import and report steps to see the workflow with a sample
+purchase and refund.
+
+```bash
+hledger-flow import
+hledger-flow report
+hledger-flow status
+```
+
+```text
+Imported 1 statement for me/mybank/checking.
+Generated 7 reports in reports/. Skipped 2 empty reports.
+Each report starts with the hledger command that made it. Copy that line to tailor the report.
+Ledger: ~/my-finances   (hledger 1.99.6-gc3a608c2b-20261101 found)
+
+  me/mybank/checking   1 statement (2026)   ✓ 1 journal
+
+  Note: LEDGER_FILE isn't set, so hledger won't find this ledger by default.
+        hledger-flow report uses all-years.journal.
+        For hledger, run: export LEDGER_FILE="$HOME/my-finances/all-years.journal"
+        Or try: hledger -f "$HOME/my-finances/all-years.journal" balance
 
 Next: Put your first statement in import/<owner>/<bank>/<account>/1-in/<year>/
       owner: whose money it is, for example me, a partner or a business
       bank: the institution, for example mybank
       account: one account at that bank, for example checking
       Change the names, then run: mkdir -p import/me/mybank/checking/1-in/2026
+      The example account import/me/mybank/checking is safe to delete. Then run hledger-flow import and hledger-flow report.
       Docs: https://hledger-flow.github.io/go/input-files/
+
+Environment:
+  hledger-flow  0.20.1 (68c4ac5), ghc 9.10, darwin aarch64
+  hledger       ~/bin/hledger  (1.99.6-gc3a608c2b-20261101)   --hledger-path
+  hledger.conf  none                                          --hledger-conf
+  Cores         18, using 18
 ```
 
-Gawie can run `hledger-flow status` at any point to see the next step.
+He can remove the example account while its files are untouched.
+
+```bash
+rm -r import/me/mybank/checking
+```
+
+The rest of the tutorial uses historical statements. Its examples leave the
+demo reports and current-year starter journals out of the file listings.
 
 ## The first statement
 
@@ -81,7 +128,7 @@ Date,Description,Amount
 2016-03-04,LETABA FUEL STOP,-910.00
 ```
 
-The `Next:` line said where statements go:
+Status showed where to put real statements:
 `import/<owner>/<bank>/<account>/1-in/<year>/`. Gawie is the owner, Kudu the
 bank, and the account is his credit card:
 
@@ -95,6 +142,11 @@ hledger-flow status
 Ledger: ~/my-finances   (hledger 1.99.6-gc3a608c2b-20261101 found)
 
   gawie/kudu/creditcard   1 statement (2016)   ✗ no rules file
+
+  Note: LEDGER_FILE isn't set, so hledger won't find this ledger by default.
+        hledger-flow report uses all-years.journal.
+        For hledger, run: export LEDGER_FILE="$HOME/my-finances/all-years.journal"
+        Or try: hledger -f "$HOME/my-finances/all-years.journal" balance
 
 Next: Create import/gawie/kudu/creditcard/kudu-creditcard.rules (rules for gawie/kudu/creditcard)
       Run: hledger-flow rules gawie/kudu/creditcard
@@ -179,8 +231,10 @@ tree
 ```text
 .
 |-- all-years.journal
+|-- directives.journal
 `-- import
     |-- 2016-include.journal
+    |-- 2026-include.journal
     |-- all-years.journal
     `-- gawie
         |-- 2016-include.journal
@@ -199,7 +253,7 @@ tree
                 |-- all-years.journal
                 `-- kudu-creditcard.rules
 
-9 directories, 12 files
+9 directories, 14 files
 ```
 
 The statement became an hledger journal in `3-journal/2016/`:

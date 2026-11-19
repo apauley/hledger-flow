@@ -30,9 +30,10 @@ import Hledger.Flow.Import.ImportHelpers (defaultRulesCandidates, extractImportD
 import Hledger.Flow.Import.IncludeFiles (includesNeedUpdate)
 import Hledger.Flow.Import.Inventory (classifyGeneratedOutputs, findImportFiles, generatedOutput, isManualJournal, managedIncludeFiles, stageFiles)
 import Hledger.Flow.Import.Types (ImportDirs (..))
+import Hledger.Flow.Init.Example (untouchedExample)
 import Hledger.Flow.LedgerSelection
 import Hledger.Flow.PathHelpers (AbsDir, AbsFile, RelFile, pathOccupied)
-import Hledger.Flow.ReportReview (loadReportReview)
+import Hledger.Flow.ReportReview (loadReportReview, reviewItems)
 import Hledger.Flow.StatementScan (StatementYear (..), inferStatementYear, isDelimitedFile, readDelimitedStatement)
 import Hledger.Flow.Status
 import Hledger.Flow.Types (BaseDir, HledgerConf, HledgerInfo (..))
@@ -79,6 +80,9 @@ gatherStatusWithConfig hledger conf base = do
     (Just info, Just journal) | not reconciliation -> journalNeedsPrices info journal
     _ -> return False
   review <- maybe (pure Nothing) (\journal -> loadReportReview base journal conf) selected
+  example <- case review of
+    Just current | null (reviewItems current) -> untouchedExample base statements
+    _ -> return False
   misplaced <- traverse (inspectMisplaced base) (List.sortOn mpPath (misplacedFiles root files))
   return
     LedgerStatus
@@ -94,7 +98,8 @@ gatherStatusWithConfig hledger conf base = do
         lsAllYearsExists = allYears,
         lsNeedsReconciliation = reconciliation,
         lsNeedsPrices = needsPrices,
-        lsReview = review
+        lsReview = review,
+        lsUntouchedExample = example
       }
 
 inspectMisplaced :: BaseDir -> Misplaced -> IO Misplaced

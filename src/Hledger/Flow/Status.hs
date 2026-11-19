@@ -82,7 +82,8 @@ data LedgerStatus = LedgerStatus
     lsAllYearsExists :: Bool,
     lsNeedsReconciliation :: Bool,
     lsNeedsPrices :: Bool,
-    lsReview :: Maybe Review
+    lsReview :: Maybe Review,
+    lsUntouchedExample :: Bool
   }
   deriving (Show)
 
@@ -236,7 +237,13 @@ nextStep year shell homes cwd s
       Nothing -> withConfigCheck ReportConfig s $
         NextStep "Generate reports, or explore with hledger" (Just (command "report"))
           ["Or try: " <> hint | Nothing <- [ledgerFileNote shell homes s], Just hint <- [balanceHint shell homes s]] Nothing
-      Just review -> reviewStep importCommand firstStatement review
+      Just review
+        | lsUntouchedExample s, null (reviewItems review) -> firstStatement
+            { nsDetail = nsDetail firstStatement ++
+              ["The example account import/me/mybank/checking is safe to delete. Then run "
+                <> importCommand <> " and " <> command "report" <> "."]
+            }
+        | otherwise -> reviewStep importCommand firstStatement review
   where
     commandArgs = flowCommand shell homes cwd (lsBaseDir s) (lsHledgerConf s)
     command subcommand = commandArgs subcommand []

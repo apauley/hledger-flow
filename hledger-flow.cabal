@@ -53,6 +53,7 @@ library
       Hledger.Flow.Import.Snapshot
       Hledger.Flow.Import.Types
       Hledger.Flow.Init
+      Hledger.Flow.Init.Example
       Hledger.Flow.InputSnapshot
       Hledger.Flow.Internals
       Hledger.Flow.LedgerSelection

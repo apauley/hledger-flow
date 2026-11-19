@@ -22,7 +22,7 @@ import Hledger.Flow.Common (findHledger, findHledgerConf, homeDirs, nativeShell,
 import Hledger.Flow.DateTime (currentYear)
 import Hledger.Flow.Environment (coresSetting, environmentJSON, environmentSettings, renderSettings)
 import Hledger.Flow.Internals (SystemInfo, systemInfo)
-import Hledger.Flow.Status.Gather (gatherStatus, gatherStatusWithConfig)
+import Hledger.Flow.Status.Gather (gatherStatusWithConfig)
 import Hledger.Flow.Types (BaseDir)
 import Path.IO (getCurrentDir)
 import qualified Data.Text as T
@@ -185,10 +185,10 @@ printStatus hledgerPath confOpt json base = do
       T.putStr (renderStatus color homes status next <> renderEnvironment color homes sys conf status)
 
 -- | Print only the next step for a ledger.
-printNext :: Maybe FilePath -> BaseDir -> IO ()
-printNext hledgerPath base = do
+printNext :: Maybe FilePath -> Maybe HledgerConf -> BaseDir -> IO ()
+printNext hledgerPath conf base = do
   hledger <- findHledger hledgerPath
-  status <- gatherStatus hledger base
+  status <- gatherStatusWithConfig hledger conf base
   homes <- homeDirs
   next <- nextStepHere homes status
   color <- useColor stdout

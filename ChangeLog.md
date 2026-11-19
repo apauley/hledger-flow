@@ -33,6 +33,8 @@ How to keep this ChangeLog
 
 ## Unreleased
 
+- `init` creates a working example account plus starter journals for manual entries, directives and prices. Follow `status` through the first import and report.
+
 - After a successful report, `status` points to [unknown transactions and transfers that need review](https://hledger-flow.github.io/reference/status/#review-unknown-transactions).
 
 - `status` helps you [reuse existing account rules](https://hledger-flow.github.io/reference/rules-files/#reuse-existing-rules) when the main rules file needs a different name.

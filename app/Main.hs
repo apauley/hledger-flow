@@ -168,7 +168,7 @@ runCommand = do
     Command mainParams' (Just (Init subParams)) -> do
       cwd <- getCurrentDir
       dir <- maybe (return cwd) resolveDir' (initDir subParams)
-      runInit (hledgerPathOpt mainParams') cwd dir
+      runInit (hledgerPathOpt mainParams') (hledgerConfOpt mainParams') cwd dir
     Command mainParams' Nothing -> runBare mainParams'
 
 -- | (name, one-line description) of each command, in display order.

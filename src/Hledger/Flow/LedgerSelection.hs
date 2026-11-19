@@ -56,13 +56,16 @@ journalInputs :: HledgerInfo -> [AbsFile] -> IO (Either T.Text [AbsFile])
 journalInputs info files = do
   let args = ["--no-conf", "files"] ++ concatMap (\file -> ["--file", hledgerFileArgument info (toFilePath file)]) files
   result <- try (runProcessCaptured (T.pack (toFilePath (hlPath info)), args, Nothing))
-  return $ case result of
-    Left err -> Left (T.pack (show (err :: IOException)))
-    Right (ExitFailure _, _, err) -> Left (T.strip err)
-    Right (ExitSuccess, out, _) ->
-      case traverse (parseAbsFile . T.unpack . T.dropWhileEnd (== '\r')) (T.lines out) of
-        Just paths@(_ : _) -> Right paths
-        _ -> Left "Could not read the paths printed by hledger files."
+  case result of
+    Left err -> return (Left (T.pack (show (err :: IOException))))
+    Right (ExitFailure _, _, err) -> return (Left (T.strip err))
+    Right (ExitSuccess, out, _) -> do
+      let paths = filter (not . T.null) (map (T.dropWhileEnd (== '\r')) (T.lines out))
+      case paths of
+        [] -> return (Left "Could not read the paths printed by hledger files.")
+        _ -> do
+          resolved <- try (traverse (resolveLedgerPath . T.unpack) paths)
+          return (either (Left . T.pack . show) Right (resolved :: Either IOException [AbsFile]))
 
 coverageFor :: FilePath -> Maybe FilePath -> [FilePath] -> Coverage
 coverageFor index directives files

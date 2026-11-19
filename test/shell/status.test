@@ -78,12 +78,12 @@ if grep -q 'Changing runDir' ../deep; then exit 1; fi
 test "$(hledger-flow status --json | jq -r .baseDir | tr -d '\r')" = "$(native_pwd)"
 $ sh -eu
 
-# init starts a ledger and points at the first statement; a second init refuses.
+# init starts a ledger with an example statement; a second init refuses.
 <
 cd "$(mktemp -d "${TMPDIR:-/tmp}/hledger-flow.XXXXXXXX")"
 hledger-flow init > ../out.$$
 grep -q '^Started a ledger in' ../out.$$
-grep -q 'Next: Put your first statement in import/<owner>/<bank>/<account>/1-in/<year>/' ../out.$$
+grep -q 'Next: Import 1 new or changed statement' ../out.$$
 rm ../out.$$
 test -d import
 if hledger-flow init 2> ../err.$$; then exit 1; fi
@@ -375,4 +375,88 @@ cmp original "$account/wf-bchecking.rules"
 test ! -e "$account/wf-checking.rules"
 flow import
 grep -q expenses:from-included-rules "$account/3-journal/2026/january.journal"
+$ sh -eu
+
+# Init builds a usable example and preserves pre-existing directives and prices.
+<
+. ./test/shell/status-commands.sh
+cd "$(mktemp -d "${TMPDIR:-/tmp}/hledger-flow.XXXXXXXX")"
+unset LEDGER_FILE
+year=$(date +%Y)
+mkdir -p "prices/$year"
+printf '; Existing directives\n' > directives.journal
+printf '; Existing prices\n' > "prices/$year/prices.journal"
+cp directives.journal original-directives
+cp "prices/$year/prices.journal" original-prices
+acct=import/me/mybank/checking
+rules="$acct/mybank-checking.rules"
+sample="$acct/1-in/$year/hledger-flow-example.csv"
+manual="import/_manual_/$year/post-import.journal"
+hledger-flow init > init.out
+grep -q '^Next: Import 1 new or changed statement' init.out
+grep -q 'Kept existing .*directives.journal' init.out
+grep -q 'Kept existing .*prices.journal' init.out
+cmp directives.journal original-directives
+cmp "prices/$year/prices.journal" original-prices
+test -s "$sample"
+test -s "$rules"
+test -s "$manual"
+test -s "import/_manual_/$year/pre-import.journal"
+test ! -e import/me/_manual_
+test ! -e "$acct/preprocess"
+test ! -e "$acct/construct"
+run_suggestion "$(next_command)" > import.out
+grep -q '^Imported 1 statement' import.out
+run_suggestion "$(next_command)" > report.out
+hledger-flow status --json | jq -e '.reportsCurrent and .review.unknownTransactions.count == 0 and .review.transferAccounts.count == 0 and (.next.summary | startswith("Put your first statement")) and (.next.detail | join(" ") | contains("safe to delete"))' > /dev/null
+hledger -f all-years.journal balance --monthly --no-total expenses:example > monthly
+hledger -f all-years.journal balance --quarterly --no-total expenses:example > quarterly
+if grep -q 'expenses:example *||' monthly quarterly; then exit 1; fi
+touch "$acct/.keep"
+hledger-flow status --json | jq -e '.next.detail | join(" ") | contains("safe to delete") | not' > /dev/null
+rm "$acct/.keep"
+cp "$rules" original-rules
+printf '# User rule edit\n' >> "$rules"
+hledger-flow import > import.out
+hledger-flow report > report.out
+hledger-flow status --json | jq -e '.next.detail | join(" ") | contains("safe to delete") | not' > /dev/null
+mv original-rules "$rules"
+cp "$sample" original-sample
+printf '\n' >> "$sample"
+hledger-flow import > import.out
+hledger-flow report > report.out
+hledger-flow status --json | jq -e '.reportsCurrent and (.next.detail | join(" ") | contains("safe to delete") | not)' > /dev/null
+mv original-sample "$sample"
+mkdir -p "$acct/_manual_/$year"
+printf '; Account-level user journal\n' > "$acct/_manual_/$year/post-import.journal"
+hledger-flow import > import.out
+hledger-flow report > report.out
+hledger-flow status --json | jq -e '.reportsCurrent and (.next.detail | join(" ") | contains("safe to delete") | not)' > /dev/null
+rm -r "$acct/_manual_"
+touch "$acct/preprocess"
+hledger-flow status --json | jq -e '.next.detail | join(" ") | contains("safe to delete") | not' > /dev/null
+rm "$acct/preprocess"
+printf '%s-01-03 User manual entry\n    assets:manual  11 USD\n    equity:opening balances\n' "$year" > "$manual"
+cp -R reports/me old-me-reports
+rm -r "$acct"
+hledger-flow import > import.out
+hledger-flow report > report.out
+diff -r reports/me old-me-reports
+grep -R -q assets:manual reports/all
+if grep -R -q hledger-flow-example import; then exit 1; fi
+if grep -q 'reports.*me.*unknown-transactions' .hledger-flow/reports.json; then exit 1; fi
+$ sh -eu
+
+# A failed init can be retried without an incomplete import tree.
+<
+cd "$(mktemp -d "${TMPDIR:-/tmp}/hledger-flow.XXXXXXXX")"
+year=$(date +%Y)
+mkdir -p "prices/$year/prices.journal"
+if hledger-flow init > out 2> err; then exit 1; fi
+grep -q 'prices.journal' err
+test ! -e import
+rmdir "prices/$year/prices.journal"
+hledger-flow init > out
+test -s "prices/$year/prices.journal"
+test -s "import/me/mybank/checking/mybank-checking.rules"
 $ sh -eu

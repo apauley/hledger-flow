@@ -10,8 +10,12 @@ Once the import is up to date, status suggests adding
 [market prices](/reference/price-files/) if the imported journal uses more
 than one commodity and has no market price directives.
 Interactive status also shows a [cached upgrade notice](/reference/release-notices/) when a previous import or report found a newer release.
-`hledger-flow init` starts a new ledger. When an account needs rules, run the
-suggested `hledger-flow rules` command to create a starter.
+`hledger-flow init` starts a ledger with a working example statement and
+rules, plus starter journals for manual entries, directives and prices. Run
+the suggested import and report to try it. When the example account is
+untouched, status explains how to remove it and add your first real
+statement. When a real account needs rules, run the suggested
+`hledger-flow rules` command to create a starter.
 
 ## Journal used for reports
 
