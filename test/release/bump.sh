@@ -10,6 +10,8 @@ export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
 git init -q -b master
 git config user.name "Release test"
 git config user.email test@example.invalid
+# A stale package year must advance even after the real repository is up to date.
+perl -pi -e 's/^copyright: "[0-9]{4} /copyright: "2000 /' package.yaml
 git add .
 git commit -qm 'Previous release'
 git tag "v$(awk '/^version:/ {print $2}' package.yaml)"
@@ -28,6 +30,9 @@ test -z "$(git status --porcelain)"
 HLEDGER_FLOW="$work/missing-hledger-flow" bin/release bump patch
 test "$(git rev-parse HEAD^)" = "$before"
 test -z "$(git status --porcelain)"
+year=$(date +%Y)
+grep -Fx "copyright: \"$year Andreas Pauley\"" package.yaml
+grep -Ex "copyright:[[:space:]]+$year Andreas Pauley" hledger-flow.cabal
 version=$(awk '/^version:/ {print $2}' package.yaml)
 git show HEAD:site/src/content/docs/tutorial/index.md | grep -F "hledger-flow $version "
 HLEDGER_FLOW='' site/scripts/tutorial/update.sh --check

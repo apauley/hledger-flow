@@ -164,9 +164,9 @@ bin/release bump major        # or minor, patch, or an explicit version like 0.1
 
 Before editing files, `bump` checks the version, the tutorial's hledger,
 `tree`, Git and Python 3. It renames `## Unreleased` to `## <version>`, updates
-`package.yaml` and `snap/snapcraft.yaml`, regenerates `hledger-flow.cabal`
-and builds the new executable. It runs the tutorial with that build and
-commits the regenerated pages and version files together after the ChangeLog
+`package.yaml` and `snap/snapcraft.yaml`, and sets the package copyright to the
+current year. It regenerates `hledger-flow.cabal`, builds the new executable,
+runs the tutorial with that build, and commits the regenerated pages and version files together after the ChangeLog
 check passes. CI checks those pages against a fresh run.
 
 If the build or tutorial fails after the version edits, inspect `git diff`.

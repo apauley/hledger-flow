@@ -257,7 +257,9 @@ cmd_bump() {
   tag_exists "v$new" && die "tag v$new already exists"
   unreleased_ok
   site/scripts/tutorial/update.sh --check-tools
-  perl -pi -e "s/^version: .*/version: $new/" package.yaml
+  local year
+  year=$(date +%Y)
+  perl -pi -e "s/^version: .*/version: $new/; s/^copyright: \"[0-9]{4} /copyright: \"$year /" package.yaml
   perl -pi -e "s/^version: .*/version: '$new'/" snap/snapcraft.yaml
   perl -pi -e "s/^## Unreleased\$/## $new/" ChangeLog.md
   regen_cabal

@@ -17,7 +17,7 @@ homepage:       https://github.com/apauley/hledger-flow#readme
 bug-reports:    https://github.com/apauley/hledger-flow/issues
 author:         Andreas Pauley <hledger-flow@pauley.org.za>
 maintainer:     Andreas Pauley <hledger-flow@pauley.org.za>
-copyright:      2023 Andreas Pauley
+copyright:      2026 Andreas Pauley
 license:        GPL-3
 license-file:   LICENSE
 build-type:     Simple
