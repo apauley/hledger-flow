@@ -18,7 +18,8 @@ rules, plus starter journals for manual entries, directives and prices. Run
 the suggested import and report to try it. When the example account is
 untouched, status explains how to remove it and add your first real
 statement. The next import prunes empty example owner folders and removes
-unchanged owner reports it recorded as sample-only. When a real account needs rules, run the suggested
+unchanged owner reports it recorded as sample-only. With only comment-only
+starter journals left, status guides you to your first statement. When a real account needs rules, run the suggested
 `hledger-flow rules` command to create a starter.
 
 ## Journal used for reports

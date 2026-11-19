@@ -30,6 +30,7 @@ blank =
       lsAccounts = [],
       lsMisplaced = [],
       lsManualJournals = 0,
+      lsHasManualWork = False,
       lsAllYearsExists = True,
       lsNeedsReconciliation = False,
       lsNeedsPrices = False,
@@ -98,8 +99,8 @@ testRules =
         filter (T.isPrefixOf "Change the names, then run: ") (nsDetail (atRoot blank))
           ~?= ["Change the names, then run: " <> createDirectoryCommand Posix [] (lsBaseDir blank)
                 (lsBaseDir blank </> [reldir|import/me/mybank/checking/1-in/2026|])],
-      "2 skipped for manual-only ledger" ~: summaryOf blank {lsManualJournals = 1} ~?= "Generate reports, or explore with hledger",
-      "5 import when all-years.journal is missing" ~: commandOf blank {lsManualJournals = 1, lsAllYearsExists = False, lsAggregateJournal = Nothing} ~?= Just "hledger-flow import",
+      "2 skipped for manual-only ledger" ~: summaryOf blank {lsManualJournals = 1, lsHasManualWork = True} ~?= "Generate reports, or explore with hledger",
+      "5 import when all-years.journal is missing" ~: commandOf blank {lsManualJournals = 1, lsHasManualWork = True, lsAllYearsExists = False, lsAggregateJournal = Nothing} ~?= Just "hledger-flow import",
       "3 misplaced" ~: summaryOf blank {lsMisplaced = [Misplaced "import/a.csv" "x" (SingleYear 2026) False]} ~?= "Move 1 file to where hledger-flow looks",
       "3 misplaced plural" ~: summaryOf blank {lsMisplaced = [Misplaced "import/a.csv" "x" (SingleYear 2026) False, Misplaced "import/b.csv" "y" (SingleYear 2026) False]} ~?= "Move 2 files to where hledger-flow looks",
       "3 detail" ~: take 1 (nsDetail (atRoot blank {lsMisplaced = [Misplaced "import/a.csv" "x" (SingleYear 2026) False]})) ~?= ["import/a.csv → x"],

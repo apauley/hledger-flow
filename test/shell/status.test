@@ -586,6 +586,31 @@ grep -Fxq 'Real replacement report' "reports/me/$year/income-expenses.txt"
 test ! -e "reports/me/$year/accounts.txt"
 $ sh -eu
 
+# After sample deletion, comment-only starter journals leave first-statement guidance.
+<
+cd "$(mktemp -d "${TMPDIR:-/tmp}/hledger-flow.XXXXXXXX")"
+unset LEDGER_FILE
+year=$(date +%Y)
+hledger-flow init >/dev/null
+hledger-flow import >/dev/null
+hledger-flow report >/dev/null
+rm -r import/me/mybank/checking
+hledger-flow import >/dev/null
+first_statement() {
+    hledger-flow status | grep -q '^Next: Put your first statement in import/<owner>/<bank>/<account>/1-in/<year>/'
+    hledger-flow status --json | jq -e '.manualJournals == 2 and (.accounts | length == 0) and (.next.summary | startswith("Put your first statement in"))' > /dev/null
+}
+first_statement
+hledger-flow report >/dev/null
+first_statement
+cp directives.journal starter-directives
+printf '%s-01-03 Manual opening\n    assets:checking  10 USD\n    equity:opening balances\n' "$year" >> directives.journal
+hledger-flow status --json | jq -e '.next.command == "hledger-flow report"' > /dev/null
+mv starter-directives directives.journal
+printf '%s-01-03 Manual deposit\n    assets:checking  10 USD\n    income:salary\n' "$year" >> "import/_manual_/$year/post-import.journal"
+hledger-flow status --json | jq -e '.manualJournals == 2 and .next.command == "hledger-flow report"' > /dev/null
+$ sh -eu
+
 # A failed init can be retried without an incomplete import tree.
 <
 cd "$(mktemp -d "${TMPDIR:-/tmp}/hledger-flow.XXXXXXXX")"

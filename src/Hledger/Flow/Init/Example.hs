@@ -5,6 +5,8 @@ module Hledger.Flow.Init.Example
   ( exampleImportFiles,
     exampleBaseFiles,
     untouchedExample,
+    directivesAreComments,
+    journalIsCommentsOnly,
     rememberExampleImport,
     rememberExampleReports,
     writeExampleReport,
@@ -239,11 +241,12 @@ directivesAreComments :: BaseDir -> IO Bool
 directivesAreComments base = do
   let file = base </> [relfile|directives.journal|]
   exists <- pathOccupied file
-  if not exists
-    then pure True
-    else do
-      regular <- regularFile file
-      if regular then all comment . T.lines <$> TIO.readFile (toFilePath file) else pure False
+  if exists then journalIsCommentsOnly file else pure True
+
+journalIsCommentsOnly :: AbsFile -> IO Bool
+journalIsCommentsOnly file = do
+  regular <- regularFile file
+  if regular then all comment . T.lines <$> TIO.readFile (toFilePath file) else pure False
   where
     comment line = let text = T.strip line in T.null text || ";" `T.isPrefixOf` text
 

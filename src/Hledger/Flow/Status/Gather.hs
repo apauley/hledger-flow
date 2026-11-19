@@ -30,7 +30,7 @@ import Hledger.Flow.Import.ImportHelpers (defaultRulesCandidates, extractImportD
 import Hledger.Flow.Import.IncludeFiles (includesNeedUpdate)
 import Hledger.Flow.Import.Inventory (classifyGeneratedOutputs, findImportFiles, generatedOutput, isManualJournal, managedIncludeFiles, stageFiles)
 import Hledger.Flow.Import.Types (ImportDirs (..))
-import Hledger.Flow.Init.Example (untouchedExample)
+import Hledger.Flow.Init.Example (directivesAreComments, journalIsCommentsOnly, untouchedExample)
 import Hledger.Flow.LedgerSelection
 import Hledger.Flow.PathHelpers (AbsDir, AbsFile, RelFile, pathOccupied)
 import Hledger.Flow.ReportReview (loadReportReview, reviewItems)
@@ -64,6 +64,7 @@ gatherStatusWithConfig hledger conf base = do
   let root = base </> [reldir|import|]
   files <- findImportFiles root
   let statements = stageFiles root [reldir|1-in|] files
+      manualJournals = filter (isManualJournal root) files
       groups = Map.toAscList (groupValuesBy (accountName root) statements)
   accounts <- forM groups (uncurry (accountStatus base))
   conflicts <- maybe (pure []) (\hl -> findConfigConflicts hl conf) hledger
@@ -83,6 +84,11 @@ gatherStatusWithConfig hledger conf base = do
   example <- case review of
     Just current | null (reviewItems current) -> untouchedExample base statements
     _ -> return False
+  manualWork <- case manualJournals of
+    [] -> pure False
+    -- A wrapper can contribute journal entries of its own.
+    _ | not (null statements) || maybe False (/= defaultJournal) selected -> pure True
+    _ -> either (const True) not <$> tryIOError (onlyJournalComments base manualJournals)
   misplaced <- traverse (inspectMisplaced base) (List.sortOn mpPath (misplacedFiles root files))
   return
     LedgerStatus
@@ -94,13 +100,22 @@ gatherStatusWithConfig hledger conf base = do
         lsConfigConflicts = conflicts,
         lsAccounts = accounts,
         lsMisplaced = misplaced,
-        lsManualJournals = length (filter (isManualJournal root) files),
+        lsManualJournals = length manualJournals,
+        lsHasManualWork = manualWork,
         lsAllYearsExists = allYears,
         lsNeedsReconciliation = reconciliation,
         lsNeedsPrices = needsPrices,
         lsReview = review,
         lsUntouchedExample = example
       }
+
+-- The starter manual journals are comments. Directives or unreadable
+-- journals still need the ordinary import/report guidance.
+onlyJournalComments :: BaseDir -> [AbsFile] -> IO Bool
+onlyJournalComments base [] = directivesAreComments base
+onlyJournalComments base (file : rest) = do
+  commentOnly <- journalIsCommentsOnly file
+  if commentOnly then onlyJournalComments base rest else return False
 
 inspectMisplaced :: BaseDir -> Misplaced -> IO Misplaced
 inspectMisplaced base item = do

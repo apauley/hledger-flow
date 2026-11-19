@@ -79,6 +79,7 @@ data LedgerStatus = LedgerStatus
     lsAccounts :: [AccountStatus],
     lsMisplaced :: [Misplaced],
     lsManualJournals :: Int,
+    lsHasManualWork :: Bool,
     lsAllYearsExists :: Bool,
     lsNeedsReconciliation :: Bool,
     lsNeedsPrices :: Bool,
@@ -185,7 +186,7 @@ nextStep :: Integer -> Shell -> [FilePath] -> AbsDir -> LedgerStatus -> NextStep
 nextStep year shell homes cwd s
   | Nothing <- lsHledger s =
       NextStep "Install hledger, or pass its location with --hledger-path" Nothing [] (Just "https://hledger.org/install.html")
-  | statements == 0 && null (lsMisplaced s) && lsManualJournals s == 0 && not (lsNeedsReconciliation s) =
+  | statements == 0 && null (lsMisplaced s) && not (lsHasManualWork s) && not (lsNeedsReconciliation s) =
       firstStatementStep year shell homes cwd (lsBaseDir s)
   | not (null (lsMisplaced s)) =
       NextStep
