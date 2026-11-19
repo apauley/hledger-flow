@@ -250,7 +250,7 @@ for owner in all gawie; do
   report_row "reports/$owner/2016/balance-sheet.txt" assets:bank | grep -Fx 'assets:bank || -5'
   if grep -q assets:unrelated "reports/$owner/2016/balance-sheet.txt"; then exit 1; fi
 done
-hledger-flow status --json | jq -e '.ledgerFile.exists and (.ledgerFile.coversLedger == false) and (.ledgerFileNote != null) and (.next.command | contains("report"))' > /dev/null
+hledger-flow status --json | jq -e '.ledgerFile.exists and (.ledgerFile.coversLedger == false) and (.ledgerFileNote != null) and .reportsCurrent and (.next.summary == "Everything is imported and reported")' > /dev/null
 $ sh -eu
 assets:bank || -5
 assets:bank || -5
@@ -291,4 +291,141 @@ diff -r reports before
 printf '[balancesheet]\n--output-format csv\n[general]\n--alias "-f=assets:other"\n' > hledger.conf
 flow report --ascii-reports
 tr -d '\r' < reports/all/2016/balance-sheet.txt | grep -Fxq '"assets:bank","-5"'
+$ sh -eu
+
+# A configured journal resolves parent components from the invoking folder.
+<
+. ./test/shell/setup.sh
+flow import
+mkdir caller
+(
+  cd caller
+  export LEDGER_FILE=../all-years.journal
+  hledger-flow status --json | jq -e '.ledgerFile.coversLedger' > /dev/null
+  hledger-flow report --ascii-reports > /dev/null
+)
+test -s reports/all/2016/balance-sheet.txt
+$ sh -eu
+
+# A completed run reports unknowns even with an unrelated LEDGER_FILE.
+<
+. ./test/shell/setup.sh
+printf 'fields date, description, amount\naccount1 assets:bank\naccount2 expenses:unknown\n' > import/bogart.rules
+printf '2016-01-01 Transfer\n    assets:transfer  2\n    assets:bank\n' > directives.journal
+printf '; external ledger\n' > other.journal
+export LEDGER_FILE=other.journal
+flow import
+hledger-flow status --json | jq -e '.reportsCurrent == false and .review == null' > /dev/null
+flow report --ascii-reports
+hledger-flow status --json | jq -e '.reportsCurrent and .review.unknownTransactions.count == 1 and .review.transferAccounts.count == 1 and .next.summary == "Categorise 1 unknown transaction"' > /dev/null
+hledger-flow status > status.out
+grep -q 'To review:' status.out
+tr '\\' '/' < status.out | grep -q 'reports/gawie/2016/unknown-transactions.txt'
+tr '\\' '/' < status.out | grep -q 'reports/all/2016/transfer-balance.txt'
+cp reports/gawie/2016/unknown-transactions.txt archived
+mv "$inbox/march.csv" "$finance/retired.csv"
+flow import
+flow report --ascii-reports
+cmp reports/gawie/2016/unknown-transactions.txt archived
+hledger-flow status --json | jq -e '.reportsCurrent and .review.unknownTransactions.count == 0 and .review.unknownTransactions.files == []' > /dev/null
+$ sh -eu
+
+# Review preserves short CSVs with data and removes recognized empty output.
+<
+. ./test/shell/setup.sh
+printf 'fields date, description, amount\naccount1 assets:bank\naccount2 expenses:unknown\n' > import/bogart.rules
+mkdir -p import/_manual_/2016
+manual=import/_manual_/2016/post-import.journal
+printf '2016-01-01 Transfer\n    assets:transfer  2\n    assets:bank\n' > "$manual"
+flow import
+printf '[balance]\n--output-format csv\n[print]\n--output-format csv\n' > hledger.conf
+flow report --ascii-reports
+test -s reports/all/2016/transfer-balance.txt
+test -s reports/gawie/2016/unknown-transactions.txt
+hledger-flow status --json | jq -e '.reportsCurrent and .review.transferAccounts.count == null and (.review.transferAccounts.files | length == 1) and .review.unknownTransactions.count == null' > /dev/null
+hledger-flow status | grep -q 'count unavailable'
+printf '; No transfer this time\n' > "$manual"
+flow report --ascii-reports
+test ! -e reports/all/2016/transfer-balance.txt
+hledger-flow status --json | jq -e '.reportsCurrent and .review.transferAccounts.count == 0' > /dev/null
+$ sh -eu
+
+# Changes to the report inputs and deleted outputs invalidate completed review.
+<
+. ./test/shell/setup.sh
+printf 'fields date, description, amount\naccount1 assets:bank\naccount2 expenses:unknown\n' > import/bogart.rules
+mkdir -p deps import/gawie/_manual_/2016
+printf '; external\n' > deps/one.journal
+printf 'include deps/*.journal\n' > directives.journal
+printf '; temporary manual file\n' > import/gawie/_manual_/2016/post-import.journal
+printf '[files]\n--file unrelated-inventory.journal\n' > hledger.conf
+touch unrelated-inventory.journal older.conf
+touch -t 201001010000 older.conf
+flow import
+stale() { hledger-flow "$@" status --json | jq -e '.reportsCurrent == false and .review == null' > /dev/null; }
+flow report --ascii-reports
+if grep -q 'unrelated-inventory.journal' .hledger-flow/reports.json; then exit 1; fi
+stale --hledger-conf older.conf
+for path in dirs-placeholder deps/one.journal directives.journal import/gawie/_manual_/2016/post-import.journal hledger.conf; do
+    if [ "$path" = dirs-placeholder ]; then
+       printf '; added\n' > deps/two.journal
+    else
+       if [ "$path" = hledger.conf ]; then printf '# comment\n' >> "$path"; else printf '; changed\n' >> "$path"; fi
+    fi
+    stale
+    flow report --ascii-reports
+done
+python3 - <<'PY'
+import os
+from pathlib import Path
+marker = Path(".hledger-flow/report-started").stat().st_mtime_ns
+os.utime("deps/one.journal", ns=(marker,marker))
+PY
+stale
+flow report --ascii-reports
+rm reports/gawie/2016/unknown-transactions.txt
+stale
+$ sh -eu
+
+# A failed rerun removes the manifest before writing partial reports.
+<
+. ./test/shell/setup.sh
+case "$(uname -s)" in MINGW*|MSYS*) exit 0 ;; esac
+flow import
+flow report --ascii-reports
+test -s .hledger-flow/reports.json
+cat > fail-later <<'SH'
+#!/bin/sh
+for arg do
+    if test "$arg" = incomestatement; then exit 17; fi
+done
+exec hledger "$@"
+SH
+chmod +x fail-later
+if hledger-flow -H "$(pwd -P)/fail-later" --sequential report >out 2>err; then exit 1; fi
+test ! -e .hledger-flow/reports.json
+hledger-flow status --json | jq -e '.reportsCurrent == false and .review == null and .next.command == "hledger-flow report"' > /dev/null
+$ sh -eu
+
+# An older input reached through a retargeted symlink is stale.
+<
+. ./test/shell/setup.sh
+case "$(uname -s)" in MINGW*|MSYS*) exit 0 ;; esac
+mkdir one two
+printf '; one\n' > one/part.journal
+printf '; two\n' > two/part.journal
+touch -t 201601010000 one/part.journal two/part.journal
+ln -s one selected
+ln -s one/part.journal selected.journal
+printf 'include selected/part.journal\ninclude selected.journal\n' > directives.journal
+flow import
+flow report --ascii-reports
+hledger-flow status --json | jq -e '.reportsCurrent' > /dev/null
+unlink selected
+ln -s two selected
+hledger-flow status --json | jq -e '.reportsCurrent == false and .review == null' > /dev/null
+flow report --ascii-reports
+unlink selected.journal
+ln -s two/part.journal selected.journal
+hledger-flow status --json | jq -e '.reportsCurrent == false and .review == null' > /dev/null
 $ sh -eu

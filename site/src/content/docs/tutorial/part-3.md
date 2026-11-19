@@ -23,6 +23,10 @@ Ledger: ~/my-finances   (hledger 1.99.6-gc3a608c2b-20261101 found)
   gawie/bogart/cheque     3 statements (2016)   ✗ no rules file
   gawie/kudu/creditcard   3 statements (2016)   ✓ 3 journals
 
+  To review:
+    1 transfer account to check  reports/all/2016/transfer-balance.txt
+    5 unknown transactions  reports/gawie/2016/unknown-transactions.txt
+
 Next: Create import/gawie/bogart/cheque/bogart-cheque.rules (rules for gawie/bogart/cheque)
       Run: hledger-flow rules gawie/bogart/cheque
       It creates that file from the statement's columns, for you to edit.

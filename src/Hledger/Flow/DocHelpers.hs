@@ -27,6 +27,8 @@ data DocLink
   | SetLedgerFile
   | StatusCommand
   | Reports
+  | ReviewUnknownTransactions
+  | ReviewTransfers
   deriving (Bounded, Enum, Eq, Show)
 
 docSlug :: DocLink -> Text
@@ -41,6 +43,8 @@ docSlug PreprocessScript = "preprocess-script"
 docSlug SetLedgerFile = "set-ledger-file"
 docSlug StatusCommand = "status"
 docSlug Reports = "reports"
+docSlug ReviewUnknownTransactions = "review-unknown-transactions"
+docSlug ReviewTransfers = "review-transfers"
 
 siteURL :: Text
 siteURL = "https://hledger-flow.github.io/"

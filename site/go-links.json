@@ -10,5 +10,7 @@
   "set-ledger-file": "/quickstart/#import-your-first-statement",
   "status": "/reference/status/",
   "reports": "/tutorial/part-2/#reports",
+  "review-unknown-transactions": "/reference/status/#review-unknown-transactions",
+  "review-transfers": "/reference/status/#review-transfers",
   "sample-ledger": "/guides/sample-ledger/"
 }

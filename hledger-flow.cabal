@@ -59,6 +59,7 @@ library
       Hledger.Flow.Logging
       Hledger.Flow.PathHelpers
       Hledger.Flow.ReleaseNotice
+      Hledger.Flow.ReportReview
       Hledger.Flow.Reports
       Hledger.Flow.RulesTemplate
       Hledger.Flow.RuntimeOptions
@@ -152,6 +153,7 @@ test-suite hledger-flow-test
       LedgerSelection.Unit
       PathHelpers.Unit
       ReleaseNotice.Unit
+      ReportReview.Unit
       RulesTemplate.Unit
       RuntimeOptions.Unit
       Status.Integration

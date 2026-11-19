@@ -27,6 +27,7 @@ import Hledger.Flow.Types (BaseDir, HledgerInfo (..))
 import Path
 import qualified System.Directory as Directory
 import System.Exit (ExitCode (..))
+import qualified System.FilePath as F
 
 data Coverage = CoversLedger | UnrelatedLedger | UnreadableLedger T.Text
   deriving (Eq, Show)
@@ -95,7 +96,7 @@ selectLedger info base = do
           return (LedgerSelection (Just file) Nothing (Just (ledgerFileProblem file <>
             " Point it at " <> T.pack (toFilePath root) <> ", or unset it.")))
         else do
-          absolute <- Directory.makeAbsolute path >>= parseAbsFile
+          absolute <- resolveLedgerPath path
           canonical <- Directory.canonicalizePath (toFilePath absolute)
           rootPath <- Directory.canonicalizePath (toFilePath root)
           coverage <- if rootExists && canonical == rootPath
@@ -107,6 +108,17 @@ selectLedger info base = do
           return $ case coverage of
             CoversLedger -> LedgerSelection file (Just absolute) Nothing
             _ -> fallback file
+
+-- Path excludes parent references. Resolve only the directory when needed
+-- so hledger still reads a file symlink relative to its original location.
+resolveLedgerPath :: FilePath -> IO AbsFile
+resolveLedgerPath path = do
+  absolute <- Directory.makeAbsolute path
+  case parseAbsFile absolute of
+    Just file -> return file
+    Nothing -> do
+      dir <- Directory.canonicalizePath (F.takeDirectory absolute)
+      parseAbsFile (dir F.</> F.takeFileName absolute)
 
 discoverCoverage :: HledgerInfo -> BaseDir -> AbsFile -> IO Coverage
 discoverCoverage info base journal = do

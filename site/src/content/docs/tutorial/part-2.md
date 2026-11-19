@@ -113,6 +113,9 @@ home.
 
 ## Reports
 
+After generation, `hledger-flow status` shows current unknown transactions
+and transfers to review. See [reviewing reports](/reference/status/#review-unknown-transactions).
+
 `hledger-flow report` runs a set of hledger reports for every owner and
 year, plus combined ones for all owners under `reports/all/`, and saves them
 as text files:

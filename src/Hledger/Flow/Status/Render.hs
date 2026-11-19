@@ -27,6 +27,7 @@ import Hledger.Flow.Types (BaseDir)
 import Path.IO (getCurrentDir)
 import qualified Data.Text as T
 import Hledger.Flow.Status
+import Hledger.Flow.ReportReview
 import Hledger.Flow.StatementScan (StatementYear (..))
 import Hledger.Flow.LedgerSelection (Coverage (..))
 import Hledger.Flow.Types (HledgerConf, HledgerInfo (..))
@@ -41,7 +42,7 @@ baseText = FilePath.dropTrailingPathSeparator . toFilePath . lsBaseDir
 
 renderStatus :: Bool -> [FilePath] -> LedgerStatus -> NextStep -> T.Text
 renderStatus color homes s next =
-  T.unlines (header : accountBlock ++ misplacedBlock ++ noteBlock) <> renderNext color next
+  T.unlines (header : accountBlock ++ misplacedBlock ++ noteBlock ++ reviewBlock) <> renderNext color next
   where
     header = bold color "Ledger: " <> T.pack (tildePath homes (baseText s)) <> "   (" <> hledgerText <> ")"
     hledgerText = case lsHledger s of
@@ -74,6 +75,18 @@ renderStatus color homes s next =
     noteBlock = case T.lines <$> ledgerFileNote nativeShell homes s of
       Just (first : rest) -> "" : ("  Note: " <> first) : map ("        " <>) rest
       _ -> []
+    reviewBlock = case maybe [] reviewItems (lsReview s) of
+      [] -> []
+      items -> "" : "  To review:" : map showReview (take 5 items)
+        ++ ["    and " <> tshow (length items - 5) <> " more" | length items > 5]
+    showReview item =
+      let label = case itemKind item of
+            UnknownTransactions -> "unknown transaction"
+            TransferBalances -> "transfer account to check"
+          count = case itemKind item of
+            TransferBalances -> fmap (\n -> plural n "transfer account" <> " to check") (itemCount item)
+            UnknownTransactions -> fmap (\n -> plural n label) (itemCount item)
+       in "    " <> maybe "count unavailable" id count <> "  " <> T.pack (itemPath item)
     misplacedBlock = case length (lsMisplaced s) of
       0 -> []
       n -> ["", "  " <> yellow color ("⚠ " <> plural n "file" <> " not where hledger-flow looks")]
@@ -100,6 +113,8 @@ statusJSON sys conf s next =
       "ledgerFileNote" .= ledgerFileNote nativeShell [] s,
       "accounts" .= map accountJSON (lsAccounts s),
       "misplaced" .= map misplacedJSON (lsMisplaced s),
+      "reportsCurrent" .= maybe False (const True) (lsReview s),
+      "review" .= fmap reviewJSON (lsReview s),
       "manualJournals" .= lsManualJournals s,
       "allYearsJournalExists" .= lsAllYearsExists s,
       "next"
@@ -111,6 +126,9 @@ statusJSON sys conf s next =
           ]
     ]
   where
+    reviewJSON review = object ["unknownTransactions" .= category (reviewUnknowns review),
+                                "transferAccounts" .= category (reviewTransfers review)]
+    category review = object ["count" .= reviewCount review, "files" .= reviewFiles review]
     misplacedJSON item = object
       [ "path" .= mpPath item,
         "suggestion" .= mpSuggestion item,

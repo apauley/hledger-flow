@@ -19,6 +19,7 @@ import qualified Init.Integration
 import qualified LedgerSelection.Unit
 import qualified PathHelpers.Unit
 import qualified ReleaseNotice.Unit
+import qualified ReportReview.Unit
 import qualified RulesTemplate.Unit
 import qualified RuntimeOptions.Unit
 import qualified Status.Integration
@@ -47,6 +48,7 @@ tests =
       Init.Integration.tests,
       LedgerSelection.Unit.tests,
       ReleaseNotice.Unit.tests,
+      ReportReview.Unit.tests,
       RulesTemplate.Unit.tests,
       RuntimeOptions.Unit.tests,
       HledgerConfig.Unit.tests,

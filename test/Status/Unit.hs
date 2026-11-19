@@ -32,7 +32,8 @@ blank =
       lsManualJournals = 0,
       lsAllYearsExists = True,
       lsNeedsReconciliation = False,
-      lsNeedsPrices = False
+      lsNeedsPrices = False,
+      lsReview = Nothing
     }
 
 acct :: AccountStatus
@@ -165,7 +166,7 @@ testJSONShape :: Test
 testJSONShape = TestCase $ case statusJSON testSystemInfo Nothing blank (atRoot blank) of
   Object o ->
     sort (map Key.toText (KeyMap.keys o))
-      @?= ["accounts", "aggregateJournal", "allYearsJournalExists", "baseDir", "environment", "hledger", "ledgerFile", "ledgerFileNote", "manualJournals", "misplaced", "next", "schemaVersion"]
+      @?= ["accounts", "aggregateJournal", "allYearsJournalExists", "baseDir", "environment", "hledger", "ledgerFile", "ledgerFileNote", "manualJournals", "misplaced", "next", "reportsCurrent", "review", "schemaVersion"]
   _ -> assertFailure "status JSON is an object"
 
 tests = TestList [testFirstDirectory, testStatementYear, testSuggest, testMisplacedUpperCase, testRules, testHome, testVersion, testRenderNoColour, testRenderPending, testJSONShape]

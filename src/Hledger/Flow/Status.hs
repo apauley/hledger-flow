@@ -26,6 +26,7 @@ module Hledger.Flow.Status
 where
 
 import Data.Char (isDigit, toLower)
+import Data.List (nub)
 import Data.Maybe (fromMaybe, mapMaybe)
 import qualified Data.Set as Set
 import qualified Data.Text as T
@@ -35,6 +36,7 @@ import Hledger.Flow.HledgerConfig (ConfigConflict, ConfigUse (..), firstConfigCo
 import Hledger.Flow.Import.Inventory (stageFiles)
 import Hledger.Flow.LedgerSelection (Coverage (..), LedgerFile (..), ledgerFileProblem)
 import Hledger.Flow.PathHelpers (AbsDir, AbsFile, RelFile)
+import Hledger.Flow.ReportReview
 import Hledger.Flow.StatementScan (StatementYear (..))
 import Hledger.Flow.Types (BaseDir, HledgerConf (..), HledgerInfo)
 import Path (parseRelDir, parseRelFile, reldir, relfile, stripProperPrefix, toFilePath, (</>))
@@ -79,7 +81,8 @@ data LedgerStatus = LedgerStatus
     lsManualJournals :: Int,
     lsAllYearsExists :: Bool,
     lsNeedsReconciliation :: Bool,
-    lsNeedsPrices :: Bool
+    lsNeedsPrices :: Bool,
+    lsReview :: Maybe Review
   }
   deriving (Show)
 
@@ -229,15 +232,17 @@ nextStep year shell homes cwd s
         (Just (setLedgerFileCommand shell homes s))
         [ledgerFileProblem lf]
         (Just (docURL SetLedgerFile))
-  | otherwise =
-      withConfigCheck ReportConfig s $
+  | otherwise = case lsReview s of
+      Nothing -> withConfigCheck ReportConfig s $
         NextStep "Generate reports, or explore with hledger" (Just (command "report"))
           ["Or try: " <> hint | Nothing <- [ledgerFileNote shell homes s], Just hint <- [balanceHint shell homes s]] Nothing
+      Just review -> reviewStep importCommand firstStatement review
   where
     commandArgs = flowCommand shell homes cwd (lsBaseDir s) (lsHledgerConf s)
     command subcommand = commandArgs subcommand []
     spansYears item = case mpYear item of SpanningYears _ -> True; _ -> False
     missingConfigured = maybe False (not . lfExists) (lsLedgerFile s)
+    firstStatement = firstStatementStep year shell homes cwd (lsBaseDir s)
     importCommand = command "import"
     statements = sum (map asStatements (lsAccounts s))
     toImport = sum [asJournalsMissing a + asJournalsOutdated a | a <- lsAccounts s]
@@ -255,6 +260,27 @@ nextStep year shell homes cwd s
       c : _ | cwd /= lsBaseDir s -> toFilePath (lsBaseDir s) FilePath.</> c
             | otherwise -> c
       [] -> "a rules file"
+
+reviewStep :: T.Text -> NextStep -> Review -> NextStep
+reviewStep importCommand firstStatement review
+  | not (null unknowns) =
+      NextStep (maybe "Review unknown transactions" (\n -> "Categorise " <> plural n "unknown transaction")
+        (reviewCount (reviewUnknowns review))) Nothing
+        (map (\path -> "Review " <> T.pack path <> ".") (take 1 unknowns) ++
+          ["Add if rules to the relevant account's rules file, then run: " <> importCommand] ++
+          ["Or start with transfers: " <> T.pack path | path : _ <- [transfers]])
+        (Just (docURL ReviewUnknownTransactions))
+  | not (null transfers) =
+      NextStep ("Check transfers in " <> plural (length years) "year") Nothing
+        (["Review " <> T.pack path <> "." | path : _ <- [transfers]] ++
+          ["A transfer may need review when the matching statement hasn't arrived yet."])
+        (Just (docURL ReviewTransfers))
+  | otherwise = firstStatement {nsSummary = "Everything is imported and reported"}
+  where
+    unknowns = reviewFiles (reviewUnknowns review)
+    transfers = reviewFiles (reviewTransfers review)
+    years = nub [itemYear item | item <- reviewItems review, itemKind item == TransferBalances]
+
 flowCommand :: Shell -> [FilePath] -> AbsDir -> BaseDir -> Maybe HledgerConf -> T.Text -> [T.Text] -> T.Text
 flowCommand shell homes cwd base conf subcommand arguments =
   T.unwords (["hledger-flow"] ++ config ++ [subcommand] ++ map (shellArgument shell) arguments ++ directory)

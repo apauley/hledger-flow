@@ -32,6 +32,7 @@ import Hledger.Flow.Import.Inventory (classifyGeneratedOutputs, findImportFiles,
 import Hledger.Flow.Import.Types (ImportDirs (..))
 import Hledger.Flow.LedgerSelection
 import Hledger.Flow.PathHelpers (AbsDir, AbsFile, RelFile, pathOccupied)
+import Hledger.Flow.ReportReview (loadReportReview)
 import Hledger.Flow.StatementScan (StatementYear (..), inferStatementYear, isDelimitedFile, readDelimitedStatement)
 import Hledger.Flow.Status
 import Hledger.Flow.Types (BaseDir, HledgerConf, HledgerInfo (..))
@@ -77,6 +78,7 @@ gatherStatusWithConfig hledger conf base = do
   needsPrices <- case (hledger, selected) of
     (Just info, Just journal) | not reconciliation -> journalNeedsPrices info journal
     _ -> return False
+  review <- maybe (pure Nothing) (\journal -> loadReportReview base journal conf) selected
   misplaced <- traverse (inspectMisplaced base) (List.sortOn mpPath (misplacedFiles root files))
   return
     LedgerStatus
@@ -91,7 +93,8 @@ gatherStatusWithConfig hledger conf base = do
         lsManualJournals = length (filter (isManualJournal root) files),
         lsAllYearsExists = allYears,
         lsNeedsReconciliation = reconciliation,
-        lsNeedsPrices = needsPrices
+        lsNeedsPrices = needsPrices,
+        lsReview = review
       }
 
 inspectMisplaced :: BaseDir -> Misplaced -> IO Misplaced

@@ -40,6 +40,10 @@ Ledger: ~/my-finances   (hledger 1.99.6-gc3a608c2b-20261101 found)
   gawie/goggatjie/tips    1 statement (2016)    ✗ no rules file
   gawie/kudu/creditcard   3 statements (2016)   ✓ 3 journals
 
+  To review:
+    1 transfer account to check  reports/all/2017/transfer-balance.txt
+    1 transfer account to check  reports/all/2016/transfer-balance.txt
+
 Next: Create import/gawie/goggatjie/tips/goggatjie-tips.rules (rules for gawie/goggatjie/tips)
       Run: hledger-flow rules gawie/goggatjie/tips
       It creates that file from the statement's columns, for you to edit.

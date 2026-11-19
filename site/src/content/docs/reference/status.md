@@ -50,6 +50,25 @@ contains glob characters such as `[`, which need version-specific escaping.
 `--show-options` always reads the version. You can give an absolute executable
 path with `--hledger-path` even when `PATH` is unset.
 
+## Review unknown transactions
+
+After a complete report run, status lists current reports that need review.
+Open your owner's `unknown-transactions.txt` file to see the unclassified
+transactions and add matching rules to the relevant account's rules file.
+Run import and report again to see what remains.
+
+## Review transfers
+
+Open `transfer-balance.txt` under the aggregate report folder. An account can
+appear in the quarterly table even when it nets to zero over the whole year.
+Check whether both sides of each transfer have arrived. See the
+[transfer guide](/guides/transfers/) for offsetting entries.
+
+Status uses only the review files from the latest successful run. Archived
+reports for retired years stay on disk. When status detects changed inputs
+or an incomplete run, it asks you to run report again. For unsupported review
+formats such as CSV with data, status shows the path with an unavailable count.
+
 ## Status for scripts and agents
 
 `hledger-flow status --json` prints the same status as one JSON object:
@@ -82,6 +101,10 @@ path with `--hledger-path` even when `PATH` is unset.
   is set when there is a complete, unoccupied destination.
 - `manualJournals`: the number of `_manual_` journals.
 - `allYearsJournalExists`: whether import has created `all-years.journal`.
+- `reportsCurrent`: whether the latest completed report run has current inputs.
+- `review`: `null` when stale, otherwise `unknownTransactions` and
+  `transferAccounts` objects, each containing `count` and `files`. A
+  category's count is `null` if any current file has an unsupported layout.
 - `next`: `{"summary", "command", "detail", "docs"}`. `command` is `null`
   when the step isn't a single command, such as moving files.
 
