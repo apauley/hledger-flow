@@ -135,7 +135,7 @@ testHome =
           "powershell export" ~: setting PowerShell unset ~?= Just ("$env:LEDGER_FILE = " <> quoted ["fin", "all-years.journal"]),
           "ledger argument" ~: nsCommand (next Posix elsewhere blank {lsAccounts = [acct]}) ~?= Just ("hledger-flow report " <> quoted ["fin"]),
           "summary" ~: nsSummary (next Posix elsewhere blank {lsAccounts = [acct {asWithoutRules = 1, asRulesFile = Nothing}]})
-            ~?= T.pack ("Create " <> FilePath.joinPath ["~", "fin", "import", "me", "mybank", "checking", "mybank-checking.rules"]) <> " (rules for me/mybank/checking)",
+            ~?= "Create import/me/mybank/checking/mybank-checking.rules (rules for me/mybank/checking)",
           "special character falls back to the absolute path" ~: setting Posix dollarInPath
             ~?= Just ("export LEDGER_FILE='" <> T.pack (toFilePath (lsBaseDir dollarInPath </> [relfile|all-years.journal|])) <> "'")
         ]
@@ -164,7 +164,7 @@ testRenderPending = TestCase $ do
   assertBool "clean" ("✓ 1 journal" `T.isInfixOf` render acct)
 
 testJSONShape :: Test
-testJSONShape = TestCase $ case statusJSON testSystemInfo Nothing blank (atRoot blank) of
+testJSONShape = TestCase $ case statusJSON testSystemInfo Nothing (lsBaseDir blank) blank (atRoot blank) of
   Object o ->
     sort (map Key.toText (KeyMap.keys o))
       @?= ["accounts", "aggregateJournal", "allYearsJournalExists", "baseDir", "environment", "hledger", "ledgerFile", "ledgerFileNote", "manualJournals", "misplaced", "next", "reportsCurrent", "review", "schemaVersion"]

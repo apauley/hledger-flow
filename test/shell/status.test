@@ -363,13 +363,16 @@ printf 'fields date, description, amount\n' > "$account/other.rules"
 hledger-flow status --json | jq -e '.next.command == null and (.next.summary | contains("wf-bchecking.rules")) and (.next.detail | join(" ") | contains("wf-checking.rules") and contains("other.rules"))' > /dev/null
 rm "$account/other.rules"
 command=$(next_command)
-hledger-flow status | grep -q '^Next: Rename .*wf-checking.rules'
+printf '%s\n' "$command" | tr '\\' '/' | grep -Eq "^(mkdir -p|New-Item -ItemType Directory -Force -Path) '?import/"
+(cd "$account" && hledger-flow status) | tr '\\' '/' | grep -Fq "Next: Rename $account/wf-checking.rules to $account/wf-bchecking.rules"
 printf unchanged > "$account/wf-bchecking.rules"
 if run_suggestion "$command" > out 2> err; then exit 1; fi
 test "$(cat "$account/wf-bchecking.rules")" = unchanged
 cmp "$account/wf-checking.rules" original
 rm "$account/wf-bchecking.rules"
 run_suggestion "$command"
+mv "$account/wf-bchecking.rules" "$account/wf-checking.rules"
+(cd "$account" && run_suggestion "$(next_command)")
 cmp helper "$account/wf-common.rules"
 cmp original "$account/wf-bchecking.rules"
 test ! -e "$account/wf-checking.rules"

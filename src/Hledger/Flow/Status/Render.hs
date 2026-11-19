@@ -23,6 +23,7 @@ import Hledger.Flow.DateTime (currentYear)
 import Hledger.Flow.Environment (coresSetting, environmentJSON, environmentSettings, renderSettings)
 import Hledger.Flow.Internals (SystemInfo, systemInfo)
 import Hledger.Flow.Status.Gather (gatherStatusWithConfig)
+import Hledger.Flow.PathHelpers (AbsDir)
 import Hledger.Flow.Types (BaseDir)
 import Path.IO (getCurrentDir)
 import qualified Data.Text as T
@@ -101,8 +102,8 @@ renderNext color next =
 tshow :: Show a => a -> T.Text
 tshow = T.pack . show
 
-statusJSON :: SystemInfo -> Maybe HledgerConf -> LedgerStatus -> NextStep -> Value
-statusJSON sys conf s next =
+statusJSON :: SystemInfo -> Maybe HledgerConf -> AbsDir -> LedgerStatus -> NextStep -> Value
+statusJSON sys conf cwd s next =
   object
     [ "schemaVersion" .= (1 :: Int),
       "environment" .= environmentJSON sys conf,
@@ -135,7 +136,7 @@ statusJSON sys conf s next =
         "year" .= (case mpYear item of SingleYear year -> Just year; _ -> Nothing),
         "years" .= (case mpYear item of SpanningYears years -> years; _ -> []),
         "destinationExists" .= mpDestinationExists item,
-        "command" .= misplacedMoveCommand nativeShell [] (lsBaseDir s) item
+        "command" .= misplacedMoveCommand nativeShell [] cwd (lsBaseDir s) item
       ]
     hledgerJSON hl = object ["path" .= toFilePath (hlPath hl), "version" .= hledgerVersionNumber (hlVersion hl)]
     accountJSON a =
@@ -153,7 +154,7 @@ statusJSON sys conf s next =
           "journalsOutdated" .= asJournalsOutdated a
         ]
 
--- | The next step for people to read with @homes@, or for scripts with @[]@ (absolute paths).
+-- | The next step for people to read with @homes@, or for scripts with @[]@ (no home abbreviation).
 nextStepHere :: [FilePath] -> LedgerStatus -> IO NextStep
 nextStepHere homes status = do
   year <- currentYear
@@ -174,15 +175,15 @@ printStatus hledgerPath confOpt json base = do
   conf <- findHledgerConf confOpt
   status <- gatherStatusWithConfig hledger conf base
   sys <- systemInfo
+  cwd <- getCurrentDir
+  year <- currentYear
+  let next homes = nextStep year nativeShell homes cwd status
   if json
-    then do
-      next <- nextStepHere [] status
-      TL.putStrLn (encodeToLazyText (statusJSON sys conf status next))
+    then TL.putStrLn (encodeToLazyText (statusJSON sys conf cwd status (next [])))
     else do
       color <- useColor stdout
       homes <- homeDirs
-      next <- nextStepHere homes status
-      T.putStr (renderStatus color homes status next <> renderEnvironment color homes sys conf status)
+      T.putStr (renderStatus color homes status (next homes) <> renderEnvironment color homes sys conf status)
 
 -- | Print only the next step for a ledger.
 printNext :: Maybe FilePath -> Maybe HledgerConf -> BaseDir -> IO ()

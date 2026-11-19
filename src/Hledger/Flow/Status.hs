@@ -30,7 +30,7 @@ import Data.List (nub)
 import Data.Maybe (fromMaybe, mapMaybe)
 import qualified Data.Set as Set
 import qualified Data.Text as T
-import Hledger.Flow.Common (Shell (..), createDirectoryCommand, hledgerFileArgument, hledgerVersionNumber, homeShellPath, moveFileCommand, posixLiteral, powerShellLiteral, shellArgument, tildePath)
+import Hledger.Flow.Common (Shell (..), createDirectoryCommand, hledgerFileArgument, hledgerVersionNumber, homeShellPath, moveFileCommand, posixLiteral, powerShellLiteral, shellArgument)
 import Hledger.Flow.DocHelpers (DocLink (..), docURL)
 import Hledger.Flow.HledgerConfig (ConfigConflict, ConfigUse (..), firstConfigConflict, renderConfigConflict)
 import Hledger.Flow.Import.Inventory (stageFiles)
@@ -140,15 +140,15 @@ missingParts item =
   [T.pack part | part <- ["owner", "bank", "account"],
     ("<" ++ part ++ ">") `elem` FilePath.splitDirectories (FilePath.takeDirectory (mpSuggestion item))]
 
-misplacedMoveCommand :: Shell -> [FilePath] -> BaseDir -> Misplaced -> Maybe T.Text
-misplacedMoveCommand _ _ _ item | mpDestinationExists item = Nothing
-misplacedMoveCommand shell homes base item = do
+misplacedMoveCommand :: Shell -> [FilePath] -> AbsDir -> BaseDir -> Misplaced -> Maybe T.Text
+misplacedMoveCommand _ _ _ _ item | mpDestinationExists item = Nothing
+misplacedMoveCommand shell homes cwd base item = do
   source <- parseRelFile (mpPath item)
   target <- placementDestination item
-  return (moveFileCommand shell homes (base </> source) (base </> target))
+  return (moveFileCommand shell homes cwd base source target)
 
-placementDetails :: Shell -> [FilePath] -> BaseDir -> Misplaced -> [T.Text]
-placementDetails shell homes base item =
+placementDetails :: Shell -> [FilePath] -> AbsDir -> BaseDir -> Misplaced -> [T.Text]
+placementDetails shell homes cwd base item =
   [T.pack (mpPath item) <> " → " <> T.pack (mpSuggestion item)]
     ++ ["Choose the " <> T.intercalate ", " parts <> "." | parts@(_ : _) <- [missingParts item]]
     ++ case mpYear item of
@@ -158,7 +158,7 @@ placementDetails shell homes base item =
       UnknownYear -> ["Couldn't tell the year from the file. Use the year of its transactions."]
       SingleYear _ | mpDestinationExists item ->
         ["The destination already exists. Compare the two paths above before moving the statement."]
-      SingleYear _ -> ["Move it with: " <> cmd | Just cmd <- [misplacedMoveCommand shell homes base item]]
+      SingleYear _ -> ["Move it with: " <> cmd | Just cmd <- [misplacedMoveCommand shell homes cwd base item]]
 
 plural :: Int -> T.Text -> T.Text
 plural 1 noun = "1 " <> noun
@@ -191,23 +191,23 @@ nextStep year shell homes cwd s
       NextStep
         ("Move " <> plural (length (lsMisplaced s)) "file" <> " to where hledger-flow looks")
         Nothing
-        (concatMap (placementDetails shell homes (lsBaseDir s)) (lsMisplaced s))
+        (concatMap (placementDetails shell homes cwd (lsBaseDir s)) (lsMisplaced s))
         (Just (docURL (if any spansYears (lsMisplaced s) then StatementYearFolders else InputFiles)))
   | a : _ <- filter needsRules (lsAccounts s),
     source : other <- asOtherRules a =
       case other of
         [] | not (asRulesTargetOccupied a), Just commandLine <- renameRules a source ->
-          NextStep ("Rename " <> displayPath source <> " to " <> displayPath (relativeCandidate a))
+          NextStep ("Rename " <> T.pack source <> " to " <> T.pack (relativeCandidate a))
             (Just commandLine) ["Files it includes can keep their names."] (Just (docURL RulesFiles))
         _ ->
-          NextStep ("Choose the rules to save as " <> displayPath (relativeCandidate a)) Nothing
-            (map displayPath (source : other) ++
+          NextStep ("Choose the rules to save as " <> T.pack (relativeCandidate a)) Nothing
+            (map T.pack (source : other) ++
               ["The target already exists. Check it before making changes." | asRulesTargetOccupied a] ++
               ["Rename the rules for this account. Files it includes can keep their names."])
             (Just (docURL RulesFiles))
   | a : _ <- filter needsRules (lsAccounts s) =
       NextStep
-        ("Create " <> T.pack (tildePath homes (firstCandidate a)) <> " (rules for " <> asAccount a <> ")")
+        ("Create " <> T.pack (relativeCandidate a) <> " (rules for " <> asAccount a <> ")")
         (Just (commandArgs "rules" [asAccount a]))
         ["It creates that file from the statement\'s columns, for you to edit."]
         (Just (docURL RulesFiles))
@@ -257,16 +257,10 @@ nextStep year shell homes cwd s
     relativeCandidate a = fromMaybe "a rules file" (case asRulesCandidates a of
       target : _ -> Just target
       [] -> Nothing)
-    displayPath path = T.pack (tildePath homes
-      (if cwd == lsBaseDir s then path else toFilePath (lsBaseDir s) FilePath.</> path))
     renameRules a source = do
       old <- parseRelFile source
       new <- parseRelFile (relativeCandidate a)
-      return (moveFileCommand shell homes (lsBaseDir s </> old) (lsBaseDir s </> new))
-    firstCandidate a = case asRulesCandidates a of
-      c : _ | cwd /= lsBaseDir s -> toFilePath (lsBaseDir s) FilePath.</> c
-            | otherwise -> c
-      [] -> "a rules file"
+      return (moveFileCommand shell homes cwd (lsBaseDir s) old new)
 
 reviewStep :: T.Text -> NextStep -> Review -> NextStep
 reviewStep importCommand firstStatement review

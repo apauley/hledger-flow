@@ -95,6 +95,8 @@ cp "$src" original
 move() { hledger-flow status --json | jq -er '.misplaced[0].command' | tr -d '\r'; }
 hledger-flow status | grep -q ' → .*2025'
 command=$(move)
+printf '%s\n' "$command" | tr '\\' '/' | grep -Eq "^(mkdir -p|New-Item -ItemType Directory -Force -Path) '?import/"
+hledger-flow status | tr '\\' '/' | grep -Eq "Move it with: (mkdir -p|New-Item -ItemType Directory -Force -Path) '?import/"
 mkdir -p "$(dirname "$dest")"
 printf collision > "$dest"
 hledger-flow status --json | jq -e '.misplaced[0] | .year == 2025 and .destinationExists and .command == null' > /dev/null
@@ -123,6 +125,10 @@ cmp "$src" original
 test "$(cat "$(dirname "$dest")")" = blocker
 rm "$(dirname "$dest")"
 run_suggestion "$command" >/dev/null
+test ! -e "$src"
+cmp "$dest" original
+mv "$dest" "$src"
+(cd "$account" && run_suggestion "$(move)" >/dev/null)
 test ! -e "$src"
 cmp "$dest" original
 printf '2025-12-31,Shop,-5\n' > import/misplaced.csv

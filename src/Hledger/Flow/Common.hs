@@ -23,10 +23,10 @@ import qualified GHC.IO.Handle.FD as H
 import Hledger.Flow.DateTime (timeAction)
 import Hledger.Flow.BaseDir (relativeToBase)
 import Hledger.Flow.Logging
-import Hledger.Flow.PathHelpers (AbsDir, AbsFile, RelDir, literalGlobPath, withStagedOutput)
+import Hledger.Flow.PathHelpers (AbsDir, AbsFile, RelDir, RelFile, literalGlobPath, withStagedOutput)
 import qualified Hledger.Flow.RuntimeOptions as RT
 import Hledger.Flow.Types
-import Path (parent, reldir, relfile, stripProperPrefix, toFilePath)
+import Path (reldir, relfile, stripProperPrefix, toFilePath)
 import qualified Path
 import qualified Path.IO as Path
 import qualified System.Directory as Directory
@@ -270,19 +270,25 @@ errExit' exitStatus logFun errorMessage = do
   exitWith (ExitFailure exitStatus)
 
 -- | Move to a file path, with the same collision rules in either shell.
-moveFileCommand :: Shell -> [FilePath] -> AbsFile -> AbsFile -> T.Text
-moveFileCommand shell homes source target = case shell of
+moveFileCommand :: Shell -> [FilePath] -> AbsDir -> BaseDir -> RelFile -> RelFile -> T.Text
+moveFileCommand shell homes cwd base source target = case shell of
   Posix ->
     makeDirectory Posix (path dir) <> " && [ ! -e " <> dest <> " ] && [ ! -L " <> dest
       <> " ] && mv -n " <> path src <> " " <> dest
   PowerShell ->
     makeDirectory PowerShell (literal dir) <> " -ErrorAction Stop | Out-Null; "
-      <> "[System.IO.File]::Move(" <> literal src <> ", " <> literal file <> ")"
+      <> "[System.IO.File]::Move(" <> nativePath src <> ", " <> nativePath file <> ")"
   where
-    src = toFilePath source
-    file = toFilePath target
-    dir = FilePath.dropTrailingPathSeparator (toFilePath (parent target))
+    atRoot = cwd == base
+    fromHere rel = if atRoot then toFilePath rel else toFilePath (base Path.</> rel)
+    src = fromHere source
+    file = fromHere target
+    dir = FilePath.takeDirectory file
     literal = powerShellLiteral . T.pack
+    -- .NET resolves paths against the process directory, not PowerShell's location.
+    nativePath name
+      | atRoot = "(Join-Path $PWD.ProviderPath " <> literal name <> ")"
+      | otherwise = literal name
     path name = fromMaybe (shellArgument shell (T.pack name)) (homeShellPath shell homes name)
     dest = path file
 
