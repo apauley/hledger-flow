@@ -117,9 +117,11 @@ example `hledger-flow --hledger-path /path/to/hledger import`.
 Start a ledger in an empty folder, then let `hledger-flow status` guide you.
 A new ledger includes an example account with a purchase and refund that
 cancel. Follow the suggested import and report commands to try the workflow.
-When status says the sample is untouched, delete `import/me` and
-`reports/me`, then add your own statement. The starter journals show where to
-add [manual entries](https://hledger-flow.github.io/reference/manual-journals/),
+Use the example as your starting point. Rename its owner, bank and account
+folders, replace the sample CSV under `1-in/<year>/`, and supply your own
+`<bank>-<account>.rules` in the account folder. Init uses your username for
+the example owner, with `me` as a fallback. The starter journals show where
+to add [manual entries](https://hledger-flow.github.io/reference/manual-journals/),
 [opening and closing balances](https://hledger-flow.github.io/reference/balances/)
 and market prices.
 `directives.journal` defines common commodities and account types you can edit.
@@ -135,10 +137,10 @@ hledger-flow status
 ```
 
 1. Put a statement where `status` says, for example
-   `import/me/mybank/checking/1-in/2026/statement.csv`. Use non-overlapping
+   `import/alex/mybank/checking/1-in/2026/statement.csv`. Use non-overlapping
    exports for this account. A transaction in two files will be imported twice.
 2. Run the rules command `status` suggests, for example
-   `hledger-flow rules me/mybank/checking`. Open the file it creates and
+   `hledger-flow rules alex/mybank/checking`. Open the file it creates and
    check the fields, dates and account names before importing.
 3. Run `hledger-flow import`. It creates `all-years.journal`.
 4. Run `hledger-flow report`. Reports go under `reports/`. If you also want

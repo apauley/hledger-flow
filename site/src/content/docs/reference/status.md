@@ -19,12 +19,12 @@ rules, plus starter journals for [manual entries](/reference/manual-journals/),
 The generated `directives.journal` defines common currencies, BTC and satoshis,
 and standard account types. It links to the hledger manual for each section.
 Commodity aliases take effect in hledger versions that support them.
-Run the suggested import and report to try it. When the example account is
-untouched, status says you can delete `import/me` and `reports/me`, then
-add your first real statement. While
-`import/me/mybank/checking` exists, the suggested first-statement directory
-uses `personal` as the owner to keep real statements separate. When a real account needs rules, run the suggested
-`hledger-flow rules` command to create a starter.
+Run the suggested import and report to try it. The example starts in
+`import/<owner>/mybank/checking/`. Init uses your username for `<owner>` and
+falls back to `me` when it cannot use that name. Status guides you to
+rename the example folders and replace the sample CSV and rules. When a real
+account needs rules, run the suggested `hledger-flow rules` command to create
+a starter.
 
 ## Journal used for reports
 

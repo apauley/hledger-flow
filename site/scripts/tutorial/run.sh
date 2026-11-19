@@ -18,6 +18,7 @@ cp -R "$repo/site/public/tutorial/Downloads" "$home/"
 # personal hledger config (such as ~/.hledger.conf) changes the output.
 export HOME=$home PATH=$home/bin:/usr/bin:/bin:/usr/sbin:/sbin
 export LANG=C.UTF-8 TZ=UTC COLUMNS=80 TREE_CHARSET=ASCII NO_COLOR=1
+export USER=gawie USERNAME=gawie
 export HLEDGER_FLOW_NO_UPDATE_CHECK=1
 export GIT_AUTHOR_NAME=Gawie GIT_AUTHOR_EMAIL=gawie@example.com
 export GIT_COMMITTER_NAME=Gawie GIT_COMMITTER_EMAIL=gawie@example.com

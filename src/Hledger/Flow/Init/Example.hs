@@ -4,6 +4,9 @@
 module Hledger.Flow.Init.Example
   ( exampleImportFiles,
     exampleBaseFiles,
+    starterOwner,
+    exampleAccount,
+    exampleAccountPath,
     sampleAccountDir,
     untouchedExample,
     directivesAreStarter,
@@ -12,21 +15,54 @@ module Hledger.Flow.Init.Example
 where
 
 import qualified Data.ByteString as B
-import Data.Maybe (mapMaybe)
+import Data.List (intercalate)
+import Data.Maybe (fromMaybe, mapMaybe)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as TIO
+import Hledger.Flow.Common (Shell (..), nativeShell)
 import Hledger.Flow.DocHelpers (DocLink (Balances, ManualJournals, RulesFiles), docURL)
 import Hledger.Flow.PathHelpers (AbsDir, AbsFile, RelDir, RelFile, pathOccupied)
 import Hledger.Flow.Types (BaseDir)
 import Path
 import qualified Path.IO as PathIO
+import System.Environment (lookupEnv)
 import qualified System.FilePath as F
+import qualified System.FilePath.Windows as Windows
 import System.IO.Error (tryIOError)
 import Text.Read (readMaybe)
 
-exampleAccount :: RelDir
-exampleAccount = [reldir|me/mybank/checking|]
+starterOwner :: IO RelDir
+starterOwner = do
+  let variable = case nativeShell of
+        Posix -> "USER"
+        PowerShell -> "USERNAME"
+  value <- either (const Nothing) id <$> tryIOError (lookupEnv variable)
+  return (fromMaybe [reldir|me|] (value >>= validOwner))
+  where
+    validOwner name
+      | Windows.isValid name,
+        Windows.splitDirectories name == [name],
+        not (any Windows.isPathSeparator name),
+        T.strip text == text,
+        not (T.isPrefixOf "." text || T.isPrefixOf "~" text),
+        not (T.isSuffixOf "." text),
+        ';' `notElem` name,
+        not (T.isSuffixOf ".journal" folded),
+        folded /= "_manual_",
+        B.length (T.encodeUtf8 text) <= 255 = parseRelDir name
+      | otherwise = Nothing
+      where
+        text = T.pack name
+        folded = T.toCaseFold text
+
+exampleAccount :: RelDir -> RelDir
+exampleAccount owner = owner </> [reldir|mybank/checking|]
+
+exampleAccountPath :: RelDir -> T.Text
+exampleAccountPath account = "import/" <> T.pack (intercalate "/" parts)
+  where
+    parts = F.splitDirectories (F.dropTrailingPathSeparator (toFilePath account))
 
 sampleName :: RelFile
 sampleName = [relfile|hledger-flow-example.csv|]
@@ -58,12 +94,12 @@ sampleRules = T.unlines
     " account2 expenses:example"
   ]
 
-exampleImportFiles :: Integer -> [(RelFile, T.Text)]
-exampleImportFiles year =
-  (exampleAccount </> rulesName, starterComment "# " sampleRules)
+exampleImportFiles :: RelDir -> Integer -> [(RelFile, T.Text)]
+exampleImportFiles starter year =
+  (exampleAccount starter </> rulesName, starterComment "# " sampleRules)
     : paths ((samplePath, sampleCsv year) : manualFiles ++ balanceFiles)
   where
-    account = F.dropTrailingPathSeparator (toFilePath exampleAccount)
+    account = F.dropTrailingPathSeparator (toFilePath (exampleAccount starter))
     bank = F.takeDirectory account
     owner = F.takeDirectory bank
     yearName = show year
@@ -186,46 +222,46 @@ starterDirectives = T.unlines
 paths :: [(FilePath, a)] -> [(RelFile, a)]
 paths = mapMaybe (\(p, a) -> fmap (\path -> (path, a)) (parseRelFile p))
 
-untouchedExample :: BaseDir -> [AbsFile] -> IO Bool
-untouchedExample base [source] = case stripProperPrefix account source of
-  Just rel
-    | ["1-in", yearName, name] <- F.splitDirectories (toFilePath rel),
-      name == toFilePath sampleName,
-      Just year <- readMaybe yearName,
-      Just generated <- parseRelFile ("3-journal" F.</> yearName F.</> "hledger-flow-example.journal"),
-      Just yearIndex <- parseRelFile (yearName ++ "-include.journal") -> do
-        result <- tryIOError $ do
-          let rules = account </> rulesName
-              journal = account </> generated
-              bank = parent account
-              owner = parent bank
-              indexes dir = [dir </> yearIndex, dir </> [relfile|all-years.journal|]]
-              otherStarters =
-                [ (file, contents)
-                  | (relative, contents) <- exampleImportFiles year,
-                    let file = importRoot base </> relative,
-                    isProperPrefixOf owner file, file /= source, file /= rules
-                ]
-              allowed = [source, rules, journal] ++ map fst otherStarters ++ concatMap indexes [owner, bank, account]
-              dirs = concatMap (takeWhile (isProperPrefixOf owner) . iterate parent . parent) allowed
-              optionalStarter (file, contents) = do
-                exists <- PathIO.doesFileExist file
-                if exists then matches file contents else pure True
-          cleanPath <- allM plainDir [importRoot base, owner]
-          cleanContents <- if cleanPath then containsOnly dirs allowed owner else return False
-          if cleanContents then do
-            current <- (&&) <$> matches source (sampleCsv year)
-                            <*> matches rules (starterComment "# " sampleRules)
-            sampleMatches <- if current then pure True
-              else (&&) <$> matches source (T.unlines (sampleCsvRows year)) <*> matches rules sampleRules
-            if sampleMatches then allM optionalStarter otherStarters else pure False
-          else pure False
-        return (either (const False) id result)
-  _ -> return False
+untouchedExample :: BaseDir -> [AbsFile] -> IO (Maybe RelDir)
+untouchedExample base [source]
+  | Just rel <- stripProperPrefix (importRoot base) source,
+    [ownerName, "mybank", "checking", "1-in", yearName, name] <- F.splitDirectories (toFilePath rel),
+    name == toFilePath sampleName,
+    Just starter <- parseRelDir ownerName,
+    Just year <- readMaybe yearName,
+    Just generated <- parseRelFile ("3-journal" F.</> yearName F.</> "hledger-flow-example.journal"),
+    Just yearIndex <- parseRelFile (yearName ++ "-include.journal") = do
+      let account = sampleAccountDir base starter
+      result <- tryIOError $ do
+        let rules = account </> rulesName
+            journal = account </> generated
+            bank = parent account
+            owner = parent bank
+            indexes dir = [dir </> yearIndex, dir </> [relfile|all-years.journal|]]
+            otherStarters =
+              [ (file, contents)
+                | (relative, contents) <- exampleImportFiles starter year,
+                  let file = importRoot base </> relative,
+                  isProperPrefixOf owner file, file /= source, file /= rules
+              ]
+            allowed = [source, rules, journal] ++ map fst otherStarters ++ concatMap indexes [owner, bank, account]
+            dirs = concatMap (takeWhile (isProperPrefixOf owner) . iterate parent . parent) allowed
+            optionalStarter (file, contents) = do
+              exists <- PathIO.doesFileExist file
+              if exists then matches file contents else pure True
+        cleanPath <- allM plainDir [importRoot base, owner]
+        cleanContents <- if cleanPath then containsOnly dirs allowed owner else return False
+        if cleanContents then do
+          current <- (&&) <$> matches source (sampleCsv year)
+                          <*> matches rules (starterComment "# " sampleRules)
+          sampleMatches <- if current then pure True
+            else (&&) <$> matches source (T.unlines (sampleCsvRows year)) <*> matches rules sampleRules
+          if sampleMatches then allM optionalStarter otherStarters else pure False
+        else pure False
+      return (case result of Right True -> Just (exampleAccount starter); _ -> Nothing)
   where
-    account = sampleAccountDir base
     matches file expected = (== T.encodeUtf8 expected) <$> B.readFile (toFilePath file)
-untouchedExample _ _ = return False
+untouchedExample _ _ = return Nothing
 
 containsOnly :: [AbsDir] -> [AbsFile] -> AbsDir -> IO Bool
 containsOnly allowedDirs allowedFiles dir = do
@@ -239,8 +275,8 @@ containsOnly allowedDirs allowedFiles dir = do
 importRoot :: BaseDir -> AbsDir
 importRoot base = base </> [reldir|import|]
 
-sampleAccountDir :: BaseDir -> AbsDir
-sampleAccountDir base = importRoot base </> exampleAccount
+sampleAccountDir :: BaseDir -> RelDir -> AbsDir
+sampleAccountDir base owner = importRoot base </> exampleAccount owner
 
 -- Starter declarations and comments do not add transactions to the ledger.
 directivesAreStarter :: BaseDir -> IO Bool

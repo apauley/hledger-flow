@@ -41,8 +41,8 @@ MASKS = [
     (re.compile(r"^(  hledger-flow  \S+) .*$", re.M), r"\1 BUILD"),
     (re.compile(r"^  Cores .*$", re.M), "  Cores N"),
     # Init uses the current year for the example and starter journals.
-    (re.compile(r"(import/(?:me|personal)/mybank/checking/1-in/|Created prices/)\d{4}"), r"\1YEAR"),
-    (re.compile(r"(^  me/mybank/checking +1 statement \()\d{4}", re.M), r"\1YEAR"),
+    (re.compile(r"(Created prices/)\d{4}"), r"\1YEAR"),
+    (re.compile(r"(^  gawie/mybank/checking +1 statement \()\d{4}", re.M), r"\1YEAR"),
 ]
 
 

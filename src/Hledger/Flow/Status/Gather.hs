@@ -30,7 +30,7 @@ import Hledger.Flow.Import.ImportHelpers (defaultRulesCandidates, extractImportD
 import Hledger.Flow.Import.IncludeFiles (includesNeedUpdate)
 import Hledger.Flow.Import.Inventory (classifyGeneratedOutputs, findImportFiles, generatedOutput, isManualJournal, managedIncludeFiles, stageFiles)
 import Hledger.Flow.Import.Types (ImportDirs (..))
-import Hledger.Flow.Init.Example (directivesAreStarter, journalIsCommentsOnly, sampleAccountDir, untouchedExample)
+import Hledger.Flow.Init.Example (directivesAreStarter, journalIsCommentsOnly, sampleAccountDir, starterOwner, untouchedExample)
 import Hledger.Flow.LedgerSelection
 import Hledger.Flow.PathHelpers (AbsDir, AbsFile, RelFile, pathOccupied)
 import Hledger.Flow.ReportReview (loadReportReview, reviewItems)
@@ -81,10 +81,14 @@ gatherStatusWithConfig hledger conf base = do
     (Just info, Just journal) | not reconciliation -> journalNeedsPrices info journal
     _ -> return False
   review <- maybe (pure Nothing) (\journal -> loadReportReview base journal conf) selected
-  examplePresent <- either (const True) id <$> tryIOError (pathOccupied (sampleAccountDir base))
+  owner <- starterOwner
+  examplePresent <- either (const True) id <$> tryIOError (pathOccupied (sampleAccountDir base owner))
+  let personal = [reldir|personal|]
+      alternate = if FilePath.equalFilePath (toFilePath owner) (toFilePath personal) then [reldir|me|] else personal
+      firstOwner = if examplePresent then alternate else owner
   example <- case review of
     Just current | null (reviewItems current) -> untouchedExample base statements
-    _ -> return False
+    _ -> return Nothing
   manualWork <- case manualJournals of
     [] -> pure False
     -- A wrapper can contribute journal entries of its own.
@@ -107,7 +111,7 @@ gatherStatusWithConfig hledger conf base = do
         lsNeedsReconciliation = reconciliation,
         lsNeedsPrices = needsPrices,
         lsReview = review,
-        lsExampleAccountPresent = examplePresent,
+        lsFirstStatementOwner = firstOwner,
         lsUntouchedExample = example
       }
 

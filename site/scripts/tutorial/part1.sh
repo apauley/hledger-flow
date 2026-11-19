@@ -6,9 +6,12 @@ c hledger-flow init
 c hledger-flow import
 c hledger-flow report
 c hledger-flow status
-c rm -r import/me reports/me
-# This tutorial uses historical statements. Discard the remaining demo files.
-q rm -r import/_manual_ prices reports
+c mv import/gawie/mybank import/gawie/kudu
+c mv import/gawie/kudu/checking import/gawie/kudu/creditcard
+# Clear the sample-year data from the scratch ledger before using the historical fixtures.
+q rm -r import/_manual_ import/gawie/_manual_ import/gawie/kudu/_manual_ prices reports
+q find import/gawie -type f -delete
+q find import/gawie -depth -mindepth 3 -type d -empty -delete
 q git init -q .
 c mkdir -p import/gawie/kudu/creditcard/1-in/2016
 c cp ../Downloads/Kudu/creditcard_2016-03-31.csv import/gawie/kudu/creditcard/1-in/2016/

@@ -35,8 +35,8 @@ blank =
       lsNeedsReconciliation = False,
       lsNeedsPrices = False,
       lsReview = Nothing,
-      lsExampleAccountPresent = False,
-      lsUntouchedExample = False
+      lsFirstStatementOwner = [reldir|me|],
+      lsUntouchedExample = Nothing
     }
 
 acct :: AccountStatus

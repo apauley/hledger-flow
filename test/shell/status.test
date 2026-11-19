@@ -146,6 +146,7 @@ P EUR USD
 cd "$(mktemp -d "${TMPDIR:-/tmp}/hledger-flow.XXXXXXXX")"
 unset LEDGER_FILE
 year=$(date +%Y)
+export USER=me USERNAME=me
 account=import/me/mybank/checking
 hledger-flow init >/dev/null
 for file in directives.journal $(find import prices -type f); do
@@ -219,6 +220,45 @@ Checking opening balance
 Example purchase
 Example refund
 
+# Init uses the current user and status guides adapting the example in place.
+<
+cd "$(mktemp -d "${TMPDIR:-/tmp}/hledger-flow.XXXXXXXX")"
+unset LEDGER_FILE
+export USER=alex USERNAME=alex
+year=$(date +%Y)
+hledger-flow init > init.out
+grep -Fq 'Created an example account (import/alex/mybank/checking)' init.out
+test -f "import/alex/mybank/checking/1-in/$year/hledger-flow-example.csv"
+hledger-flow import >/dev/null
+hledger-flow report >/dev/null
+USER=someone-else USERNAME=someone-else hledger-flow status --json | jq -e '
+    .next.summary == "Adapt the example account to your ledger"
+    and (.next.detail | join(" ") | contains("import/alex/mybank/checking") and contains("1-in/") and contains("<bank>-<account>.rules"))
+' >/dev/null
+mv import/alex import/household
+mv import/household/mybank import/household/creditunion
+mv import/household/creditunion/checking import/household/creditunion/savings
+account=import/household/creditunion/savings
+rm "$account/1-in/$year/hledger-flow-example.csv" "$account/mybank-checking.rules"
+printf 'Date,Description,Amount\n%s-01-03,First real statement,10.00\n' "$year" > "$account/1-in/$year/statement.csv"
+printf 'skip 1\nfields date, description, amount\ncurrency USD\naccount1 assets:creditunion:savings\naccount2 revenues:interest\n' > "$account/creditunion-savings.rules"
+hledger-flow import >/dev/null
+hledger-flow report >/dev/null
+hledger --no-conf -f all-years.journal descriptions
+unset USER USERNAME
+hledger-flow init fallback >/dev/null
+test -d fallback/import/me/mybank/checking
+USER=../outside USERNAME=../outside hledger-flow init invalid >/dev/null
+test -d invalid/import/me/mybank/checking
+USER=NUL USERNAME=NUL hledger-flow init reserved >/dev/null
+test -d reserved/import/me/mybank/checking
+USER='name;suffix' USERNAME='name;suffix' hledger-flow init comment >/dev/null
+test -d comment/import/me/mybank/checking
+USER='~name' USERNAME='~name' hledger-flow init tilde >/dev/null
+test -d tilde/import/me/mybank/checking
+$ sh -eu
+First real statement
+
 # The rules template, saved as suggested, imports the statement.
 <
 cd "$(mktemp -d "${TMPDIR:-/tmp}/hledger-flow.XXXXXXXX")"
@@ -281,6 +321,7 @@ HOME=$(mktemp -d "${TMPDIR:-/tmp}/hledger-flow.XXXXXXXX")
 export HOME
 unset LEDGER_FILE
 cd "$HOME"
+export USER=me USERNAME=me
 hledger-flow init 'my finances' > output
 grep -qx 'Started a ledger in ~/my finances' output
 change=$(sed -n 's/^Change to it first: //p' output)
@@ -479,8 +520,9 @@ $ sh -eu
 . ./test/shell/status-commands.sh
 . ./test/shell/setup.sh
 mkdir -p 'ledger one/import' 'ledger two/import'
+export USER=alex USERNAME=alex
 year=$(date +%Y)
-example="import/me/mybank/checking/1-in/$year"
+example="import/alex/mybank/checking/1-in/$year"
 command_from_json() {
     hledger-flow status "$@" --json | jq -er '.next.detail[] | select(startswith("Change the names, then run: ")) | sub("^Change the names, then run: "; "")' | tr -d '\r'
 }
@@ -494,7 +536,7 @@ command_from_json() {
 run_suggestion "$(command_from_json 'ledger two')" >/dev/null
 test -d "ledger two/$example"
 printf '%s-01-01,Shop,-5\n' "$year" > "ledger two/$example/statement.csv"
-hledger-flow status 'ledger two' --json | jq -e '.next.command | contains("hledger-flow rules me/mybank/checking")' > /dev/null
+hledger-flow status 'ledger two' --json | jq -e '.next.command | contains("hledger-flow rules alex/mybank/checking")' > /dev/null
 $ sh -eu
 
 # Reuse a local rules entry point while leaving its included helper in place.
@@ -544,6 +586,7 @@ printf '; Existing EUR-USD prices\n' > "prices/$year/EUR-USD.prices"
 cp directives.journal original-directives
 cp "prices/$year/prices.journal" original-prices
 cp "prices/$year/EUR-USD.prices" original-pair
+export USER=me USERNAME=me
 acct=import/me/mybank/checking
 rules="$acct/mybank-checking.rules"
 sample="$acct/1-in/$year/hledger-flow-example.csv"
@@ -565,47 +608,47 @@ test ! -e "$acct/construct"
 run_suggestion "$(next_command)" > import.out
 grep -q '^Imported 1 statement' import.out
 run_suggestion "$(next_command)" > report.out
-hledger-flow status --json | jq -e '.reportsCurrent and .review.unknownTransactions.count == 0 and .review.transferAccounts.count == 0 and (.next.summary | startswith("Put your first statement")) and (.next.detail | join(" ") | contains("safe to delete"))' > /dev/null
+hledger-flow status --json | jq -e '.reportsCurrent and .review.unknownTransactions.count == 0 and .review.transferAccounts.count == 0 and (.next.summary == "Adapt the example account to your ledger")' > /dev/null
 hledger -f all-years.journal balance --monthly --no-total expenses:example > monthly
 hledger -f all-years.journal balance --quarterly --no-total expenses:example > quarterly
 if grep -q 'expenses:example *||' monthly quarterly; then exit 1; fi
 touch "$acct/.keep"
-hledger-flow status --json | jq -e '.next.detail | join(" ") | contains("safe to delete") | not' > /dev/null
+hledger-flow status --json | jq -e '.next.detail | join(" ") | contains("Rename the owner, bank and account folders") | not' > /dev/null
 rm "$acct/.keep"
 cp "$rules" original-rules
 printf '# User rule edit\n' >> "$rules"
 hledger-flow import > import.out
 hledger-flow report > report.out
-hledger-flow status --json | jq -e '.next.detail | join(" ") | contains("safe to delete") | not' > /dev/null
+hledger-flow status --json | jq -e '.next.detail | join(" ") | contains("Rename the owner, bank and account folders") | not' > /dev/null
 mv original-rules "$rules"
 cp "$sample" original-sample
 printf '\n' >> "$sample"
 hledger-flow import > import.out
 hledger-flow report > report.out
-hledger-flow status --json | jq -e '.reportsCurrent and (.next.detail | join(" ") | contains("safe to delete") | not)' > /dev/null
+hledger-flow status --json | jq -e '.reportsCurrent and (.next.detail | join(" ") | contains("Rename the owner, bank and account folders") | not)' > /dev/null
 mv original-sample "$sample"
 account_manual="$acct/_manual_/$year/post-import.journal"
 cp "$account_manual" original-manual
 printf '; Account-level user edit\n' >> "$account_manual"
 hledger-flow import > import.out
 hledger-flow report > report.out
-hledger-flow status --json | jq -e '.reportsCurrent and (.next.detail | join(" ") | contains("safe to delete") | not)' > /dev/null
+hledger-flow status --json | jq -e '.reportsCurrent and (.next.detail | join(" ") | contains("Rename the owner, bank and account folders") | not)' > /dev/null
 mv original-manual "$account_manual"
 closing="$acct/$year-closing.journal"
 cp "$closing" original-closing
 printf '; Closing balance edit\n' >> "$closing"
 hledger-flow report > report.out
-hledger-flow status --json | jq -e '.next.detail | join(" ") | contains("safe to delete") | not' > /dev/null
+hledger-flow status --json | jq -e '.next.detail | join(" ") | contains("Rename the owner, bank and account folders") | not' > /dev/null
 mv original-closing "$closing"
 touch "$acct/preprocess"
-hledger-flow status --json | jq -e '.next.detail | join(" ") | contains("safe to delete") | not' > /dev/null
+hledger-flow status --json | jq -e '.next.detail | join(" ") | contains("Rename the owner, bank and account folders") | not' > /dev/null
 rm "$acct/preprocess"
 mkdir -p import/me/otherbank
-hledger-flow status --json | jq -e '.next.detail | join(" ") | contains("safe to delete") | not' > /dev/null
+hledger-flow status --json | jq -e '.next.detail | join(" ") | contains("Rename the owner, bank and account folders") | not' > /dev/null
 rmdir import/me/otherbank
 hledger-flow import > import.out
 hledger-flow report > report.out
-hledger-flow status --json | jq -e '.next.detail | join(" ") | contains("remove import/me and reports/me")' > /dev/null
+hledger-flow status --json | jq -e '.next.detail | join(" ") | contains("Rename the owner, bank and account folders")' > /dev/null
 printf '%s-01-03 User manual entry\n    assets:manual  11 USD\n    equity:opening balances\n' "$year" > "$manual"
 rm -r import/me reports/me
 hledger-flow import > import.out
@@ -621,6 +664,7 @@ $ sh -eu
 <
 cd "$(mktemp -d "${TMPDIR:-/tmp}/hledger-flow.XXXXXXXX")"
 unset LEDGER_FILE
+export USER=me USERNAME=me
 year=$(date +%Y)
 hledger-flow init >/dev/null
 hledger-flow import >/dev/null
@@ -648,6 +692,7 @@ $ sh -eu
 cd "$(mktemp -d "${TMPDIR:-/tmp}/hledger-flow.XXXXXXXX")"
 unset LEDGER_FILE
 year=$(date +%Y)
+export USER=me USERNAME=me
 sample="import/me/mybank/checking/1-in/$year/hledger-flow-example.csv"
 real="import/personal/mybank/checking/1-in/$year"
 hledger-flow init >/dev/null
@@ -657,10 +702,9 @@ cp "$sample" original-sample
 setup_command() {
     hledger-flow status --json | jq -er '.next.detail[] | select(startswith("Change the names, then run: ")) | sub("^Change the names, then run: "; "")' | tr -d '\r'
 }
+touch import/me/mybank/checking/.keep
 suggestion=$(setup_command)
 test "$suggestion" = "$(hledger-flow status | sed -n 's/^ *Change the names, then run: //p' | tr -d '\r')"
-touch import/me/mybank/checking/.keep
-test "$(setup_command)" = "$suggestion"
 run_suggestion "$suggestion" >/dev/null
 test -d "$real"
 printf 'Date,Description,Amount\n%s-01-03,Real purchase,-9.50\n' "$year" > "$real/statement.csv"
@@ -674,6 +718,7 @@ $ sh -eu
 <
 cd "$(mktemp -d "${TMPDIR:-/tmp}/hledger-flow.XXXXXXXX")"
 year=$(date +%Y)
+export USER=me USERNAME=me
 mkdir -p "prices/$year/prices.journal"
 if hledger-flow init > out 2> err; then exit 1; fi
 grep -q 'prices.journal' err

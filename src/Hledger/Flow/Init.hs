@@ -16,8 +16,8 @@ import Hledger.Flow.BaseDir (findBaseDir)
 import Data.Maybe (fromMaybe)
 import Hledger.Flow.Common (Shell (..), findHledgerConf, homeDirs, homeShellPath, nativeShell, shellArgument, tildePath)
 import Hledger.Flow.DateTime (currentYear)
-import Hledger.Flow.Init.Example (exampleBaseFiles, exampleImportFiles)
-import Hledger.Flow.PathHelpers (AbsDir, RelFile, pathOccupied, writeNewUtf8File)
+import Hledger.Flow.Init.Example (exampleAccount, exampleAccountPath, exampleBaseFiles, exampleImportFiles, starterOwner)
+import Hledger.Flow.PathHelpers (AbsDir, RelDir, RelFile, pathOccupied, writeNewUtf8File)
 import Hledger.Flow.Status.Render (printNext)
 import Hledger.Flow.Types (BaseDir)
 import Path
@@ -27,7 +27,7 @@ import qualified System.FilePath as FilePath
 
 data InitOutcome
   = -- | The new ledger, and an unrelated ledger above it, if any.
-    Created BaseDir (Maybe BaseDir) [(RelFile, Bool)]
+    Created BaseDir (Maybe BaseDir) RelDir [(RelFile, Bool)]
   | -- | The folder already has @import/@.
     AlreadyLedger BaseDir
   | -- | The folder is inside this ledger's @import/@ tree.
@@ -46,6 +46,7 @@ initLedger dir = do
         Just b | let imp = b </> [reldir|import|], imp == dir || imp `isProperPrefixOf` dir -> return (InsideLedger b)
         _ -> do
           year <- currentYear
+          owner <- starterOwner
           createDirIfMissing True dir
           baseFiles <- forM (exampleBaseFiles year) $ \(name, contents) -> do
             let target = dir </> name
@@ -65,9 +66,9 @@ initLedger dir = do
                     if exists then return (name, False) else ioError err
           withTempDir dir ".hledger-flow-init-" $ \temp -> do
             let staged = temp </> [reldir|import|]
-            mapM_ (\(name, contents) -> writeNewUtf8File (staged </> name) contents) (exampleImportFiles year)
+            mapM_ (\(name, contents) -> writeNewUtf8File (staged </> name) contents) (exampleImportFiles owner year)
             renameDir staged (dir </> [reldir|import|])
-          return (Created dir above baseFiles)
+          return (Created dir above (exampleAccount owner) baseFiles)
 
 -- | Run @hledger-flow init@ for a folder, printing what happened and what's next.
 runInit :: Maybe FilePath -> Maybe FilePath -> AbsDir -> AbsDir -> IO ()
@@ -83,9 +84,9 @@ runInit hledgerPath confOption cwd dir = do
     InsideLedger b ->
       ioError . userError . T.unpack $
         "That folder is inside the ledger at " <> shown b <> ". Start a new ledger outside its import/ folder."
-    Created base parentLedger baseFiles -> do
+    Created base parentLedger account baseFiles -> do
       T.putStrLn ("Started a ledger in " <> shown base)
-      T.putStrLn "Created an example account (import/me/mybank/checking) and starter journals for manual entries and balances."
+      T.putStrLn ("Created an example account (" <> exampleAccountPath account <> ") and starter journals for manual entries and balances.")
       mapM_ (\(name, created) -> T.putStrLn ((if created then "Created " else "Kept existing ") <> T.pack (toFilePath name))) baseFiles
       mapM_ (\p -> T.putStrLn ("Note: " <> shown p <> " also has an import/ folder. Commands run inside " <> shown base <> " use the new ledger.")) parentLedger
       when (base /= cwd) $ do

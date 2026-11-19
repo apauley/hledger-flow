@@ -34,8 +34,9 @@ import Hledger.Flow.Common (Shell (..), createDirectoryCommand, hledgerFileArgum
 import Hledger.Flow.DocHelpers (DocLink (..), docURL)
 import Hledger.Flow.HledgerConfig (ConfigConflict, ConfigUse (..), firstConfigConflict, renderConfigConflict)
 import Hledger.Flow.Import.Inventory (stageFiles)
+import Hledger.Flow.Init.Example (exampleAccountPath)
 import Hledger.Flow.LedgerSelection (Coverage (..), LedgerFile (..), ledgerFileProblem)
-import Hledger.Flow.PathHelpers (AbsDir, AbsFile, RelFile)
+import Hledger.Flow.PathHelpers (AbsDir, AbsFile, RelDir, RelFile)
 import Hledger.Flow.ReportReview
 import Hledger.Flow.StatementScan (StatementYear (..))
 import Hledger.Flow.Types (BaseDir, HledgerConf (..), HledgerInfo)
@@ -84,8 +85,8 @@ data LedgerStatus = LedgerStatus
     lsNeedsReconciliation :: Bool,
     lsNeedsPrices :: Bool,
     lsReview :: Maybe Review,
-    lsExampleAccountPresent :: Bool,
-    lsUntouchedExample :: Bool
+    lsFirstStatementOwner :: RelDir,
+    lsUntouchedExample :: Maybe RelDir
   }
   deriving (Show)
 
@@ -166,8 +167,8 @@ plural :: Int -> T.Text -> T.Text
 plural 1 noun = "1 " <> noun
 plural n noun = T.pack (show n) <> " " <> noun <> "s"
 
-firstStatementStep :: Integer -> Shell -> [FilePath] -> AbsDir -> BaseDir -> Bool -> NextStep
-firstStatementStep year shell homes cwd base examplePresent =
+firstStatementStep :: Integer -> Shell -> [FilePath] -> AbsDir -> BaseDir -> RelDir -> NextStep
+firstStatementStep year shell homes cwd base owner =
   NextStep
     "Put your first statement in import/<owner>/<bank>/<account>/1-in/<year>/"
     Nothing
@@ -181,7 +182,6 @@ firstStatementStep year shell homes cwd base examplePresent =
     )
     (Just (docURL InputFiles))
   where
-    owner = if examplePresent then [reldir|personal|] else [reldir|me|]
     ownerName = T.pack (FilePath.dropTrailingPathSeparator (toFilePath owner))
 
 -- | The single most important next step. The first matching rule wins.
@@ -243,18 +243,22 @@ nextStep year shell homes cwd s
         NextStep "Generate reports, or explore with hledger" (Just (command "report"))
           ["Or try: " <> hint | Nothing <- [ledgerFileNote shell homes s], Just hint <- [balanceHint shell homes s]] Nothing
       Just review
-        | lsUntouchedExample s, null (reviewItems review) -> firstStatement
-            { nsDetail = nsDetail firstStatement ++
-              ["The example is safe to delete: remove import/me and reports/me. Then run "
-                <> importCommand <> " and " <> command "report" <> "."]
-            }
+        | Just account <- lsUntouchedExample s, null (reviewItems review) ->
+            NextStep "Adapt the example account to your ledger" Nothing
+              [ "Rename the owner, bank and account folders in " <> exampleAccountPath account <> " to match your ledger.",
+                "Replace the sample CSV under 1-in/ with your statement in the folder for its year.",
+                "Replace the sample rules with your own <bank>-<account>.rules in the account folder.",
+                "Use your account names in any starter journals you fill in.",
+                "Then run " <> importCommand <> " and " <> command "report" <> "."
+              ]
+              (Just (docURL InputFiles))
         | otherwise -> reviewStep importCommand firstStatement review
   where
     commandArgs = flowCommand shell homes cwd (lsBaseDir s) (lsHledgerConf s)
     command subcommand = commandArgs subcommand []
     spansYears item = case mpYear item of SpanningYears _ -> True; _ -> False
     missingConfigured = maybe False (not . lfExists) (lsLedgerFile s)
-    firstStatement = firstStatementStep year shell homes cwd (lsBaseDir s) (lsExampleAccountPresent s)
+    firstStatement = firstStatementStep year shell homes cwd (lsBaseDir s) (lsFirstStatementOwner s)
     importCommand = command "import"
     statements = sum (map asStatements (lsAccounts s))
     toImport = sum [asJournalsMissing a + asJournalsOutdated a | a <- lsAccounts s]

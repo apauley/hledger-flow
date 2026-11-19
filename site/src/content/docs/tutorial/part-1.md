@@ -58,7 +58,7 @@ hledger-flow init
 
 ```text
 Started a ledger in ~/my-finances
-Created an example account (import/me/mybank/checking) and starter journals for manual entries and balances.
+Created an example account (import/gawie/mybank/checking) and starter journals for manual entries and balances.
 Created directives.journal
 Created prices/2026/EUR-USD.prices
 Created prices/2026/BTC-USD.prices
@@ -82,24 +82,24 @@ hledger-flow status
 ```
 
 ```text
-Imported 1 statement for me/mybank/checking.
+Imported 1 statement for gawie/mybank/checking.
 Generated 7 reports in reports/. Skipped 2 empty reports.
 Each report starts with the hledger command that made it. Copy that line to tailor the report.
 Ledger: ~/my-finances   (hledger 1.99.6-gc3a608c2b-20261101 found)
 
-  me/mybank/checking   1 statement (2026)   ✓ 1 journal
+  gawie/mybank/checking   1 statement (2026)   ✓ 1 journal
 
   Note: LEDGER_FILE isn't set, so hledger won't find this ledger by default.
         hledger-flow report uses all-years.journal.
         For hledger, run: export LEDGER_FILE="$HOME/my-finances/all-years.journal"
         Or try: hledger -f "$HOME/my-finances/all-years.journal" balance
 
-Next: Put your first statement in import/<owner>/<bank>/<account>/1-in/<year>/
-      owner: whose money it is, for example personal, a partner or a business
-      bank: the institution, for example mybank
-      account: one account at that bank, for example checking
-      Change the names, then run: mkdir -p import/personal/mybank/checking/1-in/2026
-      The example is safe to delete: remove import/me and reports/me. Then run hledger-flow import and hledger-flow report.
+Next: Adapt the example account to your ledger
+      Rename the owner, bank and account folders in import/gawie/mybank/checking to match your ledger.
+      Replace the sample CSV under 1-in/ with your statement in the folder for its year.
+      Replace the sample rules with your own <bank>-<account>.rules in the account folder.
+      Use your account names in any starter journals you fill in.
+      Then run hledger-flow import and hledger-flow report.
       Docs: https://hledger-flow.github.io/go/input-files/
 
 Environment:
@@ -109,14 +109,15 @@ Environment:
   Cores         18, using 18
 ```
 
-He can remove the example while its files are untouched.
+Gawie keeps his owner folder and renames the bank and account folders.
 
 ```bash
-rm -r import/me reports/me
+mv import/gawie/mybank import/gawie/kudu
+mv import/gawie/kudu/checking import/gawie/kudu/creditcard
 ```
 
-The rest of the tutorial uses historical statements. Its examples leave the
-demo reports and current-year starter journals out of the file listings.
+He replaces the sample CSV and rules with his own. The file listings in this
+tutorial focus on the historical statements.
 
 ## The first statement
 
