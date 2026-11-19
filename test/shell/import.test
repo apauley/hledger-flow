@@ -253,10 +253,12 @@ flow import
 cp "$journal" before
 printf '2016-01-01 Other\n    assets:unrelated  99\n    equity:opening\n' > other.journal
 for section in general print; do
-    printf '# Header\n[%s]\n--file other.journal\n' "$section" > hledger.conf
-    if hledger-flow import > out 2> err; then exit 1; fi
-    grep -Fq "line 3 [$section] adds a journal: --file other.journal" err
-    cmp "$journal" before
+    for option in '--file=other.journal' '-If other.journal' '-Ifother.journal' '--alias "" -f other.journal'; do
+        printf '# Header\n[%s]\n%s\n' "$section" "$option" > hledger.conf
+        if hledger-flow import > out 2> err; then exit 1; fi
+        grep -Fq "line 3 [$section] adds a journal: $option" err
+        cmp "$journal" before
+    done
 done
 cp hledger.conf "given config.conf"
 printf '[print]\n--alias "-f=assets:other"\n' > hledger.conf
@@ -265,6 +267,17 @@ grep -Fq 'given config.conf line 3 [print]' err
 cmp "$journal" before
 flow import
 cmp "$journal" before
+# The last definition of each config section wins.
+printf '[general]\n--alias\n[general]\n-f other.journal\n' > hledger.conf
+if hledger-flow import > out 2> err; then exit 1; fi
+grep -Fq 'line 4 [general] adds a journal: -f other.journal' err
+printf '[general]\n-f other.journal\n[general]\n-I\n' > hledger.conf
+flow import
+if hledger --version | grep -q '^hledger 1\.52\.'; then
+    printf '[print]\n-m"" -f other.journal\n' > hledger.conf
+    if hledger-flow import > out 2> err; then exit 1; fi
+    grep -Fq 'line 2 [print] adds a journal: -m"" -f other.journal' err
+fi
 $ sh -eu
 
 # Existing rules directives still convert the in-tree statement.

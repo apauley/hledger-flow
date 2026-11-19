@@ -15,6 +15,7 @@ import Control.Monad (filterM)
 import Data.Aeson (FromJSON, ToJSON)
 import Data.Char (isSpace)
 import Data.List (nub)
+import Data.Maybe (fromMaybe)
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
@@ -43,8 +44,9 @@ entry file = Entry file <$> Directory.canonicalizePath file <*> Directory.getMod
 snapshotInputs :: [AbsFile] -> IO InputSnapshot
 snapshotInputs inputs = do
   let files = nub (map toFilePath inputs)
-  watched <- concat <$> mapM globDirectories files
-  InputSnapshot <$> traverse entry files <*> traverse entry (nub watched)
+  inputsWithTargets <- traverse entry files
+  watched <- concat <$> traverse (\(Entry _ target _) -> globDirectories target) inputsWithTargets
+  InputSnapshot inputsWithTargets <$> traverse entry (nub watched)
 
 inputTargets :: InputSnapshot -> [FilePath]
 inputTargets (InputSnapshot files _) = [target | Entry _ target _ <- files]
@@ -65,7 +67,7 @@ globDirectories :: FilePath -> IO [FilePath]
 globDirectories file = do
   contents <- T.readFile file
   let includes =
-        [ T.unpack (maybe arg id (T.stripPrefix "journal:" arg))
+        [ T.unpack (readerPath arg)
           | line <- T.lines (T.dropWhile (== '\xFEFF') contents),
             Just rest <- [T.stripPrefix "include" line],
             Just (first, _) <- [T.uncons rest],
@@ -77,16 +79,32 @@ globDirectories file = do
   where
     -- hledger-flow emits singleton character ranges for literal metacharacters.
     -- Track wildcard branches conservatively, including parents of missing branches.
-    watch path =
-      let parts = F.splitDirectories path
+    readerPath arg =
+      let (prefix, path) = T.breakOn ":" arg
+       in if prefix `elem` ["journal", "timeclock", "timedot", "csv", "tsv", "ssv"]
+            then fromMaybe arg (T.stripPrefix ":" path)
+            else arg
+    watch ('~' : separator : path) | separator `elem` ("/\\" :: String) =
+      Directory.getHomeDirectory >>= \home -> watchUnder home path
+    watch path = watchUnder (F.takeDirectory file) path
+    watchUnder parent path =
+      let parts = concatMap expandRecursive (F.splitDirectories path)
           (fixed, patternParts) = span (not . snd . decodeLiteral) parts
-          root = (if F.isAbsolute path then id else (F.takeDirectory file F.</>))
+          root = (if F.isAbsolute path then id else (parent F.</>))
             (F.joinPath (map (fst . decodeLiteral) fixed))
        in case patternParts of
             [] -> return []
             _ -> watchFrom Set.empty root patternParts
 
-watchFrom :: Set.Set FilePath -> FilePath -> [FilePath] -> IO [FilePath]
+-- hledger also interprets ** with a filename suffix as a recursive glob.
+expandRecursive :: String -> [String]
+expandRecursive = go []
+  where
+    go before ('*' : '*' : suffix@(_ : _)) = (reverse before ++ "**") : go [] ('*' : suffix)
+    go before (c : rest) = go (c : before) rest
+    go before [] = [reverse before]
+
+watchFrom :: Set.Set (FilePath, [FilePath]) -> FilePath -> [FilePath] -> IO [FilePath]
 watchFrom _ _ [] = return []
 watchFrom visited dir (part : rest) = do
   exists <- Directory.doesDirectoryExist dir
@@ -94,10 +112,10 @@ watchFrom visited dir (part : rest) = do
     then return []
     else do
       resolved <- Directory.canonicalizePath dir
-      if Set.member resolved visited
+      if Set.member (resolved, part : rest) visited
         then return [dir]
         else do
-          let next = Set.insert resolved visited
+          let next = Set.insert (resolved, part : rest) visited
               (literal, glob) = decodeLiteral part
           descend <- case (part, glob, rest) of
             (_, _, []) | part /= "**" -> return []

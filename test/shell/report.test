@@ -279,10 +279,12 @@ flow report --ascii-reports
 cp -R reports before
 printf '2016-01-01 Other\n    assets:unrelated  99\n    equity:opening\n' > other.journal
 for section in general balancesheet; do
-    printf '# Header\n[%s]\n--file=other.journal\n' "$section" > hledger.conf
-    if hledger-flow report > out 2> err; then exit 1; fi
-    grep -Fq "line 3 [$section] adds a journal: --file=other.journal" err
-    diff -r reports before
+    for option in '--file=other.journal' '-If other.journal' '-Ifother.journal' '--alias "" -f other.journal'; do
+        printf '# Header\n[%s]\n%s\n' "$section" "$option" > hledger.conf
+        if hledger-flow report > out 2> err; then exit 1; fi
+        grep -Fq "line 3 [$section] adds a journal: $option" err
+        diff -r reports before
+    done
 done
 cp hledger.conf "given config.conf"
 if hledger-flow --hledger-conf "given config.conf" report > out 2> err; then exit 1; fi
@@ -291,6 +293,12 @@ diff -r reports before
 printf '[balancesheet]\n--output-format csv\n[general]\n--alias "-f=assets:other"\n' > hledger.conf
 flow report --ascii-reports
 tr -d '\r' < reports/all/2016/balance-sheet.txt | grep -Fxq '"assets:bank","-5"'
+# The last definition of each config section wins.
+printf '[general]\n--alias\n[general]\n-f other.journal\n' > hledger.conf
+if hledger-flow report > out 2> err; then exit 1; fi
+grep -Fq 'line 4 [general] adds a journal: -f other.journal' err
+printf '[general]\n-f other.journal\n[general]\n-I\n' > hledger.conf
+flow report
 $ sh -eu
 
 # A configured journal resolves parent components from the invoking folder.
@@ -428,4 +436,49 @@ flow report --ascii-reports
 unlink selected.journal
 ln -s two/part.journal selected.journal
 hledger-flow status --json | jq -e '.reportsCurrent == false and .review == null' > /dev/null
+$ sh -eu
+
+# Newly matching files invalidate reports for home-relative, reader-prefixed and recursive globs.
+<
+. ./test/shell/setup.sh
+# Windows hledger uses the profile directory even when HOME is overridden.
+case "$(uname -s)" in
+    MINGW*|MSYS*) home_glob='home-journals/*.journal' ;;
+    *) export HOME="$finance"; home_glob='~/home-journals/*.journal' ;;
+esac
+mkdir -p home-journals timed-journals recursive/nested
+printf '; Included journal\n' > home-journals/first.journal
+printf '# Included timedot\n' > timed-journals/first.timedot
+printf '; Nested journal\n' > recursive/nested/first.journal
+printf 'include %s\ninclude timedot:timed-journals/*.timedot\ninclude recursive/**.journal\n' "$home_glob" > directives.journal
+case "$(uname -s)" in
+    MINGW*|MSYS*) ;;
+    *)
+        mkdir -p symlink-target/inside
+        printf 'include inside/*.journal\n' > symlink-target/entry.journal
+        printf '; Included via symlink\n' > symlink-target/inside/first.journal
+        ln -s symlink-target/entry.journal linked.journal
+        printf 'include linked.journal\n' >> directives.journal
+        ;;
+esac
+flow import
+flow report --ascii-reports
+current() { hledger-flow status --json | jq -e '.reportsCurrent' > /dev/null; }
+current
+printf '; New home journal\n' > home-journals/second.journal
+if current; then exit 1; fi
+flow report --ascii-reports
+current
+printf '# New timedot\n' > timed-journals/second.timedot
+if current; then exit 1; fi
+flow report --ascii-reports
+current
+printf '; New nested journal\n' > recursive/nested/second.journal
+if current; then exit 1; fi
+if [ -L linked.journal ]; then
+    flow report --ascii-reports
+    current
+    printf '; New journal via symlink\n' > symlink-target/inside/second.journal
+    if current; then exit 1; fi
+fi
 $ sh -eu

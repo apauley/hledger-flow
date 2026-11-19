@@ -17,6 +17,7 @@ where
 import qualified Data.ByteString as B
 import Data.Char (isSpace)
 import Data.List (find)
+import Data.Maybe (maybeToList)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
 import qualified Data.Text.Read as TR
@@ -28,12 +29,16 @@ data ConfigLine = ConfigLine
   { configSection :: T.Text,
     configLineNumber :: Int,
     configSource :: T.Text,
-    configArguments :: [T.Text]
+    configArguments :: [T.Text],
+    configStartsSection :: Bool
   }
   deriving (Eq, Show)
 
 parseConfigLines :: Bool -> [T.Text] -> [ConfigLine]
-parseConfigLines allowIndented = go "general" . zip [1 ..]
+parseConfigLines allowIndented = parseConfigLinesWith allowIndented configWords
+
+parseConfigLinesWith :: Bool -> (T.Text -> [T.Text]) -> [T.Text] -> [ConfigLine]
+parseConfigLinesWith allowIndented splitWords = go "general" . zip [1 ..]
   where
     go _ [] = []
     go section ((n, raw) : more)
@@ -42,8 +47,8 @@ parseConfigLines allowIndented = go "general" . zip [1 ..]
         Just start <- T.stripPrefix "[" body,
         (name, end) <- T.breakOn "]" start, not (T.null end) =
           let next = T.strip name
-           in ConfigLine next n body (configWords (T.drop 1 end)) : go next more
-      | otherwise = ConfigLine section n body (configWords body) : go section more
+           in ConfigLine next n body (splitWords (T.drop 1 end)) True : go next more
+      | otherwise = ConfigLine section n body (splitWords body) False : go section more
       where body = T.strip raw
 
 data ConfigUse = ImportConfig | ReportConfig | BalanceConfig
@@ -58,21 +63,32 @@ configConflicts file rows = concatMap fromSection sections
     sections = ["general", "print", "balancesheet", "incomestatement", "balance", "accounts"]
     fromSection section = scan
       [ (row, token)
-        | row <- rows, configSection row == section, token <- configArguments row
+        | row <- reverse (lastDefinition (reverse (filter ((== section) . configSection) rows))),
+          token <- configArguments row
       ]
+    lastDefinition [] = []
+    lastDefinition (row : more) =
+      row : if configStartsSection row then [] else lastDefinition more
     scan [] = []
     scan ((row, token) : remaining)
       | token == "--" = []
-      | token == "--file" || "--file=" `T.isPrefixOf` token || "-f" `T.isPrefixOf` token =
-          ConfigConflict file row True : scan (if token `elem` ["--file", "-f"] then drop 1 remaining else remaining)
+      | token == "--file" || "--file=" `T.isPrefixOf` token =
+          ConfigConflict file row True : scan (if token == "--file" then drop 1 remaining else remaining)
+      | Just (option, value) <- shortValue token =
+          [ConfigConflict file row True | option == 'f'] ++ scan (if T.null value then drop 1 remaining else remaining)
       | "@" `T.isPrefixOf` token = ConfigConflict file row False : scan remaining
       | token `elem` takesValue = scan (drop 1 remaining)
       | otherwise = scan remaining
     takesValue =
-      [ "--alias", "--pivot", "-b", "--begin", "-e", "--end", "-p", "--period",
-        "--depth", "-o", "--output-file", "-O", "--output-format", "--rules",
-        "--rules-file", "--today", "--value", "--conf"
+      [ "--alias", "--pivot", "--begin", "--end", "--period", "--depth",
+        "--output-file", "--output-format", "--rules", "--rules-file",
+        "--today", "--value", "--conf"
       ]
+    -- hledger accepts bundles such as -If. The first short option that takes
+    -- a value consumes the rest of the token, or the following token.
+    shortValue token
+      | "--" `T.isPrefixOf` token = Nothing
+      | otherwise = T.stripPrefix "-" token >>= T.uncons . T.dropWhile (`notElem` ("fbepoOXcmw" :: String))
 
 firstConfigConflict :: ConfigUse -> [ConfigConflict] -> Maybe ConfigConflict
 firstConfigConflict use = find (\(ConfigConflict _ row _) -> configSection row `elem` relevant)
@@ -90,11 +106,12 @@ readConfigConflicts info conf = do
           | Just suffix <- T.stripPrefix "." rest, Right (minor, _) <- TR.decimal suffix ->
               (major, minor) >= ((1, 99) :: (Int, Int))
         _ -> True
+      splitWords = if indented then configWords else legacyConfigWords
   bytes <- B.readFile file
   case TE.decodeUtf8' bytes of
     Left err -> ioError (userError ("Cannot read hledger config " ++ file ++ ": " ++ show err))
     Right contents -> return (configConflicts file
-      (parseConfigLines indented (T.lines (T.dropWhile (== '\xFEFF') contents))))
+      (parseConfigLinesWith indented splitWords (T.lines (T.dropWhile (== '\xFEFF') contents))))
 
 findConfigConflict :: HledgerInfo -> ConfigUse -> Maybe HledgerConf -> IO (Maybe ConfigConflict)
 findConfigConflict info use = fmap (firstConfigConflict use) . findConfigConflicts info
@@ -122,13 +139,27 @@ requireSafeConfig use opts = case RT.hledgerConf opts of
 -- Config arguments can quote spaces or a #; neither quotes nor comments are
 -- arguments. Leave malformed quoting for hledger to diagnose.
 configWords :: T.Text -> [T.Text]
-configWords = map T.pack . wordsOutside Nothing "" . T.unpack
+configWords = map T.pack . wordsOutside Nothing Nothing . T.unpack
   where
-    wordsOutside _ word [] = [reverse word | not (null word)]
+    wordsOutside _ word [] = map reverse (maybeToList word)
     wordsOutside quote word (c:cs)
       | Just c == quote = wordsOutside Nothing word cs
-      | quote == Nothing, c `elem` ['\'', '"'] = wordsOutside (Just c) word cs
-      | quote == Nothing, c == '#' = [reverse word | not (null word)]
+      | quote == Nothing, c `elem` ['\'', '"'] = wordsOutside (Just c) (Just (maybe "" id word)) cs
+      | quote == Nothing, c == '#' = map reverse (maybeToList word)
       | quote == Nothing, isSpace c =
-          [reverse word | not (null word)] ++ wordsOutside Nothing "" cs
-      | otherwise = wordsOutside quote (c:word) cs
+          map reverse (maybeToList word) ++ wordsOutside Nothing Nothing cs
+      | otherwise = wordsOutside quote (Just (c : maybe "" id word)) cs
+
+-- Older hledger config files start comments at any # and only interpret a
+-- quote at the start of a word. Quotes within an unquoted word stay literal.
+legacyConfigWords :: T.Text -> [T.Text]
+legacyConfigWords = go . T.stripStart . T.takeWhile (/= '#')
+  where
+    go input = case T.uncons input of
+      Nothing -> []
+      Just (quote, contents) | quote == '\'' || quote == '"' ->
+        let (word, end) = T.break (== quote) contents
+         in word : case T.uncons (T.drop 1 end) of
+              Just (next, _) | isSpace next -> go (T.stripStart (T.drop 1 end))
+              _ -> []
+      _ -> let (word, rest) = T.break isSpace input in word : go (T.stripStart rest)
