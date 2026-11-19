@@ -117,10 +117,8 @@ example `hledger-flow --hledger-path /path/to/hledger import`.
 Start a ledger in an empty folder, then let `hledger-flow status` guide you.
 A new ledger includes an example account with a purchase and refund that
 cancel. Follow the suggested import and report commands to try the workflow.
-When status says the sample is untouched, you can delete
-`import/me/mybank/checking` and add your own statement. The next import
-removes empty example owner folders and unchanged sample-only owner reports.
-The root-level `import/_manual_/`, `directives.journal` and `prices/` starter
+When status says the sample is untouched, delete `import/me` and
+`reports/me`, then add your own statement. The root-level `import/_manual_/`, `directives.journal` and `prices/` starter
 files show where to add your own entries and prices.
 
 Each `status` ends with a `Next:` line saying exactly what to do.

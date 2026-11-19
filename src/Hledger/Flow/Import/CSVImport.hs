@@ -10,7 +10,6 @@ import Control.Concurrent.STM
 import Control.Monad
 import Data.Maybe (fromMaybe)
 import qualified Data.Text as T
-import Hledger.Flow.Init.Example (cleanupExample, rememberExampleImport)
 import Hledger.Flow.DateTime (timeAction)
 import Hledger.Flow.Environment (importSettings, renderSettings)
 import Hledger.Flow.BaseDir (effectiveRunDir, relativeToBase)
@@ -102,8 +101,6 @@ importCSVs' opts ch = do
     (_, writeIncludeTime2) <- timeAction $ writeToplevelAllYearsInclude opts
     let includeGenTime = journalFindTime + writeIncludeTime1 + writeIncludeTime2
     logVerbose opts ch $ "Updated include files for " <> plural (length journalsOnDisk) "generated journal" <> " in " <> showDuration includeGenTime
-  rememberExampleImport (baseDir opts) [file | (file, True) <- importedJournals]
-  cleanupExample (baseDir opts)
   return importedJournals
 
 extractAndImport :: Maybe IncrementalRun -> RuntimeOptions -> TChan FlowTypes.LogMessage -> AbsDir -> AbsFile -> IO (AbsFile, Bool, Bool)

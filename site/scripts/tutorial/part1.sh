@@ -6,9 +6,7 @@ c hledger-flow init
 c hledger-flow import
 c hledger-flow report
 c hledger-flow status
-c rm -r import/me/mybank/checking
-# Reconcile the removed account and clean up its owner folders and reports.
-q hledger-flow import
+c rm -r import/me reports/me
 # This tutorial uses historical statements. Discard the remaining demo files.
 q rm -r import/_manual_ prices reports
 q git init -q .

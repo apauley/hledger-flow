@@ -97,7 +97,7 @@ Next: Put your first statement in import/<owner>/<bank>/<account>/1-in/<year>/
       bank: the institution, for example mybank
       account: one account at that bank, for example checking
       Change the names, then run: mkdir -p import/personal/mybank/checking/1-in/2026
-      The example account import/me/mybank/checking is safe to delete. Then run hledger-flow import and hledger-flow report.
+      The example is safe to delete: remove import/me and reports/me. Then run hledger-flow import and hledger-flow report.
       Docs: https://hledger-flow.github.io/go/input-files/
 
 Environment:
@@ -107,11 +107,10 @@ Environment:
   Cores         18, using 18
 ```
 
-He can remove the example account while its files are untouched. The next
-import cleans up its empty owner folders and unchanged sample-only reports.
+He can remove the example while its files are untouched.
 
 ```bash
-rm -r import/me/mybank/checking
+rm -r import/me reports/me
 ```
 
 The rest of the tutorial uses historical statements. Its examples leave the

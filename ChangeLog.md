@@ -33,7 +33,7 @@ How to keep this ChangeLog
 
 ## Unreleased
 
-- `init` creates a working example account plus starter journals for manual entries, directives and prices. Follow `status` through the first import and report. After you delete the untouched example, import removes its empty folders and unchanged sample-only owner reports. Status guides you to your first statement when only the starter comments remain.
+- `init` creates a working example account plus starter journals for manual entries, directives and prices. Follow `status` through the first import and report. Status tells you when the untouched example is safe to delete. Status guides you to your first statement when only the starter comments remain.
 
 - After a successful report, `status` points to [unknown transactions and transfers that need review](https://hledger-flow.github.io/reference/status/#review-unknown-transactions).
 

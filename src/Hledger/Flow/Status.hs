@@ -245,7 +245,7 @@ nextStep year shell homes cwd s
       Just review
         | lsUntouchedExample s, null (reviewItems review) -> firstStatement
             { nsDetail = nsDetail firstStatement ++
-              ["The example account import/me/mybank/checking is safe to delete. Then run "
+              ["The example is safe to delete: remove import/me and reports/me. Then run "
                 <> importCommand <> " and " <> command "report" <> "."]
             }
         | otherwise -> reviewStep importCommand firstStatement review
