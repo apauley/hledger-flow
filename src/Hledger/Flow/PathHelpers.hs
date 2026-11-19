@@ -50,9 +50,19 @@ writeNewUtf8File target contents = do
         dest = Path.toFilePath target
     B.writeFile src (T.encodeUtf8 contents)
 #ifdef mingw32_HOST_OS
-    Win32.moveFile src dest
+    Win32.moveFile (extendedWindowsPath src) (extendedWindowsPath dest)
 #else
     Posix.createLink src dest
+#endif
+
+#ifdef mingw32_HOST_OS
+-- The raw Win32 move needs the file namespace for paths beyond MAX_PATH.
+-- GHC file writes already use that namespace for ordinary absolute paths.
+extendedWindowsPath :: FilePath -> FilePath
+extendedWindowsPath path = case FilePath.normalise path of
+  absolute@('\\' : '\\' : marker : '\\' : _) | marker == '?' || marker == '.' -> absolute
+  '\\' : '\\' : unc -> "\\\\?\\UNC\\" ++ unc
+  absolute -> "\\\\?\\" ++ absolute
 #endif
 
 pathOccupied :: AbsFile -> IO Bool
