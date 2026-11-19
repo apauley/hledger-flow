@@ -283,8 +283,9 @@ rm import/me/kudu/creditcard/mybank-checking.rules
 mkdir -p import/me/kudu/creditcard/1-in/2016
 printf 'Date,Payee,Amount\n2016-03-02,Store,-1.00\n' > import/me/kudu/creditcard/1-in/2016/mar.csv
 hledger-flow rules me/kudu/creditcard > /dev/null
-grep -q '1-in/2016/mar.csv' import/me/kudu/creditcard/kudu-creditcard.rules
-grep -qx 'fields date, description, amount' import/me/kudu/creditcard/kudu-creditcard.rules
+rules=import/me/kudu/creditcard/kudu-creditcard.rules
+tr '\\' '/' < "$rules" | grep -Fq '1-in/2016/mar.csv'
+tr -d '\r' < "$rules" | grep -Fxq 'fields date, description, amount'
 $ sh -eu
 
 # Output survives a C locale (Linux containers, cron, agent sandboxes).
