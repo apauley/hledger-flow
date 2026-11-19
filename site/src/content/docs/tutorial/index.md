@@ -34,7 +34,7 @@ nothing else fits.
 
 Download Gawie’s statements into your home folder, keeping the folder names.
 The tutorial runs its commands from your home folder and from
-`my-finances`, which part 1 creates there.
+`finances`, which part 1 creates there.
 
 | File | Used in |
 | --- | --- |

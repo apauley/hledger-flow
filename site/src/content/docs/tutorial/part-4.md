@@ -4,7 +4,7 @@ description: Convert a bank CSV with a preamble, Afrikaans dates and no year, us
 ---
 
 This is the fourth part of a [six-part tutorial](/tutorial/). It continues
-in `my-finances` from [part 3](/tutorial/part-3/).
+in `finances` from [part 3](/tutorial/part-3/).
 
 ## Bogart Bank
 
@@ -18,7 +18,7 @@ hledger-flow status
 ```
 
 ```text
-Ledger: ~/my-finances   (hledger 1.99.6-gc3a608c2b-20261101 found)
+Ledger: ~/finances   (hledger 1.99.6-gc3a608c2b-20261101 found)
 
   gawie/bogart/cheque     3 statements (2016)   ✗ no rules file
   gawie/kudu/creditcard   3 statements (2016)   ✓ 3 journals
@@ -204,7 +204,7 @@ Imported 6 statements for gawie/bogart/cheque, gawie/kudu/creditcard.
     expenses:rent                              5,000.00 ZAR
 ```
 
-Gawie ran a full import from `my-finances`, so it also rebuilt the card’s
+Gawie ran a full import from `finances`, so it also rebuilt the card’s
 journals with the updated shared categories.
 
 ## An opening balance
@@ -214,7 +214,7 @@ hledger incomestatement
 ```
 
 ```text
-hledger: Error: /home/gawie/my-finances/import/gawie/bogart/cheque/3-journal/2016/123456789_2016-03-30.journal:2:61:
+hledger: Error: /home/gawie/finances/import/gawie/bogart/cheque/3-journal/2016/123456789_2016-03-30.journal:2:61:
   | 2016-03-01 * Monthly Bank Fee
 2 |     assets:bogart:cheque                        -500.00 ZAR = 40,000.00 ZAR
   |                                                             ^^^^^^^^^^^^^^^

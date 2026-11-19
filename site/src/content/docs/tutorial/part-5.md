@@ -4,7 +4,7 @@ description: Add a preprocess script that does the one thing rules can't, and ke
 ---
 
 This is the fifth part of a [six-part tutorial](/tutorial/). It continues
-in `my-finances` from [part 4](/tutorial/part-4/).
+in `finances` from [part 4](/tutorial/part-4/).
 
 ## A savings account
 
@@ -60,7 +60,7 @@ hledger incomestatement
 
 ```text
 Imported 7 statements for gawie/bogart/cheque, gawie/bogart/savings, gawie/kudu/creditcard.
-hledger: Error: /home/gawie/my-finances/import/gawie/bogart/savings/3-journal/2017/123456790_2017-01-27.journal:2:61:
+hledger: Error: /home/gawie/finances/import/gawie/bogart/savings/3-journal/2017/123456790_2017-01-27.journal:2:61:
   | 2016-01-02 * Oordrag Van Tjekrekening
 2 |     assets:bogart:savings                      5,000.00 ZAR = 13,579.50 ZAR
   |                                                             ^^^^^^^^^^^^^^^
@@ -206,7 +206,7 @@ cat reports/all/2016/transfer-balance.txt
 ```
 
 ```text
-Reporting on ~/my-finances/all-years.journal (from LEDGER_FILE).
+Reporting on ~/finances/all-years.journal (from LEDGER_FILE).
 Generated 16 reports in reports/. Skipped 2 empty reports.
 Each report starts with the hledger command that made it. Copy that line to tailor the report.
 hledger --file all-years.journal --period 2016 balance --pretty-tables --quarterly --flat --no-total transfer

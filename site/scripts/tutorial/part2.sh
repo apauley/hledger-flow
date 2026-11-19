@@ -8,6 +8,6 @@ c git add -A
 c git status --short
 c git diff --staged -- directives.journal
 c head -n 7 import/gawie/kudu/creditcard/3-journal/2016/creditcard_2016-03-31.journal
-c 'export LEDGER_FILE="$HOME/my-finances/all-years.journal"'
+c 'export LEDGER_FILE="$HOME/finances/all-years.journal"'
 c hledger balance
 c 'git commit -q -m "Import my first Kudu statement"'

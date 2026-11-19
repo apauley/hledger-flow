@@ -54,14 +54,14 @@ every change hledger-flow makes shows up as a diff he can read before he
 commits it.
 
 ```bash
-mkdir my-finances
-cd my-finances
+mkdir finances
+cd finances
 git init -q
 hledger-flow init
 ```
 
 ```text
-Started a ledger in ~/my-finances
+Started a ledger in ~/finances
 Created an example account (import/gawie/mybank/checking) and starter journals for manual entries and balances.
 Created directives.journal
 Created prices/2026/EUR-USD.prices
@@ -229,14 +229,14 @@ git status --short
 ```
 
 ```text
-Ledger: ~/my-finances   (hledger 1.99.6-gc3a608c2b-20261101 found)
+Ledger: ~/finances   (hledger 1.99.6-gc3a608c2b-20261101 found)
 
   gawie/mybank/checking   1 statement (2026)   ✓ 1 journal
 
   Note: LEDGER_FILE isn't set, so hledger won't find this ledger by default.
         hledger-flow report uses all-years.journal.
-        For hledger, run: export LEDGER_FILE="$HOME/my-finances/all-years.journal"
-        Or try: hledger -f "$HOME/my-finances/all-years.journal" balance
+        For hledger, run: export LEDGER_FILE="$HOME/finances/all-years.journal"
+        Or try: hledger -f "$HOME/finances/all-years.journal" balance
 
 Next: Adapt the example account to your ledger
       Rename the owner, bank and account folders in import/gawie/mybank/checking to match your ledger.
@@ -301,14 +301,14 @@ hledger-flow status
 ```
 
 ```text
-Ledger: ~/my-finances   (hledger 1.99.6-gc3a608c2b-20261101 found)
+Ledger: ~/finances   (hledger 1.99.6-gc3a608c2b-20261101 found)
 
   gawie/kudu/creditcard   1 statement (2016)   ✗ no rules file
 
   Note: LEDGER_FILE isn't set, so hledger won't find this ledger by default.
         hledger-flow report uses all-years.journal.
-        For hledger, run: export LEDGER_FILE="$HOME/my-finances/all-years.journal"
-        Or try: hledger -f "$HOME/my-finances/all-years.journal" balance
+        For hledger, run: export LEDGER_FILE="$HOME/finances/all-years.journal"
+        Or try: hledger -f "$HOME/finances/all-years.journal" balance
 
 Next: Create import/gawie/kudu/creditcard/kudu-creditcard.rules (rules for gawie/kudu/creditcard)
       Run: hledger-flow rules gawie/kudu/creditcard

@@ -1,7 +1,7 @@
 # Part 1: try the example. Commands as shown in part-1.md.
 c hledger-flow
-c mkdir my-finances
-c cd my-finances
+c mkdir finances
+c cd finances
 c git init -q
 c hledger-flow init
 c git add -A

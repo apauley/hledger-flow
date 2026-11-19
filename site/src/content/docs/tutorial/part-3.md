@@ -4,7 +4,7 @@ description: Import more statements, classify transactions with if rules, and ge
 ---
 
 This is the third part of a [six-part tutorial](/tutorial/). It continues
-in `my-finances` from [part 2](/tutorial/part-2/), with `LEDGER_FILE` set.
+in `finances` from [part 2](/tutorial/part-2/), with `LEDGER_FILE` set.
 
 ## More months
 
@@ -215,7 +215,7 @@ tree reports
 ```
 
 ```text
-Reporting on ~/my-finances/all-years.journal (from LEDGER_FILE).
+Reporting on ~/finances/all-years.journal (from LEDGER_FILE).
 Generated 9 reports in reports/.
 Each report starts with the hledger command that made it. Copy that line to tailor the report.
 reports
@@ -246,7 +246,7 @@ hledger-flow status
 ```
 
 ```text
-Ledger: ~/my-finances   (hledger 1.99.6-gc3a608c2b-20261101 found)
+Ledger: ~/finances   (hledger 1.99.6-gc3a608c2b-20261101 found)
 
   gawie/kudu/creditcard   3 statements (2016)   ✓ 3 journals
 

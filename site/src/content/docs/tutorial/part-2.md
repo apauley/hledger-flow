@@ -4,7 +4,7 @@ description: Draft a rules file for a tidy credit card CSV, import it and ask hl
 ---
 
 This is the second part of a [six-part tutorial](/tutorial/). It continues
-in `my-finances` from [part 1](/tutorial/part-1/), where Gawie filed his
+in `finances` from [part 1](/tutorial/part-1/), where Gawie filed his
 first Kudu Bank statement.
 
 ## A rules file
@@ -142,7 +142,7 @@ Status warned that hledger won’t find this ledger by default. Gawie sets
 He also adds the export line to his shell profile for future sessions.
 
 ```bash
-export LEDGER_FILE="$HOME/my-finances/all-years.journal"
+export LEDGER_FILE="$HOME/finances/all-years.journal"
 hledger balance
 ```
 

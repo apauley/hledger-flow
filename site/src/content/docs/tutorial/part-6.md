@@ -4,7 +4,7 @@ description: Write your own transactions with a construct script when the input 
 ---
 
 This is the last part of a [six-part tutorial](/tutorial/). It continues
-in `my-finances` from [part 5](/tutorial/part-5/).
+in `finances` from [part 5](/tutorial/part-5/).
 
 ## The tip jar
 
@@ -33,7 +33,7 @@ hledger-flow status
 ```
 
 ```text
-Ledger: ~/my-finances   (hledger 1.99.6-gc3a608c2b-20261101 found)
+Ledger: ~/finances   (hledger 1.99.6-gc3a608c2b-20261101 found)
 
   gawie/bogart/cheque     3 statements (2016)   ✓ 3 journals
   gawie/bogart/savings    1 statement (2017)    ✓ 1 journal
@@ -170,7 +170,7 @@ hledger-flow status
 ```
 
 ```text
-Ledger: ~/my-finances   (hledger 1.99.6-gc3a608c2b-20261101 found)
+Ledger: ~/finances   (hledger 1.99.6-gc3a608c2b-20261101 found)
 
   gawie/bogart/cheque     3 statements (2016)   ✓ 3 journals
   gawie/bogart/savings    1 statement (2017)    ✓ 1 journal
@@ -277,7 +277,7 @@ hledger-flow status
 ```
 
 ```text
-Ledger: ~/my-finances   (hledger 1.99.6-gc3a608c2b-20261101 found)
+Ledger: ~/finances   (hledger 1.99.6-gc3a608c2b-20261101 found)
 
   gawie/bogart/cheque     3 statements (2016)   ✓ 3 journals
   gawie/bogart/savings    1 statement (2017)    ✓ 1 journal
@@ -286,7 +286,7 @@ Ledger: ~/my-finances   (hledger 1.99.6-gc3a608c2b-20261101 found)
 
 Next: Generate reports, or explore with hledger
       Run: hledger-flow report
-      Or try: hledger -f "$HOME/my-finances/all-years.journal" balance
+      Or try: hledger -f "$HOME/finances/all-years.journal" balance
 
 Environment:
   hledger-flow  0.20.1 (0d49906), ghc 9.10, darwin aarch64
