@@ -4,6 +4,7 @@
 module Hledger.Flow.Init.Example
   ( exampleImportFiles,
     exampleBaseFiles,
+    sampleAccountDir,
     untouchedExample,
     directivesAreComments,
     journalIsCommentsOnly,

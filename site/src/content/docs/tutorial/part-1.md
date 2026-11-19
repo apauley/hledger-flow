@@ -93,10 +93,10 @@ Ledger: ~/my-finances   (hledger 1.99.6-gc3a608c2b-20261101 found)
         Or try: hledger -f "$HOME/my-finances/all-years.journal" balance
 
 Next: Put your first statement in import/<owner>/<bank>/<account>/1-in/<year>/
-      owner: whose money it is, for example me, a partner or a business
+      owner: whose money it is, for example personal, a partner or a business
       bank: the institution, for example mybank
       account: one account at that bank, for example checking
-      Change the names, then run: mkdir -p import/me/mybank/checking/1-in/2026
+      Change the names, then run: mkdir -p import/personal/mybank/checking/1-in/2026
       The example account import/me/mybank/checking is safe to delete. Then run hledger-flow import and hledger-flow report.
       Docs: https://hledger-flow.github.io/go/input-files/
 

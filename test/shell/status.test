@@ -611,6 +611,34 @@ printf '%s-01-03 Manual deposit\n    assets:checking  10 USD\n    income:salary\
 hledger-flow status --json | jq -e '.manualJournals == 2 and .next.command == "hledger-flow report"' > /dev/null
 $ sh -eu
 
+# The first real statement gets its own owner while the sample account exists.
+<
+. ./test/shell/status-commands.sh
+cd "$(mktemp -d "${TMPDIR:-/tmp}/hledger-flow.XXXXXXXX")"
+unset LEDGER_FILE
+year=$(date +%Y)
+sample="import/me/mybank/checking/1-in/$year/hledger-flow-example.csv"
+real="import/personal/mybank/checking/1-in/$year"
+hledger-flow init >/dev/null
+hledger-flow import >/dev/null
+hledger-flow report >/dev/null
+cp "$sample" original-sample
+setup_command() {
+    hledger-flow status --json | jq -er '.next.detail[] | select(startswith("Change the names, then run: ")) | sub("^Change the names, then run: "; "")' | tr -d '\r'
+}
+suggestion=$(setup_command)
+test "$suggestion" = "$(hledger-flow status | sed -n 's/^ *Change the names, then run: //p' | tr -d '\r')"
+touch import/me/mybank/checking/.keep
+test "$(setup_command)" = "$suggestion"
+run_suggestion "$suggestion" >/dev/null
+test -d "$real"
+printf 'Date,Description,Amount\n%s-01-03,Real purchase,-9.50\n' "$year" > "$real/statement.csv"
+run_suggestion "$(next_command)" >/dev/null
+hledger-flow import >/dev/null
+grep -q "^$year-01-03 Real purchase" "import/personal/mybank/checking/3-journal/$year/statement.journal"
+cmp original-sample "$sample"
+$ sh -eu
+
 # A failed init can be retried without an incomplete import tree.
 <
 cd "$(mktemp -d "${TMPDIR:-/tmp}/hledger-flow.XXXXXXXX")"

@@ -84,6 +84,7 @@ data LedgerStatus = LedgerStatus
     lsNeedsReconciliation :: Bool,
     lsNeedsPrices :: Bool,
     lsReview :: Maybe Review,
+    lsExampleAccountPresent :: Bool,
     lsUntouchedExample :: Bool
   }
   deriving (Show)
@@ -165,20 +166,23 @@ plural :: Int -> T.Text -> T.Text
 plural 1 noun = "1 " <> noun
 plural n noun = T.pack (show n) <> " " <> noun <> "s"
 
-firstStatementStep :: Integer -> Shell -> [FilePath] -> AbsDir -> BaseDir -> NextStep
-firstStatementStep year shell homes cwd base =
+firstStatementStep :: Integer -> Shell -> [FilePath] -> AbsDir -> BaseDir -> Bool -> NextStep
+firstStatementStep year shell homes cwd base examplePresent =
   NextStep
     "Put your first statement in import/<owner>/<bank>/<account>/1-in/<year>/"
     Nothing
-    ( [ "owner: whose money it is, for example me, a partner or a business",
+    ( [ "owner: whose money it is, for example " <> ownerName <> ", a partner or a business",
         "bank: the institution, for example mybank",
         "account: one account at that bank, for example checking"
       ]
         ++ ["Change the names, then run: " <> createDirectoryCommand shell homes cwd
-              (base </> [reldir|import/me/mybank/checking/1-in|] </> folder)
+              (base </> [reldir|import|] </> owner </> [reldir|mybank/checking/1-in|] </> folder)
             | Just folder <- [parseRelDir (show year)]]
     )
     (Just (docURL InputFiles))
+  where
+    owner = if examplePresent then [reldir|personal|] else [reldir|me|]
+    ownerName = T.pack (FilePath.dropTrailingPathSeparator (toFilePath owner))
 
 -- | The single most important next step. The first matching rule wins.
 -- Paths under one of @homes@ show as @~@, and as @"$HOME/…"@ in commands.
@@ -187,7 +191,7 @@ nextStep year shell homes cwd s
   | Nothing <- lsHledger s =
       NextStep "Install hledger, or pass its location with --hledger-path" Nothing [] (Just "https://hledger.org/install.html")
   | statements == 0 && null (lsMisplaced s) && not (lsHasManualWork s) && not (lsNeedsReconciliation s) =
-      firstStatementStep year shell homes cwd (lsBaseDir s)
+      firstStatement
   | not (null (lsMisplaced s)) =
       NextStep
         ("Move " <> plural (length (lsMisplaced s)) "file" <> " to where hledger-flow looks")
@@ -250,7 +254,7 @@ nextStep year shell homes cwd s
     command subcommand = commandArgs subcommand []
     spansYears item = case mpYear item of SpanningYears _ -> True; _ -> False
     missingConfigured = maybe False (not . lfExists) (lsLedgerFile s)
-    firstStatement = firstStatementStep year shell homes cwd (lsBaseDir s)
+    firstStatement = firstStatementStep year shell homes cwd (lsBaseDir s) (lsExampleAccountPresent s)
     importCommand = command "import"
     statements = sum (map asStatements (lsAccounts s))
     toImport = sum [asJournalsMissing a + asJournalsOutdated a | a <- lsAccounts s]

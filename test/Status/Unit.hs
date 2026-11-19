@@ -35,6 +35,7 @@ blank =
       lsNeedsReconciliation = False,
       lsNeedsPrices = False,
       lsReview = Nothing,
+      lsExampleAccountPresent = False,
       lsUntouchedExample = False
     }
 
