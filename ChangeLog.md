@@ -33,6 +33,8 @@ How to keep this ChangeLog
 
 ## Unreleased
 
+- `status` shows how to create the first account's input directory, with a command for your shell.
+
 - `status` suggests year folders for misplaced delimited statements and prints safe move commands when the destination is known. See [year folders](https://hledger-flow.github.io/reference/input-files/#year-folders).
 
 - Run `hledger-flow rules OWNER/BANK/ACCOUNT` to create a starter in the account folder. `status --rules-template` also prints [starter rules for statements without a header](https://hledger-flow.github.io/reference/rules-files/#starter-rules-for-exports-without-a-header), including a sample row and date-format guidance.

@@ -8,7 +8,7 @@ import qualified Data.Aeson.Key as Key
 import qualified Data.Aeson.KeyMap as KeyMap
 import Data.List (sort)
 import qualified Data.Text as T
-import Hledger.Flow.Common (Shell (..))
+import Hledger.Flow.Common (Shell (..), createDirectoryCommand, shellArgument)
 import Hledger.Flow.LedgerSelection (Coverage (..))
 import Hledger.Flow.StatementScan (StatementYear (..), inferStatementYear, parseDelimitedStatement)
 import Hledger.Flow.Status.Render (renderStatus, statusJSON)
@@ -90,7 +90,10 @@ testRules =
   TestList
     [ "1 hledger missing" ~: summaryOf blank {lsHledger = Nothing} ~?= "Install hledger, or pass its location with --hledger-path",
       "2 empty ledger" ~: summaryOf blank ~?= "Put your first statement in import/<owner>/<bank>/<account>/1-in/<year>/",
-      "2 example uses current year" ~: nsDetail (atRoot blank) ~?= ["For example: import/me/mybank/checking/1-in/2026/statement.csv", "Then check with: hledger-flow status"],
+      "2 example uses current year" ~:
+        filter (T.isPrefixOf "Change the names, then run: ") (nsDetail (atRoot blank))
+          ~?= ["Change the names, then run: " <> createDirectoryCommand Posix [] (lsBaseDir blank)
+                (lsBaseDir blank </> [reldir|import/me/mybank/checking/1-in/2026|])],
       "2 skipped for manual-only ledger" ~: summaryOf blank {lsManualJournals = 1} ~?= "Generate reports, or explore with hledger",
       "5 import when all-years.journal is missing" ~: commandOf blank {lsManualJournals = 1, lsAllYearsExists = False, lsAggregateJournal = Nothing} ~?= Just "hledger-flow import",
       "3 misplaced" ~: summaryOf blank {lsMisplaced = [Misplaced "import/a.csv" "x" (SingleYear 2026) False]} ~?= "Move 1 file to where hledger-flow looks",
@@ -163,7 +166,7 @@ testJSONShape = TestCase $ case statusJSON testSystemInfo Nothing blank (atRoot 
       @?= ["accounts", "aggregateJournal", "allYearsJournalExists", "baseDir", "environment", "hledger", "ledgerFile", "ledgerFileNote", "manualJournals", "misplaced", "next", "schemaVersion"]
   _ -> assertFailure "status JSON is an object"
 
-tests = TestList [testStatementYear, testSuggest, testMisplacedUpperCase, testRules, testHome, testVersion, testRenderNoColour, testRenderPending, testJSONShape]
+tests = TestList [testFirstDirectory, testStatementYear, testSuggest, testMisplacedUpperCase, testRules, testHome, testVersion, testRenderNoColour, testRenderPending, testJSONShape]
 
 testStatementYear :: Test
 testStatementYear = "statement year" ~: TestList
@@ -177,3 +180,16 @@ testStatementYear = "statement year" ~: TestList
   ]
   where
     check rows expected = fmap inferStatementYear (parseDelimitedStatement "2026-01-02.csv" rows) ~?= Right expected
+
+testFirstDirectory :: Test
+testFirstDirectory =
+  let base = lsBaseDir blank
+      dir = base </> [reldir|import/me/mybank/checking/1-in/2026|]
+      elsewhere = testRoot </> [reldir|another place|]
+      rootArgument = T.pack (native "import/me/mybank/checking/1-in/2026")
+   in TestList
+        [ createDirectoryCommand Posix [] base dir ~?= "mkdir -p " <> shellArgument Posix rootArgument,
+          createDirectoryCommand PowerShell [] base dir ~?= "New-Item -ItemType Directory -Force -Path " <> shellArgument PowerShell rootArgument,
+          T.isInfixOf (T.pack (FilePath.dropTrailingPathSeparator (toFilePath dir)))
+            (createDirectoryCommand Posix [] elsewhere dir) ~?= True
+        ]

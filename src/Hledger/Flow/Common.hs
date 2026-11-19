@@ -23,10 +23,10 @@ import qualified GHC.IO.Handle.FD as H
 import Hledger.Flow.DateTime (timeAction)
 import Hledger.Flow.BaseDir (relativeToBase)
 import Hledger.Flow.Logging
-import Hledger.Flow.PathHelpers (AbsFile, RelDir, literalGlobPath, withStagedOutput)
+import Hledger.Flow.PathHelpers (AbsDir, AbsFile, RelDir, literalGlobPath, withStagedOutput)
 import qualified Hledger.Flow.RuntimeOptions as RT
 import Hledger.Flow.Types
-import Path (parent, reldir, relfile, toFilePath)
+import Path (parent, reldir, relfile, stripProperPrefix, toFilePath)
 import qualified Path
 import qualified Path.IO as Path
 import qualified System.Directory as Directory
@@ -273,10 +273,10 @@ errExit' exitStatus logFun errorMessage = do
 moveFileCommand :: Shell -> [FilePath] -> AbsFile -> AbsFile -> T.Text
 moveFileCommand shell homes source target = case shell of
   Posix ->
-    "mkdir -p " <> path dir <> " && [ ! -e " <> dest <> " ] && [ ! -L " <> dest
+    makeDirectory Posix (path dir) <> " && [ ! -e " <> dest <> " ] && [ ! -L " <> dest
       <> " ] && mv -n " <> path src <> " " <> dest
   PowerShell ->
-    "New-Item -ItemType Directory -Force -Path " <> literal dir <> " -ErrorAction Stop | Out-Null; "
+    makeDirectory PowerShell (literal dir) <> " -ErrorAction Stop | Out-Null; "
       <> "[System.IO.File]::Move(" <> literal src <> ", " <> literal file <> ")"
   where
     src = toFilePath source
@@ -285,6 +285,19 @@ moveFileCommand shell homes source target = case shell of
     literal = powerShellLiteral . T.pack
     path name = fromMaybe (shellArgument shell (T.pack name)) (homeShellPath shell homes name)
     dest = path file
+
+createDirectoryCommand :: Shell -> [FilePath] -> AbsDir -> AbsDir -> T.Text
+createDirectoryCommand shell homes cwd dir = makeDirectory shell argument
+  where
+    absolute = FilePath.dropTrailingPathSeparator (toFilePath dir)
+    relative = FilePath.dropTrailingPathSeparator . toFilePath <$> stripProperPrefix cwd dir
+    argument = case relative of
+      Just path -> shellArgument shell (T.pack path)
+      Nothing -> fromMaybe (shellArgument shell (T.pack absolute)) (homeShellPath shell homes absolute)
+
+makeDirectory :: Shell -> T.Text -> T.Text
+makeDirectory Posix argument = "mkdir -p " <> argument
+makeDirectory PowerShell argument = "New-Item -ItemType Directory -Force -Path " <> argument
 
 -- | An external program hledger-flow runs, described for the people reading its output.
 data External = External

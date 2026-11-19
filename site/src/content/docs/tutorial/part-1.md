@@ -60,8 +60,10 @@ hledger-flow init
 Started a ledger in ~/my-finances
 
 Next: Put your first statement in import/<owner>/<bank>/<account>/1-in/<year>/
-      For example: import/me/mybank/checking/1-in/2026/statement.csv
-      Then check with: hledger-flow status
+      owner: whose money it is, for example me, a partner or a business
+      bank: the institution, for example mybank
+      account: one account at that bank, for example checking
+      Change the names, then run: mkdir -p import/me/mybank/checking/1-in/2026
       Docs: https://hledger-flow.github.io/go/input-files/
 ```
 

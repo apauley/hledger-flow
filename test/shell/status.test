@@ -322,3 +322,26 @@ if hledger-flow rules sm/wf/not-found "../$ledger" > out 2> err; then exit 1; fi
 grep -q 'No statements found' err
 test ! -d "../$ledger/import/sm/wf/not-found"
 $ sh -eu
+
+# Empty-ledger setup commands work at the root and from another directory.
+<
+. ./test/shell/status-commands.sh
+. ./test/shell/setup.sh
+mkdir -p 'ledger one/import' 'ledger two/import'
+year=$(date +%Y)
+example="import/me/mybank/checking/1-in/$year"
+command_from_json() {
+    hledger-flow status "$@" --json | jq -er '.next.detail[] | select(startswith("Change the names, then run: ")) | sub("^Change the names, then run: "; "")' | tr -d '\r'
+}
+(
+  cd 'ledger one'
+  suggestion=$(command_from_json)
+  test "$suggestion" = "$(hledger-flow status | sed -n 's/^ *Change the names, then run: //p' | tr -d '\r')"
+  run_suggestion "$suggestion" >/dev/null
+  test -d "$example"
+)
+run_suggestion "$(command_from_json 'ledger two')" >/dev/null
+test -d "ledger two/$example"
+printf '%s-01-01,Shop,-5\n' "$year" > "ledger two/$example/statement.csv"
+hledger-flow status 'ledger two' --json | jq -e '.next.command | contains("hledger-flow rules me/mybank/checking")' > /dev/null
+$ sh -eu

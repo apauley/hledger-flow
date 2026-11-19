@@ -15,6 +15,7 @@ module Hledger.Flow.Status
     placementDestination,
     misplacedMoveCommand,
     nextStep,
+    firstStatementStep,
     flowCommand,
     ledgerFileNote,
     balanceHint,
@@ -28,7 +29,7 @@ import Data.Char (isDigit, toLower)
 import Data.Maybe (fromMaybe, mapMaybe)
 import qualified Data.Set as Set
 import qualified Data.Text as T
-import Hledger.Flow.Common (Shell (..), hledgerFileArgument, hledgerVersionNumber, homeShellPath, moveFileCommand, posixLiteral, powerShellLiteral, shellArgument, tildePath)
+import Hledger.Flow.Common (Shell (..), createDirectoryCommand, hledgerFileArgument, hledgerVersionNumber, homeShellPath, moveFileCommand, posixLiteral, powerShellLiteral, shellArgument, tildePath)
 import Hledger.Flow.DocHelpers (DocLink (..), docURL)
 import Hledger.Flow.HledgerConfig (ConfigConflict, ConfigUse (..), firstConfigConflict, renderConfigConflict)
 import Hledger.Flow.Import.Inventory (stageFiles)
@@ -36,7 +37,7 @@ import Hledger.Flow.LedgerSelection (Coverage (..), LedgerFile (..), ledgerFileP
 import Hledger.Flow.PathHelpers (AbsDir, AbsFile, RelFile)
 import Hledger.Flow.StatementScan (StatementYear (..))
 import Hledger.Flow.Types (BaseDir, HledgerConf (..), HledgerInfo)
-import Path (parseRelFile, reldir, relfile, stripProperPrefix, toFilePath, (</>))
+import Path (parseRelDir, parseRelFile, reldir, relfile, stripProperPrefix, toFilePath, (</>))
 import qualified System.FilePath as FilePath
 
 data Situation = InLedger BaseDir | EmptyDir | Elsewhere deriving (Eq, Show)
@@ -157,6 +158,21 @@ plural :: Int -> T.Text -> T.Text
 plural 1 noun = "1 " <> noun
 plural n noun = T.pack (show n) <> " " <> noun <> "s"
 
+firstStatementStep :: Integer -> Shell -> [FilePath] -> AbsDir -> BaseDir -> NextStep
+firstStatementStep year shell homes cwd base =
+  NextStep
+    "Put your first statement in import/<owner>/<bank>/<account>/1-in/<year>/"
+    Nothing
+    ( [ "owner: whose money it is, for example me, a partner or a business",
+        "bank: the institution, for example mybank",
+        "account: one account at that bank, for example checking"
+      ]
+        ++ ["Change the names, then run: " <> createDirectoryCommand shell homes cwd
+              (base </> [reldir|import/me/mybank/checking/1-in|] </> folder)
+            | Just folder <- [parseRelDir (show year)]]
+    )
+    (Just (docURL InputFiles))
+
 -- | The single most important next step. The first matching rule wins.
 -- Paths under one of @homes@ show as @~@, and as @"$HOME/…"@ in commands.
 nextStep :: Integer -> Shell -> [FilePath] -> AbsDir -> LedgerStatus -> NextStep
@@ -164,13 +180,7 @@ nextStep year shell homes cwd s
   | Nothing <- lsHledger s =
       NextStep "Install hledger, or pass its location with --hledger-path" Nothing [] (Just "https://hledger.org/install.html")
   | statements == 0 && null (lsMisplaced s) && lsManualJournals s == 0 && not (lsNeedsReconciliation s) =
-      NextStep
-        "Put your first statement in import/<owner>/<bank>/<account>/1-in/<year>/"
-        Nothing
-        [ "For example: import/me/mybank/checking/1-in/" <> T.pack (show year) <> "/statement.csv",
-          "Then check with: " <> command "status"
-        ]
-        (Just (docURL InputFiles))
+      firstStatementStep year shell homes cwd (lsBaseDir s)
   | not (null (lsMisplaced s)) =
       NextStep
         ("Move " <> plural (length (lsMisplaced s)) "file" <> " to where hledger-flow looks")

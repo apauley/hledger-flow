@@ -4,6 +4,8 @@ description: Where to put your statements, and what happens to generated files w
 ---
 
 Save each statement in `import/<owner>/<bank>/<account>/1-in/<year>/`.
+For an empty ledger, `hledger-flow status` shows a command to create those
+directories. Substitute your owner, bank, account and year.
 For example, John’s June savings statement might be
 `import/john/mybank/savings/1-in/2018/123456789_2018-06-30.csv`.
 Import reads every visible file directly in that year folder as a statement.

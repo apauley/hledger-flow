@@ -115,7 +115,9 @@ To use a specific copy of hledger, pass its path before the command, for
 example `hledger-flow --hledger-path /path/to/hledger import`.
 
 Start a ledger in an empty folder, then let `hledger-flow status` guide you.
-Each `status` ends with a `Next:` line saying exactly what to do:
+Each `status` ends with a `Next:` line saying exactly what to do.
+For a new account, it shows a directory creation command with example names.
+Change the owner, bank, account and year to match your statement.
 
 ```text
 hledger-flow init ~/finances
