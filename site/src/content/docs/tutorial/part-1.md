@@ -45,7 +45,8 @@ Commands:
 Run `hledger-flow --help` for options and examples.
 
 No hledger-flow ledger here or in any parent folder.
-Run `hledger-flow init` in an empty folder to start one.
+To start one, change to an empty folder.
+Run `hledger-flow init --dry-run` to preview the files, then `hledger-flow init` to create them.
 ```
 
 He makes a folder for his finances. His IT years taught him to keep
@@ -62,11 +63,23 @@ hledger-flow init
 
 ```text
 Started a ledger in ~/finances
-Created an example account (import/gawie/mybank/checking) and starter journals for manual entries and balances.
+Example account: import/gawie/mybank/checking
 Created directives.journal
 Created prices/2026/EUR-USD.prices
 Created prices/2026/BTC-USD.prices
 Created prices/2026/prices.journal
+Created import/gawie/mybank/checking/mybank-checking.rules
+Created import/gawie/mybank/checking/1-in/2026/hledger-flow-example.csv
+Created import/_manual_/2026/pre-import.journal
+Created import/_manual_/2026/post-import.journal
+Created import/gawie/_manual_/2026/pre-import.journal
+Created import/gawie/_manual_/2026/post-import.journal
+Created import/gawie/mybank/_manual_/2026/pre-import.journal
+Created import/gawie/mybank/_manual_/2026/post-import.journal
+Created import/gawie/mybank/checking/_manual_/2026/pre-import.journal
+Created import/gawie/mybank/checking/_manual_/2026/post-import.journal
+Created import/gawie/mybank/checking/2026-opening.journal
+Created import/gawie/mybank/checking/2026-closing.journal
 
 Next: Import 1 new or changed statement
       Run: hledger-flow import

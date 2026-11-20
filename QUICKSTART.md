@@ -129,6 +129,7 @@ For a new account, it shows a directory creation command with example names.
 Change the owner, bank, account and year to match your statement.
 
 ```text
+hledger-flow init --dry-run ~/finances
 hledger-flow init ~/finances
 cd ~/finances
 hledger-flow status

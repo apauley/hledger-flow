@@ -49,7 +49,7 @@ import Options.Applicative.Builder.Internal (noGlobal)
 import System.Environment (getArgs)
 
 import Hledger.Flow.Types (BaseDir, RunDir, HledgerInfo (..))
-import Hledger.Flow.Common ( deferredHledgerVersion, findHledgerConf, hledgerPathFromOption, hledgerInfoFromPath )
+import Hledger.Flow.Common ( homeDirs, tildePath, deferredHledgerVersion, findHledgerConf, hledgerPathFromOption, hledgerInfoFromPath )
 import Hledger.Flow.Status ( Situation (..) )
 import Hledger.Flow.Status.Gather ( classifyDir )
 import Hledger.Flow.Status.Render ( printStatus )
@@ -70,7 +70,7 @@ import Hledger.Flow.Import.CSVImport ( importCSVs )
 
 import qualified Data.Text.IO as T
 import Control.Exception (SomeAsyncException (..), SomeException, catch, displayException, fromException, throwIO)
-import Hledger.Flow.PathHelpers (PathException (..), resolveExistingDir)
+import Hledger.Flow.PathHelpers (PathException (..), initAdvice, renderPathException, resolveExistingDir)
 import System.Exit (ExitCode (..), exitWith)
 import System.IO (hPutStrLn, hSetEncoding, stderr, stdout, utf8)
 import System.IO.Error (ioeGetErrorString, isUserError)
@@ -126,14 +126,17 @@ reportFatal e
   | Just (code :: ExitCode) <- fromException e = throwIO code
   | Just (SomeAsyncException _) <- fromException e = throwIO e
   | otherwise = do
-      hPutStrLn stderr ("hledger-flow: " ++ fatalMessage e)
+      message <- fatalMessage e
+      hPutStrLn stderr ("hledger-flow: " ++ message)
       exitWith (ExitFailure 1)
 
-fatalMessage :: SomeException -> String
+fatalMessage :: SomeException -> IO String
 fatalMessage e
-  | Just (pe :: PathException) <- fromException e = show pe
-  | Just ioe <- fromException e, isUserError ioe = ioeGetErrorString ioe
-  | otherwise = displayException e
+  | Just (pe :: PathException) <- fromException e = do
+      homes <- homeDirs
+      return (renderPathException (tildePath homes) pe)
+  | Just ioe <- fromException e, isUserError ioe = return (ioeGetErrorString ioe)
+  | otherwise = return (displayException e)
 
 runCommand :: IO ()
 runCommand = do
@@ -217,12 +220,12 @@ runBare mainParams' = do
   situation <- getCurrentDir >>= classifyDir
   case situation of
     InLedger base -> printInteractiveStatus mainParams' base
-    EmptyDir -> T.putStrLn "This folder is empty. Run `hledger-flow init` to start your ledger here."
+    EmptyDir -> T.putStrLn ("This folder is empty.\n" <> Text.pack initAdvice)
     Elsewhere ->
       T.putStr $
         briefUsage
           <> "\nNo hledger-flow ledger here or in any parent folder.\n"
-          <> "Run `hledger-flow init` in an empty folder to start one.\n"
+          <> "To start one, change to an empty folder.\n" <> Text.pack initAdvice <> "\n"
 
 toRuntimeOptionsImport :: BaseDir -> RunDir -> MainParams -> ImportParams -> IO RT.RuntimeOptions
 toRuntimeOptionsImport bd runDir mainParams' subParams' = do

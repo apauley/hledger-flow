@@ -100,18 +100,25 @@ literalGlobPath = concatMap escape
       | isGlobMetacharacter c = ['[', c, '-', c, ']']
       | otherwise = [c]
 
-data PathException = MissingBaseDir AbsDir | NotADirectory FilePath
+data PathException = MissingBaseDir AbsDir | NotADirectory FilePath | CannotCreate String FilePath
   deriving (Eq)
 
 instance Show PathException where
-  show (MissingBaseDir d) =
-    "No hledger-flow ledger here or in any parent folder (looked from "
-      ++ Path.toFilePath d
-      ++ ").\n"
-      ++ "Run `hledger-flow init` to start one here, or pass the ledger's folder as an argument.\n"
-      ++ "Docs: "
-      ++ T.unpack (docURL GettingStarted)
-  show (NotADirectory d) = "Not a folder: " ++ d
+  show = renderPathException id
+
+initAdvice :: String
+initAdvice = "Run `hledger-flow init --dry-run` to preview the files, then `hledger-flow init` to create them."
+
+renderPathException :: (FilePath -> FilePath) -> PathException -> String
+renderPathException display (MissingBaseDir d) =
+  "No hledger-flow ledger here or in any parent folder (looked from "
+    ++ display (FilePath.dropTrailingPathSeparator (Path.toFilePath d))
+    ++ ").\n"
+    ++ initAdvice ++ "\nTo use an existing ledger, pass its folder as an argument.\n"
+    ++ "Docs: "
+    ++ T.unpack (docURL GettingStarted)
+renderPathException display (NotADirectory d) = "Not a folder: " ++ display d
+renderPathException display (CannotCreate what d) = "Cannot create " ++ what ++ " at " ++ display d
 
 instance Exception PathException
 
