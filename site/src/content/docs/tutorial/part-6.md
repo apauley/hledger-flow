@@ -116,7 +116,7 @@ chmod +x import/gawie/goggatjie/tips/construct
 import/gawie/goggatjie/tips/construct import/gawie/goggatjie/tips/1-in/2016/tips_2016-05.json -
 ```
 
-```hledger
+```journal
 2016-05-06 * Tips, dinner shift
     assets:goggatjie:tips    420.00 ZAR
     assets:goggatjie:tips    20.00 USD
@@ -196,21 +196,21 @@ currency pair, such as `EUR-USD.prices`, with prices in US dollars, and
 Gawie follows it for 2016, with rand as his base currency. He saves the rates he looked up in
 `prices/2016/USD-ZAR.prices`:
 
-```hledger title="prices/2016/USD-ZAR.prices"
+```journal title="prices/2016/USD-ZAR.prices"
 ; Rand per US dollar, for Gawie's tips.
 P 2016-05-01 USD 15.40 ZAR
 ```
 
 and `prices/2016/MZN-ZAR.prices`:
 
-```hledger title="prices/2016/MZN-ZAR.prices"
+```journal title="prices/2016/MZN-ZAR.prices"
 ; Rand per Mozambican metical, for Gawie's tips.
 P 2016-05-01 MZN 0.29 ZAR
 ```
 
 and includes both from `prices/2016/prices.journal`:
 
-```hledger title="prices/2016/prices.journal"
+```journal title="prices/2016/prices.journal"
 include USD-ZAR.prices
 include MZN-ZAR.prices
 ```

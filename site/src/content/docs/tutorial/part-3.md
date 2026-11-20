@@ -52,7 +52,7 @@ apply only to the rows that match.
 Gawie’s other accounts will need the same categories, so he keeps them in a
 file of their own, `import/gawie/categories.rules`:
 
-```hledger title="import/gawie/categories.rules"
+```rules title="import/gawie/categories.rules"
 # Gawie's categories, shared by all his accounts.
 # Each if block matches text anywhere in a CSV row, ignoring case.
 
@@ -83,7 +83,7 @@ payment goes to the same account, and the two cancel out.
 The card’s rules file includes the categories at the end. `include` paths
 are relative to the file that includes them:
 
-```hledger title="import/gawie/kudu/creditcard/kudu-creditcard.rules"
+```rules title="import/gawie/kudu/creditcard/kudu-creditcard.rules"
 skip 1
 fields date, description, amount
 
@@ -275,7 +275,7 @@ side until the cheque account arrives in [part 4](/tutorial/part-4/).
 cat reports/gawie/2016/unknown-transactions.txt
 ```
 
-```hledger
+```journal
 hledger --file directives.journal --file import/gawie/all-years.journal --period 2016 print unknown
 
 2016-03-12 BAOBAB BOOKS ONLINE
@@ -322,7 +322,7 @@ Classify the five purchases from the three remaining merchants: the pharmacy as
 Add these blocks to `import/gawie/categories.rules`. One `if` can match
 several patterns, separated by `|`.
 
-```hledger
+```rules
 if PHARMACY
   account2 expenses:health
 

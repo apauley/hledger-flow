@@ -194,6 +194,9 @@ from [hledger's releases](https://github.com/hledgerorg/hledger/releases).
 The script also needs Python 3, `tree` and Git. It runs hledger-flow in a
 pseudo-terminal to capture its colours and enables Git's colours in the
 scratch repository so status and diff output keep their highlighting.
+Use `csv`, `journal` and `rules` fences for file contents. Shiki includes
+the CSV grammar. The journal and rules grammars in `site/vendor/hledger-vscode/`
+come from [hledger-vscode at its pinned revision](https://github.com/juev/hledger-vscode/tree/362a90e61ce8237d781651d58e14d6c14eb44878/syntaxes).
 Generated `ansi` blocks use the
 printable ␛ symbol for Escape, which the site decodes when highlighting them.
 It fails when a command shown on a

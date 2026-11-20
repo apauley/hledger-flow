@@ -16,12 +16,18 @@ statement’s header row:
 
 ```bash
 hledger-flow rules gawie/kudu/creditcard
-cat import/gawie/kudu/creditcard/kudu-creditcard.rules
 ```
 
 ```text
 Created import/gawie/kudu/creditcard/kudu-creditcard.rules
 Edit it: check the fields line and the account names. Then run: hledger-flow import
+```
+
+```bash
+cat import/gawie/kudu/creditcard/kudu-creditcard.rules
+```
+
+```rules
 # Starter rules for kudu/creditcard, made by hledger-flow from the header row of
 # import/gawie/kudu/creditcard/1-in/2016/creditcard_2016-03-31.csv. Check every line, then run: hledger-flow import
 # hledger's CSV rules reference: https://hledger.org/hledger.html#csv
@@ -48,7 +54,7 @@ liability. And the amounts are in rand, so he adds `currency ZAR`, the
 rand’s three-letter code. He saves the result as
 `import/gawie/kudu/creditcard/kudu-creditcard.rules`:
 
-```hledger title="import/gawie/kudu/creditcard/kudu-creditcard.rules"
+```rules title="import/gawie/kudu/creditcard/kudu-creditcard.rules"
 skip 1
 fields date, description, amount
 
@@ -125,7 +131,7 @@ starters. hledger-flow leaves them in place.
 head -n 7 import/gawie/kudu/creditcard/3-journal/2016/creditcard_2016-03-31.journal
 ```
 
-```hledger
+```journal
 2016-03-02 PUNDA MARIA TRADING STORE
     liabilities:kudu:creditcard                 -842.50 ZAR
     expenses:unknown                             842.50 ZAR

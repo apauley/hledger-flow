@@ -2,8 +2,8 @@
 
 Usage: sync.py HOME_DIR RUN_OUTPUT [--check]
 
-- A ```text, ```ansi or ```hledger block right after a ```bash block becomes the
-  output those commands printed in the run.
+- An output block right after a ```bash block takes its contents from the run.
+  File contents keep their declared syntax highlighting.
 - A block with title="PATH" becomes files/<part>/PATH, the file the reader
   saves in that part.
 - The version block in index.md becomes the run's version output.
@@ -27,7 +27,7 @@ FILES = HERE / "files"
 PARTS = ["part-1.md", "part-2.md", "part-3.md", "part-4.md", "part-5.md", "part-6.md"]
 
 BLOCK = re.compile(r"```(\w*)([^\n]*)\n(.*?)```", re.S)
-PAIR = re.compile(r"```bash\n((?:(?!```).)*?)```(\s*)```(text|ansi|hledger)\n(.*?)```", re.S)
+PAIR = re.compile(r"```bash\n((?:(?!```).)*?)```(\s*)```(text|ansi|csv|journal|hledger|rules)\n(.*?)```", re.S)
 SGR = re.compile(r"\x1b(\[[0-9;]*m)")
 TITLED = re.compile(r'```(\w+) title="([^"]+)"\n(.*?)```', re.S)
 VERSIONS = re.compile(r"```text\n\$ hledger-flow --version\n.*?```", re.S)
@@ -105,7 +105,7 @@ def main():
                 else:
                     failures.append(f"{name}: the run has no command {command!r} at this point. Update {name[:6].replace('-', '')}.sh.")
             body = "\n".join(shown) + "\n"
-            language = "hledger" if match.group(3) == "hledger" else "text"
+            language = "text" if match.group(3) == "ansi" else match.group(3)
             if SGR.search(body):
                 language = "ansi"
                 # Git's ESC[m means ESC[0m. The highlighter needs the explicit reset.

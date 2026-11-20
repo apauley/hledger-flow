@@ -55,7 +55,7 @@ No draft this time. Gawie looks at the statement:
 head -n 9 import/gawie/bogart/cheque/1-in/2016/123456789_2016-03-30.csv
 ```
 
-```text
+```csv
 2,123456789,'MNR GAWIE DE GROOT','BOGART TJEKREKENING'
 3,,'Staat'
 3,'Staatnommer','Vanaf Datum','Tot Datum'
@@ -80,7 +80,7 @@ an answer in hledger’s rules, and the accounts can share those rules. He tries
 matching rows. With `!`, the block matches rows that *don’t* match the
 pattern:
 
-```hledger
+```rules
 if ! ^5,[0-9]
   skip
 ```
@@ -90,7 +90,7 @@ if ! ^5,[0-9]
 into a [balance assertion](https://hledger.org/hledger.html#balance-assertions)
 on every transaction, so hledger checks the arithmetic.
 
-```hledger
+```rules
 fields record, number, datum, desc1, desc2, desc3, amount, balance, fees
 ```
 
@@ -100,7 +100,7 @@ assign. In a value, `\1` inserts what the pattern’s first parenthesised
 group matched, the day of the month here. hledger insists on a top-level
 `date` line, so Gawie starts with the raw date and lets the table replace it.
 
-```hledger
+```rules
 date %datum
 
 if,date
@@ -118,14 +118,14 @@ and Gawie removes the hard-coded year in [part 5](/tutorial/part-5/).
 values as they’re used. `join` combines the three description columns,
 leaving out the empty ones, and `replace` removes Bogart’s stray `#`:
 
-```hledger
+```rules
 description %{replace(join(" ", %desc1, %desc2, %desc3), "^#", "")}
 ```
 
 Put together, with a currency, a cleared status and the account, this is
 `import/gawie/bogart/cheque/bogart-cheque.rules`:
 
-```hledger title="import/gawie/bogart/cheque/bogart-cheque.rules"
+```rules title="import/gawie/bogart/cheque/bogart-cheque.rules"
 # Bogart Bank's old system adds a preamble, so keep only the rows
 # that start with 5 and a transaction number.
 if ! ^5,[0-9]
@@ -163,7 +163,7 @@ The cheque account brings new categories, which Gawie adds to
 `import/gawie/categories.rules`. If you skipped the exercise in part 3, add
 its answer too.
 
-```hledger
+```rules
 if Monthly Bank Fee
   account2 expenses:bank-fees
 
@@ -194,11 +194,17 @@ account the card’s side of each payment already uses.
 
 ```bash
 hledger-flow import
-head -n 7 import/gawie/bogart/cheque/3-journal/2016/123456789_2016-03-30.journal
 ```
 
 ```text
 Imported 6 statements for gawie/bogart/cheque, gawie/kudu/creditcard.
+```
+
+```bash
+head -n 7 import/gawie/bogart/cheque/3-journal/2016/123456789_2016-03-30.journal
+```
+
+```journal
 2016-03-01 * Monthly Bank Fee
     assets:bogart:cheque                        -500.00 ZAR = 40,000.00 ZAR
     expenses:bank-fees                           500.00 ZAR
@@ -244,7 +250,7 @@ starter for the example account in [part 1](/tutorial/part-1/). Gawie saves the
 [opening balance](/reference/balances/) as
 `import/gawie/bogart/cheque/2016-opening.journal`:
 
-```hledger title="import/gawie/bogart/cheque/2016-opening.journal"
+```journal title="import/gawie/bogart/cheque/2016-opening.journal"
 2016-03-01 Cheque account opening balance
     assets:bogart:cheque              40500.00 ZAR
     equity:opening-closing
@@ -343,7 +349,7 @@ turn `PUNDA MARIA TRADING STORE` into `Punda Maria Trading Store`.
 Add this line to `import/gawie/kudu/creditcard/kudu-creditcard.rules`, then
 run `hledger-flow import`:
 
-```hledger
+```rules
 description %{capitalize(%description)}
 ```
 

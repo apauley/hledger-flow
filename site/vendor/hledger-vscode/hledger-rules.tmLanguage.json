@@ -1,0 +1,63 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "hledger-rules",
+  "scopeName": "source.hledger-rules",
+  "patterns": [
+    { "include": "#comment" },
+    { "include": "#if-block" },
+    { "include": "#directive" },
+    { "include": "#field-assignment" }
+  ],
+  "repository": {
+    "comment": {
+      "patterns": [
+        {
+          "name": "comment.line.number-sign.hledger-rules",
+          "match": "^#.*$"
+        },
+        {
+          "name": "comment.line.semicolon.hledger-rules",
+          "match": "^;.*$"
+        },
+        {
+          "name": "comment.line.asterisk.hledger-rules",
+          "match": "^\\*.*$"
+        }
+      ]
+    },
+    "directive": {
+      "match": "^(skip|fields|separator|source|date-format|timezone|decimal-mark|encoding|balance-type|include|newest-first|latest-first|intra-day-reversed|archive)\\b(?:\\s+(.+))?$",
+      "captures": {
+        "1": { "name": "keyword.control.directive.hledger-rules" },
+        "2": { "name": "string.unquoted.value.hledger-rules" }
+      }
+    },
+    "if-block": {
+      "begin": "^(if)\\b(?:\\s+(.*))?$",
+      "end": "^(end)\\b",
+      "beginCaptures": {
+        "1": { "name": "keyword.control.if.hledger-rules" },
+        "2": { "name": "string.regexp.hledger-rules" }
+      },
+      "endCaptures": {
+        "1": { "name": "keyword.control.end.hledger-rules" }
+      },
+      "patterns": [
+        { "include": "#comment" },
+        { "include": "#field-assignment" },
+        {
+          "name": "string.regexp.hledger-rules",
+          "match": "^\\S.*$"
+        }
+      ]
+    },
+    "field-assignment": {
+      "match": "^\\s*(account[0-9]*|amount[0-9]*|amount-in|amount-out|balance[12]?|code|comment|date[12]?|description|note|payee|status|currency|timezone)(?:\\s+(.+))?$",
+      "name": "meta.field-assignment.hledger-rules",
+      "captures": {
+        "1": { "name": "entity.name.tag.hledger-rules" },
+        "2": { "name": "string.unquoted.value.hledger-rules" }
+      }
+    }
+  }
+}

@@ -2,6 +2,8 @@ import { readFileSync } from 'node:fs';
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 import starlightLinksValidator from 'starlight-links-validator';
+import journalGrammar from './vendor/hledger-vscode/hledger.tmLanguage.json' with { type: 'json' };
+import rulesGrammar from './vendor/hledger-vscode/hledger-rules.tmLanguage.json' with { type: 'json' };
 
 // Permanent links printed by the CLI (see src/Hledger/Flow/DocHelpers.hs).
 const goLinks = JSON.parse(readFileSync(new URL('./go-links.json', import.meta.url), 'utf8'));
@@ -24,7 +26,10 @@ export default defineConfig({
       editLink: { baseUrl: 'https://github.com/apauley/hledger-flow/edit/master/site/' },
       customCss: ['@fontsource-variable/recursive/mono.css', './src/styles/tokens.css', './src/styles/docs.css'],
       expressiveCode: {
-        shiki: { langAlias: { hledger: 'txt', rules: 'txt' } },
+        shiki: {
+          langs: [journalGrammar, rulesGrammar],
+          langAlias: { journal: 'hledger', rules: 'hledger-rules' },
+        },
         plugins: [{
           name: 'Tutorial terminal output',
           hooks: {

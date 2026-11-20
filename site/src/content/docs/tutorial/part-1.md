@@ -282,7 +282,7 @@ Gawie starts with the easiest of his accounts: his Kudu Bank credit card.
 Kudu’s online banking exports a tidy CSV, with a header row, one row per
 transaction and dates hledger already understands:
 
-```text
+```csv
 Date,Description,Amount
 2016-03-02,PUNDA MARIA TRADING STORE,-842.50
 2016-03-04,LETABA FUEL STOP,-910.00

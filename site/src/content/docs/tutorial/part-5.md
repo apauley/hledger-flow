@@ -25,7 +25,7 @@ now three lines.
 
 `import/gawie/bogart/cheque/bogart-cheque.rules`:
 
-```hledger title="import/gawie/bogart/cheque/bogart-cheque.rules"
+```rules title="import/gawie/bogart/cheque/bogart-cheque.rules"
 include ../bogart-statements.rules
 account1 assets:bogart:cheque
 include ../../categories.rules
@@ -33,7 +33,7 @@ include ../../categories.rules
 
 `import/gawie/bogart/savings/bogart-savings.rules`:
 
-```hledger title="import/gawie/bogart/savings/bogart-savings.rules"
+```rules title="import/gawie/bogart/savings/bogart-savings.rules"
 include ../bogart-statements.rules
 account1 assets:bogart:savings
 include ../../categories.rules
@@ -42,7 +42,7 @@ include ../../categories.rules
 And three more categories for `import/gawie/categories.rules`. They come
 after `if Rent`, so `Rente` (interest) gets the last word:
 
-```hledger
+```rules
 if Oordrag Van
   account2 assets:transfers:savings
 
@@ -128,7 +128,7 @@ The dates now carry their year, `'01 Mrt 2016'`, so the date table in
 `bogart-statements.rules` takes it from a second group instead of writing
 2016. This is the whole shared file:
 
-```hledger title="import/gawie/bogart/bogart-statements.rules"
+```rules title="import/gawie/bogart/bogart-statements.rules"
 # Bogart Bank's old system adds a preamble, so keep only the rows
 # that start with 5 and a transaction number.
 if ! ^5,[0-9]
@@ -162,11 +162,17 @@ status *
 
 ```bash
 hledger-flow import
-head -n 9 import/gawie/bogart/savings/2-preprocessed/2017/123456790_2017-01-27.csv
 ```
 
 ```text
 Imported 7 statements for gawie/bogart/cheque, gawie/bogart/savings, gawie/kudu/creditcard.
+```
+
+```bash
+head -n 9 import/gawie/bogart/savings/2-preprocessed/2017/123456790_2017-01-27.csv
+```
+
+```csv
 2,123456790,'MNR GAWIE DE GROOT','BOGART SPAARREKENING'
 3,,'Staat'
 3,'Staatnommer','Vanaf Datum','Tot Datum'
