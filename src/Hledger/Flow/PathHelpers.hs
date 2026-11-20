@@ -104,21 +104,23 @@ data PathException = MissingBaseDir AbsDir | NotADirectory FilePath | CannotCrea
   deriving (Eq)
 
 instance Show PathException where
-  show = renderPathException id
+  show = renderPathException id (initAdvice id id)
 
-initAdvice :: String
-initAdvice = "Run `hledger-flow init --dry-run` to preview the files, then `hledger-flow init` to create them."
+initAdvice :: (T.Text -> T.Text) -> (T.Text -> T.Text) -> T.Text
+initAdvice heading command = heading "Next:" <> " Preview the starter files\n"
+  <> "      " <> command "hledger-flow init --dry-run" <> "\n"
+  <> "Then run `" <> command "hledger-flow init" <> "` to create them."
 
-renderPathException :: (FilePath -> FilePath) -> PathException -> String
-renderPathException display (MissingBaseDir d) =
+renderPathException :: (FilePath -> FilePath) -> T.Text -> PathException -> String
+renderPathException display advice (MissingBaseDir d) =
   "No hledger-flow ledger here or in any parent folder (looked from "
     ++ display (FilePath.dropTrailingPathSeparator (Path.toFilePath d))
     ++ ").\n"
-    ++ initAdvice ++ "\nTo use an existing ledger, pass its folder as an argument.\n"
+    ++ T.unpack advice ++ "\nTo use an existing ledger, pass its folder as an argument.\n"
     ++ "Docs: "
     ++ T.unpack (docURL GettingStarted)
-renderPathException display (NotADirectory d) = "Not a folder: " ++ display d
-renderPathException display (CannotCreate what d) = "Cannot create " ++ what ++ " at " ++ display d
+renderPathException display _ (NotADirectory d) = "Not a folder: " ++ display d
+renderPathException display _ (CannotCreate what d) = "Cannot create " ++ what ++ " at " ++ display d
 
 instance Exception PathException
 

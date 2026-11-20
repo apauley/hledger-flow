@@ -46,7 +46,9 @@ Run `hledger-flow --help` for options and examples.
 
 No hledger-flow ledger here or in any parent folder.
 To start one, change to an empty folder.
-Run `hledger-flow init --dry-run` to preview the files, then `hledger-flow init` to create them.
+Next: Preview the starter files
+      hledger-flow init --dry-run
+Then run `hledger-flow init` to create them.
 ```
 
 He makes a folder for his finances. His IT years taught him to keep

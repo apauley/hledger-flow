@@ -34,6 +34,7 @@ How to keep this ChangeLog
 ## Unreleased
 
 - `hledger-flow init --dry-run` lists the starter files it would create or keep. Running `init` lists what it created or kept. Outside a ledger, the CLI suggests previewing first and shows paths under your home folder with `~`.
+- On a colour terminal, the welcome screen highlights commands and gives the preview command its own line under **Next**.
 
 ## 0.21.0
 

@@ -3,7 +3,8 @@
 cd "$(mktemp -d "${TMPDIR:-/tmp}/hledger-flow.XXXXXXXX")"
 if hledger-flow import 2> err; then exit 1; fi
 grep -q '^hledger-flow: No hledger-flow ledger here or in any parent folder' err
-grep -Fq '`hledger-flow init --dry-run` to preview the files, then `hledger-flow init`' err
+grep -q '^      hledger-flow init --dry-run' err
+grep -Fq 'Then run `hledger-flow init`' err
 if grep -qi 'backtrace' err; then exit 1; fi
 $ sh -eu
 

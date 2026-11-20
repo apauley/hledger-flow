@@ -4,7 +4,9 @@ cd "$(mktemp -d "${TMPDIR:-/tmp}/hledger-flow.XXXXXXXX")"
 hledger-flow
 $ sh -eu
 This folder is empty.
-Run `hledger-flow init --dry-run` to preview the files, then `hledger-flow init` to create them.
+Next: Preview the starter files
+      hledger-flow init --dry-run
+Then run `hledger-flow init` to create them.
 
 # Bare invocation in an unrelated folder shows commands and writes nothing.
 <
@@ -12,7 +14,8 @@ cd "$(mktemp -d "${TMPDIR:-/tmp}/hledger-flow.XXXXXXXX")"
 touch notes.txt
 hledger-flow > ../out.$$
 grep -q '^Commands:' ../out.$$
-grep -Fq '`hledger-flow init --dry-run` to preview the files, then `hledger-flow init`' ../out.$$
+grep -q '^      hledger-flow init --dry-run' ../out.$$
+if grep -q "$(printf '\033')" ../out.$$; then exit 1; fi
 grep -q 'No hledger-flow ledger here or in any parent folder' ../out.$$
 rm ../out.$$
 test "$(ls)" = notes.txt

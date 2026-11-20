@@ -59,6 +59,7 @@ import Hledger.Flow.HledgerConfig (ConfigUse (..), requireSafeConfig)
 import Hledger.Flow.Init ( InitMode (..), runInit )
 import Hledger.Flow.DocHelpers ( DocLink (..), docURL, siteURL )
 import Hledger.Flow.Logging ( useColor )
+import qualified Hledger.Flow.Logging as Log (bold, cyan)
 import Hledger.Flow.RulesTemplate ( rulesTemplateFor, runRules )
 import Data.Maybe (fromMaybe)
 import Hledger.Flow.Internals (availableCores, versionInfo, systemInfo)
@@ -134,7 +135,8 @@ fatalMessage :: SomeException -> IO String
 fatalMessage e
   | Just (pe :: PathException) <- fromException e = do
       homes <- homeDirs
-      return (renderPathException (tildePath homes) pe)
+      colour <- useColor stderr
+      return (renderPathException (tildePath homes) (starterAdvice colour) pe)
   | Just ioe <- fromException e, isUserError ioe = return (ioeGetErrorString ioe)
   | otherwise = return (displayException e)
 
@@ -173,7 +175,7 @@ runCommand = do
       cwd <- getCurrentDir
       dir <- maybe (return cwd) resolveDir' (initDir subParams)
       runInit (initMode subParams) (hledgerPathOpt mainParams') (hledgerConfOpt mainParams') cwd dir
-    Command mainParams' Nothing -> runBare mainParams'
+    Command mainParams' Nothing -> runBare colour mainParams'
 
 -- | (name, one-line description) of each command, in display order.
 commandSummaries :: [(String, String)]
@@ -188,13 +190,19 @@ commandSummaries =
 summaryOf :: String -> String
 summaryOf name = maybe "" id (lookup name commandSummaries)
 
-briefUsage :: Text.Text
-briefUsage =
-  "hledger-flow turns bank statements into hledger journals and reports.\n\nCommands:\n"
-    <> Text.concat ["  " <> Text.justifyLeft width ' ' (Text.pack name) <> "   " <> Text.pack desc <> "\n" | (name, desc) <- commandSummaries]
-    <> "\nRun `hledger-flow --help` for options and examples.\n"
+starterAdvice :: Bool -> Text.Text
+starterAdvice colour = initAdvice (Log.bold colour) (Log.cyan colour)
+
+briefUsage :: Bool -> Text.Text
+briefUsage colour =
+  "hledger-flow turns bank statements into hledger journals and reports.\n\n"
+    <> Log.bold colour "Commands:" <> "\n"
+    <> Text.concat (map row commandSummaries)
+    <> "\nRun `" <> Log.cyan colour "hledger-flow --help" <> "` for options and examples.\n"
   where
     width = maximum (map (length . fst) commandSummaries)
+    row (name, desc) = "  " <> Log.cyan colour (Text.pack name)
+      <> Text.replicate (width - length name + 3) " " <> Text.pack desc <> "\n"
 
 runStatus :: MainParams -> StatusParams -> IO ()
 runStatus mainParams' params = do
@@ -215,17 +223,17 @@ printInteractiveStatus params base = withCachedReleaseNotice base $
   printStatus (hledgerPathOpt params) (hledgerConfOpt params) False base
 
 -- | Running hledger-flow with no command: say where we are and what to do.
-runBare :: MainParams -> IO ()
-runBare mainParams' = do
+runBare :: Bool -> MainParams -> IO ()
+runBare colour mainParams' = do
   situation <- getCurrentDir >>= classifyDir
   case situation of
     InLedger base -> printInteractiveStatus mainParams' base
-    EmptyDir -> T.putStrLn ("This folder is empty.\n" <> Text.pack initAdvice)
+    EmptyDir -> T.putStrLn ("This folder is empty.\n" <> starterAdvice colour)
     Elsewhere ->
       T.putStr $
-        briefUsage
+        briefUsage colour
           <> "\nNo hledger-flow ledger here or in any parent folder.\n"
-          <> "To start one, change to an empty folder.\n" <> Text.pack initAdvice <> "\n"
+          <> "To start one, change to an empty folder.\n" <> starterAdvice colour <> "\n"
 
 toRuntimeOptionsImport :: BaseDir -> RunDir -> MainParams -> ImportParams -> IO RT.RuntimeOptions
 toRuntimeOptionsImport bd runDir mainParams' subParams' = do

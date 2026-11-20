@@ -15,6 +15,9 @@ than one commodity and has no market price directives. It points you to
 one [pair file](/reference/price-files/) per currency pair, included from
 the year’s `prices.journal`.
 Interactive status also shows a [cached upgrade notice](/reference/release-notices/) when a previous import or report found a newer release.
+Outside a ledger, the welcome screen highlights commands on colour terminals and shows
+the preview command under **Next**. Set `NO_COLOR=1` for plain text.
+
 `hledger-flow init` starts a ledger with a working example statement and
 rules, plus starter journals for [manual entries](/reference/manual-journals/),
 [opening and closing balances](/reference/balances/), directives and prices.
