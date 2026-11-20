@@ -33,7 +33,7 @@ hledger-flow status
       Docs: https://hledger-flow.github.io/go/rules-files/
 
 ␛[1mEnvironment:␛[0m
-  hledger-flow  0.21.0 (443ad42), ghc 9.10, darwin aarch64
+  hledger-flow  0.21.0 (1daed0a), ghc 9.10, darwin aarch64
   hledger       ~/bin/hledger  (1.99.6-gc3a608c2b-20261101)   --hledger-path
   hledger.conf  none                                          --hledger-conf
   Cores         18, using 18

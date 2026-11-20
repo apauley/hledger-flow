@@ -128,71 +128,71 @@ git diff --staged --stat
 git diff --staged -- import/gawie/kudu/creditcard/3-journal/2016/creditcard_2016-03-31.journal
 ```
 
-```text
- import/gawie/categories.rules                      | 20 ++++++++++++++++++++
- .../3-journal/2016/creditcard_2016-03-31.journal   | 18 +++++++++---------
- .../3-journal/2016/creditcard_2016-04-30.journal   | 22 +++++++++++-----------
- .../3-journal/2016/creditcard_2016-05-31.journal   | 16 ++++++++--------
- import/gawie/kudu/creditcard/kudu-creditcard.rules |  2 ++
+```ansi
+ import/gawie/categories.rules                      | 20 ␛[32m++++++++++++++++++++␛[0m
+ .../3-journal/2016/creditcard_2016-03-31.journal   | 18 ␛[32m+++++++++␛[0m␛[31m---------␛[0m
+ .../3-journal/2016/creditcard_2016-04-30.journal   | 22 ␛[32m+++++++++++␛[0m␛[31m-----------␛[0m
+ .../3-journal/2016/creditcard_2016-05-31.journal   | 16 ␛[32m++++++++␛[0m␛[31m--------␛[0m
+ import/gawie/kudu/creditcard/kudu-creditcard.rules |  2 ␛[32m++␛[0m
  5 files changed, 50 insertions(+), 28 deletions(-)
-diff --git a/import/gawie/kudu/creditcard/3-journal/2016/creditcard_2016-03-31.journal b/import/gawie/kudu/creditcard/3-journal/2016/creditcard_2016-03-31.journal
-index d3ebe5d..bee117e 100644
---- a/import/gawie/kudu/creditcard/3-journal/2016/creditcard_2016-03-31.journal
-+++ b/import/gawie/kudu/creditcard/3-journal/2016/creditcard_2016-03-31.journal
-@@ -1,18 +1,18 @@
- 2016-03-02 PUNDA MARIA TRADING STORE
-     liabilities:kudu:creditcard                 -842.50 ZAR
--    expenses:unknown                             842.50 ZAR
-+    expenses:groceries                           842.50 ZAR
- 
- 2016-03-04 LETABA FUEL STOP
-     liabilities:kudu:creditcard                 -910.00 ZAR
--    expenses:unknown                             910.00 ZAR
-+    expenses:car                                 910.00 ZAR
- 
- 2016-03-07 MOPANE MASTERS WHOLESALE
-     liabilities:kudu:creditcard               -3,150.00 ZAR
--    expenses:unknown                           3,150.00 ZAR
-+    expenses:mopane-worms                      3,150.00 ZAR
- 
- 2016-03-10 PAYMENT RECEIVED - THANK YOU
-     liabilities:kudu:creditcard               14,000.00 ZAR
--    expenses:unknown                         -14,000.00 ZAR
-+    assets:transfers:creditcard              -14,000.00 ZAR
- 
- 2016-03-12 BAOBAB BOOKS ONLINE
-     liabilities:kudu:creditcard                 -389.00 ZAR
-@@ -20,19 +20,19 @@
- 
- 2016-03-15 BUSHTEL AIRTIME
-     liabilities:kudu:creditcard                 -250.00 ZAR
--    expenses:unknown                             250.00 ZAR
-+    expenses:phone                               250.00 ZAR
- 
- 2016-03-18 PUNDA MARIA TRADING STORE
-     liabilities:kudu:creditcard               -1,135.20 ZAR
--    expenses:unknown                           1,135.20 ZAR
-+    expenses:groceries                         1,135.20 ZAR
- 
- 2016-03-21 LETABA FUEL STOP
-     liabilities:kudu:creditcard                 -875.00 ZAR
--    expenses:unknown                             875.00 ZAR
-+    expenses:car                                 875.00 ZAR
- 
- 2016-03-23 THOHOYANDOU APPLIANCES
-     liabilities:kudu:creditcard               -4,999.00 ZAR
--    expenses:unknown                           4,999.00 ZAR
-+    expenses:household                         4,999.00 ZAR
- 
- 2016-03-26 PAFURI PHARMACY
-     liabilities:kudu:creditcard                 -214.90 ZAR
-@@ -40,5 +40,5 @@
- 
- 2016-03-29 MOPANE MASTERS WHOLESALE
-     liabilities:kudu:creditcard               -2,980.00 ZAR
--    expenses:unknown                           2,980.00 ZAR
-+    expenses:mopane-worms                      2,980.00 ZAR
- 
+␛[1mdiff --git a/import/gawie/kudu/creditcard/3-journal/2016/creditcard_2016-03-31.journal b/import/gawie/kudu/creditcard/3-journal/2016/creditcard_2016-03-31.journal␛[0m
+␛[1mindex d3ebe5d..bee117e 100644␛[0m
+␛[1m--- a/import/gawie/kudu/creditcard/3-journal/2016/creditcard_2016-03-31.journal␛[0m
+␛[1m+++ b/import/gawie/kudu/creditcard/3-journal/2016/creditcard_2016-03-31.journal␛[0m
+␛[36m@@ -1,18 +1,18 @@␛[0m
+ 2016-03-02 PUNDA MARIA TRADING STORE␛[0m
+     liabilities:kudu:creditcard                 -842.50 ZAR␛[0m
+␛[31m-    expenses:unknown                             842.50 ZAR␛[0m
+␛[32m+␛[0m␛[32m    expenses:groceries                           842.50 ZAR␛[0m
+ ␛[0m
+ 2016-03-04 LETABA FUEL STOP␛[0m
+     liabilities:kudu:creditcard                 -910.00 ZAR␛[0m
+␛[31m-    expenses:unknown                             910.00 ZAR␛[0m
+␛[32m+␛[0m␛[32m    expenses:car                                 910.00 ZAR␛[0m
+ ␛[0m
+ 2016-03-07 MOPANE MASTERS WHOLESALE␛[0m
+     liabilities:kudu:creditcard               -3,150.00 ZAR␛[0m
+␛[31m-    expenses:unknown                           3,150.00 ZAR␛[0m
+␛[32m+␛[0m␛[32m    expenses:mopane-worms                      3,150.00 ZAR␛[0m
+ ␛[0m
+ 2016-03-10 PAYMENT RECEIVED - THANK YOU␛[0m
+     liabilities:kudu:creditcard               14,000.00 ZAR␛[0m
+␛[31m-    expenses:unknown                         -14,000.00 ZAR␛[0m
+␛[32m+␛[0m␛[32m    assets:transfers:creditcard              -14,000.00 ZAR␛[0m
+ ␛[0m
+ 2016-03-12 BAOBAB BOOKS ONLINE␛[0m
+     liabilities:kudu:creditcard                 -389.00 ZAR␛[0m
+␛[36m@@ -20,19 +20,19 @@␛[0m
+ ␛[0m
+ 2016-03-15 BUSHTEL AIRTIME␛[0m
+     liabilities:kudu:creditcard                 -250.00 ZAR␛[0m
+␛[31m-    expenses:unknown                             250.00 ZAR␛[0m
+␛[32m+␛[0m␛[32m    expenses:phone                               250.00 ZAR␛[0m
+ ␛[0m
+ 2016-03-18 PUNDA MARIA TRADING STORE␛[0m
+     liabilities:kudu:creditcard               -1,135.20 ZAR␛[0m
+␛[31m-    expenses:unknown                           1,135.20 ZAR␛[0m
+␛[32m+␛[0m␛[32m    expenses:groceries                         1,135.20 ZAR␛[0m
+ ␛[0m
+ 2016-03-21 LETABA FUEL STOP␛[0m
+     liabilities:kudu:creditcard                 -875.00 ZAR␛[0m
+␛[31m-    expenses:unknown                             875.00 ZAR␛[0m
+␛[32m+␛[0m␛[32m    expenses:car                                 875.00 ZAR␛[0m
+ ␛[0m
+ 2016-03-23 THOHOYANDOU APPLIANCES␛[0m
+     liabilities:kudu:creditcard               -4,999.00 ZAR␛[0m
+␛[31m-    expenses:unknown                           4,999.00 ZAR␛[0m
+␛[32m+␛[0m␛[32m    expenses:household                         4,999.00 ZAR␛[0m
+ ␛[0m
+ 2016-03-26 PAFURI PHARMACY␛[0m
+     liabilities:kudu:creditcard                 -214.90 ZAR␛[0m
+␛[36m@@ -40,5 +40,5 @@␛[0m
+ ␛[0m
+ 2016-03-29 MOPANE MASTERS WHOLESALE␛[0m
+     liabilities:kudu:creditcard               -2,980.00 ZAR␛[0m
+␛[31m-    expenses:unknown                           2,980.00 ZAR␛[0m
+␛[32m+␛[0m␛[32m    expenses:mopane-worms                      2,980.00 ZAR␛[0m
+ ␛[0m
 ```
 
 Every transaction a rule matched moved from `expenses:unknown` to its
@@ -261,7 +261,7 @@ hledger-flow status
       Docs: https://hledger-flow.github.io/go/review-unknown-transactions/
 
 ␛[1mEnvironment:␛[0m
-  hledger-flow  0.21.0 (443ad42), ghc 9.10, darwin aarch64
+  hledger-flow  0.21.0 (1daed0a), ghc 9.10, darwin aarch64
   hledger       ~/bin/hledger  (1.99.6-gc3a608c2b-20261101)   --hledger-path
   hledger.conf  none                                          --hledger-conf
   Cores         18, using 18

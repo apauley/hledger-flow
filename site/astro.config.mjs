@@ -30,6 +30,9 @@ export default defineConfig({
           hooks: {
             preprocessCode({ codeBlock }) {
               if (codeBlock.language !== 'ansi') return;
+              // Copy output verbatim, including a diff's final blank context line.
+              // Terminal frames trim whitespace and remove shell comments on copy.
+              codeBlock.props.frame = 'code';
               for (const line of codeBlock.getLines()) {
                 line.editText(0, undefined, line.text.replace(/␛(?=\[[0-9;]*m)/g, '\x1b'));
               }

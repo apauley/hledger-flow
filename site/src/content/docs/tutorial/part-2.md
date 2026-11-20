@@ -88,32 +88,32 @@ git status --short
 git diff --staged -- directives.journal
 ```
 
-```text
-M  directives.journal
-A  import/2016-include.journal
-M  import/2026-include.journal
-M  import/all-years.journal
-A  import/gawie/2016-include.journal
-M  import/gawie/2026-include.journal
-M  import/gawie/all-years.journal
-A  import/gawie/kudu/2016-include.journal
-M  import/gawie/kudu/2026-include.journal
-M  import/gawie/kudu/all-years.journal
-A  import/gawie/kudu/creditcard/2016-include.journal
-M  import/gawie/kudu/creditcard/2026-include.journal
-A  import/gawie/kudu/creditcard/3-journal/2016/creditcard_2016-03-31.journal
-D  import/gawie/kudu/creditcard/3-journal/2026/hledger-flow-example.journal
-M  import/gawie/kudu/creditcard/all-years.journal
-A  import/gawie/kudu/creditcard/kudu-creditcard.rules
-diff --git a/directives.journal b/directives.journal
-index f3d4e10..1806cb5 100644
---- a/directives.journal
-+++ b/directives.journal
-@@ -29,3 +29,4 @@ account assets:cash             ; type: C
- account equity:conversion       ; type: V
- account equity:unrealised-gain  ; type: U
- account revenues:gain           ; type: G
-+commodity 1,000.00 ZAR  ; alias: R
+```ansi
+␛[32mM␛[0m  directives.journal
+␛[32mA␛[0m  import/2016-include.journal
+␛[32mM␛[0m  import/2026-include.journal
+␛[32mM␛[0m  import/all-years.journal
+␛[32mA␛[0m  import/gawie/2016-include.journal
+␛[32mM␛[0m  import/gawie/2026-include.journal
+␛[32mM␛[0m  import/gawie/all-years.journal
+␛[32mA␛[0m  import/gawie/kudu/2016-include.journal
+␛[32mM␛[0m  import/gawie/kudu/2026-include.journal
+␛[32mM␛[0m  import/gawie/kudu/all-years.journal
+␛[32mA␛[0m  import/gawie/kudu/creditcard/2016-include.journal
+␛[32mM␛[0m  import/gawie/kudu/creditcard/2026-include.journal
+␛[32mA␛[0m  import/gawie/kudu/creditcard/3-journal/2016/creditcard_2016-03-31.journal
+␛[32mD␛[0m  import/gawie/kudu/creditcard/3-journal/2026/hledger-flow-example.journal
+␛[32mM␛[0m  import/gawie/kudu/creditcard/all-years.journal
+␛[32mA␛[0m  import/gawie/kudu/creditcard/kudu-creditcard.rules
+␛[1mdiff --git a/directives.journal b/directives.journal␛[0m
+␛[1mindex f3d4e10..1806cb5 100644␛[0m
+␛[1m--- a/directives.journal␛[0m
+␛[1m+++ b/directives.journal␛[0m
+␛[36m@@ -29,3 +29,4 @@␛[0m ␛[0maccount assets:cash             ; type: C␛[0m
+ account equity:conversion       ; type: V␛[0m
+ account equity:unrealised-gain  ; type: U␛[0m
+ account revenues:gain           ; type: G␛[0m
+␛[32m+␛[0m␛[32mcommodity 1,000.00 ZAR  ; alias: R␛[0m
 ```
 
 The statement became an hledger journal in `3-journal/2016/`, with a

@@ -43,9 +43,10 @@ MASKS = [
     (re.compile(r"^  Cores .*$", re.M), "  Cores N"),
     # Init uses the current year for the example and starter journals.
     # Gawie's own statements are from 2016 and 2017.
-    (re.compile(r"\b20[2-9][0-9]\b"), "YEAR"),
+    # A Git diff may start the year immediately after a colour sequence.
+    (re.compile(r"(\b|␛\[[0-9;]*m)20[2-9][0-9]\b"), r"\1YEAR"),
     # Git's blob ids change with the example's year.
-    (re.compile(r"^index [0-9a-f]+\.\.[0-9a-f]+", re.M), "index BLOBS"),
+    (re.compile(r"(?<=index )[0-9a-f]+\.\.[0-9a-f]+"), "BLOBS"),
 ]
 
 
@@ -107,7 +108,8 @@ def main():
             language = "hledger" if match.group(3) == "hledger" else "text"
             if SGR.search(body):
                 language = "ansi"
-                body = SGR.sub(r"␛\1", body)
+                # Git's ESC[m means ESC[0m. The highlighter needs the explicit reset.
+                body = SGR.sub(r"␛\1", body.replace("\x1b[m", "\x1b[0m"))
             return f"```bash\n{match.group(1)}```{match.group(2)}```{language}\n{body}```"
 
         def saved(match):

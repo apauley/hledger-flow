@@ -192,7 +192,9 @@ HLEDGER=/path/to/hledger site/scripts/tutorial/update.sh
 `HLEDGER` must be the hledger version in `site/scripts/tutorial/hledger-version`,
 from [hledger's releases](https://github.com/hledgerorg/hledger/releases).
 The script also needs Python 3, `tree` and Git. It runs hledger-flow in a
-pseudo-terminal to capture its colours. Generated `ansi` blocks use the
+pseudo-terminal to capture its colours and enables Git's colours in the
+scratch repository so status and diff output keep their highlighting.
+Generated `ansi` blocks use the
 printable ␛ symbol for Escape, which the site decodes when highlighting them.
 It fails when a command shown on a
 page is missing from the part's script, or when an excerpt isn't in the
