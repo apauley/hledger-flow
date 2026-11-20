@@ -48,6 +48,18 @@ kbd,
   font-variation-settings: var(--mono-on);
 }
 
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('/fonts/jetbrains-mono-2.304/JetBrainsMono-Regular.woff2') format('woff2');
+  font-display: swap;
+}
+
+/* Keep letters, spaces and box-drawing strokes on the same terminal grid. */
+.expressive-code .report-table-row {
+  font-family: 'JetBrains Mono', monospace;
+  line-height: 1.2;
+}
+
 .sl-markdown-content :is(h1, h2, h3) {
   letter-spacing: -0.01em;
 }

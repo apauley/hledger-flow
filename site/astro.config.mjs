@@ -42,6 +42,11 @@ export default defineConfig({
                 line.editText(0, undefined, line.text.replace(/␛(?=\[[0-9;]*m)/g, '\x1b'));
               }
             },
+            postprocessRenderedLine({ codeBlock, line, renderData }) {
+              if (codeBlock.language === 'text' && /^[┌│├╞└].*[┐│┤╡┘]$/u.test(line.text)) {
+                renderData.lineAst.properties.className.push('report-table-row');
+              }
+            },
           },
         }],
       },
