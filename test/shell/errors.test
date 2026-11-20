@@ -3,6 +3,20 @@
 cd "$(mktemp -d "${TMPDIR:-/tmp}/hledger-flow.XXXXXXXX")"
 if hledger-flow import 2> err; then exit 1; fi
 grep -q '^hledger-flow: No hledger-flow ledger here or in any parent folder' err
-grep -q 'hledger-flow init' err
+grep -q '^      hledger-flow init --dry-run' err
+grep -Fq 'Then run `hledger-flow init`' err
 if grep -qi 'backtrace' err; then exit 1; fi
+$ sh -eu
+
+# An error displays paths under home with ~, including when HOME is a symlink.
+<
+case "$(uname -s)" in MINGW*|MSYS*) exit 0 ;; esac
+cd "$(mktemp -d "${TMPDIR:-/tmp}/hledger-flow.XXXXXXXX")"
+mkdir -p home/ledger home-other
+ln -s home alias
+export HOME="$PWD/alias"
+if hledger-flow status home/ledger 2> err; then exit 1; fi
+grep -Fq '(looked from ~/ledger)' err
+if hledger-flow status home-other 2> err; then exit 1; fi
+grep -Fq "(looked from $(pwd -P)/home-other)" err
 $ sh -eu

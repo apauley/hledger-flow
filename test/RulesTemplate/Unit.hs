@@ -40,6 +40,9 @@ tests =
       "template accounts" ~: fmap (T.isInfixOf "account1 assets:mybank:checking\n")
         (rulesTemplate "mybank" "checking" "x.csv" "Date,Desc,Amount\n")
         ~?= Right True,
+      "account suggestions are shell-friendly with and without a header" ~:
+        map (fmap (T.isInfixOf "account1 assets:My-Bank:cash-card\n") . rulesTemplate "My & Bank" "cash/$card" "x.csv")
+          ["Date,Desc,Amount\n", "2026-01-02,Coffee,-3.50\n"] ~?= [Right True, Right True],
       "template separator" ~: fmap (T.isInfixOf "separator ;\n")
         (rulesTemplate "b" "a" "x.csv" "Date;Desc;Amount\n")
         ~?= Right True,

@@ -33,6 +33,7 @@ import Options.Applicative
       optional,
       Alternative(many, (<|>)),
       Parser,
+      flag,
       flag',
       help,
       helpDoc,
@@ -48,16 +49,17 @@ import Options.Applicative.Builder.Internal (noGlobal)
 import System.Environment (getArgs)
 
 import Hledger.Flow.Types (BaseDir, RunDir, HledgerInfo (..))
-import Hledger.Flow.Common ( deferredHledgerVersion, findHledgerConf, hledgerPathFromOption, hledgerInfoFromPath )
+import Hledger.Flow.Common ( homeDirs, tildePath, deferredHledgerVersion, findHledgerConf, hledgerPathFromOption, hledgerInfoFromPath )
 import Hledger.Flow.Status ( Situation (..) )
 import Hledger.Flow.Status.Gather ( classifyDir )
 import Hledger.Flow.Status.Render ( printStatus )
 import qualified Data.Text as Text
 import Path.IO ( getCurrentDir, resolveDir' )
 import Hledger.Flow.HledgerConfig (ConfigUse (..), requireSafeConfig)
-import Hledger.Flow.Init ( runInit )
+import Hledger.Flow.Init ( InitMode (..), runInit )
 import Hledger.Flow.DocHelpers ( DocLink (..), docURL, siteURL )
 import Hledger.Flow.Logging ( useColor )
+import qualified Hledger.Flow.Logging as Log (bold, cyan)
 import Hledger.Flow.RulesTemplate ( rulesTemplateFor, runRules )
 import Data.Maybe (fromMaybe)
 import Hledger.Flow.Internals (availableCores, versionInfo, systemInfo)
@@ -69,7 +71,7 @@ import Hledger.Flow.Import.CSVImport ( importCSVs )
 
 import qualified Data.Text.IO as T
 import Control.Exception (SomeAsyncException (..), SomeException, catch, displayException, fromException, throwIO)
-import Hledger.Flow.PathHelpers (PathException (..), resolveExistingDir)
+import Hledger.Flow.PathHelpers (PathException (..), initAdvice, renderPathException, resolveExistingDir)
 import System.Exit (ExitCode (..), exitWith)
 import System.IO (hPutStrLn, hSetEncoding, stderr, stdout, utf8)
 import System.IO.Error (ioeGetErrorString, isUserError)
@@ -91,7 +93,7 @@ data StatusParams = StatusParams { statusDir :: Maybe FilePath
                                  , statusRulesTemplate :: Maybe String
                                  } deriving (Show)
 
-newtype InitParams = InitParams { initDir :: Maybe FilePath } deriving (Show)
+data InitParams = InitParams { initDir :: Maybe FilePath, initMode :: InitMode } deriving (Show)
 
 data Command = Import ImportParams | Report ReportParams | Status StatusParams | Rules String (Maybe FilePath) | Init InitParams deriving (Show)
 
@@ -125,14 +127,18 @@ reportFatal e
   | Just (code :: ExitCode) <- fromException e = throwIO code
   | Just (SomeAsyncException _) <- fromException e = throwIO e
   | otherwise = do
-      hPutStrLn stderr ("hledger-flow: " ++ fatalMessage e)
+      message <- fatalMessage e
+      hPutStrLn stderr ("hledger-flow: " ++ message)
       exitWith (ExitFailure 1)
 
-fatalMessage :: SomeException -> String
+fatalMessage :: SomeException -> IO String
 fatalMessage e
-  | Just (pe :: PathException) <- fromException e = show pe
-  | Just ioe <- fromException e, isUserError ioe = ioeGetErrorString ioe
-  | otherwise = displayException e
+  | Just (pe :: PathException) <- fromException e = do
+      homes <- homeDirs
+      colour <- useColor stderr
+      return (renderPathException (tildePath homes) (starterAdvice colour) pe)
+  | Just ioe <- fromException e, isUserError ioe = return (ioeGetErrorString ioe)
+  | otherwise = return (displayException e)
 
 runCommand :: IO ()
 runCommand = do
@@ -168,8 +174,8 @@ runCommand = do
     Command mainParams' (Just (Init subParams)) -> do
       cwd <- getCurrentDir
       dir <- maybe (return cwd) resolveDir' (initDir subParams)
-      runInit (hledgerPathOpt mainParams') (hledgerConfOpt mainParams') cwd dir
-    Command mainParams' Nothing -> runBare mainParams'
+      runInit (initMode subParams) (hledgerPathOpt mainParams') (hledgerConfOpt mainParams') cwd dir
+    Command mainParams' Nothing -> runBare colour mainParams'
 
 -- | (name, one-line description) of each command, in display order.
 commandSummaries :: [(String, String)]
@@ -184,13 +190,19 @@ commandSummaries =
 summaryOf :: String -> String
 summaryOf name = maybe "" id (lookup name commandSummaries)
 
-briefUsage :: Text.Text
-briefUsage =
-  "hledger-flow turns bank statements into hledger journals and reports.\n\nCommands:\n"
-    <> Text.concat ["  " <> Text.justifyLeft width ' ' (Text.pack name) <> "   " <> Text.pack desc <> "\n" | (name, desc) <- commandSummaries]
-    <> "\nRun `hledger-flow --help` for options and examples.\n"
+starterAdvice :: Bool -> Text.Text
+starterAdvice colour = initAdvice (Log.bold colour) (Log.cyan colour)
+
+briefUsage :: Bool -> Text.Text
+briefUsage colour =
+  "hledger-flow turns bank statements into hledger journals and reports.\n\n"
+    <> Log.bold colour "Commands:" <> "\n"
+    <> Text.concat (map row commandSummaries)
+    <> "\nRun `" <> Log.cyan colour "hledger-flow --help" <> "` for options and examples.\n"
   where
     width = maximum (map (length . fst) commandSummaries)
+    row (name, desc) = "  " <> Log.cyan colour (Text.pack name)
+      <> Text.replicate (width - length name + 3) " " <> Text.pack desc <> "\n"
 
 runStatus :: MainParams -> StatusParams -> IO ()
 runStatus mainParams' params = do
@@ -211,17 +223,17 @@ printInteractiveStatus params base = withCachedReleaseNotice base $
   printStatus (hledgerPathOpt params) (hledgerConfOpt params) False base
 
 -- | Running hledger-flow with no command: say where we are and what to do.
-runBare :: MainParams -> IO ()
-runBare mainParams' = do
+runBare :: Bool -> MainParams -> IO ()
+runBare colour mainParams' = do
   situation <- getCurrentDir >>= classifyDir
   case situation of
     InLedger base -> printInteractiveStatus mainParams' base
-    EmptyDir -> T.putStrLn "This folder is empty. Run `hledger-flow init` to start your ledger here."
+    EmptyDir -> T.putStrLn ("This folder is empty.\n" <> starterAdvice colour)
     Elsewhere ->
       T.putStr $
-        briefUsage
+        briefUsage colour
           <> "\nNo hledger-flow ledger here or in any parent folder.\n"
-          <> "Run `hledger-flow init` in an empty folder to start one.\n"
+          <> "To start one, change to an empty folder.\n" <> starterAdvice colour <> "\n"
 
 toRuntimeOptionsImport :: BaseDir -> RunDir -> MainParams -> ImportParams -> IO RT.RuntimeOptions
 toRuntimeOptionsImport bd runDir mainParams' subParams' = do
@@ -276,7 +288,7 @@ commandParser colour = optional $ hsubparser $
   subcommand "status" StatusCommand (Status <$> subcommandParserStatus)
     [ ("hledger-flow status --json", "The same status, for scripts and agents"),
       ("hledger-flow status --rules-template me/mybank/checking", "Print a starter rules file for one account") ]
-    <> subcommand "init" GettingStarted (Init . InitParams <$> optional (argument str (metavar "DIR" <> help "The folder for the new ledger, created if missing. Default: the current folder.")))
+    <> subcommand "init" GettingStarted (Init <$> subcommandParserInit)
     [ ("hledger-flow init ~/finances", "Start a ledger in ~/finances") ]
     <> subcommand "rules" RulesFiles
       (Rules <$> argument str (metavar "ACCOUNT" <> help "Account as owner/bank/account.")
@@ -322,6 +334,11 @@ topExamples colour = examplesDoc colour Docs
     ("hledger-flow report", "Generate reports"),
     ("hledger-flow status --json", "The same status, for scripts and agents")
   ]
+
+subcommandParserInit :: Parser InitParams
+subcommandParserInit = InitParams
+  <$> optional (argument str (metavar "DIR" <> help "The folder for the new ledger, created if missing. Default: the current folder."))
+  <*> flag WriteLedger DryRun (long "dry-run" <> help "Show which files would be created or kept, without writing anything.")
 
 subcommandParserStatus :: Parser StatusParams
 subcommandParserStatus = StatusParams

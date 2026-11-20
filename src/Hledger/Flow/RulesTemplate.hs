@@ -112,9 +112,19 @@ renderTemplate bank account path result = case result of
                "# Separate debit and credit columns? Name them amount-out and amount-in",
                "# in the fields line instead of amount.",
                "",
-               "account1 assets:" <> bank <> ":" <> account,
+               starterAccountRule bank account,
                "account2 expenses:unknown"
              ]
+
+-- Keep directory names on disk and make their suggested account usable as a shell argument.
+starterAccountRule :: T.Text -> T.Text -> T.Text
+starterAccountRule bank account = "account1 assets:" <> component "bank" bank <> ":" <> component "account" account
+  where
+    component fallback name = case filter (not . T.null) (T.split unsafe name) of
+      [] -> fallback
+      parts -> T.intercalate "-" parts
+    unsafe c = not (isAlphaNum c || c `elem` ("-_." :: String))
+
 separatorRule :: Char -> [T.Text]
 separatorRule sep = ["separator " <> (if sep == '\t' then "TAB" else T.singleton sep) | sep /= ',']
 
@@ -152,7 +162,7 @@ headerlessTemplate bank account path statement = case statementRows statement of
             ++ dateRule
             ++ ["# Rename the amount column to amount." | amountChoice == Nothing]
             ++ ["# Rename the payee column to description." | descriptionChoice == Nothing]
-            ++ ["", "account1 assets:" <> bank <> ":" <> account, "account2 expenses:unknown"]
+            ++ ["", starterAccountRule bank account, "account2 expenses:unknown"]
   where
     unique [one] = Just one
     unique _ = Nothing

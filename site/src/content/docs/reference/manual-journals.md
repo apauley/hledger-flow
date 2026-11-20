@@ -67,6 +67,7 @@ appear in the aggregate reports under `reports/all/<year>/`. If an owner is
 named `all` in any letter case, the aggregate reports go under
 `reports/_all_/<year>/`.
 
-`hledger-flow init` supplies commented examples at all four levels.
+`hledger-flow init` supplies manual journals at all four levels. Each starter explains its scope
+and where the yearly include reads it, followed by a commented example.
 Edit these files yourself and use `hledger-flow import --verbose` to see
 the paths import checks.

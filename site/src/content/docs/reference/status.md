@@ -15,9 +15,16 @@ than one commodity and has no market price directives. It points you to
 one [pair file](/reference/price-files/) per currency pair, included from
 the year’s `prices.journal`.
 Interactive status also shows a [cached upgrade notice](/reference/release-notices/) when a previous import or report found a newer release.
+Outside a ledger, the welcome screen highlights commands on colour terminals and shows
+the preview command under **Next**. Set `NO_COLOR=1` for plain text.
+
 `hledger-flow init` starts a ledger with a working example statement and
 rules, plus starter journals for [manual entries](/reference/manual-journals/),
 [opening and closing balances](/reference/balances/), directives and prices.
+To preview the files in a new ledger, run `hledger-flow init --dry-run` in the
+current folder or pass a destination, such as `hledger-flow init --dry-run ~/finances`.
+The preview lists each starter file it would create or keep. Run the same command
+without `--dry-run` to create the ledger and see which files were created or kept.
 The generated `directives.journal` defines common currencies, BTC and satoshis,
 and standard account types. It links to the hledger manual for each section.
 Commodity aliases take effect in hledger versions that support them.

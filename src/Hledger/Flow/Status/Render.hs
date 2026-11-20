@@ -8,9 +8,8 @@ module Hledger.Flow.Status.Render
     renderNext,
     renderEnvironment,
     statusJSON,
-    nextStepHere,
     printStatus,
-    printNext,
+    printStarterNext,
   )
 where
 
@@ -21,6 +20,7 @@ import qualified Data.Text.Lazy.IO as TL
 import Hledger.Flow.Common (findHledger, findHledgerConf, homeDirs, nativeShell, tildePath)
 import Hledger.Flow.DateTime (currentYear)
 import Hledger.Flow.Environment (coresSetting, environmentJSON, environmentSettings, renderSettings)
+import Hledger.Flow.HledgerConfig (findConfigConflicts)
 import Hledger.Flow.Internals (SystemInfo, systemInfo)
 import Hledger.Flow.Status.Gather (gatherStatusWithConfig)
 import Hledger.Flow.PathHelpers (AbsDir)
@@ -154,13 +154,6 @@ statusJSON sys conf cwd s next =
           "journalsOutdated" .= asJournalsOutdated a
         ]
 
--- | The next step for people to read with @homes@, or for scripts with @[]@ (no home abbreviation).
-nextStepHere :: [FilePath] -> LedgerStatus -> IO NextStep
-nextStepHere homes status = do
-  year <- currentYear
-  cwd <- getCurrentDir
-  return (nextStep year nativeShell homes cwd status)
-
 -- | The versions and paths status ran with, for bug reports. Paths under the home folder show as @~@.
 renderEnvironment :: Bool -> [FilePath] -> SystemInfo -> Maybe HledgerConf -> LedgerStatus -> T.Text
 renderEnvironment color homes sys conf s =
@@ -185,12 +178,16 @@ printStatus hledgerPath confOpt json base = do
       homes <- homeDirs
       T.putStr (renderStatus color homes status (next homes) <> renderEnvironment color homes sys conf status)
 
--- | Print only the next step for a ledger.
-printNext :: Maybe FilePath -> Maybe HledgerConf -> BaseDir -> IO ()
-printNext hledgerPath conf base = do
+-- | Init has just installed one sample statement. Its next step needs no ledger scan or cache.
+printStarterNext :: Maybe FilePath -> Maybe HledgerConf -> BaseDir -> IO ()
+printStarterNext hledgerPath conf base = do
   hledger <- findHledger hledgerPath
-  status <- gatherStatusWithConfig hledger conf base
-  homes <- homeDirs
-  next <- nextStepHere homes status
+  next <- case hledger of
+    Nothing -> return installHledgerStep
+    Just info -> do
+      conflicts <- findConfigConflicts info conf
+      homes <- homeDirs
+      cwd <- getCurrentDir
+      return (importStep conflicts 1 (flowCommand nativeShell homes cwd base conf "import" []))
   color <- useColor stdout
   T.putStr (renderNext color next)

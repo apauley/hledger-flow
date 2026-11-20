@@ -99,7 +99,13 @@ sampleRules = T.unlines
   ]
 
 exampleImportFiles :: RelDir -> Integer -> [(RelFile, T.Text)]
-exampleImportFiles starter year =
+exampleImportFiles = starterFiles CurrentStarter
+
+-- Status compares exact contents before suggesting that a user replace an untouched example.
+data StarterVersion = CurrentStarter | Starter0210
+
+starterFiles :: StarterVersion -> RelDir -> Integer -> [(RelFile, T.Text)]
+starterFiles version starter year =
   (exampleAccount starter </> rulesName, starterComment "# " sampleRules)
     : paths ((samplePath, sampleCsv year) : manualFiles ++ balanceFiles)
   where
@@ -110,49 +116,63 @@ exampleImportFiles starter year =
     samplePath = account F.</> "1-in" F.</> yearName F.</> toFilePath sampleName
     date day = T.pack yearName <> "-" <> day
     entry day description postings = (date day <> " " <> description) : map ("    " <>) postings
-    manual level phase help example =
+    manual level scope phase order previousHelp example =
       (level F.</> "_manual_" F.</> yearName F.</> (phase ++ "-import.journal"),
        journalExample ManualJournals help example)
+      where
+        help = case version of
+          CurrentStarter -> ["Record manual entries for " <> scope <> " here.",
+                             "The yearly include reads it " <> order <> "."]
+          Starter0210 -> previousHelp
     balance suffix help example =
       (account F.</> (yearName ++ "-" ++ suffix ++ ".journal"), journalExample Balances help example)
     manualFiles =
-      [ manual "" "pre" ["Record an entry shared across owners before their imported activity."]
+      [ manual "" "the whole ledger" "pre" "before the owners’ journals and the year’s prices"
+          ["Record an entry shared across owners before their imported activity."]
           (entry "01-01" "Fund the household cash box from my cash"
             ["assets:household:cash  150.00 USD", "assets:me:cash"]),
-        manual "" "post" ["Record a transfer between owners after reviewing both sets of statements."]
+        manual "" "the whole ledger" "post" "after the owners’ journals and the year’s prices"
+          ["Record a transfer between owners after reviewing both sets of statements."]
           (entry "01-02" "Reimburse partner for shared groceries"
             ["assets:partner:cash  35.00 USD", "assets:me:cash"]),
-        manual owner "pre" ["Fill a gap in a transfer between this owner's banks before their first statements."]
+        manual owner "this owner" "pre" "before the yearly journals for this owner’s banks"
+          ["Fill a gap in a transfer between this owner's banks before their first statements."]
           (entry "01-01" "Move savings to a new bank"
             ["assets:otherbank:savings  75.00 USD", "assets:mybank:checking"]),
-        manual owner "post" ["Record a transfer between this owner's banks after reviewing their statements."]
+        manual owner "this owner" "post" "after the yearly journals for this owner’s banks"
+          ["Record a transfer between this owner's banks after reviewing their statements."]
           (entry "01-02" "Move emergency savings back to checking"
             ["assets:mybank:checking  50.00 USD", "assets:otherbank:savings"]),
-        manual bank "pre" ["Record a transfer between accounts at this bank before their imported activity."]
+        manual bank "this bank" "pre" "before the yearly journals for this bank’s accounts"
+          ["Record a transfer between accounts at this bank before their imported activity."]
           (entry "01-01" "Move money from checking to savings"
             ["assets:mybank:savings  25.00 USD", "assets:mybank:checking"]),
-        manual bank "post" ["Fill in a transfer missing from both exports after reviewing this bank's statements."]
+        manual bank "this bank" "post" "after the yearly journals for this bank’s accounts"
+          ["Fill in a transfer missing from both exports after reviewing this bank's statements."]
           (entry "01-02" "Sweep savings into checking"
             ["assets:mybank:checking  12.00 USD", "assets:mybank:savings"]),
-        manual account "pre"
+        manual account "this account" "pre" "before the opening balance file and the statement journals"
           ["Fill a gap before this account's first statement.", "Put opening balances in the dedicated yearly opening file."]
           (entry "01-01" "Replace debit card"
             ["expenses:bank-fees  5.00 USD", "assets:mybank:checking"]),
-        manual account "post"
+        manual account "this account" "post" "after the statement journals and before the closing balance file"
           ["Assert this account's balance after its imported entries for the same day.",
            "Use the balance shown by your bank. Put closing balances in the dedicated yearly closing file."]
           (entry "01-02" "Check balance after the sample statement"
             ["assets:mybank:checking  0 USD = 0 USD"])
       ]
+    equityAccount = case version of
+      CurrentStarter -> "equity:opening-closing"
+      Starter0210 -> "equity:opening/closing balances"
     balanceFiles =
       [ balance "opening" ["Record what this account already held just before its first imported transaction."]
           (entry "01-01" "Checking opening balance"
-            ["assets:mybank:checking  100.00 USD", "equity:opening/closing balances"]),
+            ["assets:mybank:checking  100.00 USD", equityAccount]),
         balance "closing"
           ["Close this account's balance to zero when you deliberately close your books.",
            "This example assumes the starter opening balance and sample statement."]
           (entry "12-31" "Checking closing balance"
-            ["assets:mybank:checking  -100.00 USD = 0 USD", "equity:opening/closing balances"])
+            ["assets:mybank:checking  -100.00 USD = 0 USD", equityAccount])
       ]
 
 starterNotice :: T.Text
@@ -248,11 +268,15 @@ untouchedExample base [source]
                   let file = importRoot base </> relative,
                   isProperPrefixOf owner file, file /= source, file /= rules
               ]
+            previousStarters = [(importRoot base </> relative, contents) | (relative, contents) <- starterFiles Starter0210 starter year]
             allowed = [source, rules, journal] ++ map fst otherStarters ++ concatMap indexes [owner, bank, account]
             dirs = concatMap (takeWhile (isProperPrefixOf owner) . iterate parent . parent) allowed
             optionalStarter (file, contents) = do
               exists <- PathIO.doesFileExist file
-              if exists then matches file contents else pure True
+              if exists then do
+                actual <- B.readFile (toFilePath file)
+                return (actual == T.encodeUtf8 contents || Just actual == (T.encodeUtf8 <$> lookup file previousStarters))
+              else pure True
         cleanPath <- allM plainDir [importRoot base, owner]
         cleanContents <- if cleanPath then containsOnly dirs allowed owner else return False
         if cleanContents then do

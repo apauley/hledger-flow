@@ -39,9 +39,18 @@ case "$(uname -s)" in
     Darwin) run() { script -q /dev/null "$@"; } ;;
     *) run() { script -qec "$*" /dev/null; } ;;
 esac
+unset NO_COLOR
 esc=$(printf '\033')
 TERM=xterm run hledger-flow import --help | grep -q "$esc\[" || { echo "expected colour on a terminal"; exit 1; }
 if TERM=xterm NO_COLOR=1 run hledger-flow import --help | grep -q "$esc\["; then exit 1; fi
+cd "$(mktemp -d "${TMPDIR:-/tmp}/hledger-flow.XXXXXXXX")"
+touch notes
+TERM=xterm run hledger-flow > welcome
+grep -Fq "${esc}[1mCommands:" welcome
+grep -Fq "${esc}[96mstatus" welcome
+grep -Fq "${esc}[1mNext:" welcome
+grep -Fq "${esc}[96mhledger-flow init --dry-run" welcome
+if TERM=xterm NO_COLOR=1 run hledger-flow | grep -q "$esc\["; then exit 1; fi
 $ sh -eu
 
 # Reject mistyped start years before import can write any journals.

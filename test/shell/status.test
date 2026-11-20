@@ -3,7 +3,10 @@
 cd "$(mktemp -d "${TMPDIR:-/tmp}/hledger-flow.XXXXXXXX")"
 hledger-flow
 $ sh -eu
-This folder is empty. Run `hledger-flow init` to start your ledger here.
+This folder is empty.
+Next: Preview the starter files
+      hledger-flow init --dry-run
+Then run `hledger-flow init` to create them.
 
 # Bare invocation in an unrelated folder shows commands and writes nothing.
 <
@@ -11,6 +14,8 @@ cd "$(mktemp -d "${TMPDIR:-/tmp}/hledger-flow.XXXXXXXX")"
 touch notes.txt
 hledger-flow > ../out.$$
 grep -q '^Commands:' ../out.$$
+grep -q '^      hledger-flow init --dry-run' ../out.$$
+if grep -q "$(printf '\033')" ../out.$$; then exit 1; fi
 grep -q 'No hledger-flow ledger here or in any parent folder' ../out.$$
 rm ../out.$$
 test "$(ls)" = notes.txt
@@ -77,6 +82,38 @@ sed '/^Next:/,$d' ../deep > ../deep-status
 cmp ../top-status ../deep-status
 if grep -q 'Changing runDir' ../deep; then exit 1; fi
 test "$(hledger-flow status --json | jq -r .baseDir | tr -d '\r')" = "$(native_pwd)"
+$ sh -eu
+
+# init --dry-run lists exactly the files a real init creates, including in a missing directory.
+<
+cd "$(mktemp -d "${TMPDIR:-/tmp}/hledger-flow.XXXXXXXX")"
+unset LEDGER_FILE
+hledger-flow init --dry-run nested/ledger > preview
+test ! -e nested
+mkdir blocked
+touch blocked/prices
+if hledger-flow init blocked --dry-run 2> error; then exit 1; fi
+test "$(find blocked -mindepth 1)" = blocked/prices
+mkdir -p nested/ledger
+cd nested/ledger
+printf '; keep this file\n' > directives.journal
+hledger-flow init --dry-run > ../../existing
+tr -d '\r' < ../../existing | grep -Fxq 'Would keep existing directives.journal'
+test "$(find . -mindepth 1)" = ./directives.journal
+grep -Fxq '; keep this file' directives.journal
+printf '; A separate ledger\n' > ../../other.journal
+LEDGER_FILE=../../other.journal hledger-flow init > ../../created
+sed -n -e 's/^Would create /Created /p' -e 's/^Would keep existing /Kept existing /p' ../../existing > ../../expected
+grep -E '^(Created |Kept existing )' ../../created > ../../reported
+cmp ../../expected ../../reported
+find . -type f | sed 's|^\./||' | sort > ../../actual
+sed -n 's/^Would create //p' ../../preview | tr -d '\r' | tr '\\' '/' | sort > ../../planned
+cmp ../../planned ../../actual
+if hledger-flow init --dry-run 2> ../../error; then exit 1; fi
+grep -q 'already a hledger-flow ledger' ../../error
+if hledger-flow init import/nested --dry-run 2> ../../error; then exit 1; fi
+grep -q 'inside the ledger' ../../error
+test ! -e import/nested
 $ sh -eu
 
 # init starts a ledger with an example statement; a second init refuses.
@@ -177,6 +214,11 @@ for level in import import/me import/me/mybank "$account"; do
         file="$level/_manual_/$year/$phase-import.journal"
         grep -q 'https://hledger-flow.github.io/go/manual-journals/' "$file"
         grep -Fq 'This file is optional. If absent, hledger-flow omits it from the include files it maintains.' "$file"
+        grep -Fq '; Record manual entries for ' "$file"
+        case "$phase" in
+            pre) grep -Fq '; The yearly include reads it before ' "$file" ;;
+            post) grep -Fq '; The yearly include reads it after ' "$file" ;;
+        esac
         cp "$file" starter-example
         enable_example "$file"
         hledger --no-conf -f all-years.journal check
@@ -187,6 +229,7 @@ for phase in opening closing; do
     file="$account/$year-$phase.journal"
     grep -q 'https://hledger-flow.github.io/go/balances/' "$file"
     grep -Fq 'This file is optional. If absent, hledger-flow omits it from the include files it maintains.' "$file"
+    grep -Fq ';     equity:opening-closing' "$file"
     enable_example "$file"
 done
 hledger --no-conf -f all-years.journal check
@@ -228,7 +271,7 @@ unset LEDGER_FILE
 export USER=alex USERNAME=alex
 year=$(date +%Y)
 hledger-flow init > init.out
-grep -Fq 'Created an example account (import/alex/mybank/checking)' init.out
+grep -Fq 'Example account: import/alex/mybank/checking' init.out
 test -f "import/alex/mybank/checking/1-in/$year/hledger-flow-example.csv"
 hledger-flow import >/dev/null
 hledger-flow report >/dev/null
