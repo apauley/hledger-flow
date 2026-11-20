@@ -258,7 +258,7 @@ def write_opening(account_dir, currency, amount):
     (account_dir / f"{FIRST_YEAR}-opening.journal").write_text(
         f"{FIRST_YEAR}-01-01 Opening balance\n"
         f"    assets:examplebank:{account_dir.name}  {format(amount, 'f')} {currency}\n"
-        "    equity:opening/closing balances\n", encoding="utf-8")
+        "    equity:opening-closing\n", encoding="utf-8")
 
 
 class Account:

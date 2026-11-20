@@ -247,7 +247,7 @@ starter for the example account in [part 1](/tutorial/part-1/). Gawie saves the
 ```hledger title="import/gawie/bogart/cheque/2016-opening.journal"
 2016-03-01 Cheque account opening balance
     assets:bogart:cheque              40500.00 ZAR
-    equity:opening/closing balances
+    equity:opening-closing
 ```
 
 ```bash

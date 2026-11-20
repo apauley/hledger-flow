@@ -22,7 +22,7 @@ An opening balance may look something like this:
 
     2018-06-01 Savings Account Opening Balance
         assets:mybank:savings               $102.01
-        equity:opening/closing balances
+        equity:opening-closing
 
 ## A Note of Caution Regarding Closing Balances
 
@@ -47,7 +47,7 @@ A closing balance may look something like this:
 
     2018-06-01 Savings Account Closing Balance
         assets:mybank:savings               $-234.56 = $0.00
-        equity:opening/closing balances
+        equity:opening-closing
 
 ## Example Opening and Closing Journal Files
 

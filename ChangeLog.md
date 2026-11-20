@@ -35,6 +35,7 @@ How to keep this ChangeLog
 
 - `hledger-flow init --dry-run` lists the starter files it would create or keep. Running `init` lists what it created or kept. Outside a ledger, the CLI suggests previewing first and shows paths under your home folder with `~`.
 - On a colour terminal, the welcome screen highlights commands and gives the preview command its own line under **Next**.
+- Starter manual journals explain which entries belong at each level and where the yearly include reads them. Opening and closing balance examples use `equity:opening-closing`. Starter rules use shell-friendly account names when bank or account folders contain spaces or shell punctuation.
 
 ## 0.21.0
 

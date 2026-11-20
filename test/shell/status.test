@@ -214,6 +214,11 @@ for level in import import/me import/me/mybank "$account"; do
         file="$level/_manual_/$year/$phase-import.journal"
         grep -q 'https://hledger-flow.github.io/go/manual-journals/' "$file"
         grep -Fq 'This file is optional. If absent, hledger-flow omits it from the include files it maintains.' "$file"
+        grep -Fq '; Record manual entries for ' "$file"
+        case "$phase" in
+            pre) grep -Fq '; The yearly include reads it before ' "$file" ;;
+            post) grep -Fq '; The yearly include reads it after ' "$file" ;;
+        esac
         cp "$file" starter-example
         enable_example "$file"
         hledger --no-conf -f all-years.journal check
@@ -224,6 +229,7 @@ for phase in opening closing; do
     file="$account/$year-$phase.journal"
     grep -q 'https://hledger-flow.github.io/go/balances/' "$file"
     grep -Fq 'This file is optional. If absent, hledger-flow omits it from the include files it maintains.' "$file"
+    grep -Fq ';     equity:opening-closing' "$file"
     enable_example "$file"
 done
 hledger --no-conf -f all-years.journal check
