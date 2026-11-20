@@ -23,7 +23,20 @@ export default defineConfig({
       social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/apauley/hledger-flow' }],
       editLink: { baseUrl: 'https://github.com/apauley/hledger-flow/edit/master/site/' },
       customCss: ['@fontsource-variable/recursive/mono.css', './src/styles/tokens.css', './src/styles/docs.css'],
-      expressiveCode: { shiki: { langAlias: { hledger: 'txt', rules: 'txt' } } },
+      expressiveCode: {
+        shiki: { langAlias: { hledger: 'txt', rules: 'txt' } },
+        plugins: [{
+          name: 'Tutorial terminal output',
+          hooks: {
+            preprocessCode({ codeBlock }) {
+              if (codeBlock.language !== 'ansi') return;
+              for (const line of codeBlock.getLines()) {
+                line.editText(0, undefined, line.text.replace(/␛(?=\[[0-9;]*m)/g, '\x1b'));
+              }
+            },
+          },
+        }],
+      },
       plugins: [starlightLinksValidator({ errorOnLocalLinks: true })],
       sidebar: [
         { label: 'Quick start', link: '/quickstart/' },

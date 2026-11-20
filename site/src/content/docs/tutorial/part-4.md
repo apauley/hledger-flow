@@ -17,22 +17,22 @@ cp ../Downloads/Bogart/123456789_2016-0*.csv import/gawie/bogart/cheque/1-in/201
 hledger-flow status
 ```
 
-```text
-Ledger: ~/finances   (hledger 1.99.6-gc3a608c2b-20261101 found)
+```ansi
+␛[1mLedger: ␛[0m~/finances   (hledger 1.99.6-gc3a608c2b-20261101 found)
 
-  gawie/bogart/cheque     3 statements (2016)   ✗ no rules file
-  gawie/kudu/creditcard   3 statements (2016)   ✓ 3 journals
+  gawie/bogart/cheque     3 statements (2016)   ␛[91m✗ no rules file␛[0m
+  gawie/kudu/creditcard   3 statements (2016)   ␛[92m✓ 3 journals␛[0m
 
   To review:
     1 transfer account to check  reports/all/2016/transfer-balance.txt
     5 unknown transactions  reports/gawie/2016/unknown-transactions.txt
 
-Next: Create import/gawie/bogart/cheque/bogart-cheque.rules (rules for gawie/bogart/cheque)
+␛[1mNext:␛[0m Create import/gawie/bogart/cheque/bogart-cheque.rules (rules for gawie/bogart/cheque)
       Run: hledger-flow rules gawie/bogart/cheque
       It creates that file from the statement's columns, for you to edit.
       Docs: https://hledger-flow.github.io/go/rules-files/
 
-Environment:
+␛[1mEnvironment:␛[0m
   hledger-flow  0.21.0 (443ad42), ghc 9.10, darwin aarch64
   hledger       ~/bin/hledger  (1.99.6-gc3a608c2b-20261101)   --hledger-path
   hledger.conf  none                                          --hledger-conf

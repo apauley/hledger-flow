@@ -12,6 +12,7 @@ cp "$2" "$home/bin/hledger-flow"
 cp "$3" "$home/bin/hledger"
 ln -s "$(command -v tree)" "$home/bin/tree"
 ln -s "$(command -v git)" "$home/bin/git"
+ln -s "$(command -v python3)" "$home/bin/python3"
 cp -R "$repo/site/public/tutorial/Downloads" "$home/"
 
 # The same environment on every machine, so the output only depends on the
@@ -29,6 +30,11 @@ export GIT_CONFIG_GLOBAL=$home/.gitconfig GIT_CONFIG_NOSYSTEM=1
 printf '[init]\n\tdefaultBranch = main\n[color]\n\tui = never\n' > "$GIT_CONFIG_GLOBAL"
 unset LC_ALL LEDGER_FILE XDG_CONFIG_HOME GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE
 cd "$home"
+
+# Record the CLI's own terminal colours, including diagnostics on stderr.
+hledger-flow() {
+  TERM=xterm NO_COLOR= python3 -I "$here/terminal.py" "$home/bin/hledger-flow" "$@"
+}
 
 # c COMMAND: run a command the tutorial shows, and record its output.
 # Quote a command that has a glob, so it's recorded as the reader types it.

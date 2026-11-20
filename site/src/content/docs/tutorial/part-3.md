@@ -245,22 +245,22 @@ After a report, status also lists what to
 hledger-flow status
 ```
 
-```text
-Ledger: ~/finances   (hledger 1.99.6-gc3a608c2b-20261101 found)
+```ansi
+␛[1mLedger: ␛[0m~/finances   (hledger 1.99.6-gc3a608c2b-20261101 found)
 
-  gawie/kudu/creditcard   3 statements (2016)   ✓ 3 journals
+  gawie/kudu/creditcard   3 statements (2016)   ␛[92m✓ 3 journals␛[0m
 
   To review:
     1 transfer account to check  reports/all/2016/transfer-balance.txt
     5 unknown transactions  reports/gawie/2016/unknown-transactions.txt
 
-Next: Categorise 5 unknown transactions
+␛[1mNext:␛[0m Categorise 5 unknown transactions
       Review reports/gawie/2016/unknown-transactions.txt.
       Add if rules to the relevant account's rules file, then run: hledger-flow import
       Or start with transfers: reports/all/2016/transfer-balance.txt
       Docs: https://hledger-flow.github.io/go/review-unknown-transactions/
 
-Environment:
+␛[1mEnvironment:␛[0m
   hledger-flow  0.21.0 (443ad42), ghc 9.10, darwin aarch64
   hledger       ~/bin/hledger  (1.99.6-gc3a608c2b-20261101)   --hledger-path
   hledger.conf  none                                          --hledger-conf

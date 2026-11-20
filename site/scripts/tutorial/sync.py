@@ -2,7 +2,7 @@
 
 Usage: sync.py HOME_DIR RUN_OUTPUT [--check]
 
-- A ```text or ```hledger block right after a ```bash block becomes the
+- A ```text, ```ansi or ```hledger block right after a ```bash block becomes the
   output those commands printed in the run.
 - A block with title="PATH" becomes files/<part>/PATH, the file the reader
   saves in that part.
@@ -27,7 +27,8 @@ FILES = HERE / "files"
 PARTS = ["part-1.md", "part-2.md", "part-3.md", "part-4.md", "part-5.md", "part-6.md"]
 
 BLOCK = re.compile(r"```(\w*)([^\n]*)\n(.*?)```", re.S)
-PAIR = re.compile(r"```bash\n((?:(?!```).)*?)```(\s*)```(text|hledger)\n(.*?)```", re.S)
+PAIR = re.compile(r"```bash\n((?:(?!```).)*?)```(\s*)```(text|ansi|hledger)\n(.*?)```", re.S)
+SGR = re.compile(r"\x1b(\[[0-9;]*m)")
 TITLED = re.compile(r'```(\w+) title="([^"]+)"\n(.*?)```', re.S)
 VERSIONS = re.compile(r"```text\n\$ hledger-flow --version\n.*?```", re.S)
 
@@ -81,7 +82,7 @@ def main():
     run = tidy(pathlib.Path(run_path).read_text(), home)
     failures = [line for line in run.split("\n") if line.startswith("FAILED: ")]
     ran = commands(run)
-    known = "\n" + strip(run) + "\n" + "\n".join(
+    known = "\n" + strip(SGR.sub("", run)) + "\n" + "\n".join(
         strip(f.read_text()) for root in (FILES, DOWNLOADS) for f in sorted(root.rglob("*")) if f.is_file()) + "\n"
 
     cursor = 0
@@ -103,7 +104,11 @@ def main():
                 else:
                     failures.append(f"{name}: the run has no command {command!r} at this point. Update {name[:6].replace('-', '')}.sh.")
             body = "\n".join(shown) + "\n"
-            return f"```bash\n{match.group(1)}```{match.group(2)}```{match.group(3)}\n{body}```"
+            language = "hledger" if match.group(3) == "hledger" else "text"
+            if SGR.search(body):
+                language = "ansi"
+                body = SGR.sub(r"␛\1", body)
+            return f"```bash\n{match.group(1)}```{match.group(2)}```{language}\n{body}```"
 
         def saved(match):
             source = FILES / name[:6].replace("-", "") / match.group(2)

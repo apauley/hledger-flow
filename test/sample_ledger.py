@@ -132,6 +132,11 @@ class ConversionTests(Workspace):
 class GeneratorCliTests(Workspace):
     def setUp(self):
         super().setUp()
+        # Keep the default destinations outside the home used for ~ abbreviations,
+        # even when Windows puts its temporary directory under the user profile.
+        home = self.root / "home"
+        home.mkdir()
+        os.environ.update(HOME=str(home), USERPROFILE=str(home))
         self.script = self.root / "download.py"
         shutil.copyfile(SCRIPT, self.script)
 

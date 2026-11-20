@@ -9,8 +9,6 @@ This is the first part of a [six-part tutorial](/tutorial/).
 
 Meet Gawie de Groot. Gawie is a successful [mopane worm](https://en.wikipedia.org/wiki/Gonimbrasia_belina#As_food) chef, based in the northernmost section of the [Kruger National Park](https://en.wikipedia.org/wiki/Kruger_National_Park).
 
-![](./img/mopane-worm-meal.jpg)
-
 In times gone by he used to work in a big city as an IT professional.
 But after a few years he decided to choose a quieter life in the bushveld.
 
@@ -32,23 +30,23 @@ says:
 hledger-flow
 ```
 
-```text
+```ansi
 hledger-flow turns bank statements into hledger journals and reports.
 
-Commands:
-  status   Show what's in your ledger and what to do next
-  init     Start a new ledger in a folder
-  rules    Create a starter rules file for an account
-  import   Turn statements into journals
-  report   Generate reports from your journals
+␛[1mCommands:␛[0m
+  ␛[96mstatus␛[0m   Show what's in your ledger and what to do next
+  ␛[96minit␛[0m     Start a new ledger in a folder
+  ␛[96mrules␛[0m    Create a starter rules file for an account
+  ␛[96mimport␛[0m   Turn statements into journals
+  ␛[96mreport␛[0m   Generate reports from your journals
 
-Run `hledger-flow --help` for options and examples.
+Run `␛[96mhledger-flow --help␛[0m` for options and examples.
 
 No hledger-flow ledger here or in any parent folder.
 To start one, change to an empty folder.
-Next: Preview the starter files
-      hledger-flow init --dry-run
-Then run `hledger-flow init` to create them.
+␛[1mNext:␛[0m Preview the starter files
+      ␛[96mhledger-flow init --dry-run␛[0m
+Then run `␛[96mhledger-flow init␛[0m` to create them.
 ```
 
 He makes a folder for his finances. His IT years taught him to keep
@@ -63,7 +61,7 @@ git init -q
 hledger-flow init
 ```
 
-```text
+```ansi
 Started a ledger in ~/finances
 Example account: import/gawie/mybank/checking
 Created directives.journal
@@ -83,7 +81,7 @@ Created import/gawie/mybank/checking/_manual_/2026/post-import.journal
 Created import/gawie/mybank/checking/2026-opening.journal
 Created import/gawie/mybank/checking/2026-closing.journal
 
-Next: Import 1 new or changed statement
+␛[1mNext:␛[0m Import 1 new or changed statement
       Run: hledger-flow import
 ```
 
@@ -248,17 +246,17 @@ hledger-flow status
 git status --short
 ```
 
-```text
-Ledger: ~/finances   (hledger 1.99.6-gc3a608c2b-20261101 found)
+```ansi
+␛[1mLedger: ␛[0m~/finances   (hledger 1.99.6-gc3a608c2b-20261101 found)
 
-  gawie/mybank/checking   1 statement (2026)   ✓ 1 journal
+  gawie/mybank/checking   1 statement (2026)   ␛[92m✓ 1 journal␛[0m
 
   Note: LEDGER_FILE isn't set, so hledger won't find this ledger by default.
         hledger-flow report uses all-years.journal.
         For hledger, run: export LEDGER_FILE="$HOME/finances/all-years.journal"
         Or try: hledger -f "$HOME/finances/all-years.journal" balance
 
-Next: Adapt the example account to your ledger
+␛[1mNext:␛[0m Adapt the example account to your ledger
       Rename the owner, bank and account folders in import/gawie/mybank/checking to match your ledger.
       Replace the sample CSV under 1-in/ with your statement in the folder for its year.
       Replace the sample rules with your own <bank>-<account>.rules in the account folder.
@@ -266,7 +264,7 @@ Next: Adapt the example account to your ledger
       Then run hledger-flow import and hledger-flow report.
       Docs: https://hledger-flow.github.io/go/input-files/
 
-Environment:
+␛[1mEnvironment:␛[0m
   hledger-flow  0.21.0 (443ad42), ghc 9.10, darwin aarch64
   hledger       ~/bin/hledger  (1.99.6-gc3a608c2b-20261101)   --hledger-path
   hledger.conf  none                                          --hledger-conf
@@ -320,22 +318,22 @@ cp ../Downloads/Kudu/creditcard_2016-03-31.csv import/gawie/kudu/creditcard/1-in
 hledger-flow status
 ```
 
-```text
-Ledger: ~/finances   (hledger 1.99.6-gc3a608c2b-20261101 found)
+```ansi
+␛[1mLedger: ␛[0m~/finances   (hledger 1.99.6-gc3a608c2b-20261101 found)
 
-  gawie/kudu/creditcard   1 statement (2016)   ✗ no rules file
+  gawie/kudu/creditcard   1 statement (2016)   ␛[91m✗ no rules file␛[0m
 
   Note: LEDGER_FILE isn't set, so hledger won't find this ledger by default.
         hledger-flow report uses all-years.journal.
         For hledger, run: export LEDGER_FILE="$HOME/finances/all-years.journal"
         Or try: hledger -f "$HOME/finances/all-years.journal" balance
 
-Next: Create import/gawie/kudu/creditcard/kudu-creditcard.rules (rules for gawie/kudu/creditcard)
+␛[1mNext:␛[0m Create import/gawie/kudu/creditcard/kudu-creditcard.rules (rules for gawie/kudu/creditcard)
       Run: hledger-flow rules gawie/kudu/creditcard
       It creates that file from the statement's columns, for you to edit.
       Docs: https://hledger-flow.github.io/go/rules-files/
 
-Environment:
+␛[1mEnvironment:␛[0m
   hledger-flow  0.21.0 (443ad42), ghc 9.10, darwin aarch64
   hledger       ~/bin/hledger  (1.99.6-gc3a608c2b-20261101)   --hledger-path
   hledger.conf  none                                          --hledger-conf
