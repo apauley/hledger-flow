@@ -131,8 +131,8 @@ Imported 1 statement for gawie/mybank/checking.
 
 The CSV rules can read the sample statement as it is, so the import goes
 straight from `1-in/` to `3-journal/`. [Part 5](/tutorial/part-5/) shows
-the optional step in between, where a `preprocess` script adds missing
-years to the dates and the resulting CSV goes in `2-preprocessed/`.
+the optional step in between. A `preprocess` script handles cleanup that
+CSV rules can’t do, and the cleaned CSV goes in `2-preprocessed/`.
 
 ```bash
 git add -A
