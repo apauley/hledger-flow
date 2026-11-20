@@ -33,7 +33,11 @@ Skip ahead to [import your first statement](#import-your-first-statement).
 
 ## Download a release
 
-Get the archive for your computer from the [official releases](https://github.com/apauley/hledger-flow/releases).
+On Linux and macOS, choose the command for your processor on the [release page](https://github.com/apauley/hledger-flow/releases/latest).
+Run it in an empty folder to download the archive, extract it and print the version,
+then copy `hledger-flow` to a directory on your PATH.
+
+For a manual download, choose the archive for your computer from the [official releases](https://github.com/apauley/hledger-flow/releases).
 
 | System | Archive |
 | --- | --- |
@@ -58,8 +62,7 @@ gh attestation verify hledger-flow-linux-x64.tar.gz -R apauley/hledger-flow
 Extract the archive for your processor. On x86-64, run:
 
 ```sh
-tar -xzf hledger-flow-linux-x64.tar.gz
-./hledger-flow --version
+tar -xzf hledger-flow-linux-x64.tar.gz && ./hledger-flow --version
 ```
 
 On ARM64, use `hledger-flow-linux-arm64.tar.gz`. Copy the extracted
@@ -67,16 +70,11 @@ On ARM64, use `hledger-flow-linux-arm64.tar.gz`. Copy the extracted
 
 ## Install on macOS
 
-Extract and run the download from your terminal, not Finder. `hledger-flow`
-is a command-line program, not an app bundle. If you open it from Finder,
-macOS refuses it with "Apple could not verify", even though it is signed with
-a Developer ID and notarized.
-
-On a Mac with Apple silicon, run this in the folder you downloaded to:
+Use Terminal to avoid Finder’s “Apple could not verify” message. On a Mac
+with Apple silicon, run this in the download folder:
 
 ```sh
-tar -xzf hledger-flow-macos-arm64.tar.gz
-./hledger-flow --version
+tar -xzf hledger-flow-macos-arm64.tar.gz && ./hledger-flow --version
 ```
 
 On an Intel Mac, use `hledger-flow-macos-x64.tar.gz`. If macOS asks whether

@@ -60,9 +60,10 @@ cmd_changelog_section() {
 }
 
 release_notes() {
-  cat .github/release-notice.md
-  echo
-  notes "$@"
+  local v=${1:-$(version)}
+  sed "s/@VERSION@/$v/g" .github/release-notice.md
+  printf '\n## What’s changed\n\n'
+  notes "$v"
 }
 
 clean_master() {

@@ -273,7 +273,7 @@ gh attestation verify ARCHIVE -R apauley/hledger-flow --deny-self-hosted-runners
 
 CI enforces the same ChangeLog check: the tag's `release` job fails if the tag,
 `package.yaml`, and `ChangeLog.md` disagree. The GitHub release notes are
-the macOS download notice in `.github/release-notice.md` followed by the
+the download instructions in `.github/release-notice.md` followed by the
 ChangeLog section (`bin/release notes`).
 
 A failed `Notarize` job is reported as a warning and does not block the
