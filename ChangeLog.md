@@ -31,6 +31,10 @@ How to keep this ChangeLog
   existing destination belongs in release-procedure.md.
 -->
 
+## Unreleased
+
+- `hledger-flow init --dry-run` lists the starter files it would create or keep at the destination.
+
 ## 0.21.0
 
 - `import` moves orphaned generated files to `.hledger-flow/trash/` at the ledger root instead of each account's `.trash` folder, keeping their path from the root. The trash has its own `.gitignore`. Recover what you need from existing account `.trash` folders, then delete them and any `.trash/` line in your `.gitignore`. See [generated files and recovery](https://hledger-flow.github.io/reference/input-files/#generated-files-and-recovery).

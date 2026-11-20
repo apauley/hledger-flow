@@ -3,13 +3,14 @@
 
 -- | Start a new ledger.
 module Hledger.Flow.Init
-  ( InitOutcome (..),
+  ( InitMode (..),
+    InitOutcome (..),
     initLedger,
     runInit,
   )
 where
 
-import Control.Monad (forM, when)
+import Control.Monad (forM, unless, when)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import Hledger.Flow.BaseDir (findBaseDir)
@@ -17,17 +18,21 @@ import Data.Maybe (fromMaybe)
 import Hledger.Flow.Common (Shell (..), findHledgerConf, homeDirs, homeShellPath, nativeShell, shellArgument, tildePath)
 import Hledger.Flow.DateTime (currentYear)
 import Hledger.Flow.Init.Example (exampleAccount, exampleAccountPath, exampleBaseFiles, exampleImportFiles, starterOwner)
-import Hledger.Flow.PathHelpers (AbsDir, RelDir, RelFile, pathOccupied, writeNewUtf8File)
+import Hledger.Flow.PathHelpers (AbsDir, AbsFile, RelDir, RelFile, pathOccupied, writeNewUtf8File)
 import Hledger.Flow.Status.Render (printNext)
 import Hledger.Flow.Types (BaseDir)
 import Path
-import Path.IO (createDirIfMissing, doesDirExist, doesFileExist, renameDir, withTempDir)
+import Path.IO (doesDirExist, doesFileExist, renameDir, withTempDir)
 import System.IO.Error (tryIOError)
 import qualified System.FilePath as FilePath
+
+data InitMode = WriteLedger | DryRun deriving (Eq, Show)
 
 data InitOutcome
   = -- | The new ledger, and an unrelated ledger above it, if any.
     Created BaseDir (Maybe BaseDir) RelDir [(RelFile, Bool)]
+  | -- | Starter paths relative to the destination, marked True if new.
+    Preview [(RelFile, Bool)]
   | -- | The folder already has @import/@.
     AlreadyLedger BaseDir
   | -- | The folder is inside this ledger's @import/@ tree.
@@ -35,8 +40,8 @@ data InitOutcome
   deriving (Eq, Show)
 
 -- | Create @DIR/import/@ unless that would nest inside another ledger.
-initLedger :: AbsDir -> IO InitOutcome
-initLedger dir = do
+initLedger :: InitMode -> AbsDir -> IO InitOutcome
+initLedger mode dir = do
   hasImport <- doesDirExist (dir </> [reldir|import|])
   if hasImport
     then return (AlreadyLedger dir)
@@ -47,36 +52,58 @@ initLedger dir = do
         _ -> do
           year <- currentYear
           owner <- starterOwner
-          createDirIfMissing True dir
+          let importDir = [reldir|import|]
+              imports = exampleImportFiles owner year
+          occupiedImport <- pathOccupied (dir </> importDir)
+          when occupiedImport $ ioError (userError ("Cannot create import directory at " ++ toFilePath (dir </> importDir)))
           baseFiles <- forM (exampleBaseFiles year) $ \(name, contents) -> do
-            let target = dir </> name
-            occupied <- pathOccupied target
-            if occupied
-              then do
-                isFile <- doesFileExist target
-                if isFile
-                  then return (name, False)
-                  else ioError (userError ("Cannot create starter file at " ++ toFilePath target))
-              else do
-                result <- tryIOError (writeNewUtf8File target contents)
-                case result of
-                  Right () -> return (name, True)
-                  Left err -> do
-                    exists <- doesFileExist target
-                    if exists then return (name, False) else ioError err
-          withTempDir dir ".hledger-flow-init-" $ \temp -> do
-            let staged = temp </> [reldir|import|]
-            mapM_ (\(name, contents) -> writeNewUtf8File (staged </> name) contents) (exampleImportFiles owner year)
-            renameDir staged (dir </> [reldir|import|])
-          return (Created dir above (exampleAccount owner) baseFiles)
+            created <- initBaseFile mode (dir </> name) contents
+            return (name, created)
+          case mode of
+            DryRun -> return (Preview (baseFiles ++ [(importDir </> name, True) | (name, _) <- imports]))
+            WriteLedger -> do
+              withTempDir dir ".hledger-flow-init-" $ \temp -> do
+                let staged = temp </> importDir
+                mapM_ (\(name, contents) -> writeNewUtf8File (staged </> name) contents) imports
+                renameDir staged (dir </> importDir)
+              return (Created dir above (exampleAccount owner) baseFiles)
+
+-- | Whether this run creates (or would create) a starter file outside import/.
+initBaseFile :: InitMode -> AbsFile -> T.Text -> IO Bool
+initBaseFile mode target contents = do
+  checkDirectory (parent target)
+  occupied <- pathOccupied target
+  if occupied
+    then do
+      isFile <- doesFileExist target
+      unless isFile $ ioError (userError ("Cannot create starter file at " ++ toFilePath target))
+      return False
+    else case mode of
+      DryRun -> return True
+      WriteLedger -> do
+        result <- tryIOError (writeNewUtf8File target contents)
+        case result of
+          Right () -> return True
+          Left err -> do
+            exists <- doesFileExist target
+            if exists then return False else ioError err
+
+-- A missing directory can be created only if its nearest existing ancestor is a directory.
+checkDirectory :: AbsDir -> IO ()
+checkDirectory dir = do
+  exists <- doesDirExist dir
+  unless exists $ do
+    occupied <- pathOccupied dir
+    when occupied $ ioError (userError ("Cannot create directory at " ++ toFilePath dir))
+    when (parent dir /= dir) $ checkDirectory (parent dir)
 
 -- | Run @hledger-flow init@ for a folder, printing what happened and what's next.
-runInit :: Maybe FilePath -> Maybe FilePath -> AbsDir -> AbsDir -> IO ()
-runInit hledgerPath confOption cwd dir = do
+runInit :: InitMode -> Maybe FilePath -> Maybe FilePath -> AbsDir -> AbsDir -> IO ()
+runInit mode hledgerPath confOption cwd dir = do
   homes <- homeDirs
   let absolute = FilePath.dropTrailingPathSeparator . toFilePath
       shown = T.pack . tildePath homes . absolute
-  outcome <- initLedger dir
+  outcome <- initLedger mode dir
   case outcome of
     AlreadyLedger b ->
       ioError . userError . T.unpack $
@@ -84,6 +111,9 @@ runInit hledgerPath confOption cwd dir = do
     InsideLedger b ->
       ioError . userError . T.unpack $
         "That folder is inside the ledger at " <> shown b <> ". Start a new ledger outside its import/ folder."
+    Preview files -> do
+      T.putStrLn ("Dry run for " <> shown dir)
+      mapM_ (\(name, new) -> T.putStrLn ((if new then "Would create " else "Would keep existing ") <> T.pack (toFilePath name))) files
     Created base parentLedger account baseFiles -> do
       T.putStrLn ("Started a ledger in " <> shown base)
       T.putStrLn ("Created an example account (" <> exampleAccountPath account <> ") and starter journals for manual entries and balances.")

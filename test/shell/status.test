@@ -79,6 +79,34 @@ if grep -q 'Changing runDir' ../deep; then exit 1; fi
 test "$(hledger-flow status --json | jq -r .baseDir | tr -d '\r')" = "$(native_pwd)"
 $ sh -eu
 
+# init --dry-run lists exactly the files a real init creates, including in a missing directory.
+<
+cd "$(mktemp -d "${TMPDIR:-/tmp}/hledger-flow.XXXXXXXX")"
+unset LEDGER_FILE
+hledger-flow init --dry-run nested/ledger > preview
+test ! -e nested
+mkdir blocked
+touch blocked/prices
+if hledger-flow init blocked --dry-run 2> error; then exit 1; fi
+test "$(find blocked -mindepth 1)" = blocked/prices
+mkdir -p nested/ledger
+cd nested/ledger
+printf '; keep this file\n' > directives.journal
+hledger-flow init --dry-run > ../../existing
+tr -d '\r' < ../../existing | grep -Fxq 'Would keep existing directives.journal'
+test "$(find . -mindepth 1)" = ./directives.journal
+grep -Fxq '; keep this file' directives.journal
+hledger-flow init >/dev/null
+find . -type f | sed 's|^\./||' | sort > ../../actual
+sed -n 's/^Would create //p' ../../preview | tr -d '\r' | tr '\\' '/' | sort > ../../planned
+cmp ../../planned ../../actual
+if hledger-flow init --dry-run 2> ../../error; then exit 1; fi
+grep -q 'already a hledger-flow ledger' ../../error
+if hledger-flow init import/nested --dry-run 2> ../../error; then exit 1; fi
+grep -q 'inside the ledger' ../../error
+test ! -e import/nested
+$ sh -eu
+
 # init starts a ledger with an example statement; a second init refuses.
 <
 cd "$(mktemp -d "${TMPDIR:-/tmp}/hledger-flow.XXXXXXXX")"

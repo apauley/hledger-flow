@@ -18,6 +18,9 @@ Interactive status also shows a [cached upgrade notice](/reference/release-notic
 `hledger-flow init` starts a ledger with a working example statement and
 rules, plus starter journals for [manual entries](/reference/manual-journals/),
 [opening and closing balances](/reference/balances/), directives and prices.
+To preview the files in a new ledger, run `hledger-flow init --dry-run` in the
+current folder or pass a destination, such as `hledger-flow init --dry-run ~/finances`.
+The preview lists each file it would create or keep, without creating any files or directories.
 The generated `directives.journal` defines common currencies, BTC and satoshis,
 and standard account types. It links to the hledger manual for each section.
 Commodity aliases take effect in hledger versions that support them.

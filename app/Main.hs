@@ -33,6 +33,7 @@ import Options.Applicative
       optional,
       Alternative(many, (<|>)),
       Parser,
+      flag,
       flag',
       help,
       helpDoc,
@@ -55,7 +56,7 @@ import Hledger.Flow.Status.Render ( printStatus )
 import qualified Data.Text as Text
 import Path.IO ( getCurrentDir, resolveDir' )
 import Hledger.Flow.HledgerConfig (ConfigUse (..), requireSafeConfig)
-import Hledger.Flow.Init ( runInit )
+import Hledger.Flow.Init ( InitMode (..), runInit )
 import Hledger.Flow.DocHelpers ( DocLink (..), docURL, siteURL )
 import Hledger.Flow.Logging ( useColor )
 import Hledger.Flow.RulesTemplate ( rulesTemplateFor, runRules )
@@ -91,7 +92,7 @@ data StatusParams = StatusParams { statusDir :: Maybe FilePath
                                  , statusRulesTemplate :: Maybe String
                                  } deriving (Show)
 
-newtype InitParams = InitParams { initDir :: Maybe FilePath } deriving (Show)
+data InitParams = InitParams { initDir :: Maybe FilePath, initMode :: InitMode } deriving (Show)
 
 data Command = Import ImportParams | Report ReportParams | Status StatusParams | Rules String (Maybe FilePath) | Init InitParams deriving (Show)
 
@@ -168,7 +169,7 @@ runCommand = do
     Command mainParams' (Just (Init subParams)) -> do
       cwd <- getCurrentDir
       dir <- maybe (return cwd) resolveDir' (initDir subParams)
-      runInit (hledgerPathOpt mainParams') (hledgerConfOpt mainParams') cwd dir
+      runInit (initMode subParams) (hledgerPathOpt mainParams') (hledgerConfOpt mainParams') cwd dir
     Command mainParams' Nothing -> runBare mainParams'
 
 -- | (name, one-line description) of each command, in display order.
@@ -276,7 +277,7 @@ commandParser colour = optional $ hsubparser $
   subcommand "status" StatusCommand (Status <$> subcommandParserStatus)
     [ ("hledger-flow status --json", "The same status, for scripts and agents"),
       ("hledger-flow status --rules-template me/mybank/checking", "Print a starter rules file for one account") ]
-    <> subcommand "init" GettingStarted (Init . InitParams <$> optional (argument str (metavar "DIR" <> help "The folder for the new ledger, created if missing. Default: the current folder.")))
+    <> subcommand "init" GettingStarted (Init <$> subcommandParserInit)
     [ ("hledger-flow init ~/finances", "Start a ledger in ~/finances") ]
     <> subcommand "rules" RulesFiles
       (Rules <$> argument str (metavar "ACCOUNT" <> help "Account as owner/bank/account.")
@@ -322,6 +323,11 @@ topExamples colour = examplesDoc colour Docs
     ("hledger-flow report", "Generate reports"),
     ("hledger-flow status --json", "The same status, for scripts and agents")
   ]
+
+subcommandParserInit :: Parser InitParams
+subcommandParserInit = InitParams
+  <$> optional (argument str (metavar "DIR" <> help "The folder for the new ledger, created if missing. Default: the current folder."))
+  <*> flag WriteLedger DryRun (long "dry-run" <> help "Show which files would be created or kept, without writing anything.")
 
 subcommandParserStatus :: Parser StatusParams
 subcommandParserStatus = StatusParams
