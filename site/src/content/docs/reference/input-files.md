@@ -55,9 +55,10 @@ company, for your personal accounts and for both together. You can create an
 owner folder in advance. Reporting skips that owner until import creates its
 `all-years.journal`.
 
-Within each account, `1-in/` holds your originals, `2-preprocessed/` holds
-any CSVs written by a preprocess script, and `3-journal/` holds the journals.
-All three use the same year and filename stem.
+Within each account, `1-in/` holds your original statements and `3-journal/`
+holds the generated journals. If you use a [preprocess script](/reference/preprocess/),
+its CSV goes in `2-preprocessed/` before the journal is built. Each file
+keeps the original statement’s year and filename stem.
 
 Keep the filenames your bank provides. For example, `April [1].csv`
 and `April 1.csv` can sit in the same year directory. Import treats the

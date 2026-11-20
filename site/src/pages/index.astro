@@ -28,7 +28,7 @@ const tree = [
   { path: '    mybank/', note: 'Bank' },
   { path: '      checking/', note: 'Account' },
   { path: '        1-in/2025/2025-03.csv', note: 'The statement, as downloaded', href: '/go/input-files/' },
-  { path: '        preprocess', note: 'Optional: clean the CSV before the rules run', href: '/go/preprocess-script/' },
+  { path: '        preprocess', note: 'Optional script. Its cleaned CSV goes in 2-preprocessed/', href: '/go/preprocess-script/' },
   { path: '        3-journal/2025/2025-03.journal', note: 'One journal per statement', made: true },
   { path: '        2025-include.journal', note: 'Includes for the year, at every level', made: true },
 ];
@@ -147,7 +147,10 @@ if City Rail
               $62.50</pre>
             </li>
           </ol>
-          <figcaption id="sheet-caption">One March purchase, from the downloaded CSV through the generated includes to an expense report.</figcaption>
+          <figcaption id="sheet-caption">
+            One March purchase, from the downloaded CSV through the generated includes to an expense report.
+            The rules can read this CSV directly, so this example skips <code>2-preprocessed/</code>.
+          </figcaption>
         </figure>
       </section>
 
